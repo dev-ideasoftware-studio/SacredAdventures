@@ -1,0 +1,2064 @@
+--- Component.NewJournal.html	2026-04-30 01:53:04
++++ journalnewsource.html	2026-04-30 01:46:56
+-    <link rel="stylesheet" href="vendor/fa/all.min.css">
+-    <link href="vendor/fonts/google-fonts.css" rel="stylesheet" />
+-
+-    <!-- THREE.js for the 3D Background Engine (local vendor) -->
+-    <script src="vendor/three/three.r128.min.js"></script>
+-
+-    <!-- Compiled Tailwind utilities (replaces cdn.tailwindcss.com) -->
+-    <style>
+-        /* Layout */
+-        .flex {
+-            display: flex;
+-        }
+-
+-        .inline-flex {
+-            display: inline-flex;
+-        }
+-
+-        .hidden {
+-            display: none;
+-        }
+-
+-        .relative {
+-            position: relative;
+-        }
+-
+-        .absolute {
+-            position: absolute;
+-        }
+-
+-        .items-center {
+-            align-items: center;
+-        }
+-
+-        .justify-center {
+-            justify-content: center;
+-        }
+-
+-        .flex-grow {
+-            flex-grow: 1;
+-        }
+-
+-        .flex-shrink-0,
+-        .shrink-0 {
+-            flex-shrink: 0;
+-        }
+-
+-        .w-full {
+-            width: 100%;
+-        }
+-
+-        .h-full {
+-            height: 100%;
+-        }
+-
+-        .overflow-hidden {
+-            overflow: hidden;
+-        }
+-
+-        .text-center {
+-            text-align: center;
+-        }
+-
+-        /* Spacing */
+-        .gap-1 {
+-            gap: 0.25rem;
+-        }
+-
+-        .gap-2 {
+-            gap: 0.5rem;
+-        }
+-
+-        .gap-4 {
+-            gap: 1rem;
+-        }
+-
+-        .mt-2 {
+-            margin-top: 0.5rem;
+-        }
+-
+-        .mt-4 {
+-            margin-top: 1rem;
+-        }
+-
+-        .mb-2 {
+-            margin-bottom: 0.5rem;
+-        }
+-
+-        .mb-3 {
+-            margin-bottom: 0.75rem;
+-        }
+-
+-        .mr-2 {
+-            margin-right: 0.5rem;
+-        }
+-
+-        .ml-2 {
+-            margin-left: 0.5rem;
+-        }
+-
+-        .mx-auto {
+-            margin-left: auto;
+-            margin-right: auto;
+-        }
+-
+-        .px-2 {
+-            padding-left: 0.5rem;
+-            padding-right: 0.5rem;
+-        }
+-
+-        .px-3 {
+-            padding-left: 0.75rem;
+-            padding-right: 0.75rem;
+-        }
+-
+-        .py-1 {
+-            padding-top: 0.25rem;
+-            padding-bottom: 0.25rem;
+-        }
+-
+-        .pl-2 {
+-            padding-left: 0.5rem;
+-        }
+-
+-        .pl-4 {
+-            padding-left: 1rem;
+-        }
+-
+-        .pl-9 {
+-            padding-left: 2.25rem;
+-        }
+-
+-        .pr-4 {
+-            padding-right: 1rem;
+-        }
+-
+-        .p-1 {
+-            padding: 0.25rem;
+-        }
+-
+-        .pt-4 {
+-            padding-top: 1rem;
+-        }
+-
+-        /* Sizing */
+-        .w-\[20px\] {
+-            width: 20px;
+-        }
+-
+-        .w-\[45px\] {
+-            width: 45px;
+-        }
+-
+-        .h-\[45px\] {
+-            height: 45px;
+-        }
+-
+-        .h-\[70\%\] {
+-            height: 70%;
+-        }
+-
+-        .max-w-\[80\%\] {
+-            max-width: 80%;
+-        }
+-
+-        .max-w-\[700px\] {
+-            max-width: 700px;
+-        }
+-
+-        .max-h-\[140px\] {
+-            max-height: 140px;
+-        }
+-
+-        .left-6 {
+-            left: 1.5rem;
+-        }
+-
+-        .right-6 {
+-            right: 1.5rem;
+-        }
+-
+-        .bottom-3 {
+-            bottom: 0.75rem;
+-        }
+-
+-        .bottom-6 {
+-            bottom: 1.5rem;
+-        }
+-
+-        .left-4 {
+-            left: 1rem;
+-        }
+-
+-        .right-4 {
+-            right: 1rem;
+-        }
+-
+-        /* Typography */
+-        .text-xs {
+-            font-size: 0.75rem;
+-            line-height: 1rem;
+-        }
+-
+-        .text-sm {
+-            font-size: 0.875rem;
+-            line-height: 1.25rem;
+-        }
+-
+-        .text-lg {
+-            font-size: 1.125rem;
+-            line-height: 1.75rem;
+-        }
+-
+-        .text-xl {
+-            font-size: 1.25rem;
+-            line-height: 1.75rem;
+-        }
+-
+-        .text-\[10px\] {
+-            font-size: 10px;
+-        }
+-
+-        .text-\[11px\] {
+-            font-size: 11px;
+-        }
+-
+-        .text-\[16px\] {
+-            font-size: 16px;
+-        }
+-
+-        .font-bold {
+-            font-weight: 700;
+-        }
+-
+-        .font-medium {
+-            font-weight: 500;
+-        }
+-
+-        .font-mono {
+-            font-family: ui-monospace, SFMono-Regular, monospace;
+-        }
+-
+-        .uppercase {
+-            text-transform: uppercase;
+-        }
+-
+-        .tracking-widest {
+-            letter-spacing: 0.1em;
+-        }
+-
+-        /* Colors */
+-        .text-\[\#cda434\] {
+-            color: #cda434;
+-        }
+-
+-        .text-\[\#e8dec5\] {
+-            color: #e8dec5;
+-        }
+-
+-        .text-\[\#fdfbf7\] {
+-            color: #fdfbf7;
+-        }
++    <script>
++        const originalWarn = console.warn;
++        console.warn = (...args) => {
++            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
++            originalWarn(...args);
++        };
++    </script>
++    <script src="https://cdn.tailwindcss.com"></script>
++    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
++    <link
++        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap"
++        rel="stylesheet" />
+-        .text-\[\#1c100b\] {
+-            color: #1c100b;
+-        }
+-
+-        .text-\[\#2c1a14\] {
+-            color: #2c1a14;
+-        }
+-
+-        .text-\[\#8d6e63\] {
+-            color: #8d6e63;
+-        }
+-
+-        .text-stone-500 {
+-            color: #78716c;
+-        }
+-
+-        .text-white {
+-            color: #fff;
+-        }
+-
+-        .bg-\[\#1c100b\] {
+-            background-color: #1c100b;
+-        }
+-
+-        /* Borders */
+-        .border {
+-            border-width: 1px;
+-            border-style: solid;
+-        }
+-
+-        .border-4 {
+-            border-width: 4px;
+-            border-style: solid;
+-        }
+-
+-        .border-t {
+-            border-top-width: 1px;
+-            border-top-style: solid;
+-        }
+-
+-        .border-r {
+-            border-right-width: 1px;
+-            border-right-style: solid;
+-        }
+-
+-        .border-l {
+-            border-left-width: 1px;
+-            border-left-style: solid;
+-        }
+-
+-        .border-black {
+-            border-color: #000;
+-        }
+-
+-        .border-black\/50 {
+-            border-color: rgba(0, 0, 0, 0.5);
+-        }
+-
+-        .border-\[\#1c100b\] {
+-            border-color: #1c100b;
+-        }
+-
+-        .border-\[\#1c100b\]\/20 {
+-            border-color: rgba(28, 16, 11, 0.2);
+-        }
+-
+-        .border-\[\#2c1a14\]\/20 {
+-            border-color: rgba(44, 26, 20, 0.2);
+-        }
+-
+-        .border-stone-300\/30 {
+-            border-color: rgba(214, 211, 209, 0.3);
+-        }
+-
+-        .rounded-md {
+-            border-radius: 0.375rem;
+-        }
+-
+-        .rounded-full {
+-            border-radius: 9999px;
+-        }
+-
+-        /* Effects */
+-        .shadow-md {
+-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+-        }
+-
+-        .shadow-inner {
+-            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+-        }
+-
+-        .shadow-\[inset_0_4px_10px_rgba\(0\,0\,0\,0\.6\)\,0_4px_15px_rgba\(28\,16\,11\,0\.4\)\] {
+-            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.6), 0 4px 15px rgba(28, 16, 11, 0.4);
+-        }
+-
+-        .drop-shadow-sm {
+-            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.05));
+-        }
+-
+-        .opacity-60 {
+-            opacity: 0.6;
+-        }
+-
+-        .opacity-70 {
+-            opacity: 0.7;
+-        }
+-
+-        .opacity-90 {
+-            opacity: 0.9;
+-        }
+-
+-        /* Interactivity */
+-        .cursor-pointer {
+-            cursor: pointer;
+-        }
+-
+-        .cursor-not-allowed {
+-            cursor: not-allowed;
+-        }
+-
+-        .transition-colors {
+-            transition-property: color, background-color, border-color;
+-            transition-duration: 150ms;
+-        }
+-
+-        .transition-transform {
+-            transition-property: transform;
+-            transition-duration: 150ms;
+-        }
+-
+-        .transition-all {
+-            transition-property: all;
+-            transition-duration: 150ms;
+-        }
+-
+-        /* Hover/Focus states */
+-        .hover\:text-stone-800:hover {
+-            color: #292524;
+-        }
+-
+-        .hover\:text-white:hover {
+-            color: #fff;
+-        }
+-
+-        .hover\:scale-105:hover {
+-            transform: scale(1.05);
+-        }
+-
+-        .focus\:border-\[\#cda434\]:focus {
+-            border-color: #cda434;
+-        }
+-
+-        .focus\:outline-none:focus {
+-            outline: none;
+-        }
+-
+-        .focus-visible\:ring-2:focus-visible {
+-            box-shadow: 0 0 0 2px #cda434;
+-        }
+-
+-        .focus-visible\:ring-\[\#cda434\]:focus-visible {
+-            --ring-color: #cda434;
+-        }
+-
+-        .focus-visible\:ring-offset-1:focus-visible {
+-            box-shadow: 0 0 0 1px #110603, 0 0 0 3px #cda434;
+-        }
+-
+-        .focus-visible\:ring-offset-2:focus-visible {
+-            box-shadow: 0 0 0 2px #110603, 0 0 0 4px #cda434;
+-        }
+-
+-        /* Placeholder */
+-        .placeholder\:text-\[\#8b7d6a\]::placeholder {
+-            color: #8b7d6a;
+-        }
+-
+-        /* Accessibility */
+-        .sr-only {
+-            position: absolute;
+-            width: 1px;
+-            height: 1px;
+-            padding: 0;
+-            margin: -1px;
+-            overflow: hidden;
+-            clip: rect(0, 0, 0, 0);
+-            white-space: nowrap;
+-            border-width: 0;
+-        }
+-
+-        /* Responsive: md (768px+) */
+-        @media (min-width: 768px) {
+-            .md\:text-2xl {
+-                font-size: 1.5rem;
+-                line-height: 2rem;
+-            }
+-
+-            .md\:text-base {
+-                font-size: 1rem;
+-                line-height: 1.5rem;
+-            }
+-
+-            .md\:text-xs {
+-                font-size: 0.75rem;
+-                line-height: 1rem;
+-            }
+-
+-            .md\:pl-10 {
+-                padding-left: 2.5rem;
+-            }
+-
+-            .md\:px-5 {
+-                padding-left: 1.25rem;
+-                padding-right: 1.25rem;
+-            }
+-
+-            .md\:left-8 {
+-                left: 2rem;
+-            }
+-
+-            .md\:h-\[60px\] {
+-                height: 60px;
+-            }
+-
+-            .md\:w-\[60px\] {
+-                width: 60px;
+-            }
+-        }
+-
+-        /* Responsive: sm (640px+) */
+-        @media (min-width: 640px) {
+-            .sm\:inline {
+-                display: inline;
+-            }
+-
+-            .sm\:hidden {
+-                display: none;
+-            }
+-        }
+-
+-        @media (max-width: 639px) {
+-            .hidden.sm\:inline {
+-                display: none;
+-            }
+-
+-            .sm\:hidden {
+-                display: inline;
+-            }
+-        }
+-    </style>
++    <!-- THREE.js for the 3D Background Engine -->
++    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+-            --page-texture: url('vendor/textures/cream-paper.png');
+-            --tab-inactive: rgba(30, 20, 15, 0.9);
+-            --text-main: #334155;
++            --page-texture: url('https://www.transparenttextures.com/patterns/cream-paper.png');
++            --tab-inactive: rgba(30, 20, 15, 0.95);
++            --text-main: #2c1a14;
+-            --accent-gold: #cda434;
++            --accent-gold: #fde047;
++            /* Brightened for AAA 7:1 contrast on dark bg */
++        /* WCAG 2.2 AAA Focus Indicator */
+-            outline-offset: 2px;
++            outline-offset: 3px;
+-        /* Cinematic crossfade synced to the 3D sleight of hand */
+-            padding-bottom: 0px;
+-            padding-top: 0px;
++            padding: 20px;
+-            /* Desktop (large) - Fluid UI */
+-            height: 95vh;
+-            width: calc(95vh * 1.42);
+-            max-width: calc(100vw - 320px);
+-            /* Leave room for side panels */
+-            min-width: 33.33vw;
+-            /* Max squish is 1/3 of desktop */
+-            max-height: 95vh;
++            width: 100%;
++            max-width: calc(85vh * 1.25);
++            height: auto;
++            aspect-ratio: 1.25;
+-        }
+-
+-        /* Tablet Viewport - Golden ratio: journal = bottom 61.8%, world peek = top 38.2% */
+-        @media (max-width: 1024px) {
+-            #book-wrapper {
+-                padding: 0 10px;
+-                padding-top: 0;
+-                padding-bottom: 0;
+-                justify-content: flex-end;
+-                /* Anchor journal to bottom */
+-            }
+-
+-            .book {
+-                width: calc(100% - 20px);
+-                /* Golden Ratio: 61.8% of parent height */
+-                height: 61.8%;
+-                max-width: none;
+-                max-height: none;
+-                aspect-ratio: unset;
+-                border-radius: 16px 16px 0 0;
+-            }
+-
+-            .book-interior-container {
+-                top: 0;
+-                bottom: 0;
+-                left: 0;
+-                right: 0;
+-                border-radius: 16px;
+-            }
+-
+-            /* Close button: pinned to top-right of the book viewport */
+-            .close-btn-wrapper {
+-                position: absolute;
+-                top: 8px;
+-                right: 8px;
+-                z-index: 500;
+-                /* Above everything inside the book */
+-            }
+-
+-            .glass-btn {
+-                width: 40px;
+-                height: 40px;
+-                background: rgba(28, 16, 11, 0.95);
+-                border: 2px solid rgba(205, 164, 52, 0.5);
+-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.3);
+-            }
+-
+-            .pages-wrapper {
+-                border-radius: 16px 16px 0 0;
+-            }
+-
+-            .page-static.left {
+-                border-radius: 16px 0 0 0;
+-            }
+-
+-            .page-static.right {
+-                border-radius: 0 16px 0 0;
+-            }
+-
+-            .integrated-hud {
+-                border-radius: 0 0 16px 16px;
+-            }
++            margin: auto;
+-        /* Flex container pulled up to perfectly rest inside the leather boundaries without clipping */
+-            top: 6%;
+-            bottom: 10%;
+-            /* Shifted up to definitively prevent clipping over the bottom leather */
++            top: 4%;
++            bottom: 4%;
+-            flex: 1;
++            height: 88%;
++            /* Leaves 12% for HUD to allow 44px target heights */
++        /* WCAG AAA: min-height 44px, min-width 44px */
+-            color: #d7ccc8;
++            color: #f5f5f4;
++            /* AAA contrast */
+-            font-size: 10px;
+-            font-weight: 600;
++            font-size: 11px;
++            font-weight: 700;
+-            color: #fff;
++            color: #ffffff;
+-            color: var(--accent-gold);
+-            min-height: 46px;
++            color: #1c100b;
++            min-height: 48px;
+-            border: 1px solid rgba(0, 0, 0, 0.9);
++            border-top: 4px solid var(--accent-gold);
++            border-left: 1px solid rgba(0, 0, 0, 0.15);
++            border-right: 1px solid rgba(0, 0, 0, 0.15);
+-            box-sizing: border-box;
+-            padding-bottom: 35px;
+-            /* Prevent text from overlapping page numbers */
++            padding-bottom: 50px;
++            /* Buffer for pagination targets */
+-            color: #2c1a14;
++            color: var(--text-main);
+-            background: linear-gradient(to right, transparent, rgba(44, 26, 20, 0.2), transparent);
++            background: linear-gradient(to right, transparent, rgba(44, 26, 20, 0.3), transparent);
+-            color: rgba(44, 26, 20, 0.4);
++            color: rgba(44, 26, 20, 0.6);
+-        /* Embedded Leather Close Button */
++        /* WCAG AAA: Close Button touch target */
+-            background: rgba(35, 20, 14, 0.85);
+-            color: #e8dec5;
+-            border: 1px solid rgba(255, 255, 255, 0.15);
++            background: rgba(28, 16, 11, 0.95);
++            color: #fafaf9;
++            /* High contrast white */
++            border: 2px solid rgba(255, 255, 255, 0.3);
+-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
++            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
++        /* WCAG AAA: Page Nav Targets */
+-            position: absolute;
+-            top: 0;
+-            bottom: 0;
+-            width: 50px;
++            width: 44px;
++            height: 44px;
+-            color: rgba(44, 26, 20, 0.3);
++            color: #44403c;
++            /* AAA contrast against light page */
++            border-radius: 50%;
++            background: rgba(0, 0, 0, 0.05);
++            color: #1c1917;
+-            color: rgba(44, 26, 20, 0.8);
+-        .nav-hitbox.left {
+-            left: 0;
+-            justify-content: flex-start;
+-            padding-left: 15px;
+-        }
+-
+-        .nav-hitbox.right {
+-            right: 0;
+-            justify-content: flex-end;
+-            padding-right: 15px;
+-        }
+-
+-        /* Flipper Animation completely localized to the pages wrapper */
+-            height: 65px;
++            height: 12%;
++            /* Expanded for WCAG target spacing */
+-
+-
++        /* WCAG AAA Touch Targets */
+-            border-radius: 4px;
++            border-radius: 6px;
+-            color: #cda434;
++            color: #fde047;
++            /* AAA */
+-            border: 1px solid rgba(255, 255, 255, 0.1);
++            border: 1px solid rgba(255, 255, 255, 0.15);
+-            color: #fff;
++            color: #ffffff;
+-        .hud-tool-btn:focus-visible {
+-            outline: 2px solid #cda434;
+-            outline-offset: 2px;
+-        }
+-
+-
+-
+-        .toy-btn-purple {
+-            background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
+-            border: 2px solid #581c87;
+-            color: white;
+-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+-            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 4px 0 #581c87, 0 8px 15px rgba(0, 0, 0, 0.3);
+-            border-radius: 8px;
+-            font-weight: 600;
+-            font-size: 13px;
+-            min-height: 44px;
+-            min-width: 44px;
+-            padding: 10px 16px;
+-            display: inline-flex;
+-            align-items: center;
+-            justify-content: center;
+-            transition: all 0.1s;
+-            cursor: pointer;
+-        }
+-
+-        .toy-btn-purple:active {
+-            transform: translateY(4px);
+-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 3px 5px rgba(0, 0, 0, 0.2);
+-        }
+-
+-        /* ============================================
+-           MOBILE VIEWPORT - Journal IS the UI
+-           The 3D world is just the background.
+-           10px buffers maintain cognitive "world is still there"
+-           ============================================ */
++        /* Responsive Resizing */
+-                padding: 0 10px;
+-                padding-bottom: 0;
+-                justify-content: flex-end;
+-                /* Anchor journal to bottom */
++                padding: 10px;
+-                width: calc(100% - 20px);
+-                /* Golden Ratio: 61.8% of parent height, minus HUD bar (55px) */
+-                height: calc(61.8% - 55px);
++                width: 100%;
+-                max-height: none;
+-                aspect-ratio: unset;
+-                border-radius: 14px 14px 0 0;
+-            }
+-
+-            .book-interior-container {
+-                top: 0;
+-                bottom: 0;
+-                left: 0;
+-                right: 0;
+-                border-radius: 14px 14px 0 0;
+-                box-shadow: none;
+-            }
+-
+-            .pages-wrapper {
+-                border-radius: 14px 14px 0 0;
+-            }
+-
+-            .page-static {
+-                padding: 12px 14px;
+-            }
+-
+-            .page-static.left {
+-                border-radius: 14px 0 0 0;
++                height: auto;
++                aspect-ratio: 1.25;
+-            .page-static.right {
+-                border-radius: 0 14px 0 0;
+-            }
+-
+-            /* === MOBILE TABS: Compact, inside the book top === */
+-                position: relative;
+-                bottom: auto;
+-                right: auto;
+-                justify-content: center;
++                right: 3%;
+-                width: 100%;
+-                padding: 0 6px;
+-                flex-shrink: 0;
+-                height: 28px;
++                min-height: 44px;
+-                padding: 0 10px;
+-                flex: 1;
+-                justify-content: center;
+-                border-radius: 10px 10px 0 0;
++                padding: 0 12px;
+-            .book-tab.active {
+-                height: 30px;
+-                margin-bottom: -1px;
++            .page-static {
++                padding: 5%;
+-            /* === MOBILE HUD: Fixed solid bar at viewport bottom === */
+-                position: fixed;
+-                bottom: 0;
+-                left: 0;
+-                right: 0;
+-                height: 55px;
+-                border-radius: 0;
+-                z-index: 200;
+-                /* Solid dark leather - no transparency, no bleed */
+-                background: #0a0301;
+-                background-image: linear-gradient(to bottom, #1a0a06, #0a0301);
+-                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.8);
+-                border-top: 2px solid rgba(205, 164, 52, 0.3);
+-
+-            /* Close button repositioned for thumb reach */
+-            .close-btn-wrapper {
+-                top: 6px;
+-                right: 6px;
+-            }
+-
+-            /* Page navigation arrows more touch-friendly */
+-            .nav-hitbox {
+-                width: 44px;
+-                min-height: 44px;
+-                /* WCAG touch target */
+-            }
+-
+-            /* Titles scale down gracefully */
+-            .page-title {
+-                font-size: clamp(16px, 4vw, 24px);
+-            }
+-
+-            .page-subtitle {
+-                font-size: clamp(12px, 3vw, 16px);
+-            }
+-
+-            /* Font controls hide labels on mobile to save space */
+-            .integrated-hud .border-r {
+-                display: none;
+-                /* Hide audio icons on mobile - not functional yet */
+-            }
+-
+-        /* Extra small phones */
+-        @media (max-width: 400px) {
+-            .page-static {
+-                padding: 8px 10px;
+-            }
+-
+-            .book-tab {
+-                font-size: 9px;
+-                padding: 0 6px;
+-            }
+-
+-            .page-title {
+-                font-size: clamp(14px, 4vw, 20px);
+-            }
+-        }
+-                        <i class="fa-solid fa-xmark text-[16px]" aria-hidden="true"></i>
++                        <i class="fa-solid fa-xmark text-[18px]" aria-hidden="true"></i>
+-                <!-- UNIFIED CONTAINER (Pages + HUD attached together) -->
+-                        <div class="book-tab" role="tab" tabindex="0" id="tab-buildings" aria-selected="false"
+-                            onclick="switchBookTab('buildings')"
+-                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('buildings');}">
+-                            <i class="fa-solid fa-campground" aria-hidden="true"></i> Buildings
+-                        </div>
++                        <!-- LEFT PAGE -->
++
++                            <!-- BEST PRACTICE: Left page pagination on bottom-left -->
+-                                class="absolute bottom-6 left-6 flex items-center justify-center gap-2 text-stone-500 font-mono tracking-widest opacity-100 z-50">
++                                class="absolute bottom-4 left-6 flex items-center justify-start gap-4 text-stone-600 font-mono tracking-widest opacity-100 z-50">
++                                <div class="nav-hitbox" tabindex="0" role="button" aria-label="Previous Page"
++                                    onclick="turnPage('prev')"
++                                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); turnPage('prev');}">
++                                    <i class="fa-solid fa-chevron-left text-lg" aria-hidden="true"></i>
++                                </div>
++                        <!-- RIGHT PAGE -->
++
++                            <!-- BEST PRACTICE: Right page pagination on bottom-right -->
+-                                class="absolute bottom-6 right-6 flex items-center justify-center gap-2 text-stone-500 font-mono tracking-widest opacity-100 z-50">
++                                class="absolute bottom-4 right-6 flex items-center justify-end gap-4 text-stone-600 font-mono tracking-widest opacity-100 z-50">
++                                <div class="nav-hitbox" tabindex="0" role="button" aria-label="Next Page"
++                                    onclick="turnPage('next')"
++                                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); turnPage('next');}">
++                                    <i class="fa-solid fa-chevron-right text-lg" aria-hidden="true"></i>
++                                </div>
+-                    <div class="integrated-hud">
+-                        <div
+-                            class="flex items-center gap-4 text-[#e8dec5] opacity-60 shrink-0 border-r border-black/50 pr-4 pl-2">
+-                            <button type="button"
+-                                class="w-[44px] h-[44px] flex items-center justify-center cursor-not-allowed" disabled
+-                                aria-label="Audio disabled">
+-                                <i class="fa-solid fa-volume-xmark text-sm" title="Audio disabled"
+-                                    aria-hidden="true"></i>
++                    <div class="integrated-hud"
++                        style="display: flex; align-items: center; justify-content: space-between; padding: 0 12px;">
++
++                        <!-- LEFT: Font Size Controls -->
++                        <div class="shrink-0"
++                            style="display: flex; align-items: center; gap: 6px; padding-right: 12px; height: 100%; border-right: 1px solid rgba(255,255,255,0.1);">
++                            <button type="button" class="hud-tool-btn" aria-label="Decrease Font Size"
++                                onclick="adjustJournalFontSize(1)">
++                                <i class="fa-solid fa-minus text-[12px]" aria-hidden="true"></i>
+-                            <button type="button"
+-                                class="w-[44px] h-[44px] flex items-center justify-center cursor-not-allowed" disabled
+-                                aria-label="Microphone disabled">
+-                                <i class="fa-solid fa-microphone-slash text-sm" title="Microphone disabled"
+-                                    aria-hidden="true"></i>
++                            <span id="font-size-display"
++                                class="font-bold text-[13px] tracking-widest uppercase text-center"
++                                style="color: #f5f5f4; width: 24px;" aria-live="polite">14</span>
++                            <button type="button" class="hud-tool-btn" aria-label="Increase Font Size"
++                                onclick="adjustJournalFontSize(-1)">
++                                <i class="fa-solid fa-plus text-[12px]" aria-hidden="true"></i>
+-                        <div class="flex-grow flex items-center min-h-[44px] max-w-[700px] relative px-3 md:px-5">
+-                            <label for="llm-input" class="sr-only">Ask or Interact with Journal</label>
+-                            <i class="fa-solid fa-feather-pointed text-[#cda434] opacity-90 absolute left-6 md:left-8"
+-                                aria-hidden="true"></i>
+-                            <input type="text" id="llm-input"
+-                                class="w-full h-[44px] bg-[#140b07] border border-black rounded-md py-1 pl-9 md:pl-10 pr-4 text-[#ffffff] font-medium placeholder:text-[#8b7d6a] text-sm focus:border-[#cda434] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#cda434] focus-visible:ring-offset-1 focus-visible:ring-offset-[#110603] transition-all shadow-inner"
+-                                style="padding-right: 80px;" placeholder="Ask or Interact..." autocomplete="off"
+-                                onkeydown="if(event.key==='Enter'){event.preventDefault(); submitLogbookChat();}">
+-                            <button type="button"
+-                                class="absolute right-[28px] md:right-[34px] text-[#cda434] hover:text-[#e8dec5] flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-[#cda434]"
+-                                style="width: 44px; height: 44px; border: 0.25px solid #d2b48c; border-radius: 7px; background: transparent; z-index: 10;"
+-                                aria-label="Submit Command" onclick="submitLogbookChat()">
+-                                <i class="fa-solid fa-arrow-turn-down text-xs" style="transform: rotate(90deg);"
+-                                    aria-hidden="true"></i>
+-                            </button>
++                        <!-- MIDDLE: Unified Flex-Grow Column Input Field -->
++                        <div class="flex-grow relative mx-4"
++                            style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+-                            <!-- Resolution indicator (dev diagnostic) -->
+-                            <div id="res-indicator"
+-                                style="position: absolute; right: 85px; font-size: 9px; font-family: monospace; color: #FFF; pointer-events: none; text-transform: uppercase; letter-spacing: 0.05em; font-weight: bold; z-index: 50;">
+-                            </div>
++                            <!-- 44px WCAG Input Row -->
++                            <div class="relative w-full" style="height: 44px;">
++                                <!-- Audio Icons Inside Left -->
++                                <div class="absolute left-2 top-0 bottom-0 z-10"
++                                    style="display: flex; align-items: center; gap: 8px; color: #d6d3d1;">
++                                    <button type="button" class="cursor-not-allowed transition-colors hover:text-white"
++                                        style="width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; opacity: 0.7;"
++                                        disabled aria-label="Audio disabled">
++                                        <i class="fa-solid fa-volume-xmark text-sm" title="Audio disabled"
++                                            aria-hidden="true"></i>
++                                    </button>
++                                    <button type="button" class="cursor-not-allowed transition-colors hover:text-white"
++                                        style="width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; opacity: 0.7;"
++                                        disabled aria-label="Microphone disabled">
++                                        <i class="fa-solid fa-microphone-slash text-sm" title="Microphone disabled"
++                                            aria-hidden="true"></i>
++                                    </button>
++                                </div>
+-                            <!-- NLP Event Log -->
+-                            <div id="nlp-event-log"
+-                                style="position: absolute; top: 100%; left: 30px; margin-top: 6px; font-size: 11px; color: rgba(255,255,255,0.8); font-family: monospace; white-space: nowrap; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">
++                                <!-- Input Box (WCAG AAA Contrast > 7:1 for text/bg) -->
++                                <input type="text" id="llm-input"
++                                    class="w-full h-full rounded-md font-medium text-[14px] transition-all shadow-inner focus:outline-none"
++                                    style="background-color: #291c14; border: 1px solid rgba(255,255,255,0.4); color: #f5f5f4; padding-left: 90px; padding-right: 140px; color-scheme: dark;"
++                                    placeholder="Ask or Interact with the world..." autocomplete="off"
++                                    onkeydown="if(event.key==='Enter'){event.preventDefault(); submitLogbookChat();}">
++
++                                <!-- Action Inside Right -->
++                                <div class="absolute right-2 top-0 bottom-0 z-10"
++                                    style="display: flex; align-items: center; gap: 8px;">
++                                    <!-- Viewport Resolution -->
++                                    <div id="res-indicator"
++                                        style="font-size: 11px; font-family: monospace; color: rgba(255, 255, 255, 0.7); text-transform: uppercase; letter-spacing: 0.05em; font-weight: bold; pointer-events: none; margin-right: 4px;"
++                                        aria-hidden="true"></div>
++
++                                    <!-- Submit (44px target) -->
++                                    <button type="button" class="transition-all"
++                                        style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: #fde047; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer;"
++                                        aria-label="Submit Command" onclick="submitLogbookChat()"
++                                        onmouseover="this.style.borderColor='#fde047'; this.style.backgroundColor='rgba(253, 224, 71, 0.1)';"
++                                        onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'; this.style.backgroundColor='transparent';">
++                                        <i class="fa-solid fa-arrow-turn-down text-sm" style="transform: rotate(90deg);"
++                                            aria-hidden="true"></i>
++                                    </button>
++                                </div>
+-                        </div>
+-                        <div class="flex items-center gap-2 pl-4 border-l border-black/50 shrink-0">
+-                            <div class="flex items-center gap-1 mr-2">
+-                                <button type="button" class="hud-tool-btn" aria-label="Decrease Font Size"
+-                                    onclick="adjustJournalFontSize(1)"><i class="fa-solid fa-minus text-[10px]"
+-                                        aria-hidden="true"></i></button>
+-                                <span id="font-size-display"
+-                                    class="text-[#e8dec5] font-bold text-[11px] tracking-widest uppercase opacity-90 w-[20px] text-center"
+-                                    aria-live="polite">14</span>
+-                                <button type="button" class="hud-tool-btn" aria-label="Increase Font Size"
+-                                    onclick="adjustJournalFontSize(-1)"><i class="fa-solid fa-plus text-[10px]"
+-                                        aria-hidden="true"></i></button>
++                            <!-- PARSER FEEDBACK ROW (1-line output) -->
++                            <div id="parser-feedback" aria-live="polite"
++                                class="font-mono whitespace-nowrap overflow-hidden text-ellipsis"
++                                style="color: #d6d3d1; font-size: 11px; line-height: 16px; height: 16px; margin-top: 4px; padding-left: 4px;">
++                                System loaded and awaiting input.
++
+-        const container = document.getElementById('webgl-container');
+-        const scene = new THREE.Scene();
+-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+-        renderer.setPixelRatio(window.devicePixelRatio);
+-        renderer.setSize(window.innerWidth, window.innerHeight);
+-        renderer.setClearColor(0x000000, 0);
+-        container.appendChild(renderer.domElement);
++        // Safe global fallbacks
++        window.journal3D = null;
++        window.update3DPages = function () { };
++        window.initiateOpenSequence = function () { };
++        window.initiateCloseSequence = function () { };
++        window._hasNotifiedClose = true;
+-        const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
+-
+-        scene.add(new THREE.AmbientLight(0xffeedd, 0.45));
+-
+-        const mainLight = new THREE.SpotLight(0xfff0dd, 1.4);
+-        mainLight.position.set(10, 20, 15);
+-        mainLight.angle = Math.PI / 4;
+-        mainLight.penumbra = 0.6;
+-        scene.add(mainLight);
++        // Auto-update Resolution Viewport indicator
++        function updateResIndicator() {
++            const ind = document.getElementById('res-indicator');
++            if (ind) {
++                const w = window.innerWidth;
++                let vpType = 'Desktop';
++                if (w < 640) vpType = 'Mobile';
++                else if (w < 1024) vpType = 'Tablet';
++                ind.textContent = `${vpType} [${w}x${window.innerHeight}]`;
++            }
++        }
++        window.addEventListener('resize', updateResIndicator);
++        document.addEventListener('DOMContentLoaded', updateResIndicator);
+-        const fillLight = new THREE.DirectionalLight(0x4a2c20, 0.4);
+-        fillLight.position.set(-10, -5, -10);
+-        scene.add(fillLight);
++        function run3DEngine() {
++            if (typeof THREE === 'undefined') {
++                setTimeout(run3DEngine, 50);
++                return;
++            }
+-        const centerLight = new THREE.SpotLight(0xffffff, 2.5);
+-        centerLight.position.set(0, 5, 2);
+-        centerLight.target.position.set(0, 0, 0);
+-        centerLight.angle = Math.PI / 5;
+-        centerLight.penumbra = 0.4;
+-        centerLight.distance = 20;
+-        centerLight.castShadow = true;
+-        scene.add(centerLight);
+-        scene.add(centerLight.target);
++            const container = document.getElementById('webgl-container');
++            const scene = new THREE.Scene();
++            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
++            renderer.setPixelRatio(window.devicePixelRatio);
++            renderer.setSize(window.innerWidth, window.innerHeight);
++            renderer.setClearColor(0x000000, 0);
++            container.appendChild(renderer.domElement);
+-        const darkLeatherColor = '#24140e';
++            const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
+-        function createLeatherTexture() {
+-            const cvs = document.createElement('canvas');
+-            cvs.width = 1024; cvs.height = 1024;
+-            const ctx = cvs.getContext('2d');
++            scene.add(new THREE.AmbientLight(0xffeedd, 0.45));
+-            ctx.fillStyle = darkLeatherColor;
+-            ctx.fillRect(0, 0, 1024, 1024);
++            const mainLight = new THREE.SpotLight(0xfff0dd, 1.4);
++            mainLight.position.set(10, 20, 15);
++            mainLight.angle = Math.PI / 4;
++            mainLight.penumbra = 0.6;
++            scene.add(mainLight);
+-            for (let i = 0; i < 3000; i++) {
+-                ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`;
+-                ctx.beginPath();
+-                ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 30 + 10, 0, Math.PI * 2);
+-                ctx.fill();
++            const fillLight = new THREE.DirectionalLight(0x4a2c20, 0.4);
++            fillLight.position.set(-10, -5, -10);
++            scene.add(fillLight);
+-                ctx.fillStyle = `rgba(80,40,25,${Math.random() * 0.04})`;
+-                ctx.beginPath();
+-                ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 20 + 5, 0, Math.PI * 2);
+-                ctx.fill();
+-            }
++            const centerLight = new THREE.SpotLight(0xffffff, 2.5);
++            centerLight.position.set(0, 5, 2);
++            centerLight.target.position.set(0, 0, 0);
++            centerLight.angle = Math.PI / 5;
++            centerLight.penumbra = 0.4;
++            centerLight.distance = 20;
++            centerLight.castShadow = true;
++            scene.add(centerLight);
++            scene.add(centerLight.target);
+-            const grad = ctx.createRadialGradient(512, 512, 350, 512, 512, 750);
+-            grad.addColorStop(0, 'rgba(0,0,0,0)');
+-            grad.addColorStop(1, 'rgba(0,0,0,0.5)');
+-            ctx.fillStyle = grad;
+-            ctx.fillRect(0, 0, 1024, 1024);
++            const darkLeatherColor = '#24140e';
+-            const tex = new THREE.CanvasTexture(cvs);
+-            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+-            return tex;
+-        }
++            function createLeatherTexture() {
++                const cvs = document.createElement('canvas');
++                cvs.width = 1024; cvs.height = 1024;
++                const ctx = cvs.getContext('2d');
+-        function createLeatherBumpMap() {
+-            const cvs = document.createElement('canvas');
+-            cvs.width = 1024; cvs.height = 1024;
+-            const ctx = cvs.getContext('2d');
+-            ctx.fillStyle = '#888'; ctx.fillRect(0, 0, 1024, 1024);
++                ctx.fillStyle = darkLeatherColor;
++                ctx.fillRect(0, 0, 1024, 1024);
+-            for (let i = 0; i < 60000; i++) {
+-                ctx.fillStyle = `rgba(${136 + Math.random() * 40}, ${136 + Math.random() * 40}, ${136 + Math.random() * 40}, 0.5)`;
+-                ctx.beginPath();
+-                ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
+-                ctx.fill();
+-            }
+-            return new THREE.CanvasTexture(cvs);
+-        }
++                for (let i = 0; i < 3000; i++) {
++                    ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`;
++                    ctx.beginPath();
++                    ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 30 + 10, 0, Math.PI * 2);
++                    ctx.fill();
+-        function createPageEdgeTexture() {
+-            const cvs = document.createElement('canvas');
+-            cvs.width = 256; cvs.height = 256;
+-            const ctx = cvs.getContext('2d');
+-            ctx.fillStyle = '#e8dec5'; ctx.fillRect(0, 0, 256, 256);
+-            ctx.fillStyle = '#c8b699';
+-            for (let i = 0; i < 256; i += 1.5) {
+-                ctx.fillRect(0, i, 256, 0.5);
+-            }
+-            const tex = new THREE.CanvasTexture(cvs);
+-            tex.wrapS = THREE.RepeatWrapping;
+-            tex.wrapT = THREE.RepeatWrapping;
+-            return tex;
+-        }
++                    ctx.fillStyle = `rgba(80,40,25,${Math.random() * 0.04})`;
++                    ctx.beginPath();
++                    ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 20 + 5, 0, Math.PI * 2);
++                    ctx.fill();
++                }
+-        function createDynamicPageTexture(pageData, isLeft, pageNum) {
+-            const cvs = document.createElement('canvas');
+-            cvs.width = 512;
+-            cvs.height = 768;
+-            const ctx = cvs.getContext('2d');
++                const grad = ctx.createRadialGradient(512, 512, 350, 512, 512, 750);
++                grad.addColorStop(0, 'rgba(0,0,0,0)');
++                grad.addColorStop(1, 'rgba(0,0,0,0.5)');
++                ctx.fillStyle = grad;
++                ctx.fillRect(0, 0, 1024, 1024);
+-            ctx.fillStyle = '#fdfbf7';
+-            ctx.fillRect(0, 0, cvs.width, cvs.height);
+-
+-            const grad = ctx.createLinearGradient(0, 0, 60, 0);
+-            grad.addColorStop(0, 'rgba(0,0,0,0.1)');
+-            grad.addColorStop(1, 'rgba(0,0,0,0)');
+-            ctx.fillStyle = grad;
+-            if (isLeft) {
+-                ctx.translate(512, 0); ctx.scale(-1, 1);
+-                ctx.fillRect(0, 0, 60, 768);
+-                ctx.translate(512, 0); ctx.scale(-1, 1);
+-            } else {
+-                ctx.fillRect(0, 0, 60, 768);
++                const tex = new THREE.CanvasTexture(cvs);
++                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
++                return tex;
+-            if (pageData) {
+-                ctx.fillStyle = '#1e293b';
+-                ctx.font = 'bold 36px sans-serif';
+-                ctx.textAlign = 'center';
+-                const title = (pageData.title || '').replace(/<[^>]*>?/gm, '');
+-                ctx.fillText(title, 256, 120);
++            function createLeatherBumpMap() {
++                const cvs = document.createElement('canvas');
++                cvs.width = 1024; cvs.height = 1024;
++                const ctx = cvs.getContext('2d');
++                ctx.fillStyle = '#888'; ctx.fillRect(0, 0, 1024, 1024);
+-                ctx.strokeStyle = 'rgba(44, 26, 20, 0.2)';
+-                ctx.lineWidth = 2;
+-                ctx.beginPath(); ctx.moveTo(128, 140); ctx.lineTo(384, 140); ctx.stroke();
++                for (let i = 0; i < 60000; i++) {
++                    ctx.fillStyle = `rgba(${136 + Math.random() * 40}, ${136 + Math.random() * 40}, ${136 + Math.random() * 40}, 0.5)`;
++                    ctx.beginPath();
++                    ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
++                    ctx.fill();
++                }
++                return new THREE.CanvasTexture(cvs);
++            }
+-                ctx.fillStyle = '#2c1a14';
+-                ctx.font = '22px sans-serif';
+-                ctx.textAlign = 'left';
+-
+-                let rawText = (pageData.text || '').replace(/<[^>]*>?/gm, '');
+-                let y = 200;
+-
+-                const words = rawText.split(' ');
+-                let line = '';
+-                for (let n = 0; n < words.length; n++) {
+-                    const testLine = line + words[n] + ' ';
+-                    if (ctx.measureText(testLine).width > 360 && n > 0) {
+-                        ctx.fillText(line, 76, y);
+-                        line = words[n] + ' ';
+-                        y += 32;
+-                    } else {
+-                        line = testLine;
+-                    }
++            function createPageEdgeTexture() {
++                const cvs = document.createElement('canvas');
++                cvs.width = 256; cvs.height = 256;
++                const ctx = cvs.getContext('2d');
++                ctx.fillStyle = '#e8dec5'; ctx.fillRect(0, 0, 256, 256);
++                ctx.fillStyle = '#c8b699';
++                for (let i = 0; i < 256; i += 1.5) {
++                    ctx.fillRect(0, i, 256, 0.5);
+-                ctx.fillText(line, 76, y);
++                const tex = new THREE.CanvasTexture(cvs);
++                tex.wrapS = THREE.RepeatWrapping;
++                tex.wrapT = THREE.RepeatWrapping;
++                return tex;
+-            if (pageNum) {
+-                ctx.fillStyle = '#1c100b';
+-                ctx.font = 'bold 16px monospace';
+-                ctx.textAlign = 'center';
++            function createDynamicPageTexture(pageData, isLeft, pageNum) {
++                const cvs = document.createElement('canvas');
++                cvs.width = 512;
++                cvs.height = 768;
++                const ctx = cvs.getContext('2d');
++
++                ctx.fillStyle = '#fdfbf7';
++                ctx.fillRect(0, 0, cvs.width, cvs.height);
++
++                const grad = ctx.createLinearGradient(0, 0, 60, 0);
++                grad.addColorStop(0, 'rgba(0,0,0,0.1)');
++                grad.addColorStop(1, 'rgba(0,0,0,0)');
++                ctx.fillStyle = grad;
+-                    ctx.fillText(pageNum.toString(), 60, 730);
++                    ctx.translate(512, 0); ctx.scale(-1, 1);
++                    ctx.fillRect(0, 0, 60, 768);
++                    ctx.translate(512, 0); ctx.scale(-1, 1);
+-                    ctx.fillText(pageNum.toString(), 452, 730);
++                    ctx.fillRect(0, 0, 60, 768);
+-            }
+-            const tex = new THREE.CanvasTexture(cvs);
+-            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+-            return tex;
+-        }
++                if (pageData) {
++                    ctx.fillStyle = '#1e293b';
++                    ctx.font = 'bold 36px sans-serif';
++                    ctx.textAlign = 'center';
++                    const title = (pageData.title || '').replace(/<[^>]*>?/gm, '');
++                    ctx.fillText(title, 256, 120);
+-        // --- FALLBACK COVER ART LOGIC ---
+-        function createFallbackCover() {
+-            const cvs = document.createElement('canvas');
+-            cvs.width = 1024; cvs.height = 1024;
+-            const ctx = cvs.getContext('2d');
++                    ctx.strokeStyle = 'rgba(44, 26, 20, 0.2)';
++                    ctx.lineWidth = 2;
++                    ctx.beginPath(); ctx.moveTo(128, 140); ctx.lineTo(384, 140); ctx.stroke();
+-            ctx.fillStyle = '#24140e';
+-            ctx.fillRect(0, 0, 1024, 1024);
++                    ctx.fillStyle = '#2c1a14';
++                    ctx.font = '22px sans-serif';
++                    ctx.textAlign = 'left';
+-            ctx.strokeStyle = '#cda434';
+-            ctx.lineWidth = 16;
+-            ctx.strokeRect(40, 40, 1024 - 80, 1024 - 80);
++                    let rawText = (pageData.text || '').replace(/<[^>]*>?/gm, '');
++                    let y = 200;
+-            ctx.fillStyle = '#cda434';
+-            ctx.font = 'bold 60px sans-serif';
+-            ctx.textAlign = 'center';
+-            ctx.fillText('MISSING URL', 512, 450);
++                    const words = rawText.split(' ');
++                    let line = '';
++                    for (let n = 0; n < words.length; n++) {
++                        const testLine = line + words[n] + ' ';
++                        if (ctx.measureText(testLine).width > 360 && n > 0) {
++                            ctx.fillText(line, 76, y);
++                            line = words[n] + ' ';
++                            y += 32;
++                        } else {
++                            line = testLine;
++                        }
++                    }
++                    ctx.fillText(line, 76, y);
++                }
+-            ctx.font = 'italic 30px sans-serif';
+-            ctx.fillStyle = '#888';
+-            ctx.fillText('Check liveUrl path', 512, 530);
++                const tex = new THREE.CanvasTexture(cvs);
++                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
++                return tex;
++            }
+-            const tex = new THREE.CanvasTexture(cvs);
+-            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+-            return tex;
+-        }
++            function getBookShape(w, l, r) {
++                const s = new THREE.Shape();
++                s.moveTo(-w / 2, -l / 2);
++                s.lineTo(w / 2 - r, -l / 2);
++                s.absarc(w / 2 - r, -l / 2 + r, r, -Math.PI / 2, 0, false);
++                s.lineTo(w / 2, l / 2 - r);
++                s.absarc(w / 2 - r, l / 2 - r, r, 0, Math.PI / 2, false);
++                s.lineTo(-w / 2, l / 2);
++                s.lineTo(-w / 2, -l / 2);
++                return s;
++            }
+-        const leatherMat = new THREE.MeshStandardMaterial({ map: createLeatherTexture(), roughness: 0.85, metalness: 0.05, bumpMap: createLeatherBumpMap(), bumpScale: 0.015 });
+-        const edgeMat = new THREE.MeshStandardMaterial({ map: createPageEdgeTexture(), roughness: 0.9, metalness: 0.05 });
+-        const coverMat = new THREE.MeshStandardMaterial({ color: 0xb3b3b3, roughness: 0.85, metalness: 0.0, side: THREE.DoubleSide });
++            function createDecalGeo(w, l, r) {
++                const shape = getBookShape(w, l, r);
++                const geo = new THREE.ShapeGeometry(shape);
+-        // Ensure book never blanks if image load fails
+-        coverMat.map = createFallbackCover();
++                const posAttr = geo.attributes.position;
++                const uvAttr = geo.attributes.uv;
++                geo.computeBoundingBox();
++                const min = geo.boundingBox.min;
++                const max = geo.boundingBox.max;
+-        const texLoader = new THREE.TextureLoader();
++                for (let i = 0; i < uvAttr.count; i++) {
++                    const x = posAttr.getX(i);
++                    const y = posAttr.getY(i);
++                    const u = (x - min.x) / (max.x - min.x);
++                    const v = (y - min.y) / (max.y - min.y);
++                    uvAttr.setXY(i, u, v);
++                }
+-        // --- RESTORED EXACT LOCAL FILE PATH ---
+-        const liveUrl = './Assets/Journal.Cover.png';
++                geo.center();
++                geo.rotateX(-Math.PI / 2);
++                return geo;
++            }
+-        texLoader.load(liveUrl,
+-            (tex) => {
+-                tex.encoding = THREE.sRGBEncoding;
+-                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+-                tex.minFilter = THREE.LinearFilter; // Prevents blurry downscaling on non-power-of-two images
+-                tex.generateMipmaps = false;
+-                coverMat.map = tex;
+-                coverMat.needsUpdate = true;
+-            },
+-            undefined,
+-            (err) => { console.warn("Failed to load local cover image. Make sure the file exists at ./Assets/Journal.Cover.png"); }
+-        );
++            const leatherMat = new THREE.MeshStandardMaterial({ map: createLeatherTexture(), roughness: 0.85, metalness: 0.05, bumpMap: createLeatherBumpMap(), bumpScale: 0.015 });
++            const edgeMat = new THREE.MeshStandardMaterial({ map: createPageEdgeTexture(), roughness: 0.9, metalness: 0.05 });
+-        function getBookShape(w, l, r) {
+-            const s = new THREE.Shape();
+-            s.moveTo(-w / 2, -l / 2);
+-            s.lineTo(w / 2 - r, -l / 2);
+-            s.absarc(w / 2 - r, -l / 2 + r, r, -Math.PI / 2, 0, false);
+-            s.lineTo(w / 2, l / 2 - r);
+-            s.absarc(w / 2 - r, l / 2 - r, r, 0, Math.PI / 2, false);
+-            s.lineTo(-w / 2, l / 2);
+-            s.lineTo(-w / 2, -l / 2);
+-            return s;
+-        }
++            const coverMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.1 });
+-        function createBookGeo(w, l, d, r) {
+-            const shape = getBookShape(w, l, r);
+-            const geo = new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.04, bevelThickness: 0.04 });
+-            geo.center(); geo.rotateX(-Math.PI / 2); return geo;
+-        }
++            const texLoader = new THREE.TextureLoader();
++            const liveUrl = './Assets/Journal.CoverPage.png';
+-        // Architecture Dimensions (Taller layout, mathematically squishable)
+-        const cL = 14.4;
+-        const cW = 9.71;
+-        const cT = 0.15;
++            texLoader.load(liveUrl,
++                (tex) => {
++                    tex.encoding = THREE.sRGBEncoding;
++                    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
++                    tex.minFilter = THREE.LinearFilter;
++                    tex.generateMipmaps = false;
++                    coverMat.map = tex;
++                    coverMat.needsUpdate = true;
++                },
++                undefined,
++                (err) => { console.warn("Failed to load local cover image."); }
++            );
+-        // Matching HTML precisely: Top 6%, Bottom 10%
+-        const marginTop = cL * 0.06;
+-        const marginBottom = cL * 0.10;
+-        const pL = cL - marginTop - marginBottom;
++            function createBookGeo(w, l, d, r) {
++                const shape = getBookShape(w, l, r);
++                const geo = new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.04, bevelThickness: 0.04 });
++                geo.center(); geo.rotateX(-Math.PI / 2); return geo;
++            }
+-        // HTML is left 3%, right 3%. Single page width adjusts for half the total loss
+-        const pW = cW - (cW * 2 * 0.03);
+-        const pT = 0.3;
++            const cL = 14.0;
++            const cW = 7.7;
++            const cT = 0.15;
+-        const zOffset = (marginBottom - marginTop) / 2; // Mechanically shifts paper center up to align with HTML
++            const marginTop = cL * 0.04;
++            const marginBottom = cL * 0.04 + (cL * 0.92 * 0.12); // HUD is 12% tall now
++            const marginLeftRight = cW * 2 * 0.03;
+-        const coverRadius = 0.4;
+-        const pageRadius = 0.3;
+-        const spineRadius = pT + cT / 2;
++            const safeScaleW = 0.98;
++            const safeScaleL = 0.98;
+-        const coverMatArray = [leatherMat, leatherMat, leatherMat, leatherMat, leatherMat, leatherMat];
++            const pL = (cL - marginTop - marginBottom) * safeScaleL;
++            const pW = (cW - (marginLeftRight / 2)) * safeScaleW;
++            const pT = 0.25;
+-        // Cache accessibility preference once (avoid per-frame matchMedia query)
+-        const _cachedReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
++            const zOffset = (marginBottom - marginTop) / 2;
+-        class SacredJournal {
+-            constructor() {
+-                this.group = new THREE.Group();
+-                this.isOpen = false;
+-                this.currentAngle = 0;
+-                this.targetAngle = 0;
++            const coverRadius = 0.4;
++            const pageRadius = 0.3;
++            const spineRadius = pT + cT / 2;
+-                this.currentScale = 1.0;
+-                this.targetScale = 1.0;
++            const coverMatArray = [leatherMat, leatherMat, leatherMat, leatherMat, leatherMat, leatherMat];
+-                this.currentPosY = 0;
+-                this.targetPosY = 0;
++            class SacredJournal {
++                constructor() {
++                    this.group = new THREE.Group();
++                    this.isOpen = false;
++                    this.currentAngle = 0;
++                    this.targetAngle = 0;
+-                // Tilt proudly towards camera to reveal the cover art and 3D pages
+-                this.currentRotX = -0.35; // Cover proudly tilted toward camera
+-                this.targetRotX = -0.35;
+-                this.currentRotY = 0.12; // Slight twist to show 3D depth
+-                this.targetRotY = 0.12;
+-                // Center the closed book visually by shifting left half the cover width
+-                this.currentPosX = -cW / 2;
+-                this.targetPosX = -cW / 2;
++                    this.currentScale = 1.0;
++                    this.targetScale = 1.0;
+-                const rightCover = new THREE.Mesh(createBookGeo(cW, cL, cT, coverRadius), coverMatArray);
+-                rightCover.position.set(cW / 2, -pT - cT / 2, 0);
+-                this.group.add(rightCover);
++                    this.currentPosY = 0;
++                    this.targetPosY = 0;
+-                this.rightPageMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+-                const rightPagesMatArray = [edgeMat, edgeMat, this.rightPageMat, edgeMat, edgeMat, edgeMat];
+-                this.rightPages = new THREE.Mesh(createBookGeo(pW, pL, pT, pageRadius), rightPagesMatArray);
+-                this.rightPages.position.set(pW / 2, -pT / 2, -zOffset);
+-                this.group.add(this.rightPages);
++                    this.currentRotX = 0.35;
++                    this.targetRotX = 0.35;
++                    this.currentRotY = -0.2;
++                    this.targetRotY = -0.2;
++                    this.targetPosX = -cW / 2;
+-                this.spine = new THREE.Mesh(new THREE.CylinderGeometry(spineRadius, spineRadius, cL, 32, 1, false, Math.PI / 2, Math.PI), leatherMat);
+-                this.spine.rotation.x = Math.PI / 2;
+-                this.spine.position.set(0, -pT / 2, 0);
+-                this.group.add(this.spine);
++                    const rightCover = new THREE.Mesh(createBookGeo(cW, cL, cT, coverRadius), coverMatArray);
++                    rightCover.position.set(cW / 2, -pT - cT / 2, 0);
++                    this.group.add(rightCover);
+-                this.hinge = new THREE.Group();
+-                this.hinge.position.set(0, 0, 0);
+-                this.group.add(this.hinge);
++                    this.rightPageMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
++                    const rightPagesMatArray = [edgeMat, edgeMat, this.rightPageMat, edgeMat, edgeMat, edgeMat];
++                    this.rightPages = new THREE.Mesh(createBookGeo(pW, pL, pT, pageRadius), rightPagesMatArray);
++                    this.rightPages.position.set(pW / 2, -pT / 2, -zOffset);
++                    this.group.add(this.rightPages);
+-                const leftCover = new THREE.Mesh(createBookGeo(cW, cL, cT, coverRadius), coverMatArray);
+-                leftCover.position.set(cW / 2, pT + cT / 2, 0);
+-                this.hinge.add(leftCover);
++                    this.spine = new THREE.Mesh(new THREE.CylinderGeometry(spineRadius, spineRadius, cL, 32, 1, false, Math.PI / 2, Math.PI), leatherMat);
++                    this.spine.rotation.x = Math.PI / 2;
++                    this.spine.position.set(0, -pT / 2, 0);
++                    this.group.add(this.spine);
+-                const decalGeo = new THREE.PlaneGeometry(cW - 0.2, cL - 0.2);
+-                decalGeo.rotateX(-Math.PI / 2);
+-                const decal = new THREE.Mesh(decalGeo, coverMat);
+-                decal.position.set(cW / 2, pT + cT + 0.05, 0); // Raised safely above the exact bounding box limit of the bevel
+-                this.hinge.add(decal);
++                    this.hinge = new THREE.Group();
++                    this.hinge.position.set(0, 0, 0);
++                    this.group.add(this.hinge);
+-                this.leftPageMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+-                const leftPagesMatArray = [edgeMat, edgeMat, edgeMat, this.leftPageMat, edgeMat, edgeMat];
+-                this.leftPages = new THREE.Mesh(createBookGeo(pW, pL, pT, pageRadius), leftPagesMatArray);
+-                this.leftPages.position.set(pW / 2, pT / 2, -zOffset);
++                    const leftCover = new THREE.Mesh(createBookGeo(cW, cL, cT, coverRadius), coverMatArray);
++                    leftCover.position.set(cW / 2, pT + cT / 2, 0);
++                    this.hinge.add(leftCover);
+-                this.leftPages.scale.set(-1, 1, 1);
+-                this.hinge.add(this.leftPages);
++                    const decalShape = getBookShape(cW - 0.2, cL - 0.2, coverRadius);
++                    const decalGeo = new THREE.ShapeGeometry(decalShape);
+-                this.group.position.x = this.targetPosX;
+-                this.group.position.y = this.targetPosY;
+-                this.group.scale.set(this.currentScale, this.currentScale, this.currentScale);
+-                this.group.rotation.x = this.currentRotX;
+-                this.group.rotation.y = this.currentRotY;
+-            }
++                    decalGeo.computeBoundingBox();
++                    const min = decalGeo.boundingBox.min;
++                    const max = decalGeo.boundingBox.max;
++                    const uvAttr = decalGeo.attributes.uv;
++                    for (let i = 0; i < uvAttr.count; i++) {
++                        uvAttr.setXY(i, (decalGeo.attributes.position.getX(i) - min.x) / (max.x - min.x), (decalGeo.attributes.position.getY(i) - min.y) / (max.y - min.y));
++                    }
+-            update() {
+-                // Faster speed when closing to snap it away quickly
+-                const speed = _cachedReducedMotion.matches ? 1.0 : (this.isOpen ? 0.35 : 0.45); // Lightning fast opening
++                    decalGeo.center();
++                    decalGeo.rotateX(-Math.PI / 2);
++                    const decal = new THREE.Mesh(decalGeo, coverMat);
++                    decal.position.set(cW / 2, pT + cT + 0.05, 0);
++                    this.hinge.add(decal);
+-                this.currentAngle += (this.targetAngle - this.currentAngle) * speed;
+-                this.hinge.rotation.z = this.currentAngle;
++                    this.leftPageMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
++                    const leftPagesMatArray = [edgeMat, edgeMat, edgeMat, this.leftPageMat, edgeMat, edgeMat];
++                    this.leftPages = new THREE.Mesh(createBookGeo(pW, pL, pT, pageRadius), leftPagesMatArray);
++                    this.leftPages.position.set(pW / 2, pT / 2, -zOffset);
+-                this.group.position.x += (this.targetPosX - this.group.position.x) * speed;
+-                this.currentPosY += (this.targetPosY - this.currentPosY) * speed;
+-                this.group.position.y = this.currentPosY;
++                    this.leftPages.scale.set(-1, 1, 1);
++                    this.hinge.add(this.leftPages);
+-                this.currentScale += (this.targetScale - this.currentScale) * speed;
+-                this.group.scale.set(this.currentScale, this.currentScale, this.currentScale);
++                    this.group.rotation.x = this.currentRotX;
++                    this.group.rotation.y = this.currentRotY;
++                }
+-                this.currentRotX += (this.targetRotX - this.currentRotX) * speed;
+-                this.group.rotation.x = this.currentRotX;
+-                this.currentRotY += (this.targetRotY - this.currentRotY) * speed;
+-                this.group.rotation.y = this.currentRotY;
++                update() {
++                    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
++                    const speed = prefersReducedMotion ? 1.0 : (this.isOpen ? 0.06 : 0.15);
+-                const progress = this.currentAngle / Math.PI;
+-                this.spine.scale.x = 1.0 - progress * (1.0 - (cT / spineRadius));
+-                this.spine.position.y = -pT / 2 - progress * (pT / 2 + cT / 2);
+-            }
+-        }
++                    this.currentAngle += (this.targetAngle - this.currentAngle) * speed;
++                    this.hinge.rotation.z = this.currentAngle;
+-        const journal3D = new SacredJournal();
+-        scene.add(journal3D.group);
++                    this.currentRotX += (this.targetRotX - this.currentRotX) * speed;
++                    this.group.rotation.x = this.currentRotX;
++                    this.currentRotY += (this.targetRotY - this.currentRotY) * speed;
++                    this.group.rotation.y = this.currentRotY;
+-        window.update3DPages = function () {
+-            if (window.game && game.pages && journal3D) {
+-                try {
+-                    journal3D.leftPageMat.map = createDynamicPageTexture(game.pages[game.currentPageIdx], true, game.currentPageIdx + 1);
+-                    journal3D.rightPageMat.map = createDynamicPageTexture(game.pages[game.currentPageIdx + 1], false, game.currentPageIdx + 2);
+-                    journal3D.leftPageMat.needsUpdate = true;
+-                    journal3D.rightPageMat.needsUpdate = true;
+-                } catch (e) { console.warn(e); }
++                    const progress = this.currentAngle / Math.PI;
++                    this.spine.scale.x = 1.0 - progress * (1.0 - (cT / spineRadius));
++                    this.spine.position.y = -pT / 2 - progress * (pT / 2 + cT / 2);
++                }
+-        };
+-        function alignCameraToDOM() {
+-            const domBook = document.querySelector('.book');
+-            if (!domBook || domBook.clientHeight === 0) return;
++            const journal3D = new SacredJournal();
++            window.journal3D = journal3D;
++            scene.add(journal3D.group);
+-            const rect = domBook.getBoundingClientRect();
++            window.update3DPages = function () {
++                if (window.game && game.pages && journal3D) {
++                    try {
++                        journal3D.leftPageMat.map = createDynamicPageTexture(game.pages[game.currentPageIdx], true);
++                        journal3D.rightPageMat.map = createDynamicPageTexture(game.pages[game.currentPageIdx + 1], false);
++                        journal3D.leftPageMat.needsUpdate = true;
++                        journal3D.rightPageMat.needsUpdate = true;
++                    } catch (e) { console.warn(e); }
++                }
++            };
+-            // Adjust scale of 3D journal to perfectly match the dynamically squishing DOM journal
+-            const domAspect = rect.width / rect.height;
+-            const modelAspect = (cW * 2) / cL;
+-            if (window.journal3D) window.journal3D.group.scale.x = domAspect / modelAspect;
++            function alignCameraToDOM() {
++                const domBook = document.querySelector('.book');
++                if (!domBook || domBook.clientHeight === 0) return;
+-            const screenFraction = rect.height / window.innerHeight;
+-            const visibleLengthAtZ = cL / screenFraction;
+-            const distance = visibleLengthAtZ / (2 * Math.tan(Math.PI * camera.fov / 360));
++                const screenFraction = domBook.clientHeight / window.innerHeight;
++                const visibleLengthAtZ = cL / screenFraction;
++                const distance = visibleLengthAtZ / (2 * Math.tan(Math.PI * camera.fov / 360));
++                const rect = domBook.getBoundingClientRect();
++                const domCenterY = rect.top + rect.height / 2;
++                const screenCenterY = window.innerHeight / 2;
++                const pixelsPerUnit = domBook.clientHeight / cL;
++                const cameraZOffset = -(domCenterY - screenCenterY) / pixelsPerUnit;
+-            const domCenterY = rect.top + rect.height / 2;
+-            const screenCenterY = window.innerHeight / 2;
+-            const pixelsPerUnit = domBook.clientHeight / cL;
+-            const cameraZPos = -(domCenterY - screenCenterY) / pixelsPerUnit;
++                camera.position.set(0, distance, -cameraZOffset);
++                camera.lookAt(0, 0, -cameraZOffset);
++            }
+-            camera.position.set(0, distance, cameraZPos);
+-            camera.lookAt(0, 0, cameraZPos);
+-        }
++            const raycaster = new THREE.Raycaster();
++            const mouse = new THREE.Vector2();
+-        const raycaster = new THREE.Raycaster();
+-        const mouse = new THREE.Vector2();
++            container.addEventListener('pointerdown', (e) => {
++                if (window.isDOMActive) return;
++                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
++                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
++                raycaster.setFromCamera(mouse, camera);
++                if (raycaster.intersectObjects(journal3D.group.children, true).length > 0) {
++                    window.initiateOpenSequence();
++                }
++            });
+-        const canvasContainer = document.getElementById('webgl-container');
++            window.isDOMActive = false;
+-        canvasContainer.addEventListener('pointerdown', (e) => {
+-            if (window.isDOMActive) return;
+-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+-            raycaster.setFromCamera(mouse, camera);
+-            if (raycaster.intersectObjects(journal3D.group.children, true).length > 0) {
+-                window.initiateOpenSequence();
++            window.initiateOpenSequence = function () {
++                if (journal3D.isOpen) return;
++                journal3D.isOpen = true;
++                journal3D.targetAngle = Math.PI;
++                journal3D.targetRotX = 0;
++                journal3D.targetRotY = 0;
++
++                container.setAttribute('aria-expanded', 'true');
++                const announcer = document.getElementById('sr-announcer');
++                if (announcer) announcer.textContent = "Logbook opened.";
+-        });
+-        window.isDOMActive = false;
++            window.initiateCloseSequence = function () {
++                // Restore 3D paper underneath instantly before fading out DOM
++                journal3D.rightPages.visible = true;
++                journal3D.leftPages.visible = true;
+-        window.initiateOpenSequence = function () {
+-            window._isClosingInitiated = false;
+-            if (journal3D.isOpen) return;
+-            journal3D.isOpen = true;
++                document.getElementById('sacred-logbook-engine').style.opacity = '0';
++                document.getElementById('sacred-logbook-engine').style.pointerEvents = 'none';
++                document.getElementById('sacred-logbook-engine').setAttribute('aria-hidden', 'true');
++                window.isDOMActive = false;
+-            // Phase 1: Slide open to perfectly center and flatten the closed book to face the camera
+-            journal3D.targetPosX = 0;
+-            journal3D.targetPosY = 0;
+-            journal3D.targetRotX = 0; // Flatten from cover tilt
+-            journal3D.targetRotY = 0; // Flatten from cover twist
+-            journal3D.targetScale = 1.0;
++                journal3D.isOpen = false;
++                journal3D.targetAngle = 0;
++                journal3D.targetRotX = 0.35;
++                journal3D.targetRotY = -0.2;
+-            container.setAttribute('aria-expanded', 'true');
+-            const announcer = document.getElementById('sr-announcer');
+-            if (announcer) announcer.textContent = "Logbook opening.";
++                container.setAttribute('aria-expanded', 'false');
++                const announcer = document.getElementById('sr-announcer');
++                if (announcer) announcer.textContent = "Logbook closing. Returning to game.";
++            }
+-            // Phase 2: Pause 0.5 seconds to showcase the 3D cover, then realistically flip the cover open
+-            setTimeout(() => {
+-                if (!journal3D.isOpen || window._isClosingInitiated) return;
+-                journal3D.targetAngle = Math.PI;
+-            }, 500);
+-        }
++            function animate() {
++                requestAnimationFrame(animate);
+-        window.initiateCloseSequence = function (notifyParent = true) {
+-            if (window._isClosingInitiated) return;
+-            window._isClosingInitiated = true;
++                if (window._isBookVisibleOverride === false && journal3D.currentAngle < 0.05) { return; }
+-            // Restore 3D paper underneath instantly before fading out DOM
+-            journal3D.rightPages.visible = true;
+-            journal3D.leftPages.visible = true;
++                journal3D.update();
++                renderer.render(scene, camera);
+-            document.getElementById('sacred-logbook-engine').style.opacity = '0';
+-            document.getElementById('sacred-logbook-engine').style.pointerEvents = 'none';
+-            document.getElementById('sacred-logbook-engine').setAttribute('aria-hidden', 'true');
+-            window.isDOMActive = false;
++                if (journal3D.isOpen && !window.isDOMActive && (journal3D.currentAngle / Math.PI) > 0.85) {
++                    window.isDOMActive = true;
++                    alignCameraToDOM();
++                    document.getElementById('sacred-logbook-engine').style.opacity = '1';
++                    document.getElementById('sacred-logbook-engine').style.pointerEvents = 'auto';
++                    document.getElementById('sacred-logbook-engine').setAttribute('aria-hidden', 'false');
++                    document.getElementById('tab-log').focus();
+-            journal3D.isOpen = false;
+-            journal3D.targetAngle = 0;
+-            journal3D.targetPosX = -cW / 2; // Slide back to perfectly center the closed book
+-            journal3D.targetRotX = -0.35; // Restore cover tilt
+-            journal3D.targetRotY = 0.12; // Restore cover twist
++                    setTimeout(() => {
++                        if (journal3D.isOpen) {
++                            journal3D.rightPages.visible = false;
++                            journal3D.leftPages.visible = false;
++                        }
++                    }, 400);
++                }
+-            container.setAttribute('aria-expanded', 'false');
+-            const announcer = document.getElementById('sr-announcer');
+-            if (announcer) announcer.textContent = "Logbook closed.";
+-
+-            // Fast exit: don't wait for 3D physics to close, kids don't like to wait
+-            if (notifyParent) {
+-                setTimeout(() => {
+-                    try { window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); } catch (e) { }
+-                }, 100);
++                if (!journal3D.isOpen && journal3D.currentAngle < 0.05 && !window.isDOMActive) {
++                    if (!window._hasNotifiedClose) {
++                        try {
++                            window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');
++                            window.parent.postMessage({ type: 'RETURN_TO_GAME' }, '*');
++                        } catch (e) { }
++                        window._hasNotifiedClose = true;
++                    }
++                } else {
++                    window._hasNotifiedClose = false;
++                }
+-        }
++            animate();
+-        window._hasNotifiedClose = true; // Prevent auto-toggle on initialization
++            setTimeout(alignCameraToDOM, 100);
+-        function animate() {
+-            requestAnimationFrame(animate);
++            window.addEventListener('resize', () => {
++                camera.aspect = window.innerWidth / window.innerHeight;
++                camera.updateProjectionMatrix();
++                renderer.setSize(window.innerWidth, window.innerHeight);
++                if (window.isDOMActive) alignCameraToDOM();
++            });
+-            if (window._isBookVisibleOverride === false && journal3D.currentAngle < 0.05) { return; }
+-
+-            journal3D.update();
+-
+-            // Optimization: If the 3D paper is unloaded and the book is just sitting open behind the HTML DOM,
+-            // stop pounding the GPU with render calls! The canvas will retain its last frame natively.
+-            if (window.isDOMActive && journal3D.isOpen && !game.isFlipping && !journal3D.leftPages.visible) {
+-                return;
+-            }
+-
+-            renderer.render(scene, camera);
+-
+-            // Sleight of Hand: Fade in DOM on top of 3D meshes as soon as they settle
+-            if (journal3D.isOpen && !window.isDOMActive && (journal3D.currentAngle / Math.PI) > 0.9) {
+-                window.isDOMActive = true;
+-                alignCameraToDOM();
+-                document.getElementById('sacred-logbook-engine').style.opacity = '1';
+-                document.getElementById('sacred-logbook-engine').style.pointerEvents = 'auto';
+-                document.getElementById('sacred-logbook-engine').setAttribute('aria-hidden', 'false');
+-                document.getElementById('tab-log').focus();
+-
+-                // Unload 3D paper behind the scenes
+-                setTimeout(() => {
+-                    if (journal3D.isOpen) {
+-                        journal3D.rightPages.visible = false;
+-                        journal3D.leftPages.visible = false;
+-                    }
+-                }, 400);
+-            }
+-            // Removed redundant notify close logic - now explicitly handled by initiateCloseSequence to prevent loops
++            // WCAG AAA: Easy exit for keyboard users
++            window.addEventListener('keydown', (e) => {
++                if (e.key === 'Escape' && window.isDOMActive) {
++                    window.initiateCloseSequence();
++                }
++            });
+-        animate();
+-        window.addEventListener('DOMContentLoaded', () => {
+-            setTimeout(alignCameraToDOM, 100);
+-        });
+-
+-        window.addEventListener('resize', () => {
+-            camera.aspect = window.innerWidth / window.innerHeight;
+-            camera.updateProjectionMatrix();
+-            renderer.setSize(window.innerWidth, window.innerHeight);
+-            if (window.isDOMActive) alignCameraToDOM();
+-        });
++        if (document.readyState === 'complete') {
++            run3DEngine();
++        } else {
++            window.addEventListener('load', run3DEngine);
++        }
+-
+-            // Wait for DOM to repaint with new font size
+-            setTimeout(() => {
+-                const left = document.getElementById('page-content-left');
+-                const right = document.getElementById('page-content-right');
+-                if (left && right) {
+-                    const maxScrollHeight = Math.max(left.scrollHeight, right.scrollHeight);
+-                    const currentHeight = Math.max(left.clientHeight, right.clientHeight);
+-
+-                    if (maxScrollHeight > currentHeight + 5) {
+-                        const extraNeeded = maxScrollHeight - currentHeight;
+-                        window.parent.postMessage({
+-                            type: 'ADJUST_JOURNAL_HEIGHT',
+-                            height: window.innerHeight + extraNeeded
+-                        }, '*');
+-                    } else {
+-                        // Content fits! Reset to base Golden Ratio height.
+-                        window.parent.postMessage({ type: 'ADJUST_JOURNAL_HEIGHT', reset: true }, '*');
+-                    }
+-                }
+-            }, 50);
++        /* --- INTERACTIVE 3D MODELS MANIFEST (For LLM/Rasa Context) --- */
++        window.INTERACTIVE_ENTITIES_MANIFEST = [
++            { id: "tipi", name: "Tipi", type: "building", interactable: true },
++            { id: "axe", name: "Stone Axe", type: "tool", interactable: true },
++            { id: "yellowbutterfly", name: "Yellow Butterfly", type: "creature", interactable: true },
++            { id: "campfire", name: "Campfire", type: "object", interactable: true },
++            { id: "fox", name: "Wild Fox", type: "creature", interactable: true }
++        ];
++
++        /* --- VALID GAME VERBS --- */
++        window.VALID_VERBS = [
++            "get", "fish", "chop", "eat", "help", "talk", "sleep", "gather",
++            "hide", "run", "walk", "look", "climb", "enter", "interact",
++            "use", "examine", "take", "go", "pick", "build", "craft"
++        ];
++
++        /* PRE-PARSER & SUBMISSION */
+-            const val = inputEl.value.trim();
++            const feedbackEl = document.getElementById('parser-feedback');
++            const val = inputEl.value.trim().toLowerCase();
++
+-            // Intercept close/exit commands locally
+-            const cmd = val.toLowerCase();
+-            const closeCommands = ['close', 'exit', 'exit journal', 'close journal', 'close book', 'exit book', 'quit', 'bye'];
+-            if (closeCommands.includes(cmd)) {
+-                inputEl.value = ''; inputEl.blur();
+-                if (window.initiateCloseSequence) window.initiateCloseSequence();
+-                return;
++            // Strip punctuation for cleaner parsing
++            const cleanVal = val.replace(/[^\w\s]/gi, '');
++            const words = cleanVal.split(/\s+/);
++            const firstWord = words[0];
++
++            // 1. Strict Verb Filtering (Block Junk Words)
++            let matchedVerb = window.VALID_VERBS.find(v => words.includes(v));
++
++            // Fallback check: e.g., if user typed "chopping" -> matches "chop"
++            if (!matchedVerb) {
++                matchedVerb = window.VALID_VERBS.find(v => firstWord.startsWith(v));
+-            // Forward everything else to the engine (using window.top because we are inside a nested iframe)
+-            try { window.top.postMessage({ type: 'PROCESS_INPUT', value: val }, '*'); } catch (e) { }
+-            inputEl.value = ''; inputEl.blur();
++            if (!matchedVerb) {
++                feedbackEl.textContent = `Parser: Unknown action "${firstWord}". Try gather, look, or enter.`;
++                feedbackEl.style.color = '#fca5a5'; // AAA Red on dark bg
++                inputEl.value = '';
++                inputEl.blur();
++                return; // BLOCKS THE DISPATCH TO RASA
++            }
++
++            // 2. Identify Target Entity
++            let matchedEntity = null;
++            for (let entity of window.INTERACTIVE_ENTITIES_MANIFEST) {
++                if (val.includes(entity.name.toLowerCase()) || val.includes(entity.id.toLowerCase())) {
++                    matchedEntity = entity;
++                    break;
++                }
++            }
++
++            // Capitalize verb for display
++            const displayVerb = matchedVerb.charAt(0).toUpperCase() + matchedVerb.slice(1);
++
++            if (matchedEntity) {
++                feedbackEl.textContent = `Executing (${displayVerb} + ${matchedEntity.name}) + moving to coordinates (${matchedEntity.id} location).`;
++                feedbackEl.style.color = '#86efac'; // AAA Green on dark bg
++            } else {
++                feedbackEl.textContent = `Executing (${displayVerb})...`;
++                feedbackEl.style.color = '#86efac'; // AAA Green on dark bg
++            }
++
++            // Dispatch full payload to backend ONLY if it passes the verb check
++            try {
++                window.parent.postMessage({
++                    type: 'PROCESS_INPUT',
++                    value: val,
++                    context: {
++                        currentTab: game.currentTab,
++                        currentPage: game.currentPageIdx,
++                        interactiveModels: window.INTERACTIVE_ENTITIES_MANIFEST,
++                        recognizedVerb: matchedVerb
++                    }
++                }, '*');
++            } catch (e) { }
++
++            inputEl.value = '';
++            inputEl.blur();
++
+-            if (announcer) announcer.textContent = "Command submitted.";
++            if (announcer) announcer.textContent = feedbackEl.textContent;
+-        /* --- RESOLUTION INDICATOR --- */
+-        function updateResIndicator() {
+-            const el = document.getElementById('res-indicator');
+-            if (!el) return;
+-            const w = window.innerWidth;
+-            const h = window.innerHeight;
+-            let mode = 'Desktop';
+-            if (w <= 400) mode = 'Mobile';
+-            else if (w <= 860) mode = 'Tablet';
+-            else if (w <= 1024) mode = 'Tablet';
+-            el.textContent = `${w}×${h} ${mode}`;
+-        }
+-        window.addEventListener('resize', updateResIndicator);
+-        updateResIndicator();
+-
+-                        { type: "html-box", html: `
+-                            <div class="float-right w-[45%] max-w-[200px] ml-3 mb-2">
+-                                <video muted playsinline autoplay preload="auto" class="rounded-md shadow-md w-full aspect-[4/3] object-cover cursor-pointer border border-[#1c100b]/20"
+-                                    onended="this.pause();" onclick="if(this.paused){this.currentTime=0; this.play();}else{this.pause();}">
+-                                    <source src="./Assets/AnimatedOpening.mp4" type="video/mp4">
+-                                </video>
+-                            </div>
+-                            <p class="book-text"><span class="drop-cap" aria-hidden="true">W</span><span class="sr-only">W</span>elcome to Sacred Adventures!</p>
+-                            <br>
+-                            <p class="book-text">This game is connected to a real-world charity project to build the same buildings you will -- in the real world. This is a digital twin game, so the more you play, the more interest we get to help build our real Sioux Indian Village!</p>
+-                            <br>
+-                            <p class="book-text text-center italic font-bold text-[#6d4c41] drop-shadow-sm mt-2 clear-both">Thanks for playing!</p>
+-                        ` }
++                        { type: "video-box", url: "https://www.sacredones.org/SacredAdventures/Assets/AnimatedOpening.mp4" },
++                        { type: "text-box", text: "You can interact with everything in the scene by typing if you would like." }
+-                        { type: "image-box", url: "./Assets/Journal.Cover.png" },
++                        { type: "image-box", url: "https://images.unsplash.com/photo-1590845947698-8924d7409b56?auto=format&fit=crop&w=400&q=80" },
+-                if (block.type === 'html-box') {
+-                    return `<div class="w-full text-left">${block.html}</div>`;
+-                }
+-                    return ''; // TIPI CAM REMOVED per user request
++                    return `
++                        <div class="w-full flex justify-center mt-2 mb-3">
++                            <div onclick="if(window.parent.emit) window.parent.emit('TOGGLE_VIEW_MODE');" data-pip-target="tipi" class="cursor-pointer hover:scale-105 transition-transform rounded-full shadow-[inset_0_4px_10px_rgba(0,0,0,0.6),0_4px_15px_rgba(28,16,11,0.4)] border-4 border-[#1c100b] w-[45px] h-[45px] md:w-[60px] md:h-[60px] bg-transparent relative overflow-hidden flex items-center justify-center">
++                            </div>
++                        </div>
++                    `;
+-                    const vidSrc = window.parent && window.parent._cachedVideoBlobUrl ? window.parent._cachedVideoBlobUrl : block.url;
+-                            <video muted playsinline autoplay preload="auto" class="rounded-md shadow-md max-w-[80%] max-h-[140px] cursor-pointer border border-[#1c100b]/20"
+-                                onended="this.pause();" onclick="if(this.paused){this.currentTime=0; this.play();}else{this.pause();}">
+-                                <source src="${vidSrc}" type="video/mp4">
++                            <video muted playsinline autoplay class="rounded-md shadow-md max-w-[80%] max-h-[140px] cursor-pointer border border-[#1c100b]/20"
++                                onended="this.currentTime=0; this.pause();" onclick="if(this.paused){this.play();}else{this.pause();}">
++                                <source src="${block.url}" type="video/mp4">
+-        function scheduleAlign() {
++        let lastAlignTime = 0;
++        function alignLoop(timestamp) {
++            requestAnimationFrame(alignLoop);
+-            alignTipiCanvas();
+-            alignAxeCanvas();
++            if (timestamp - lastAlignTime >= 100) {
++                alignTipiCanvas();
++                alignAxeCanvas();
++                lastAlignTime = timestamp;
++            }
++        requestAnimationFrame(alignLoop);
+-        window.addEventListener('DOMContentLoaded', () => {
+-            if (window.ResizeObserver) {
+-                const ro = new ResizeObserver(() => scheduleAlign());
+-                ro.observe(document.body);
+-            }
+-            if (window.MutationObserver) {
+-                const mo = new MutationObserver(() => scheduleAlign());
+-                const container = document.querySelector('.book-content');
+-                if (container) mo.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+-            }
+-        });
+-
+-                    // COVER REVEAL SEQUENCE: Show the closed cover first, pause, then open
+-                    if (window.initiateOpenSequence && (!journal3D || !journal3D.isOpen)) {
+-                        // Phase 1: Book is already visible in its proud cover pose (tilt + twist)
+-                        // Phase 2: Wait 1000ms for the DOM to fully render behind the scenes
+-                        clearTimeout(window._coverRevealTimer);
+-                        window._coverRevealTimer = setTimeout(() => {
+-                            // Phase 3: Animate the opening
+-                            if (window.isLogbookVisible) window.initiateOpenSequence();
+-                        }, 1000);
+-                    }
++                    if (window.initiateOpenSequence && (!window.journal3D || !window.journal3D.isOpen)) window.initiateOpenSequence();
+-                    clearTimeout(window._coverRevealTimer);
+-                    if (window.initiateCloseSequence) window.initiateCloseSequence(false);
++                    if (window.initiateCloseSequence) window.initiateCloseSequence();
+-            if (d.type === 'DO_OPEN_FLIP') { if (window.initiateOpenSequence) window.initiateOpenSequence(); }
++            if (d.type === 'DO_OPEN_FLIP') if (window.initiateOpenSequence) initiateOpenSequence();
+-
+-            if (d.type === 'NLP_RESPONSE') {
+-                const logEl = document.getElementById('nlp-event-log');
+-                if (logEl) {
+-                    logEl.textContent = d.msg;
+-                    // Auto-clear after 6 seconds if it hasn't been overwritten
+-                    setTimeout(() => { if (logEl.textContent === d.msg) logEl.textContent = ''; }, 6000);
+-                }
+-                const announcer = document.getElementById('sr-announcer');
+-                if (announcer) announcer.textContent = d.msg;
+-            }
+-
+-            if (d.type === 'SHOW_BUILDING_INFO') {
+-                // Update Buildings data
+-                window.LOGBOOK_DATA.buildings = [{
+-                    pageId: 1,
+-                    title: `Tipi ${d.tipiId}`,
+-                    contentBlocks: [
+-                        { type: "html-box", html: `<p class="book-text">${d.ownerText}</p>` }
+-                    ]
+-                }];
+-                // Switch to the tab
+-                if (typeof window.switchBookTab === 'function') window.switchBookTab('buildings');
+-                // Open the journal if closed
+-                if (window.initiateOpenSequence && (!journal3D || !journal3D.isOpen)) {
+-                    window.initiateOpenSequence();
+-                }
+-            }
+-
+-            if (d.type === 'YB_GREETING_ARRIVED') {
+-                if (typeof window.switchBookTab === 'function') window.switchBookTab('log');
+-                // Turn to page 3 (index 2) which is Yellow Butterfly's dialogue
+-                if (typeof window.turnPage === 'function') {
+-                    window.currentPageIdx = 2;
+-                    window.renderPages();
+-                }
+-            }
+-
+-            if (d.type === 'BHG_GREETING_ARRIVED') {
+-                if (typeof window.switchBookTab === 'function') window.switchBookTab('log');
+-                // Turn to page 4 (index 3) which is BHG's dialogue
+-                if (typeof window.turnPage === 'function') {
+-                    window.currentPageIdx = 3;
+-                    window.renderPages();
+-                }
+-            }

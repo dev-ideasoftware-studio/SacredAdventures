@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html><body>
+<script>
+window.addEventListener('message', (e) => {
+    console.log("RECEIVED:", e.data);
+});
+window.postMessage({ type: 'PROCESS_INPUT', value: 'start game, get axe, walk to butterfly woman' }, '*');
+</script>
+</body></html>

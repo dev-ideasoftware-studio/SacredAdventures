@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sacred Adventures — An Indigenous Children's 3D Learning Game</title>
+    <meta name="description"
+        content="Sacred Adventures is an interactive 3D game where children explore an enchanted Indigenous world, complete quests, build villages, and learn through play. Built for accessibility (WCAG AAA) and offline play.">
+
+    <link rel="icon" href="Assets/pwa-icon.png">
+    <!-- <link rel="manifest" href="manifest.json"> TEMP DISABLED FOR OFFLINE CORS -->
+    <meta name="theme-color" content="#fbc02d">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Sacred Ones">
+    <link rel="apple-touch-icon" href="Assets/pwa-icon.png">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
+    </script>
+
+    <!-- 1. THREE.JS IMPORT MAP (Local vendor for offline play) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./vendor/three/three.module.js",
+                "three/addons/": "./vendor/three/examples/jsm/"
+            }
+        }
+    </script>
+
+    <!-- 2. NATIVE ES MODULE IMPORTS -->
+    <script type="module">
+        import * as THREE_module from 'three';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+        import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+        import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+        // A. Globally Expose Loaders for sub-modules
+        window.THREE = Object.assign({}, THREE_module);
+        window.OBJLoader = OBJLoader;
+        window.MTLLoader = MTLLoader;
+        window.GLTFLoader = GLTFLoader;
+        window.SkeletonUtils = SkeletonUtils;
+        window.BufferGeometryUtils = BufferGeometryUtils;
+
+        // Ensure THREE namespace has loaders attached for older scripts
+        window.THREE.OBJLoader = OBJLoader;
+        window.THREE.MTLLoader = MTLLoader;
+        window.THREE.GLTFLoader = GLTFLoader;
+        window.THREE.DRACOLoader = DRACOLoader;
+
+        // B. Inject Game Components as classic scripts to avoid CORS on file://
+        // CACHE BUSTER ADDED: Append a timestamp to prevent the browser from serving stale 18FPS cached files
+        const loadScript = (src) => new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            const cacheBuster = `?v=1776936947${new Date().getTime()}`;
+            s.src = src.includes('?') ? src + `&v=1776936947${new Date().getTime()}` : src + cacheBuster;
+            s.async = false; // CRITICAL: Guarantee execution order of Promise.all array!
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+
+        Promise.all([
+            loadScript('Component.FuzzyBrain.js'),
+            loadScript('js/MasterAI.js'),
+            loadScript('js/Component.PostProcessing.js'),
+            loadScript('js/Component.RabbitSystem.js'),
+            loadScript('js/EnvironmentBuilder.js'),
+            loadScript('Component.AssetFactory.js'),
+            loadScript('Component.ThreeIcons.js')
+        ]).then(() => {
+            // C. Signal Ready
+            window.customScriptsReady = true;
+            if (window.documentReady) window.startGameIfReady();
+        }).catch(err => {
+            console.error("Failed to load game components via script injection:", err);
+        });
+    </script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--theme-main-bg);
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        /* The Inner Rim (PIP View) */
+        #pip-lens {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #222;
+        }
+
+        #loading {
+            position: absolute;
+            inset: 0;
+            z-index: 999999;
+            background: rgba(0, 0, 0, 0.4);
+            /* Let the background video shine through */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            /* Push modal to the bottom */
+            padding-bottom: 8%;
+            /* Margin from bottom edge */
+            transition: opacity 2s ease-in-out;
+            pointer-events: none;
+        }
+
+        /* LOADING SCREEN CONTAINER (Managed via iframe) */
+        #loading-iframe {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            z-index: 999999;
+            background: #111;
+            transition: opacity 1.5s ease-in-out;
+            pointer-events: auto;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
+
+        #quest-notification {
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(30, 20, 15, 0.85);
+            border: 2px solid #fbc02d;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(251, 192, 45, 0.2);
+            text-align: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease-in-out;
+            padding: 24px 48px;
+            backdrop-filter: blur(8px);
+        }
+
+        #quest-notification h2 {
+            margin: 0 0 8px 0;
+            color: #fbc02d;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 2.2rem;
+            letter-spacing: 0.1em;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            text-transform: uppercase;
+        }
+
+        #quest-notification p {
+            margin: 0;
+            color: #fdf6e3;
+            font-family: 'Nunito', sans-serif;
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .key-hint {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.8rem;
+            margin-top: 5px;
+            backdrop-filter: blur(4px);
+        }
+
+        #time-display {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fdf6e3;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+            z-index: 200;
+            font-family: 'Georgia', serif;
+            letter-spacing: 0.15em;
+            background: rgba(93, 64, 55, 0.75);
+            padding: 6px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(210, 180, 140, 0.4);
+            backdrop-filter: blur(6px);
+        }
+
+        /* === MAP ZOOM CONTROLS === */
+        #map-zoom-ui {
+            display: none;
+            position: absolute;
+            left: 20px;
+            top: max(50%, 420px);
+            /* Pushed down to act as a buffer and never collide with Moondial */
+            transform: translateY(-50%);
+            z-index: 100;
+            flex-direction: column;
+            gap: 12px;
+            background: rgba(93, 64, 55, 0.4);
+            padding: 10px;
+            border-radius: 30px;
+            border: 2px solid rgba(210, 180, 140, 0.4);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Ethereal Vignette Overlay (Replaces Ugly Resolution-Killing Backdrop Blurs) */
+        #surreal-vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 50;
+            /* Above WebGL canvas, but below UI */
+            opacity: 0;
+            transition: opacity 1.0s ease-in-out;
+            /* Heavy dark edge gradient to force the eye to the bright, glowing green center map */
+            background: radial-gradient(circle, transparent 40%, rgba(0, 10, 5, 0.8) 120%);
+            box-shadow: inset 0 0 150px rgba(0, 15, 0, 0.9);
+            mix-blend-mode: multiply;
+        }
+
+        body.is-map-view #surreal-vignette {
+            opacity: 1;
+        }
+
+        /* Show zoom only in map view */
+        body.is-map-view #map-zoom-ui {
+            display: flex;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(62, 39, 35, 0.8);
+            color: #fdf6e3;
+            border: 1px solid rgba(251, 192, 45, 0.5);
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(251, 192, 45, 0.4);
+            transform: scale(1.1);
+        }
+
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+
+
+        /* ACTION SIDEBAR (Left-Aligned, Exploration Focus) */
+        #action-sidebar {
+            position: fixed;
+            left: -350px;
+            /* Hidden off-screen by default */
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: var(--theme-sidebar-bg);
+            /* Creamy UI */
+            padding: 20px 20px 20px 30px;
+            border-radius: 0 40px 40px 0;
+            box-shadow: 10px 0 40px rgba(0, 0, 0, 0.15), inset -5px 0 10px rgba(255, 255, 255, 1.0);
+            border: 4px solid #dda15e;
+            /* Cute wood border */
+            border-left: none;
+            z-index: 10000;
+            /* Float above map canvas */
+            transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            /* Bouncy spring easing */
+            pointer-events: auto;
+        }
+
+        #action-sidebar.active {
+            left: 0px;
+        }
+
+        .action-btn {
+            width: 240px;
+            height: 48px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
+            border: 0.5px solid white !important;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka One', 'Varela Round', sans-serif;
+            font-weight: 800;
+            font-size: 16px;
+            text-transform: uppercase;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+            user-select: none;
+            gap: 10px;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+            /* Matching Logbook hover scale */
+        }
+
+        .action-btn:active {
+            transform: translateY(6px);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0px 0 #581c87, 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes sidebarBloom {
+
+            0%,
+            100% {
+                box-shadow: 0 0 10px #eab308, 0 5px 15px rgba(0, 0, 0, 0.4);
+                filter: brightness(1);
+            }
+
+            50% {
+                box-shadow: 0 0 30px #fef08a, 0 5px 15px rgba(0, 0, 0, 0.4);
+                filter: brightness(1.2);
+            }
+        }
+
+        .action-btn.bloom-glow {
+            animation: sidebarBloom 1.5s infinite;
+            border-color: #fef08a !important;
+        }
+
+        .action-icon {
+            font-size: 28px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- NEW: High-Performance CSS Vignette perfectly frames the Ethereal Green Diorama without destroying Frame Rate/Resolution -->
+    <div id="surreal-vignette"></div>
+
+    <!-- FPV PiP Overlay styled with Heaven Panels Aesthetic (Browns and Inner Shadows) -->
+    <div id="top-left-fpv"
+        style="position: absolute; top: 50px; left: 290px; width: 200px; height: 200px; border-radius: 50%; background: linear-gradient(145deg, rgba(70, 48, 41, 0.5), rgba(46, 29, 26, 0.5)); border: 4px solid #8d6e63; box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.3), inset -5px -5px 15px rgba(255, 255, 255, 0.4); z-index: 1000; overflow: hidden; display: none;">
+    </div>
+
+
+    <div id="quest-notification">
+        <h2>QUEST COMPLETED</h2>
+        <p>Got Axe!</p>
+    </div>
+
+    <!-- DEVELOPMENT DIAGNOSTICS -->
+    <div id="dev-fps"
+        style="display:block;position:fixed; top:15px; right:15px; background:linear-gradient(145deg, rgba(70, 48, 41, 0.9), rgba(46, 29, 26, 0.9)); color:#e8dec5; padding:8px 14px; font-family:'Lato', sans-serif; font-size:12px; font-weight:900; border-radius:12px; border: 2px solid #8d6e63; box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.1); z-index:1000000; pointer-events:none; letter-spacing:1px; text-transform:uppercase;">
+        60 FPS</div>
+
+    <iframe id="loading-iframe" src="Component.LoadingModal.html?v=2"
+        style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:999999;pointer-events:auto;background:#000;"
+        allow="autoplay"></iframe>
+
+    <script>
+        // LOG SYSTEM HELPER: Routes telemetry to the diagnostic HUD
+        window.logSystem = function(msg, pVideo, pAssets, pLogic, pInit) {
+            const ld = document.getElementById('loading-iframe');
+            if (ld && ld.contentWindow) {
+                ld.contentWindow.postMessage({ 
+                    type: 'LOG_SYSTEM', 
+                    msg, pVideo, pAssets, pLogic, pInit 
+                }, '*');
+            }
+            if (msg) console.log(`[System] ${msg}`);
+        };
+
+        // BOOTSTRAP ORCHESTRATION
+        let isEngineStarted = false;
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'VIDEO_READY' && !isEngineStarted) {
+                isEngineStarted = true;
+                logSystem("Downloading...", 100, 0, 0, 0);
+                
+                // Start Asset Preload
+                const dbScript = document.createElement('script');
+                dbScript.src = 'js/GameObjectsDatabase.js?v=1';
+                dbScript.onload = () => {
+                    logSystem("Loading...", 100, 15, 0, 0);
+                    const engineScript = document.createElement('script');
+                    engineScript.type = 'module';
+                    engineScript.src = 'js/EngineMain.js?v=' + Date.now();
+                    engineScript.onload = () => {
+                        logSystem("Processing...", 100, 30, 0, 0);
+                        window.customScriptsReady = true;
+                        if (window.startGameIfReady) window.startGameIfReady();
+                    };
+                    document.body.appendChild(engineScript);
+                };
+                document.body.appendChild(dbScript);
+            }
+        });
+    </script>
+    <div id="bg-video-desc" class="sr-only">Atmospheric looping background video displaying cinematic floating particles
+        and a glowing dream-like landscape setting.</div>
+
+    <div id="canvas-container"></div>
+
+    <!-- FAST NATIVE VIGNETTE IS NOW HANDLED VIA #surreal-vignette at the top of the body block -->
+
+    <!-- UI OVERLAY (Adventure Panel — iframe) -->
+    <iframe id="panel-frame" src="SacredGame.Panel.html"
+        style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:1000;pointer-events:auto;background:transparent;"
+        allowtransparency="true"></iframe>
+
+    <!-- HUD ELEMENTS -->
+    <div id="time-display">08:00 AM</div>
+
+    <div id="map-zoom-ui">
+        <button class="zoom-btn" onclick="if(window._mapZoomLevel > 40) window._mapZoomLevel -= 20"
+            title="Zoom In">+</button>
+        <button class="zoom-btn" onclick="if(window._mapZoomLevel < 350) window._mapZoomLevel += 20"
+            title="Zoom Out">-</button>
+    </div>
+
+    <div id="stats-hud"
+        style="display:none;position:fixed;top:10px;right:10px;z-index:9999;font-family:'Courier New',monospace;font-size:13px;color:#0f0;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:6px;pointer-events:none;line-height:1.5;">
+        FPS: --</div>
+
+    <!-- ACTION SIDEBAR -->
+    <!-- ACTION SIDEBAR: Hidden in production — enable via console: document.getElementById('action-sidebar').style.display='flex' -->
+    <div id="action-sidebar" style="display:none;">
+        <div class="action-btn" data-action="map" onclick="window.postMessage({ type: 'TOGGLE_VIEW_MODE' }, '*');">
+            <span class="action-icon">🗺️</span>
+            Toggle Map
+        </div>
+        <div class="action-btn" data-action="building" id="building-action-btn" style="display:none;"
+            onclick="if(window.clearBuildingHighlight) window.clearBuildingHighlight();">
+            <span class="action-icon">⛺</span>
+            Tipi
+        </div>
+        <div class="action-btn" data-action="autowalk" onclick="handleActionClick('autowalk')">
+            <span class="action-icon">🧭</span>
+            Auto-Walk
+        </div>
+        <div class="action-btn" data-action="wood" onclick="handleActionClick('wood')">
+            <span class="action-icon">🪓</span>
+            Gather Wood
+        </div>
+        <div class="action-btn" data-action="theme"
+            onclick="document.body.classList.toggle('theme-light'); const frame = document.getElementById('panel-frame'); if(frame && frame.contentWindow) { frame.contentWindow.document.body.classList.toggle('theme-light'); }">
+            <span class="action-icon">🌗</span>
+            Toggle Theme
+        </div>
+    </div>
+
+    <!-- MODULES -->
+    <!-- MODULES LOADED DYNAMICALLY ABOVE AFTER VIDEO START -->
+</body>
+
+</html>

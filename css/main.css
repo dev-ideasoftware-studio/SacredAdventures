@@ -1,0 +1,181 @@
+:root {
+    --bg-dark: #0f1115;
+    --text-primary: #e0e0e0;
+    --pip-border: rgba(255, 255, 255, 0.4);
+    --pip-size: 200px;
+    --journal-width: 350px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body, html {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: var(--bg-dark);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#game-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+/* PIP Square Top-Down View */
+.pip-container {
+    position: absolute;
+    top: 50px;
+    left: 20px;
+    width: clamp(160px, 20vw, 240px);
+    height: clamp(160px, 20vw, 240px);
+    z-index: 1005;
+    border-radius: 50%;
+    pointer-events: auto;
+    cursor: pointer;
+    overflow: visible;
+    
+    background: radial-gradient(circle, rgba(15, 10, 5, 0.4) 30%, rgba(5, 2, 0, 0.9) 100%);
+    
+    border: 3px solid rgba(255, 215, 0, 0.4);
+    box-shadow: 
+        inset 0 0 30px rgba(0, 0, 0, 0.9),
+        0 0 0 8px #1a1512,
+        0 15px 40px rgba(0, 0, 0, 0.8),
+        0 0 20px rgba(255, 180, 50, 0.1);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.pip-container.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.9);
+}
+
+
+
+.pip-container canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 88%;
+    height: 88%;
+    border-radius: 50%;
+    z-index: 1;
+    object-fit: cover;
+}
+
+#moondial-frame {
+    position: absolute;
+    inset: 6px;
+    width: calc(100% - 12px);
+    height: calc(100% - 12px);
+    border: none;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.pip-container canvas:hover {
+    transform: translate(-50%, -50%) scale(1.05);
+    filter: brightness(1.2) contrast(1.1) drop-shadow(0 0 10px rgba(0, 200, 255, 0.5));
+}
+
+.compass-outer-ring {
+    position: absolute;
+    inset: -16px;
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        #3e2723 0%, #6d4c41 25%, #3e2723 50%, #6d4c41 75%, #3e2723 100%
+    );
+    border: 2px solid #2a1a17;
+    box-shadow: 
+        inset 0 1px 5px rgba(255, 255, 255, 0.2),
+        inset 0 -2px 8px rgba(0, 0, 0, 0.8),
+        0 4px 15px rgba(0,0,0,0.8);
+    pointer-events: none;
+    z-index: 2;
+    will-change: transform;
+    transform-origin: center;
+    -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 18px), black calc(100% - 17px));
+    mask-image: radial-gradient(circle closest-side, transparent calc(100% - 18px), black calc(100% - 17px));
+}
+
+.compass-outer-ring::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(
+        from 0deg,
+        rgba(25, 15, 5, 0.9) 0deg,
+        rgba(25, 15, 5, 0.9) 1.5deg,
+        transparent 1.5deg,
+        transparent 15deg
+    );
+    -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 6px), black calc(100% - 5px));
+    mask-image: radial-gradient(circle closest-side, transparent calc(100% - 6px), black calc(100% - 5px));
+}
+
+.compass-text-layer {
+    position: absolute;
+    inset: -16px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.compass-marker {
+    position: absolute;
+    color: #d7ccc8;
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0,0,0, 0.8);
+    line-height: 1;
+}
+
+.compass-marker.n { top: 2px; left: 50%; transform: translateX(-50%); }
+.compass-marker.s { bottom: 2px; left: 50%; transform: translateX(-50%); }
+.compass-marker.e { right: 4px; top: 50%; transform: translateY(-50%); }
+.compass-marker.w { left: 4px; top: 50%; transform: translateY(-50%); }
+
+/* Journal / Overlay System */
+#ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--journal-width);
+    height: 100vh;
+    z-index: 20;
+    background: rgba(15, 17, 21, 0.85);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    transform: translateX(0);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#ui-overlay.closed {
+    transform: translateX(-100%);
+}
+
+#journal-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Interactive Glow Outlines */
+.interactive-glow {
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+    cursor: pointer;
+}

@@ -1,0 +1,32 @@
+{
+  "name": "Sacred Ones",
+  "short_name": "SacredOnes",
+  "description": "A sacred journey through an ancient valley — a 3D adventure game.",
+  "start_url": "./SacredGame.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#fbc02d",
+  "orientation": "any",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "Assets/pwa-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "Assets/pwa-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "Assets/pwa-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

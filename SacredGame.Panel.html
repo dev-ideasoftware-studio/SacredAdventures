@@ -1,0 +1,3208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adventure UI Panel</title>
+
+    <!-- Dependencies (vendored locally for offline play) -->
+    <script src="vendor/lucide/lucide.min.js"></script>
+    <link href="vendor/fonts/google-fonts.css" rel="stylesheet">
+    <link rel="stylesheet" href="SacredGame.css?v=6">
+    <link rel="stylesheet" href="vendor/fa/all.min.css">
+    <!-- THREE.JS IMPORT MAP (Local vendor for offline play) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./vendor/three/three.module.js",
+                "three/addons/": "./vendor/three/examples/jsm/"
+            }
+        }
+    </script>
+    <script src="Assets/AxeData.js?v=2"></script>
+    <script src="js/Data.Fish.js?v=2"></script>
+
+    <!-- DYNAMIC SCRIPT INJECTOR FOR GUARANTEED LOAD ORDER -->
+    <script type="module">
+        import * as THREE_module from 'three';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // 1. Expose to window for the classic component scripts to consume
+        // We use Object.assign to create a mutable clone, as ES module namespaces are read-only
+        window.THREE = Object.assign({}, THREE_module);
+        window.OBJLoader = OBJLoader;
+        window.THREE.OBJLoader = OBJLoader;
+        window.THREE.GLTFLoader = GLTFLoader;
+
+        // 2.        // Load ThreeIcons dynamically to ensure THREE.js is ready
+        const script = document.createElement('script');
+        script.src = "Component.ThreeIcons.js?v=" + Date.now();
+        script.onload = () => {
+            window.customScriptsReady = true;
+            if (window.documentReady && typeof window.initPanelIcons === 'function') {
+                window.initPanelIcons();
+            }
+        };
+        document.head.appendChild(script);
+    </script>
+
+    <style>
+        /* --- CORE SHELL & DESIGN TOKENS --- */
+        :root {
+            /* Z-Indices */
+            --z-vignette: 500;
+            --z-hud: 5000;
+            --z-modal: 6000;
+            --z-book: 9500;
+            --z-action-panel: 9000;
+            /* Highest UI Layer */
+
+            /* Sides Variables */
+            --panel-size: 220px;
+            --btn-size: 55px;
+            --color-white: #f5f5f5;
+            --color-center: #6d4c41;
+            --color-gold: #fbc02d;
+            --shadow-btn: 0 5px 15px rgba(0, 0, 0, 0.1);
+            --shadow-deep: 0 8px 25px rgba(0, 0, 0, 0.6);
+            --panel-offset: 20px;
+            --mobile-bottom-buffer: 35px; /* Base distance from bottom for lowest UI element */
+            --logbook-mobile-offset: 120px; /* Distance from bottom for Logbook to clear input bar */
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent !important;
+            overflow: hidden;
+            pointer-events: none;
+            /* Default pass-through */
+            font-family: var(--font-body);
+        }
+
+        #ui-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        /* GROUNDING VIGNETTE - REMOVED per user request */
+        #ui-container::after {
+            content: none;
+        }
+
+        /* =========================================
+           SIDES PANEL STYLES (Keypad + Action Ring)
+           ========================================= */
+
+        /* --- LEFT PANEL (Movement) --- */
+        #left-panel {
+            position: absolute;
+            bottom: var(--panel-offset);
+            left: var(--panel-offset);
+            width: var(--panel-size);
+            height: var(--panel-size);
+            pointer-events: none;
+            z-index: var(--z-hud);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- RIGHT PANEL (Actions) --- */
+        #right-panel {
+            position: absolute;
+            bottom: var(--panel-offset);
+            right: max(20px, calc(25vw - 270px));
+            width: var(--panel-size);
+            height: var(--panel-size);
+            pointer-events: none;
+            z-index: var(--z-action-panel);
+            /* Highest Z */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* SHARED BUTTON STYLES */
+        .u-btn {
+            position: absolute;
+            width: var(--btn-size);
+            height: var(--btn-size);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 10;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) translate(var(--tx), var(--ty));
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, box-shadow 0.3s;
+            box-shadow: var(--shadow-btn);
+        }
+
+        .u-btn.active-glow {
+            box-shadow: 0 0 15px 5px rgba(251, 192, 45, 0.6), 0 0 30px 10px rgba(251, 192, 45, 0.3);
+            border: 2px solid #fbc02d;
+        }
+
+        /* Keypad Specific */
+        .btn-move {
+            width: 60px;
+            height: 60px;
+            /* Darker background (25% darker) and slightly more opaque for contrast */
+            background: linear-gradient(145deg, rgba(70, 48, 41, 0.75), rgba(46, 29, 26, 0.75));
+            border: 2px solid #8d6e63;
+            color: #fff8e1;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6), 0 0 0 1px #3e2723;
+            -webkit-tap-highlight-color: transparent;
+            backdrop-filter: blur(6px);
+        }
+
+        .btn-move i {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(93, 64, 55, 0.6), rgba(45, 25, 20, 0.6));
+            box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d7ccc8;
+            font-size: 16px;
+        }
+
+        .btn-move:active,
+        .btn-move.active-state {
+            /* Handled by animation now, but keep fallback */
+            transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(0.92);
+        }
+
+        .kp-center-btn {
+            position: absolute;
+            width: 86px;
+            height: 86px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            /* Darker background (25% darker) */
+            background: linear-gradient(145deg, rgba(70, 48, 41, 0.75), rgba(46, 29, 26, 0.75));
+            border: 2px solid #8d6e63;
+            color: #fff8e1;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6), 0 0 0 1px #3e2723;
+            backdrop-filter: blur(6px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.2s;
+        }
+
+        .kp-center-btn i {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(93, 64, 55, 0.6), rgba(45, 25, 20, 0.6));
+            box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d7ccc8;
+            font-size: 24px;
+        }
+
+        .kp-center-btn:active,
+        .kp-center-btn.active-state {
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+
+        /* Action Specific */
+        .circle-panel {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(210, 180, 140, 0.6) 0%, rgba(180, 150, 110, 0.4) 70%, rgba(180, 150, 110, 0) 100%);
+            border: none;
+            border-radius: 50%;
+            pointer-events: auto;
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-deep);
+            overflow: hidden;
+            /* Fix for backdrop-filter edge artifacts */
+        }
+
+        .orbit-track {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 170px;
+            height: 170px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+        }
+
+        .btn-action {
+            /* Darker background (25% darker) */
+            background: linear-gradient(145deg, rgba(70, 48, 41, 0.75), rgba(46, 29, 26, 0.75));
+            border: 2px solid #8d6e63;
+            color: #fff8e1;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6), 0 0 0 1px #3e2723;
+            padding-top: 2px;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, -50%) scale(0);
+        }
+
+        .outer-active .btn-action {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(1);
+        }
+
+        .btn-action .ac-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(93, 64, 55, 0.6), rgba(45, 25, 20, 0.6));
+            box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-action:hover {
+            border-color: var(--color-gold);
+            box-shadow: 0 0 15px var(--color-gold);
+            z-index: 20;
+            transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(1.15);
+        }
+
+        .ac-text {
+            /* User Request: 10px, All Caps, Lato */
+            font-size: 10px;
+            font-weight: 800;
+            color: #d7ccc8;
+            margin-top: -4px;
+            line-height: 1;
+            padding-bottom: 0px;
+            font-family: 'Lato', sans-serif;
+            text-transform: uppercase;
+        }
+
+        /* Outer Ring Resources */
+        .outer-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 330px;
+            height: 330px;
+            background: rgba(220, 200, 170, 0.75);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.6);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 5;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .resources-active .outer-ring {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .outer-btn {
+            position: absolute;
+            background: rgba(30, 20, 15, 0.95);
+            border: 2px solid #a1887f;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            border-radius: 50%;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, -50%) scale(0.5);
+            z-index: 15;
+            top: 50%;
+            left: 50%;
+            transition: all 0.4s;
+        }
+
+        .resources-active .outer-btn {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(1);
+        }
+
+        .or-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: #ccc;
+            text-transform: uppercase;
+            font-family: 'Lato', sans-serif;
+            margin-top: -2px;
+        }
+
+        .or-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            font-size: 8px;
+            font-weight: 900;
+            color: #000;
+            background: var(--color-gold);
+            padding: 1px 4px;
+            border-radius: 6px;
+            border: 1px solid #3e2723;
+        }
+
+        @keyframes resFlashAnim {
+            0% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+
+            50% {
+                transform: scale(1.3);
+                filter: brightness(1.5);
+            }
+
+            100% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+        }
+
+        .res-flash .or-badge {
+            animation: resFlashAnim 0.4s ease-out;
+            background: #ffeb3b !important;
+            color: black !important;
+        }
+
+        /* Avatar */
+        .avatar-circle {
+            width: 86px;
+            height: 86px;
+            border-radius: 50%;
+            border: 3px solid #4caf50;
+            background: radial-gradient(circle, #1b3a1b, #0d1f0d);
+            overflow: visible;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.5), 0 0 40px rgba(76, 175, 80, 0.2), 0 0 0 1px #2e7d32;
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 50;
+            position: relative;
+            transition: transform 0.2s;
+        }
+
+        .avatar-circle:hover {
+            transform: scale(1.05);
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .level-badge {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3e2723;
+            color: var(--color-gold);
+            border: 1px solid var(--color-gold);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 55;
+        }
+
+        .role-label {
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3e2723;
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1px solid #5d4037;
+            text-transform: uppercase;
+            font-family: 'Lato', sans-serif;
+            z-index: 55;
+            white-space: nowrap;
+        }
+
+        /* Radial Mappings */
+        .pos-n {
+            --tx: 0px;
+            --ty: -85px;
+        }
+
+        .pos-s {
+            --tx: 0px;
+            --ty: 85px;
+        }
+
+        .pos-e {
+            --tx: 85px;
+            --ty: 0px;
+        }
+
+        .pos-w {
+            --tx: -85px;
+            --ty: 0px;
+        }
+
+        /* Actions Inner */
+        .act-n {
+            --tx: 0px;
+            --ty: -85px;
+        }
+
+        .act-s {
+            --tx: 0px;
+            --ty: 85px;
+        }
+
+        .act-e {
+            --tx: 85px;
+            --ty: 0px;
+        }
+
+        .act-w {
+            --tx: -85px;
+            --ty: 0px;
+        }
+
+        .act-ne {
+            --tx: 60px;
+            --ty: -60px;
+        }
+
+        .act-se {
+            --tx: 60px;
+            --ty: 60px;
+        }
+
+        .act-sw {
+            --tx: -60px;
+            --ty: 60px;
+        }
+
+        .act-nw {
+            --tx: -60px;
+            --ty: -60px;
+        }
+
+        /* Resources Outer */
+        .res-1 {
+            --tx: 63px;
+            --ty: -136px;
+        }
+
+        .res-2 {
+            --tx: 10px;
+            --ty: -149px;
+        }
+
+        .res-3 {
+            --tx: -44px;
+            --ty: -143px;
+        }
+
+        .res-4 {
+            --tx: -92px;
+            --ty: -118px;
+        }
+
+        .res-5 {
+            --tx: -128px;
+            --ty: -77px;
+        }
+
+        .res-6 {
+            --tx: -147px;
+            --ty: -26px;
+        }
+
+        .res-7 {
+            --tx: -147px;
+            --ty: 28px;
+        }
+
+        .res-8 {
+            --tx: -126px;
+            --ty: 81px;
+        }
+
+        /* =========================================
+           CENTER STACK STYLES (Guides + Input)
+           ========================================= */
+        #center-stack {
+            position: absolute;
+            bottom: 1%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 20px;
+            z-index: var(--z-modal);
+            pointer-events: none;
+            width: 100%;
+            max-width: min(500px, calc(100vw - 500px));
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        #guides-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            pointer-events: auto;
+            width: 100%;
+        }
+
+        .guide-card {
+            /* REVERTED: Rounded Rectangle per user request */
+            width: clamp(50px, 10vh, 90px);
+            height: clamp(50px, 10vh, 90px);
+            border-radius: clamp(8px, 1.5vh, 14px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            text-align: center;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: clamp(4px, 1vw, 8px);
+            /* Clipping removed to allow lightbloom box-shadow to be visible */
+            overflow: visible;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .card-icon-3d {
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            /* Let clicks pass to card */
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            /* Behind text */
+        }
+
+        .card-desc,
+        .card-title {
+            z-index: 2;
+            /* On top of 3D */
+            pointer-events: none;
+        }
+
+        .guide-card:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+            border-color: var(--color-gold);
+        }
+
+        .guide-card:active {
+            transform: scale(0.95);
+        }
+
+        /* CENTER ALIGNMENT FIX */
+        .guide-card {
+            /* ... existing styles ... */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            /* Vertical Center */
+            gap: 4px;
+            /* Space between icon and text */
+        }
+
+        .card-icon-3d {
+            width: clamp(24px, 4vh, 42px);
+            height: clamp(24px, 4vh, 42px);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.4);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 5px auto;
+        }
+
+        .card-desc {
+            font-family: 'Lato', sans-serif;
+            font-style: italic;
+            font-size: clamp(6px, 1vw, 9px);
+            opacity: 0.9;
+            margin-bottom: 4px;
+            line-height: 1.1;
+        }
+
+        .card-title {
+            font-family: 'Lato', sans-serif;
+            font-weight: 900;
+            /* User Request: Increase size of LABELS */
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            /* Align fix: No absolute */
+            position: relative;
+            margin-top: 2px;
+        }
+
+        /* Card Themes - With 15% Transparency */
+        .card-quest {
+            /* Deep Royal Purple */
+            background: linear-gradient(180deg, #4a148cD9 0%, #311b92D9 100%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-log {
+            /* Deep Rich Mahogany */
+            background: linear-gradient(180deg, #3e2723D9 0%, #281815D9 100%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-gather {
+            /* Deep Forest Green */
+            background: linear-gradient(180deg, #1b5e20D9 0%, #0d3b12D9 100%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-search {
+            /* Onyx / Almost Black */
+            background: linear-gradient(180deg, #212121D9 0%, #000000D9 100%);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(8px);
+        }
+
+        .card-fish {
+            /* Deep Ocean Blue */
+            background: linear-gradient(180deg, #0d47a1D9 0%, #013663D9 100%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Input Bar */
+        #input-container {
+            width: 90%;
+            max-width: 480px;
+            height: 60px;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+        }
+
+        .chat-pill {
+            width: 100%;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid #ffffff;
+            backdrop-filter: blur(8px);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            padding: 0 6px 0 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        /* Volume control */
+        .volume-wrap {
+            position: relative;
+            margin-left: 4px;
+        }
+
+        .volume-btn {
+            border: none;
+            background: transparent;
+            color: #f0c040;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 8px;
+            transition: color 0.2s;
+        }
+
+        .volume-btn:hover {
+            color: #ffe066;
+        }
+
+        .volume-slider-popup {
+            display: none;
+            position: absolute;
+            bottom: 44px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 36px;
+            height: 120px;
+            background: rgba(30, 20, 15, 0.95);
+            border: 1px solid #5d4037;
+            border-radius: 18px;
+            padding: 12px 0;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .volume-slider-popup.open {
+            display: flex;
+        }
+
+        .volume-wrap:hover .volume-slider-popup {
+            display: flex;
+        }
+
+        .volume-slider-popup input[type=range] {
+            writing-mode: vertical-lr;
+            direction: rtl;
+            -webkit-appearance: none;
+            appearance: none;
+            width: 6px;
+            height: 90px;
+            background: rgba(93, 64, 55, 0.5);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .volume-slider-popup input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #d4a574;
+            cursor: pointer;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+        }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            /* White text for dark background */
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            min-width: 0;
+        }
+
+        .chat-input::placeholder {
+            font-size: 16px;
+            /* User Request */
+            opacity: 0.9;
+            color: #ffffff;
+        }
+
+        .return-key-btn {
+            width: 44px;
+            height: 44px;
+            background: #FFC107;
+            border-radius: 50%;
+            border: 1px solid #3e2723;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #3e2723;
+            font-size: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-left: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: transform 0.1s;
+        }
+
+        .return-key-btn:active {
+            transform: scale(0.9);
+        }
+
+        .chat-pill:focus-within {
+            border-color: #FFC107;
+            box-shadow: 0 0 15px rgba(255, 193, 7, 0.3);
+        }
+
+        /* Lightbloom */
+        @keyframes lightbloom {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8), inset 0 0 0 0 rgba(255, 255, 255, 0.5);
+                transform: scale(1.02);
+            }
+
+            100% {
+                box-shadow: 0 0 30px 15px rgba(255, 255, 255, 0), inset 0 0 50px 30px rgba(255, 255, 255, 0);
+                transform: scale(1.0);
+            }
+        }
+
+        .lightbloom {
+            animation: lightbloom 0.5s ease-out forwards;
+        }
+
+        /* ADSR Button Click Bloom */
+        @keyframes btnClickBloom {
+            0% {
+                transform: translate(-50%, -50%) translate(var(--tx, 0px), var(--ty, 0px)) scale(1);
+                box-shadow: 0 0 0 rgba(251, 192, 45, 0);
+            }
+
+            20% {
+                transform: translate(-50%, -50%) translate(var(--tx, 0px), var(--ty, 0px)) scale(0.9);
+                box-shadow: 0 0 20px 10px rgba(251, 192, 45, 0.8);
+                border-color: #fff;
+                filter: brightness(1.5);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) translate(var(--tx, 0px), var(--ty, 0px)) scale(1);
+                box-shadow: 0 0 0 rgba(251, 192, 45, 0);
+                filter: brightness(1);
+            }
+        }
+
+        .click-bloom {
+            animation: btnClickBloom 0.4s ease-out;
+        }
+
+        /* --- LOGBOOK WRAPPER --- */
+        #book-wrapper {
+            position: fixed !important;
+            top: auto !important;
+            bottom: 25px !important; /* Calibrated 10px buffer from screen considering flex scale */
+            left: 50% !important;
+            transform: translateX(-50%) scale(var(--book-scale, 1)) !important;
+            transform-origin: 50% 100%;
+            /* Fix backend rendering bounds to a vast high-res constraint immune to CSS clamps */
+            width: var(--book-w, 1400px) !important;
+            max-width: none !important;
+            height: var(--book-h, 900px) !important;
+            max-height: none !important;
+            z-index: var(--z-book);
+            perspective: 1500px;
+            pointer-events: none;
+            /* Sub-elements handle events */
+            visibility: visible;
+            opacity: 1;
+            transition: opacity 0.1s ease, transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), visibility 0.1s !important;
+        }
+
+        #book-wrapper iframe {
+            pointer-events: auto;
+            border-radius: 12px;
+            position: absolute;
+            top: -50px;
+            left: -50px;
+            width: calc(100% + 100px);
+            height: calc(100% + 100px);
+        }
+
+        #book-wrapper.book-hidden {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            transform: translateX(-50%) scale(0.9) translateY(40px) !important;
+        }
+
+        #book-wrapper.closing {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            /* Scale down drastically and suck straight down into the UI dock */
+            transform: scale(0.1) translateY(80vh) !important;
+            transition: opacity 0.4s ease-in, transform 0.5s ease-in, visibility 0.5s !important;
+        }
+
+        /* --- UI REMAINS VISIBLE WHEN LOGBOOK OPEN --- */
+        body.logbook-active #left-panel,
+        body.logbook-active #right-panel,
+        body.logbook-active #adventure-row-top {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        /* --- PIN INPUT BAR WHEN LOGBOOK OPEN --- */
+        body.logbook-active #center-stack {
+            z-index: 10005 !important;
+            /* Above logbook's 10000 */
+        }
+
+        @keyframes inputPulse {
+            0% {
+                box-shadow: 0 0 10px rgba(251, 192, 45, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 30px rgba(251, 192, 45, 0.95);
+            }
+
+            100% {
+                box-shadow: 0 0 10px rgba(251, 192, 45, 0.4);
+            }
+        }
+
+        @keyframes suctionBlink {
+
+            0%,
+            100% {
+                filter: brightness(1) drop-shadow(0 0 5px rgba(255, 255, 255, 0));
+                transform: scale(1);
+            }
+
+            50% {
+                filter: brightness(2) drop-shadow(0 0 20px rgba(255, 255, 255, 1));
+                transform: scale(1.1);
+            }
+        }
+
+        body.logbook-active #input-container {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(80vw, 600px);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: auto !important;
+            border-radius: 30px;
+            animation: inputPulse 2s infinite ease-in-out;
+        }
+
+        #left-panel,
+        #right-panel,
+        #adventure-row-top,
+        #center-stack,
+        #input-container {
+            transition: opacity 0.5s ease, transform 0.5s ease, bottom 0.5s ease;
+        }
+
+        .drag-handle {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: transparent;
+            cursor: grab;
+            z-index: 10;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        .drag-handle:hover::after {
+            content: '';
+            width: 60px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin-top: 8px;
+        }
+
+        .resize-handle {
+            position: absolute;
+            bottom: -10px;
+            right: -10px;
+            width: 30px;
+            height: 30px;
+            background: transparent;
+            cursor: nwse-resize;
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        .resize-handle::after {
+            content: '';
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 10px;
+            height: 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            border-right: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* --- RESPONSIVE / MOBILE --- */
+
+        /* TABLET LANDSCAPE (1024px) */
+        @media (max-width: 1024px) {
+            /* Overrides removed to maintain desktop scale per user request */
+
+
+            /* Center Stack */
+            #center-stack {
+                width: auto;
+                max-width: 60%;
+                gap: 10px;
+                bottom: 15px;
+            }
+
+            #guides-container {
+                gap: 8px;
+            }
+
+            /* Compact Cards (56px) - Restored */
+            .guide-card {
+                width: 54px;
+                height: 56px;
+                padding: 2px;
+                justify-content: center;
+                gap: 0px;
+            }
+
+            .card-desc {
+                display: none;
+            }
+
+            .card-icon-3d {
+                width: 34px;
+                height: 34px;
+                margin: 0 auto;
+            }
+
+            .card-title {
+                font-size: 8px;
+                position: absolute;
+                bottom: 3px;
+                width: 100%;
+                left: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                margin: 0;
+                line-height: 1;
+            }
+
+            /* Side Panel Artifacts & Resources adjustments removed to maintain desktop scale */
+
+            #book-wrapper {
+                /* Tablet: journal fills viewport - iframe handles its own buffers */
+                top: 0 !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                transform: none !important;
+            }
+
+            #book-wrapper iframe {
+                top: 0;
+                left: 0;
+                width: 100% !important;
+                height: 100% !important;
+            }
+        }
+
+        /* ============================================
+           MOBILE LAYOUT - REIMAGINED (Professional)
+           ============================================ */
+        /* MOBILE SPECIFIC (Override Tablet) - Per User Request */
+        /* TABLET PORTRAIT (860px) */
+        /* ============================================================
+           MOBILE & TABLET CONSOLIDATED LAYOUT (Max 860px)
+           ============================================================ */
+        @media (max-width: 860px) {
+            /* 1. CENTER STACK: Cards and Input */
+            #center-stack {
+                position: fixed;
+                bottom: var(--mobile-bottom-buffer);
+                left: 50%;
+                transform: translateX(-50%);
+                width: 95%;
+                max-width: 380px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
+                z-index: 100;
+                pointer-events: none;
+            }
+
+            #adventure-row-top,
+            #input-container {
+                pointer-events: auto;
+            }
+
+            #input-container {
+                width: 100%;
+                margin: 0;
+            }
+
+            #keypad-container {
+                display: none !important; /* HIDE MOVEMENT BUTTONS ON MOBILE */
+            }
+
+            #book-wrapper {
+                /* On mobile, journal fills viewport - iframe manages its own 10px buffers */
+                top: 0 !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                transform: none !important;
+                transform-origin: center center;
+            }
+
+            #book-wrapper iframe {
+                top: 0;
+                left: 0;
+                width: 100% !important;
+                height: 100% !important;
+                border-radius: 0;
+            }
+
+            /* --- SIDE PANEL MOBILE TOGGLE --- */
+            #left-panel {
+                transition: transform 0.3s ease-in-out !important;
+            }
+            #left-panel.panel-closed {
+                transform: translateX(calc(-100% - 20px)) !important; /* Slide off-screen left, leaving toggle */
+            }
+
+            #right-panel {
+                transition: transform 0.3s ease-in-out !important;
+            }
+            #right-panel.panel-closed {
+                transform: translateX(calc(100% + 20px)) !important; /* Slide off-screen right, leaving toggle */
+            }
+
+            .panel-toggle-btn {
+                display: none !important;
+            }
+            
+            .mobile-only-btn {
+                display: flex !important;
+            }
+            
+            /* --- HIDE MOBILE CONTROLS WHEN LOGBOOK IS OPEN --- */
+            body.logbook-active #left-panel,
+            body.logbook-active #right-panel,
+            body.logbook-active .panel-toggle-btn,
+            body.logbook-active .mobile-only-btn,
+            body.logbook-active .thumb-btn,
+            body.logbook-active #mobile-thumb-zone {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+            }
+            
+            .thumb-btn {
+                width: 90px;
+                height: 90px;
+                border-radius: 50%;
+                background: rgba(30, 20, 15, 0.6);
+                border: 4px solid rgba(141, 110, 99, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                pointer-events: auto;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 4px 10px rgba(0, 0, 0, 0.3);
+            }
+            
+            .thumb-stick-inner {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: rgba(200, 200, 200, 0.4);
+                pointer-events: none;
+                transition: transform 0.1s;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            }
+        }
+
+        /* --- LANDSCAPE ORIENTATION --- */
+        @media (max-height: 500px) and (orientation: landscape) {
+            #right-panel {
+                bottom: 20px !important;
+                right: 20px !important;
+            }
+
+            #left-panel {
+                bottom: 20px !important;
+                left: 20px !important;
+            }
+        }
+
+        /* --- GLOBAL SCALING OVERLAY --- */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            transform-origin: top left;
+            overflow: visible;
+        }
+
+        /* --- TUTORIAL HIGHLIGHT ANIMATIONS --- */
+        @keyframes magicBloom {
+            0% {
+                box-shadow: 0 0 15px 4px rgba(0, 255, 204, 0.7), inset 0 0 15px rgba(0, 255, 204, 0.4);
+                border-color: rgba(100, 255, 220, 0.8);
+            }
+
+            50% {
+                box-shadow: 0 0 35px 12px rgba(0, 255, 204, 1), inset 0 0 25px rgba(0, 255, 204, 0.7);
+                border-color: rgba(200, 255, 255, 1);
+            }
+
+            100% {
+                box-shadow: 0 0 15px 4px rgba(0, 255, 204, 0.7), inset 0 0 15px rgba(0, 255, 204, 0.4);
+                border-color: rgba(100, 255, 220, 0.8);
+            }
+        }
+
+        .magic-bloom-active {
+            animation: magicBloom 1.2s ease-in-out infinite;
+            border: 3px solid rgba(0, 255, 204, 1) !important;
+            z-index: 1000;
+            background-color: rgba(0, 255, 204, 0.2) !important;
+        }
+
+        @keyframes handBob {
+            0% {
+                transform: translate(-50%, -10px);
+            }
+
+            50% {
+                transform: translate(-50%, 5px);
+            }
+
+            100% {
+                transform: translate(-50%, -10px);
+            }
+        }
+
+        @keyframes handEnter {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -40px) scale(0.5);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -10px) scale(1);
+            }
+        }
+
+        @keyframes fadeTextOut {
+            0% {
+                opacity: 1;
+                text-shadow: 0 0 10px rgba(255, 255, 255, 1);
+                transform: translateX(-50%) scale(1);
+            }
+
+            30% {
+                opacity: 1;
+                text-shadow: 0 0 20px rgba(0, 255, 204, 1);
+                transform: translateX(-50%) scale(1.1);
+            }
+
+            80% {
+                opacity: 0;
+                transform: translateX(-50%) scale(1.05);
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .tutorial-glove {
+            display: none;
+            /* Removed pointer hand per user request */
+        }
+
+        /* Screen Reader Only Utility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        /* Quest Card Highlight Animation */
+        @keyframes pulseQuestGlow {
+            0% {
+                box-shadow: 0 0 15px 5px rgba(251, 192, 45, 0.5), 0 0 30px 10px rgba(251, 192, 45, 0.2);
+                border-color: #fbc02d;
+                transform: translateY(-5px) scale(1.02);
+            }
+
+            100% {
+                box-shadow: 0 0 25px 8px rgba(251, 192, 45, 0.8), 0 0 45px 15px rgba(251, 192, 45, 0.4);
+                border-color: #fff9c4;
+                transform: translateY(-5px) scale(1.06);
+            }
+        }
+
+        .quest-highlight {
+            animation: pulseQuestGlow 1.5s infinite alternate ease-in-out !important;
+            border-color: #fbc02d !important;
+            z-index: 50;
+        }
+
+        .tutorial-glove-active {
+            visibility: visible;
+            animation: handEnter 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+                handBob 1.5s ease-in-out infinite 0.6s;
+        }
+
+        .tutorial-text {
+            position: absolute;
+            top: -95px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            color: #ffffff;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1.2rem;
+            letter-spacing: 0.1em;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 2001;
+        }
+
+        .tutorial-text-active {
+            visibility: visible;
+            animation: fadeTextOut 2.5s ease-in-out forwards 0.6s;
+        }
+
+        #ui-layer>* {
+            pointer-events: auto;
+        }
+
+        /* HUD Hiding Logic (Cinematic Mode) */
+        .hud-hidden .guide-card,
+        .hud-hidden .btn-action,
+        .hud-hidden .circle-panel,
+        .hud-hidden #event-log,
+        .hud-hidden #center-chat-container,
+        .hud-hidden canvas,
+        .hud-hidden .card-icon-3d,
+        .hud-hidden .ac-icon {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            transition: opacity 0.5s ease-in-out, visibility 0.5s !important;
+        }
+
+        /* Essential UI persists */
+        .hud-hidden #right-panel .avatar-circle,
+        .hud-hidden .kp-center-btn,
+        .hud-hidden .thumb-btn {
+            opacity: 1 !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+        }
+
+        /* D-Pad Hiding Logic */
+        #left-panel.dpad-hidden .btn-move {
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        .btn-move {
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        /* 10. VILLAGE BUILDER PANEL (Map View Only) */
+        #build-panel {
+            display: none; /* Controlled by body.is-map-view */
+                position: fixed;
+                right: 20px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 60px;
+                background: linear-gradient(145deg, rgba(70, 48, 41, 0.9), rgba(46, 29, 26, 0.9));
+                border: 2px solid #8d6e63;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 2px 10px rgba(255, 255, 255, 0.1);
+                padding: 10px;
+                flex-direction: column;
+                gap: 15px;
+                z-index: 2000;
+            }
+
+            body.is-map-view #build-panel {
+                display: flex !important;
+            }
+
+            .build-btn {
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                background: rgba(30, 20, 15, 0.8);
+                border: 1px solid rgba(141, 110, 99, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .build-btn:hover {
+                background: rgba(80, 50, 40, 0.9);
+                border-color: #d7ccc8;
+                transform: scale(1.05);
+            }
+
+            .build-btn.placeholder {
+                border: 1px dashed rgba(141, 110, 99, 0.4);
+                background: rgba(0,0,0,0.2);
+            }
+            
+            .build-btn i {
+                font-size: 18px;
+                color: #d7ccc8;
+            }
+            
+            .build-btn.placeholder i {
+                color: rgba(141, 110, 99, 0.4);
+            }
+        </style>
+</head>
+
+<body>
+    <div id="ui-layer">
+        <div id="aria-announcer" class="sr-only" aria-live="polite" aria-atomic="true">Welcome to Sacred Adventures.
+        </div>
+        <div id="ui-container"></div>
+
+        <!-- RIGHT: BUILD MENU (Map View Only) -->
+        <div id="build-panel">
+            <div class="build-btn" title="Tipi">
+                <i class="fa-solid fa-campground"></i>
+            </div>
+            <div class="build-btn placeholder">
+                <i class="fa-solid fa-plus"></i>
+            </div>
+            <div class="build-btn placeholder">
+                <i class="fa-solid fa-plus"></i>
+            </div>
+            <div class="build-btn placeholder">
+                <i class="fa-solid fa-plus"></i>
+            </div>
+        </div>
+
+        <!-- LEFT: MOVEMENT KEYPAD (Integrated) -->
+        <div id="left-panel">
+            <!-- Mobile Thumb Joystick (Replaces Keypad on Mobile) -->
+            <div id="mobile-thumb-zone" class="mobile-only-btn thumb-btn" title="Look Around">
+                <div class="thumb-stick-inner"></div>
+            </div>
+            
+            <div id="keypad-container" style="position: relative; width: 100%; height: 100%;">
+                <div class="u-btn btn-move pos-n ctrl-btn" data-key="w" role="button" tabindex="0"
+                    aria-label="Move Forward"><i class="fa-solid fa-caret-up"></i></div>
+                <div class="u-btn btn-move pos-w ctrl-btn" data-key="arrowleft" role="button" tabindex="0"
+                    aria-label="Turn Left"><i class="fa-solid fa-caret-left"></i></div>
+                <div class="kp-center-btn ctrl-btn" data-key="interact" role="button" tabindex="0"
+                    aria-label="Interact"><i class="fa-regular fa-circle-dot"></i></div>
+                <div class="u-btn btn-move pos-e ctrl-btn" data-key="arrowright" role="button" tabindex="0"
+                    aria-label="Turn Right"><i class="fa-solid fa-caret-right"></i></div>
+                <div class="u-btn btn-move pos-s ctrl-btn" data-key="s" role="button" tabindex="0"
+                    aria-label="Move Backward"><i class="fa-solid fa-caret-down"></i></div>
+            </div>
+        </div>
+
+        <!-- RIGHT: ACTION RING (Integrated) -->
+        <div id="right-panel">
+            <div id="action-zone">
+                <div class="circle-panel"></div>
+                <div class="outer-ring"></div>
+                <div class="orbit-track"></div>
+
+                <!-- Avatar -->
+                <div class="avatar-circle" onclick="handleAvatarClick()" role="button" aria-label="Character Sheet"
+                    tabindex="0">
+                    <div class="level-badge" aria-hidden="true">1</div>
+                    <!-- Avatar portrait (visible until PiP canvas overlays) -->
+                    <div id="avatar-pip-target" style="width: 100%; height: 100%; border-radius: 50%; overflow: hidden;">
+                        <img src="Assets/SacredOnes.Avatar.A.png" alt="Yellow Butterfly Girl" class="avatar-img">
+                    </div>
+                    <div class="role-label" aria-hidden="true">Gatherer</div>
+                </div>
+
+                <!-- Inner Ring: Actions -->
+                <div id="btn-items" class="u-btn btn-action act-n" onclick="handleActionClick('toggleResources')"
+                    role="button" aria-label="Inventory Items" tabindex="0">
+                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-suitcase" style="color: #F5DEB3;"></i>
+                    </div><span class="ac-text">ITEMS</span>
+                </div>
+                <div id="btn-journal" class="u-btn btn-action act-ne" onclick="toggleLogbook()" role="button"
+                    aria-label="Open Journal" tabindex="0">
+                    <div class="ac-icon" id="action-icon-notes" aria-hidden="true"
+                        style="width: 32px; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-book-open" style="color: #FFD54F;"></i>
+                    </div><span class="ac-text">Journal</span>
+                </div>
+                <!-- Div for 3D icon injection -->
+                <div id="action-icon-journal" style="display:none;" aria-hidden="true"></div>
+
+                <div class="u-btn btn-action act-e" onclick="emit('OPEN_SETTINGS')" role="button"
+                    aria-label="Game Settings" tabindex="0">
+                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-gear" style="color: #B0BEC5;"></i>
+                    </div><span class="ac-text">Setup</span>
+                </div>
+                <div class="u-btn btn-action act-se" onclick="emit('ACTION', 'rest')" role="button"
+                    aria-label="Set up Camp" tabindex="0">
+                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-campground"
+                            style="color: #FF7043;"></i></div><span class="ac-text">Camp</span>
+                </div>
+                <div class="u-btn btn-action act-s" onclick="emit('ACTION', 'eat')" role="button" aria-label="Eat Food"
+                    tabindex="0">
+                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-utensils" style="color: #E0E0E0;"></i>
+                    </div><span class="ac-text">Eat</span>
+                </div>
+                <div class="u-btn btn-action act-sw" onclick="emit('ACTION', 'heal')" role="button"
+                    aria-label="Heal Wounds" tabindex="0">
+                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-heart" style="color: #EF5350;"></i>
+                    </div><span class="ac-text">Heal</span>
+                </div>
+                <div class="u-btn btn-action act-w" onclick="emit('ACTION', 'track')" role="button"
+                    aria-label="Track Wildlife" tabindex="0">
+                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-paw" style="color: #FFFFFF;"></i>
+                    </div><span class="ac-text">Track</span>
+                </div>
+                <div id="btn-map" class="u-btn btn-action act-nw" onclick="emit('TOGGLE_VIEW_MODE')" role="button"
+                    aria-label="Toggle Map View" tabindex="0">
+                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-map" style="color: #81C784;"></i>
+                    </div><span class="ac-text">Map</span>
+                </div>
+
+                <!-- Outer Ring: Resources -->
+                <div class="outer-btn res-1 res-item" title="Stone" data-res="stone">🪨<span
+                        class="or-label">Stone</span><span class="or-badge">0</span></div>
+                <div class="outer-btn res-2 res-item" title="Wood" data-res="wood">🪵<span
+                        class="or-label">Wood</span><span class="or-badge">0</span></div>
+                <div class="outer-btn res-3 res-item" title="Berries" data-res="berry">🫐<span
+                        class="or-label">Berry</span><span class="or-badge">0</span></div>
+                <div class="outer-btn res-4 res-item" title="Arrows" data-res="arrow">🏹<span
+                        class="or-label">Arrow</span><span class="or-badge">3</span></div>
+                <div class="outer-btn res-5 res-item" title="Fish" data-res="fish">🐟<span
+                        class="or-label">Fish</span><span class="or-badge">0</span></div>
+                <div class="outer-btn res-6 res-item" title="Food" data-res="food">🌽<span
+                        class="or-label">Food</span><span class="or-badge">0</span></div>
+                <div class="outer-btn res-7 res-item" title="Hides" data-res="hides">🛡️<span
+                        class="or-label">Hides</span><span class="or-badge">0</span></div>
+                <div class="outer-btn res-8 res-item" title="Water" data-res="water">💧<span
+                        class="or-label">Water</span><span class="or-badge">0</span></div>
+            </div>
+        </div>
+
+        <!-- CENTER STACK: Guides + Input -->
+        <div id="center-stack">
+            <!-- 1. TOP ROW: Thumb + Guides + Avatar (Mobile Flex Wrapper) -->
+            <div id="adventure-row-top">
+
+                <!-- THUMB BUTTON MOVED TO LEFT PANEL -->
+
+                <!-- GUIDES SCROLLER -->
+                <div id="guides-container">
+                    <!-- QUESTS -->
+                    <div class="guide-card card-quest quest-highlight" id="card-quest-btn" onclick="openQuest()"
+                        role="button" aria-label="Start Follow Path Quest" aria-describedby="desc-quest" tabindex="0"
+                        style="position: relative;">
+                        <!-- Quests Guide Card -->
+                        <div id="icon-quest" class="card-icon-3d"></div>
+                        <div class="card-desc" id="desc-quest">Follow path</div>
+                        <div class="card-title">Quests</div>
+                    </div>
+                    <!-- GATHER -->
+                    <div class="guide-card card-gather" id="card-gather-btn" onclick="toggleGather()">
+                        <div id="icon-gather" class="card-icon-3d"></div>
+                        <div class="card-desc">Collect resources</div>
+                        <div class="card-title">Gather</div>
+                    </div>
+                    <!-- FISH -->
+                    <div class="guide-card card-fish" id="card-fish-btn" onclick="toggleFish()">
+                        <div id="icon-fish" class="card-icon-3d"></div>
+                        <div class="card-desc">Catch fish</div>
+                        <div class="card-title">Fish</div>
+                    </div>
+                    <!-- OBSERVE (formerly SEARCH) -->
+                    <div class="guide-card card-search" id="card-search-btn" onclick="toggleObserve()">
+                        <div id="icon-search" class="card-icon-3d"></div>
+                        <div class="card-desc">Look closely</div>
+                        <div class="card-title">Observe</div>
+                    </div>
+                    <!-- LOG -->
+                    <div class="guide-card card-log" id="card-log-btn" onclick="toggleLogbook()">
+                        <div id="icon-log" class="card-icon-3d"></div>
+                        <div class="card-desc">Your story</div>
+                        <div class="card-title">Journal</div>
+                    </div>
+                </div>
+
+
+                <!-- CENTER CHAT INPUT REMOVED: Using Journal Logbook input instead -->
+
+            </div>
+
+            <!-- RESTORED FPV CHAT INPUT (30px beneath guides) -->
+            <div id="action-log" class="chat-history"></div>
+
+            
+            <!-- WCAG 2.2 AAA ARIA Live Region for Screen Readers -->
+            <div id="aria-live-narrator" aria-live="polite" class="sr-only"></div>
+
+            <script>
+                // --- VIRTUAL JOYSTICK LOGIC ---
+                (function () {
+                    const zone = document.getElementById('mobile-thumb-zone');
+                    const stick = zone.querySelector('.thumb-stick-inner');
+                    let active = false;
+                    let startX, startY;
+                    const maxRadius = 20;
+
+                    function handleStart(e) {
+                        e.preventDefault();
+                        active = true;
+                        const touch = e.touches ? e.touches[0] : e;
+                        startX = touch.clientX;
+                        startY = touch.clientY;
+                        zone.classList.add('active');
+                        document.body.classList.add('hud-hidden'); // Fade out other buttons on use
+                    }
+
+                    function handleMove(e) {
+                        if (!active) return;
+                        e.preventDefault();
+                        const touch = e.touches ? e.touches[0] : e;
+                        const dx = touch.clientX - startX;
+                        const dy = touch.clientY - startY;
+
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const angle = Math.atan2(dy, dx);
+                        const force = Math.min(distance, maxRadius);
+
+                        const cssX = Math.cos(angle) * force;
+                        const cssY = Math.sin(angle) * force;
+
+                        stick.style.transform = `translate(${cssX}px, ${cssY}px)`;
+
+                        // Normalize -1 to 1
+                        const normX = cssX / maxRadius;
+                        const normY = cssY / maxRadius;
+
+                        window.parent.postMessage({
+                            type: 'THUMB_MOVE',
+                            x: normX,
+                            y: normY
+                        }, '*');
+                    }
+
+                    function handleEnd(e) {
+                        if (!active) return;
+                        e.preventDefault();
+                        active = false;
+                        zone.classList.remove('active');
+                        stick.style.transform = `translate(0px, 0px)`;
+
+                        window.parent.postMessage({
+                            type: 'THUMB_MOVE',
+                            x: 0,
+                            y: 0
+                        }, '*');
+                    }
+
+                    if (zone) {
+                        zone.addEventListener('touchstart', handleStart, { passive: false });
+                        zone.addEventListener('touchmove', handleMove, { passive: false });
+                        zone.addEventListener('touchend', handleEnd);
+                        zone.addEventListener('mousedown', handleStart);
+                        window.addEventListener('mousemove', handleMove);
+                        window.addEventListener('mouseup', handleEnd);
+                    }
+                })();
+            </script>
+
+            <!-- INPUT CONTAINER REMOVED: Managed inside Component.Logbook.html -->
+        </div>
+
+
+        <!-- LOGBOOK WRAPPER -->
+        <div id="book-wrapper" class="book-hidden">
+            <div class="drag-handle" id="book-drag-handle" title="Drag to move"></div>
+            <div class="resize-handle" id="book-resize-handle" title="Drag to resize"></div>
+            <iframe id="logbookFrame" src="Component.NewJournal.html?v=7" allowtransparency="true" title="Logbook"
+                style="border:none;"></iframe>
+        </div>
+
+        <!-- LOG -->
+        <div id="event-log" style="position: fixed; top: 10px; left: 10px; z-index: 10000; color: white;"></div>
+
+        <!-- MODALS (Helpers) -->
+        <div id="quest-modal" class="modal-box hidden">
+            <h2>Quest Started</h2>
+            <div class="modal-emoji">⛺</div>
+            <h3>Yellow Butterfly Woman</h3>
+            <p>"Greetings, traveler! My daughter is lost deep in the woods. Can you find her?"</p>
+            <button class="action-btn"
+                onclick="window.parent.postMessage({type: 'CLOSE_QUEST'}, '*'); toggleModal('quest-modal', false)">Accept</button>
+        </div>
+    </div> <!-- END UI-LAYER -->
+
+    <!-- PROXY 3D OVERLAYS FOR IFRAMES -->
+    <div id="icon-logbook-axe" style="position: fixed; pointer-events: none; z-index: 6010; display: none;"></div>
+
+    <script>
+        window.uiIcons = {};
+        window.icons = null;
+
+        // Deferred boot sequence triggered when the ThreeIcons script finishes loading
+        window.initPanelIcons = () => {
+            if (window.icons) return; // Prevent double init
+            window.icons = new window.ThreeIconManager();
+
+
+            // Guide Icons
+            const register = (id, type) => {
+                const item = window.icons.createIcon(id, type);
+                if (item) window.uiIcons[type] = item.scene;
+            };
+            register('icon-quest', 'QUEST');
+            register('icon-search', 'SEARCH');
+            register('icon-log', 'LOG');
+            // GATHER Axe 3D icon
+            register('icon-gather', 'GATHER');
+            register('axe-3d-target', 'GATHER'); // Page 6 Logbook Axe Card Target
+            register('icon-fish', 'FISH');
+
+            // Action Ring Icons (Journal on side panel)
+            window.icons.createIcon('action-icon-journal', 'JOURNAL');
+
+            // AUTO-OPEN LOGBOOK ON LOAD REMOVED
+            // Will be triggered by EngineMain/EnvironmentBuilder when Nature Spirit walks
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            window.documentReady = true;
+
+            // Logbook Drag/Resize Logic
+            initLogbookInteraction();
+
+            // Action Layout
+            updateActionLayout();
+
+            // ThreeIconManager runs its own render loop via initLoop()
+            // No separate animate() needed here
+
+            // If the script already downloaded, boot immediately
+            if (window.customScriptsReady && typeof window.initPanelIcons === 'function') {
+                window.initPanelIcons();
+            }
+        });
+
+        // Icon Input Tracking
+        document.addEventListener('mousemove', (e) => {
+            const guides = document.getElementById('guides-container');
+            if (guides && window.icons) {
+                const rect = guides.getBoundingClientRect();
+                const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1;
+                window.icons.updateInput(Math.max(-1, Math.min(1, nx)), Math.max(-1, Math.min(1, ny)));
+            }
+        });
+    </script>
+
+    <script>
+        // --- MASTER AI HARDWARE SCALING ---
+        // Prevents the Logbook from awkwardly squashing its interior flex elements by
+        // instead rendering at a magnificent 1400x900 aspect-ratio and GPU-scaling the whole 
+        // iframe element down to fit exactly into any browser window size.
+        function applyMasterScaling() {
+            const h = window.innerHeight;
+            const w = window.innerWidth;
+            
+            // Viewport Tracker
+            const vpDisp = document.getElementById('panel-viewport-display');
+            if (vpDisp) vpDisp.innerText = `Viewport: ${w}x${h}`;
+
+            const docEl = document.documentElement;
+            let scale = 1;
+
+            // Treat iPad (w <= 1100) or Portrait displays explicitly as Single-Page mode
+            const isPortrait = h > w || w <= 1100;
+
+            // The iframe bleeds ±50px beyond the book-wrapper, so the effective rendered width 
+            // is --book-w + 100px. We must account for this when computing scale.
+            const iframeBleed = 100;
+
+            if (isPortrait) {
+                // Portrait Device Bounds (Reduced height by 30% to fit squarer displays)
+                const bookW = 900;
+                const bookH = 910;
+                docEl.style.setProperty('--book-w', bookW + 'px');
+                docEl.style.setProperty('--book-h', bookH + 'px');
+                
+                // Ensure effective width (bookW + iframeBleed) * scale fits within viewport - margins
+                const marginW = 40; // 20px clearance on each side
+                const marginH = 100;
+                scale = Math.min((w - marginW) / (bookW + iframeBleed), (h - marginH) / bookH);
+                scale = Math.min(1.0, Math.max(0.15, scale));
+
+                const lbFrame = document.getElementById("logbookFrame");
+                if (lbFrame && lbFrame.contentWindow) lbFrame.contentWindow.postMessage({ type: "LOGBOOK_ASPECT", aspect: "portrait" }, "*");
+            } else {
+                // Landscape Wide Device Bounds
+                const bookW = 2412;
+                const bookH = 900;
+                docEl.style.setProperty('--book-w', bookW + 'px');
+                docEl.style.setProperty('--book-h', bookH + 'px');
+                
+                // Ensure effective width (bookW + iframeBleed) * scale fits within viewport - panel margins
+                // 120px total clearance (60px each side) ensures no overlap with side panels
+                const marginW = 120;
+                const marginH = 120;
+                scale = Math.min((w - marginW) / (bookW + iframeBleed), (h - marginH) / bookH);
+                scale = Math.min(1.0, Math.max(0.15, scale)); // Never exceed 1.0x — no artificial boost
+
+                const lbFrame = document.getElementById("logbookFrame");
+                if (lbFrame && lbFrame.contentWindow) lbFrame.contentWindow.postMessage({ type: "LOGBOOK_ASPECT", aspect: "landscape" }, "*");
+            }
+
+            docEl.style.setProperty('--book-scale', scale);
+        }
+        window.addEventListener('resize', applyMasterScaling);
+        applyMasterScaling();
+
+        lucide.createIcons();
+
+        // --- STATE MANAGMENT ---
+        const inventory = {
+            stone: 0, wood: 0, berry: 0, arrow: 3, fish: 0, food: 0, hides: 0, water: 0
+        };
+
+        // --- GLOBAL EMITTER ---
+        window.emit = (type, data, extra) => {
+            window.parent.postMessage({ type: type, data: data, extra: extra }, '*');
+        };
+
+        // --- HUD TOGGLE LOGIC ---
+        (function () {
+            const toggleHud = (show) => {
+                if (show) document.body.classList.remove('hud-hidden');
+                else document.body.classList.add('hud-hidden');
+            };
+
+            const thumbs = document.querySelectorAll('.kp-center-btn, .thumb-btn');
+            thumbs.forEach(thumb => {
+                let pressTimer;
+                const startFadeTimer = () => {
+                    pressTimer = setTimeout(() => {
+                        document.getElementById('left-panel').classList.add('dpad-hidden');
+                    }, 500); // Gradually fade out D-Pad after 500ms of holding
+                };
+                const cancelFadeTimer = () => {
+                    clearTimeout(pressTimer);
+                };
+
+                // Click or Use fades out ONLY the D-Pad, NOT the entire HUD
+                thumb.addEventListener('mousedown', startFadeTimer);
+                thumb.addEventListener('touchstart', startFadeTimer);
+                
+                thumb.addEventListener('mouseup', cancelFadeTimer);
+                thumb.addEventListener('touchend', cancelFadeTimer);
+                thumb.addEventListener('mouseleave', cancelFadeTimer);
+
+                // Double click toggles the D-Pad visibility permanently
+                thumb.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    cancelFadeTimer();
+                    document.getElementById('left-panel').classList.toggle('dpad-hidden');
+                    
+                    // UX feedback
+                    thumb.classList.add('lightbloom');
+                    setTimeout(() => thumb.classList.remove('lightbloom'), 300);
+                });
+            });
+
+            // Resize restores
+            window.addEventListener('resize', () => toggleHud(true));
+        })();
+
+        // --- KEYPAD BUTTON WIRING (send KEY_FORWARD to game) ---
+        (function () {
+            const btns = document.querySelectorAll('.ctrl-btn[data-key]');
+            btns.forEach(btn => {
+                const key = btn.dataset.key;
+                if (!key || key === 'interact') return; // Skip center button
+
+                const sendKey = (eventType) => {
+                    window.parent.postMessage({ type: 'KEY_FORWARD', key, eventType }, '*');
+                };
+
+                // Mouse
+                btn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    sendKey('keydown');
+                    btn.classList.add('active-state');
+                });
+                btn.addEventListener('mouseup', () => {
+                    sendKey('keyup');
+                    btn.classList.remove('active-state');
+                });
+                btn.addEventListener('mouseleave', () => {
+                    sendKey('keyup');
+                    btn.classList.remove('active-state');
+                });
+
+                // Touch
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    sendKey('keydown');
+                    btn.classList.add('active-state');
+                });
+                btn.addEventListener('touchend', () => {
+                    sendKey('keyup');
+                    btn.classList.remove('active-state');
+                });
+                btn.addEventListener('touchcancel', () => {
+                    sendKey('keyup');
+                    btn.classList.remove('active-state');
+                });
+            });
+            console.log('[Panel] Keypad buttons wired:', btns.length);
+        })();
+
+        // --- LISTENERS ---
+        window.addEventListener('message', (e) => {
+            const msg = e.data;
+            if (!msg) return;
+
+            if (msg.type === 'CLOSE_LOGBOOK') {
+                const book = document.getElementById('book-wrapper');
+                // Prevent toggle if it's already hidden or in the process of closing
+                if (book && !book.classList.contains('book-hidden') && !book.classList.contains('closing')) {
+                    window.toggleLogbook();
+                }
+            }
+
+            if (msg.type === 'CAMERA_ROTATION') {
+                const compassRing = document.querySelector('.compass-outer-ring');
+                if (compassRing) {
+                    compassRing.style.transform = `rotate(${msg.deg}deg)`;
+                    compassRing.querySelectorAll('.compass-marker').forEach(marker => {
+                        if (marker.classList.contains('e') || marker.classList.contains('w')) {
+                            marker.style.transform = `translateY(-50%) rotate(${-msg.deg}deg)`;
+                        } else {
+                            marker.style.transform = `translateX(-50%) rotate(${-msg.deg}deg)`;
+                        }
+                    });
+                }
+            }
+
+            if (msg.type === 'START_AUTO_WALK') {
+                const book = document.getElementById('book-wrapper');
+                if (book && !book.classList.contains('book-hidden') && !book.classList.contains('closing')) {
+                    window.toggleLogbook();
+                }
+                // Tell the engine to begin the walk to the Tipi using the Cinematic logic
+                window.parent.postMessage({ type: 'REQ_START_AUTO_WALK' }, '*');
+            }
+
+            if (msg.type === 'QUEST_AUTOWALK') {
+                // Forward the autowalk command to the primary 3D engine context
+                window.parent.postMessage(msg, '*');
+            }
+
+            if (msg.type === 'HIDE_QUEST_BTN') {
+                const btn = document.getElementById('card-quest-btn');
+                if (btn) btn.style.display = 'none';
+            }
+
+            // 1. RESOURCE UPDATES
+            if (msg.type === 'ADD_RESOURCE') {
+                const item = msg.item;
+                const amt = msg.amount || 1;
+                if (inventory.hasOwnProperty(item)) {
+                    inventory[item] += amt;
+                    updateResourceDisplay();
+                    triggerResFlash(item);
+                }
+            }
+            if (msg.type === 'UPDATE_ALL_RESOURCES' && msg.inventory) {
+                Object.assign(inventory, msg.inventory);
+                updateResourceDisplay();
+            }
+
+            if (msg.type === 'ANIMATE_GATHER_TO_BAG') {
+                const avatarBtn = document.querySelector('.avatar-circle');
+                if (!avatarBtn) return;
+                
+                const destRect = avatarBtn.getBoundingClientRect();
+                const destX = destRect.left + (destRect.width / 2);
+                const destY = destRect.top + (destRect.height / 2);
+                
+                // Create temporary flying icon
+                const flyingIcon = document.createElement('div');
+                flyingIcon.innerText = msg.item === 'axe' ? '🪓' : '💫';
+                flyingIcon.style.position = 'fixed';
+                flyingIcon.style.left = msg.startX + 'px';
+                flyingIcon.style.top = msg.startY + 'px';
+                flyingIcon.style.fontSize = '60px'; // large source size
+                flyingIcon.style.transform = 'translate(-50%, -50%)';
+                flyingIcon.style.zIndex = '999999';
+                flyingIcon.style.pointerEvents = 'none';
+                flyingIcon.style.transition = 'all 0.8s cubic-bezier(0.25, 1, 0.5, 1)'; // smooth swoop
+                flyingIcon.style.filter = 'drop-shadow(0px 0px 15px rgba(255, 215, 0, 0.8))';
+                
+                document.body.appendChild(flyingIcon);
+                
+                // Force reflow for CSS transition
+                flyingIcon.getBoundingClientRect();
+                
+                // Trigger animation coordinates
+                flyingIcon.style.left = destX + 'px';
+                flyingIcon.style.top = destY + 'px';
+                flyingIcon.style.transform = 'translate(-50%, -50%) scale(0.1)';
+                flyingIcon.style.opacity = '0';
+                
+                // Cleanup and destination feedback
+                setTimeout(() => {
+                    if (flyingIcon.parentNode) flyingIcon.parentNode.removeChild(flyingIcon);
+                    // Flash the avatar circle slightly to confirm item dropped in
+                    avatarBtn.style.transition = 'all 0.2s ease';
+                    avatarBtn.style.transform = 'scale(1.2)';
+                    avatarBtn.style.boxShadow = '0 0 25px rgba(255, 215, 0, 0.9)';
+                    
+                    setTimeout(() => {
+                        avatarBtn.style.transform = '';
+                        avatarBtn.style.boxShadow = '';
+                    }, 300);
+                }, 800);
+            }
+
+            if (msg.type === 'TAKE_AXE') {
+                log("Wow! You got an Axe!"); // Triggers central log text and aria-reader
+
+                // Immediately close the logbook so the cinematic plays unhindered
+                const bookWrapper = document.getElementById('book-wrapper');
+                if (bookWrapper && !bookWrapper.classList.contains('book-hidden')) {
+                    window.toggleLogbook();
+                }
+
+                // Forward TAKE_AXE to the main game engine (SacredGame.html) to trigger the cinematic camera sequence
+                window.parent.postMessage(msg, '*');
+
+                // Add base Wood to bag to demonstrate functionality + activate HUD flash
+                if (inventory.hasOwnProperty('wood')) {
+                    inventory['wood'] += 1;
+                    updateResourceDisplay();
+                    triggerResFlash('wood');
+                }
+
+                // Ensure floating quest button is hidden as quest finishes
+                const questBtn = document.getElementById('card-quest-btn');
+                window._questBtnHidden = true; // Set flag so proximity doesn't re-show it
+                if (questBtn) questBtn.style.setProperty('display', 'none', 'important');
+            }
+            
+            // Visual prompt to prompt observation
+            if (msg.type === 'HIGHLIGHT_OBSERVE_BTN') {
+                const btn = document.getElementById('card-search-btn');
+                if (btn) {
+                    btn.classList.add('quest-highlight');
+                    if (window._obsTimeout) clearTimeout(window._obsTimeout);
+                    window._obsTimeout = setTimeout(() => btn.classList.remove('quest-highlight'), 3000);
+                }
+            }
+
+            // 2. UI FOCUS
+            if (msg.type === 'UI_FOCUS') {
+                const active = msg.data || msg.active; // Handle both formats
+                toggleUiFocus(active);
+            }
+
+            // 2a. SHOW HUD ON INTRO END
+            if (msg.type === 'SHOW_HUD') {
+                document.body.classList.remove('hud-hidden');
+            }
+
+            // 2b. FORCE OPEN JOURNAL ON ARRIVAL
+            if (msg.type === 'FORCE_OPEN_JOURNAL') {
+                const book = document.getElementById('book-wrapper');
+                if (book && book.classList.contains('book-hidden')) {
+                    window.toggleLogbook();
+                }
+                setTimeout(() => {
+                    const bookFrame = document.querySelector('#book-wrapper iframe');
+                    if (bookFrame && bookFrame.contentWindow) {
+                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: 2 }, '*');
+                    }
+                }, 300);
+            }
+
+            if (msg.type === 'FORCE_OPEN_FIND_HER') {
+                const book = document.getElementById('book-wrapper');
+                if (book && book.classList.contains('book-hidden')) {
+                    window.toggleLogbook();
+                }
+                setTimeout(() => {
+                    const bookFrame = document.querySelector('#book-wrapper iframe');
+                    if (bookFrame && bookFrame.contentWindow) {
+                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: 2 }, '*');
+                    }
+                }, 300);
+            }
+
+            if (msg.type === 'FORCE_OPEN_FOUND_HER') {
+                const book = document.getElementById('book-wrapper');
+                if (book && book.classList.contains('book-hidden')) {
+                    window.toggleLogbook();
+                }
+                setTimeout(() => {
+                    const bookFrame = document.querySelector('#book-wrapper iframe');
+                    if (bookFrame && bookFrame.contentWindow) {
+                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: 4 }, '*');
+                    }
+                }, 300);
+            }
+
+            if (msg.type === 'OPEN_LOGBOOK_TO_INVENTORY') {
+                const book = document.getElementById('book-wrapper');
+                if (book && book.classList.contains('book-hidden')) {
+                    window.toggleLogbook();
+                }
+                setTimeout(() => {
+                    const bookFrame = document.querySelector('#book-wrapper iframe');
+                    if (bookFrame && bookFrame.contentWindow) {
+                        bookFrame.contentWindow.postMessage({ type: 'SWITCH_TAB', tab: 'inventory', latest: false }, '*');
+                    }
+                }, 400); // Wait slightly longer for flip anim to resolve
+            }
+
+            if (msg.type === 'SYNC_LOGBOOK_PAGE') {
+                setTimeout(() => {
+                    const bookFrame = document.querySelector('#book-wrapper iframe');
+                    if (bookFrame && bookFrame.contentWindow) {
+                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: msg.pageIdx }, '*');
+                    }
+                }, 300); // Wait for the Logbook frame to receive 'DO_OPEN_FLIP' and render the UI first
+            }
+
+            if (msg.type === 'TOGGLE_MAP_VIEW') {
+                if (msg.isMap) document.body.classList.add('is-map-view');
+                else document.body.classList.remove('is-map-view');
+            }
+
+            // 2c. GUIDE CARD TRANSPARENCY — fade when player moves
+            if (msg.type === 'playerMoving') {
+                const cards = document.querySelectorAll('.guide-card');
+                cards.forEach(card => {
+                    card.style.transition = msg.moving ? 'opacity 0.3s' : 'opacity 0.8s';
+                    card.style.opacity = msg.moving ? '0.05' : '0.90';
+                });
+                // Also fade the 3D icon renderer canvas
+                const iconCanvas = document.querySelector('canvas[style*="pointer-events: none"]');
+                if (iconCanvas) {
+                    iconCanvas.style.transition = msg.moving ? 'opacity 0.3s' : 'opacity 0.8s';
+                    iconCanvas.style.opacity = msg.moving ? '0.05' : '0.90';
+                }
+            }
+
+            // 3. SHOW/HIDE HELPERS
+            if (msg.type === 'SHOW_QUEST_CARD') {
+                const btn = document.getElementById('card-quest-btn');
+                if (btn) {
+                    btn.style.display = 'flex';
+                    btn.classList.add('quest-highlight');
+                }
+            }
+            if (msg.type === 'SHOW_LOG') {
+                log(msg.msg);
+            }
+            if (msg.type === 'REQ_TOGGLE_LOGBOOK') {
+                toggleLogbook();
+            }
+            if (msg.type === 'START_LOGBOOK_ANIMATION') {
+                // Only open if currently closed AND the user hasn't already manually closed it
+                const book = document.getElementById('book-wrapper');
+                if (book && book.classList.contains('book-hidden') && !window._hasUserToggledLogbook) {
+                    toggleLogbook();
+                }
+            }
+            if (msg.type === 'REQ_CHOP_NEAREST_TREE' || msg.type === 'REQ_AUTOWALK_TO_ENTITY') {
+                window.parent.postMessage(msg, '*');
+            }
+            if (msg.type === 'COMPLETE_AXE_GATHER') {
+                const bookFrame = document.getElementById('book-frame');
+                if (bookFrame && bookFrame.contentWindow) {
+                    bookFrame.contentWindow.postMessage(msg, '*');
+                }
+            }
+            if (msg.type === 'NLP_RESPONSE' || msg.type === 'SHOW_BUILDING_INFO' || msg.type === 'YB_GREETING_ARRIVED' || msg.type === 'BHG_GREETING_ARRIVED') {
+                const journalFrame = document.getElementById('logbookFrame');
+                if (journalFrame && journalFrame.contentWindow) {
+                    journalFrame.contentWindow.postMessage(msg, '*');
+                }
+            }
+        });
+
+        // --- UTILS ---
+        window.log = (msg) => {
+            const el = document.getElementById('event-log');
+            if (el) {
+                const p = document.createElement('p');
+                p.style.margin = "2px 0"; p.style.textShadow = "1px 1px 2px black";
+                p.innerText = "➤ " + msg;
+                el.prepend(p);
+                if (el.children.length > 8) el.lastChild.remove();
+            }
+            const announcer = document.getElementById('aria-announcer');
+            if (announcer) {
+                announcer.innerText = msg;
+            }
+        };
+
+        // --- UI LOGIC ---
+        function updateResourceDisplay() {
+            Object.keys(inventory).forEach(key => {
+                const badge = document.querySelector(`.outer-btn[data-res="${key}"] .or-badge`);
+                if (badge) badge.textContent = inventory[key];
+            });
+        }
+
+        function triggerResFlash(item) {
+            const badge = document.querySelector(`.outer-btn[data-res="${item}"]`);
+            if (badge) {
+                badge.classList.add('res-flash');
+                setTimeout(() => badge.classList.remove('res-flash'), 500);
+            }
+        }
+
+        function toggleUiFocus(active) {
+            const center = document.getElementById('center-stack');
+            const left = document.getElementById('left-panel');
+            const book = document.getElementById('book-wrapper');
+
+            if (active) {
+                if (center) center.classList.add('ui-dimmed');
+                if (left) left.classList.add('ui-dimmed');
+                if (book) book.classList.add('ui-dimmed');
+            } else {
+                if (center) center.classList.remove('ui-dimmed');
+                if (left) left.classList.remove('ui-dimmed');
+                if (book) book.classList.remove('ui-dimmed');
+            }
+        }
+
+        // --- INPUT CONTROLLER & FORWARDING ---
+
+        // MOCKED LLM GAME ENGINE (In-Panel)
+        const GameEngine = {
+            processInput: (text) => {
+                const lower = text.toLowerCase().trim();
+                const bookFrame = document.querySelector('#book-wrapper iframe');
+
+                if (lower === '?' || lower === 'help') {
+                    const wrapper = document.getElementById('book-wrapper');
+                    if (wrapper && wrapper.classList.contains('book-hidden')) toggleLogbook();
+                    if (bookFrame && bookFrame.contentWindow) {
+                        bookFrame.contentWindow.postMessage({ type: 'SWITCH_TAB', tab: 'log' }, '*');
+                        setTimeout(() => bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: 0 }, '*'), 50);
+                    }
+                    return;
+                }
+
+                // Map direct keywords to trigger the start of the game
+                const intentStr = lower.replace(/[^a-z ]/g, "").trim();
+                if (['start game', 'begin', 'start', 'play'].includes(intentStr)) {
+                    window.parent.postMessage({ type: 'REQ_START_AUTO_WALK' }, '*');
+                    const wrapper = document.getElementById('book-wrapper');
+                    if (wrapper && !wrapper.classList.contains('book-hidden')) toggleLogbook();
+                    return;
+                }
+
+                if (lower === 'inventory' || lower === 'items') {
+                    const wrapper = document.getElementById('book-wrapper');
+                    if (wrapper && wrapper.classList.contains('book-hidden')) toggleLogbook();
+                    if (bookFrame && bookFrame.contentWindow) {
+                        bookFrame.contentWindow.postMessage({ type: 'SWITCH_TAB', tab: 'inventory' }, '*');
+                    }
+                    return;
+                }
+
+                // WCAG 2.2 AAA Autowalk Input Parser
+                if (lower.startsWith('%')) {
+                    const targetName = lower.substring(1).trim();
+                    window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName }, '*');
+                    
+                    if (bookFrame && bookFrame.contentWindow) {
+                        bookFrame.contentWindow.postMessage({
+                            type: 'ADD_PAGE',
+                            category: 'encounters',
+                            layout: 'storybook',
+                            title: 'Autopilot Engaged',
+                            subtitle: `Pathfinding to: ${targetName.toUpperCase()}`,
+                            mediaHTML: '<div class="w-full aspect-square bg-[#cbd5e1] rounded-[10px] border-4 border-[#6d4c41] shadow-md flex items-center justify-center"><i class="fa-solid fa-route text-5xl text-[#6d4c41]"></i></div>',
+                            mediaCaption: 'Accessibility Navigation Active',
+                            paragraphs: [`Autopilot is guiding you towards a ${targetName}. Please wait...`]
+                        }, '*');
+                        bookFrame.contentWindow.postMessage({ type: 'SWITCH_TAB', tab: 'encounters' }, '*');
+                    }
+                    return;
+                }
+
+                // Adaptive LLM Dictionary System
+                if (!window._learnedDictionary) {
+                    window._learnedDictionary = ['look', 'go', 'walk', 'run', 'horse', 'bunny', 'spirit', 'water', 'tipi', 'axe'];
+                }
+
+                let response = "";
+                const words = lower.split(' ').map(w => w.trim());
+                let foundKnown = false;
+                
+                for (const w of words) {
+                    if (window._learnedDictionary.includes(w)) {
+                        foundKnown = true;
+                        break;
+                    }
+                }
+
+                if (foundKnown) {
+                    if (lower.includes('horse')) response = "You look around for a horse. The majestic stallions are grazing nearby! Type '% horse' to walk to one.";
+                    else if (lower.includes('bunny') || lower.includes('rabbit')) response = "A tiny bunny hops through the grass! Type '% bunny' to walk to one.";
+                    else if (lower.includes('spirit')) response = "A glowing Nature Spirit is walking gracefully. Type '% spirit' to walk to it.";
+                    else if (lower.includes('look')) response = "You take a look around. The open plains stretch out as far as the eye can see, and a hawk circles high above your head.";
+                    else if (lower.includes('go') || lower.includes('walk')) response = "You start walking forward, your boots crunching on the dry dirt. Tip: Use % to auto-walk to objects!";
+                    else response = `You whisper a known word to the wind: "${text}". The spirits are listening!`;
+                } else {
+                    // LLM Unknown word learning simulation
+                    const mainWord = words[0];
+                    window._learnedDictionary.push(mainWord);
+                    response = `I don't know what "${mainWord}" means yet. I have marked it in my LLM dictionary and will learn it for next time! (You can use '% ${mainWord}' to see if it exists in the 3D world).`;
+                }
+
+                // Push to Logbook
+                if (bookFrame && bookFrame.contentWindow) {
+                    bookFrame.contentWindow.postMessage({
+                        type: 'ADD_PAGE',
+                        category: 'encounters',
+                        layout: 'storybook', // Triggers JournalMasterAI auto-formatting
+                        title: 'Journal Entry',
+                        subtitle: 'The spirits respond...',
+                        mediaHTML: '<div class="w-full aspect-square bg-[#cbd5e1] rounded-[10px] border-4 border-[#6d4c41] shadow-md flex items-center justify-center"><i class="fa-solid fa-feather-pointed text-5xl text-[#6d4c41]"></i></div>',
+                        mediaCaption: 'A fleeting vision forms on the page.',
+                        paragraphs: [response]
+                    }, '*');
+
+                    // Switch to Encounters Tab to see new entry
+                    bookFrame.contentWindow.postMessage({
+                        type: 'SWITCH_TAB',
+                        tab: 'encounters'
+                    }, '*');
+                }
+
+                // Output to HUD Log as well (optional)
+                const hudLog = document.getElementById('event-log');
+                if (hudLog) {
+                    const msg = document.createElement('div');
+                    msg.innerText = "> " + response;
+                    hudLog.appendChild(msg);
+                    setTimeout(() => msg.remove(), 5000);
+                }
+
+                // Ensure Book is Open
+                const wrapper = document.getElementById('book-wrapper');
+                if (wrapper && wrapper.classList.contains('book-hidden')) {
+                    toggleLogbook();
+                }
+            }
+        };
+        // Expose to child iframes (Component.Logbook.html)
+        window.GameEngine = GameEngine;
+
+        // --- VOLUME FORWARDING (from Logbook child iframe -> Game) ---
+        const sendVolume = (vol) => {
+            window.parent.postMessage({ type: 'VOLUME_CHANGE', volume: vol }, '*');
+            const gameFrame = document.querySelector('iframe[src*="SacredGame.html"]');
+            if (gameFrame) gameFrame.contentWindow.postMessage({ type: 'VOLUME_CHANGE', volume: vol }, '*');
+        };
+
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'VOLUME_CHANGE') {
+                sendVolume(e.data.volume / 100);
+            }
+            if (e.data && e.data.type === 'WORLD_CMD') {
+                window.parent.postMessage(e.data, '*');
+            }
+            if (e.data && e.data.type === 'ADJUST_JOURNAL_HEIGHT') {
+                const book = document.getElementById('book-wrapper');
+                if (book) {
+                    // Min 68vh, max 90vh
+                    const baseHeightVmin = window.innerWidth <= 860 ? '61.8%' : '68vh'; 
+                    if (e.data.reset) {
+                        book.style.height = baseHeightVmin;
+                    } else {
+                        // Let's assume e.data.height is the exact pixel height needed.
+                        // But we don't want to overflow the window.
+                        const maxH = window.innerHeight * 0.85;
+                        const finalH = Math.min(e.data.height + 40, maxH); // +40px padding
+                        book.style.height = finalH + 'px';
+                    }
+                }
+            }
+            if (e.data && (e.data.type === 'REQ_ALIGN_TIPI')) {
+                const book = document.getElementById('book-wrapper');
+                if (book && (book.classList.contains('closing') || book.classList.contains('book-hidden'))) {
+                    // console.log("[PIP_TRACE_PANEL] BLOCKED REQ_ALIGN_TIPI: Book is hidden or closing.");
+                    e.data.type = 'REQ_HIDE_TIPI';
+                    window.parent.postMessage(e.data, '*');
+                    return;
+                }
+                // console.log("[PIP_TRACE_PANEL] FORWARDING REQ_ALIGN_TIPI", JSON.stringify(e.data.rect));
+
+                const logbookIframe = document.getElementById('logbookFrame');
+                if (logbookIframe && e.data.rect) {
+                    const lbRect = logbookIframe.getBoundingClientRect();
+                    const scaleStr = getComputedStyle(document.documentElement).getPropertyValue('--book-scale');
+                    const actualScale = parseFloat(scaleStr) || 1.0;
+                    
+                    e.data.rect.x = lbRect.left + (e.data.rect.x * actualScale);
+                    e.data.rect.y = lbRect.top + (e.data.rect.y * actualScale);
+                    e.data.rect.width = e.data.rect.width * actualScale;
+                    e.data.rect.height = e.data.rect.height * actualScale;
+                }
+                window.parent.postMessage(e.data, '*');
+            }
+
+            if (e.data && (e.data.type === 'REQ_ALIGN_AXE')) {
+                const axeOverlay = document.getElementById('icon-logbook-axe');
+                const logbookIframe = document.getElementById('logbookFrame');
+                const bookWrapper = document.getElementById('book-wrapper');
+                
+                if (bookWrapper && bookWrapper.classList.contains('closing')) {
+                    if (axeOverlay) axeOverlay.style.display = 'none';
+                    e.data.type = 'REQ_HIDE_AXE';
+                    window.parent.postMessage(e.data, '*');
+                    return;
+                }
+
+                if (logbookIframe && e.data.rect) {
+                    const lbRect = logbookIframe.getBoundingClientRect();
+                    const scaleStr = getComputedStyle(document.documentElement).getPropertyValue('--book-scale');
+                    const actualScale = parseFloat(scaleStr) || 1.0;
+                    
+                    const screenX = lbRect.left + (e.data.rect.x * actualScale);
+                    const screenY = lbRect.top + (e.data.rect.y * actualScale);
+                    const screenW = e.data.rect.width * actualScale;
+                    const screenH = e.data.rect.height * actualScale;
+
+                    if (axeOverlay) {
+                        axeOverlay.style.display = 'block';
+                        axeOverlay.style.left = screenX + 'px';
+                        axeOverlay.style.top = screenY + 'px';
+                        axeOverlay.style.width = screenW + 'px';
+                        axeOverlay.style.height = screenH + 'px';
+                    }
+
+                    // Forward the transformed viewport coordinates to the master 3D Engine Frame
+                    e.data.rect.x = screenX;
+                    e.data.rect.y = screenY;
+                    e.data.rect.width = screenW;
+                    e.data.rect.height = screenH;
+                }
+                window.parent.postMessage(e.data, '*');
+            }
+
+            if (e.data && (e.data.type === 'REQ_HIDE_AXE')) {
+                const axeOverlay = document.getElementById('icon-logbook-axe');
+                if (axeOverlay) axeOverlay.style.display = 'none';
+                window.parent.postMessage(e.data, '*');
+            }
+
+            if (e.data && e.data.type === 'REQ_HIDE_TIPI') {
+                window.parent.postMessage(e.data, '*');
+            }
+            if (e.data && e.data.type === 'REQ_ANIMATE_THEN_GATHER_AXE') {
+                window.parent.postMessage(e.data, '*');
+            }
+            if (e.data && e.data.type === 'REQ_BEGIN_QUEST_AUTOWALK') {
+                const book = document.getElementById('book-wrapper');
+                if (book && !book.classList.contains('book-hidden')) {
+                    window.toggleLogbook();
+                }
+                window.parent.postMessage({ type: 'QUEST_AUTOWALK' }, '*');
+            }
+            if (e.data && e.data.type === 'REQ_FIND_HER_AUTOWALK') {
+                const book = document.getElementById('book-wrapper');
+                if (book && !book.classList.contains('book-hidden')) {
+                    window.toggleLogbook();
+                }
+                window.parent.postMessage({ type: 'FIND_HER_AUTOWALK' }, '*');
+            }
+            if (e.data && e.data.type === 'QUEST_DISTANCE_UPDATE') {
+                const questBtn = document.getElementById('card-quest-btn');
+                const questDesc = document.getElementById('desc-quest');
+                if (questBtn && !window._questBtnHidden) {
+                    window._nearestQuest = e.data.nearestId || 'tipi';
+                    
+                    // Always show the quest card so the user knows what their active objective is
+                    questBtn.style.setProperty('display', 'flex', 'important');
+                    
+                    // Conditionally update distance text
+                    const baseDesc = window._activeQuestDesc || "Follow path";
+                    if (e.data.distance > 50) {
+                        questDesc.innerText = `${baseDesc} (${e.data.distance}ft)`;
+                    } else if (e.data.distance <= 15) {
+                        questDesc.innerText = `Objective Reached`;
+                    } else {
+                        questDesc.innerText = `${baseDesc} (${e.data.distance}ft)`;
+                    }
+                }
+            }
+            if (e.data && e.data.type === 'UPDATE_QUEST_CARD') {
+                window._questBtnHidden = false; // Re-show it!
+                window._activeQuestDesc = e.data.desc;
+                const questBtn = document.getElementById('card-quest-btn');
+                const desc = document.getElementById('desc-quest');
+                if (desc && e.data.desc) desc.innerText = e.data.desc;
+                if (questBtn) questBtn.style.setProperty('display', 'flex', 'important');
+            }
+            if (e.data && e.data.type === 'HIDE_QUEST_BTN') {
+                window._questBtnHidden = true;
+                const questBtn = document.getElementById('card-quest-btn');
+                if (questBtn) questBtn.style.setProperty('display', 'none', 'important');
+            }
+            if (e.data && e.data.type === 'GLOW_ITEMS_BUTTON') {
+                const btn = document.getElementById('btn-items');
+                if (btn) {
+                    btn.style.transition = 'all 0.5s ease-out';
+                    btn.style.boxShadow = '0 0 30px 10px rgba(255, 215, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.9)';
+                    btn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                    btn.style.transform = 'scale(1.2)';
+                    
+                    setTimeout(() => {
+                        btn.style.boxShadow = '';
+                        btn.style.backgroundColor = '';
+                        btn.style.transform = '';
+                    }, 1500);
+                }
+            }
+        });
+
+        // --- GUIDE CARD LOGIC (Sub-ifframes) ---
+        function openQuest() {
+            log("Opening Quests...");
+            
+            // Unify with the Main Engine's dynamic active-quest sync
+            window.toggleLogbook();
+
+            const btn = document.getElementById('card-quest-btn');
+            if (btn) { btn.classList.add('lightbloom'); setTimeout(() => btn.classList.remove('lightbloom'), 500); }
+        }
+
+        window.toggleGather = () => {
+            // Trigger local Icon Anim
+            // Trigger Action
+            window.parent.postMessage({ type: 'GATHER_ACTION' }, '*');
+            // Visual
+            const btn = document.getElementById('card-gather-btn');
+            if (btn) { btn.classList.add('lightbloom'); setTimeout(() => btn.classList.remove('lightbloom'), 500); }
+        };
+
+        window.toggleFish = () => {
+            window.parent.postMessage({ type: 'FISH_ACTION' }, '*');
+            const btn = document.getElementById('card-fish-btn');
+            if (btn) { btn.classList.add('lightbloom'); setTimeout(() => btn.classList.remove('lightbloom'), 500); }
+        };
+
+        window.toggleObserve = () => {
+            window.parent.postMessage({ type: 'OBSERVE_WILDLIFE_ACTION' }, '*');
+            const btn = document.getElementById('card-search-btn');
+            if (btn) { btn.classList.add('lightbloom'); setTimeout(() => btn.classList.remove('lightbloom'), 500); }
+        };
+
+        // Unified Toggle Logbook
+        window.toggleLogbook = () => {
+            window._hasUserToggledLogbook = true;
+            const book = document.getElementById('book-wrapper');
+            const btn = document.getElementById('card-log-btn');
+            const sideBtn = document.getElementById('btn-journal');
+            const guides = document.getElementById('guides-container');
+
+            if (book.classList.contains('book-hidden')) {
+                book.classList.remove('book-hidden');
+                document.body.classList.add('logbook-active');
+                if (guides) guides.style.display = 'none';
+
+                if (btn) btn.classList.add('lightbloom');
+                if (sideBtn) sideBtn.classList.add('active-glow');
+
+                // Notify Game (for sounds/stats)
+                const rect = sideBtn ? sideBtn.getBoundingClientRect() : null;
+                const rectData = rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+                try {
+                    window.parent.postMessage({ type: 'OPEN_LOGBOOK', rect: rectData }, '*');
+
+                    // Trigger the physical page opening animation
+                    const lbFrame = document.getElementById('logbookFrame');
+                    if (lbFrame && lbFrame.contentWindow) {
+                        lbFrame.contentWindow.postMessage({ type: 'DO_OPEN_FLIP' }, '*');
+                        lbFrame.contentWindow.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: true }, '*');
+                    }
+                    // Instruct the background game engine to sleep the FPV pass to save framerate for the Logbook feeds
+                    window.parent.postMessage({ type: 'LOGBOOK_VISIBILITY', isVisible: true }, '*');
+                } catch (e) { console.error('Postmessage error:', e); }
+            } else {
+                book.classList.add('book-hidden');
+                document.body.classList.remove('logbook-active');
+                document.body.classList.remove('hud-hidden'); // Reveal main UI
+                if (guides) guides.style.display = ''; // Clear inline style so CSS default (flex) takes over
+                
+                // Tell the logbook iframe it is hidden so it stops its alignment loop
+                const lbFrameEl = document.getElementById('logbookFrame');
+                if (lbFrameEl && lbFrameEl.contentWindow) {
+                    lbFrameEl.contentWindow.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: false }, '*');
+                }
+                
+                // FORCE: Manually dissolve lingering opacity/interaction overrides
+                toggleUiFocus(false);
+                const leftP = document.getElementById('left-panel');
+                const rightP = document.getElementById('right-panel');
+                const topP = document.getElementById('adventure-row-top');
+                // Nullify overrides so CSS base styles natively resurrect them
+                if (leftP) { leftP.style.opacity = ''; leftP.style.pointerEvents = ''; leftP.style.display = ''; leftP.style.visibility = ''; }
+                if (rightP) { rightP.style.opacity = ''; rightP.style.pointerEvents = ''; rightP.style.display = ''; rightP.style.visibility = ''; }
+                if (topP) { topP.style.opacity = ''; topP.style.pointerEvents = ''; topP.style.display = ''; topP.style.visibility = ''; }
+
+                // Automatically bounce Native browser Focus back to the main game canvas so WASD inputs work immediately
+                window.parent.focus();
+
+                // Ensure the camera feed closes when the journal closes
+                try {
+                    window.parent.postMessage({ type: 'REQ_HIDE_TIPI' }, '*');
+                } catch (e) { console.error('Postmessage error hiding tipi:', e); }
+
+                if (btn) btn.classList.remove('lightbloom');
+                if (sideBtn) sideBtn.classList.remove('active-glow');
+
+                const lbFrame = document.getElementById('logbookFrame');
+                if (lbFrame && lbFrame.contentWindow) {
+                    lbFrame.contentWindow.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: false }, '*');
+                }
+
+                // Instruct the background game engine to resume 3D rendering
+                window.parent.postMessage({ type: 'LOGBOOK_VISIBILITY', isVisible: false }, '*');
+                window.parent.postMessage({ type: 'CLOSE_LOGBOOK' }, '*');
+            }
+        };
+
+        // --- SIDE PANEL LOGIC ---
+        window.handleAvatarClick = (e) => {
+            // Stop propagation to prevent immediate close by global listener
+            if (e) e.stopPropagation();
+
+            const z = document.getElementById('action-zone');
+            if (z) {
+                // Primary Toggle
+                const isActive = z.classList.contains('outer-active');
+                if (isActive) {
+                    z.classList.remove('outer-active');
+                    z.classList.remove('resources-active');
+                } else {
+                    z.classList.add('outer-active');
+                }
+            }
+        };
+
+        window.handleActionClick = (type, action) => {
+            if (type === 'toggleResources') {
+                const z = document.getElementById('action-zone');
+                if (z) {
+                    // Toggle Secondary Ring
+                    z.classList.toggle('resources-active');
+                }
+            }
+        };
+
+        // GLOBAL CLICK LISTENER: Auto-Close Action Loop
+        document.addEventListener('click', (e) => {
+            const z = document.getElementById('action-zone');
+            if (z && z.classList.contains('outer-active')) {
+                // If the click is NOT inside the Right Panel (Action Zone), close it.
+                // This covers clicking on Guide Cards, Input, or empty space.
+                const rightPanel = document.getElementById('right-panel');
+                if (rightPanel && !rightPanel.contains(e.target)) {
+                    z.classList.remove('outer-active');
+                    z.classList.remove('resources-active');
+                }
+            }
+        }, true); // Capture phase to ensure it runs before some other stoppers if needed, though Bubble is fine usually. Using 'true' (Capture) might be safer to catch all. Actually default bubble is better for logical flow. Let's use Bubble.
+
+
+        function updateActionLayout() {
+            // Simple circular layout for Action Ring
+            const buttons = document.querySelectorAll('.btn-action');
+            const radius = 90;
+            // Hardcoded distribution if needed, but CSS vars do the work in style block?
+            // Need to check style block logic.
+            // Ah, I stripped the JS that did "each button set --tx --ty" from SidePanel.
+            // I MUST RESTORE THAT LOGIC! The CSS relies on --tx var being set.
+
+            if (window.matchMedia("(max-width: 1100px)").matches) return;
+
+            // Restore the generic radial distribution
+            const step = (2 * Math.PI) / buttons.length;
+            let angle = -Math.PI / 2; // Start North
+            buttons.forEach(btn => {
+                const x = Math.round(radius * Math.cos(angle));
+                const y = Math.round(radius * Math.sin(angle));
+                btn.style.setProperty('--tx', `${x}px`);
+                btn.style.setProperty('--ty', `${y}px`);
+                angle += step;
+            });
+        }
+
+        // --- BOOK DRAGGING ---
+        function initLogbookInteraction() {
+            const bookWrapper = document.getElementById('book-wrapper');
+            const dragHandle = document.getElementById('book-drag-handle');
+            const resizeHandle = document.getElementById('book-resize-handle');
+
+            if (!bookWrapper || !dragHandle) return;
+
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+
+            dragHandle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                const rect = bookWrapper.getBoundingClientRect();
+                // Fix position to pixels
+                bookWrapper.style.transform = 'none';
+                bookWrapper.style.bottom = 'auto';
+                bookWrapper.style.left = rect.left + 'px';
+                bookWrapper.style.top = rect.top + 'px';
+
+                startX = e.clientX; startY = e.clientY;
+                initialLeft = rect.left; initialTop = rect.top;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                bookWrapper.style.left = (initialLeft + (e.clientX - startX)) + 'px';
+                bookWrapper.style.top = (initialTop + (e.clientY - startY)) + 'px';
+            });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            // Resize (Simple)
+            if (resizeHandle) {
+                let isResizing = false;
+                let startW, startH;
+                resizeHandle.addEventListener('mousedown', (e) => {
+                    isResizing = true;
+                    const rect = bookWrapper.getBoundingClientRect();
+                    startW = rect.width; startH = rect.height;
+                    startX = e.clientX; startY = e.clientY;
+                    e.preventDefault(); // Stop text selection
+                });
+                window.addEventListener('mousemove', (e) => {
+                    if (!isResizing) return;
+                    bookWrapper.style.width = Math.max(300, startW + (e.clientX - startX)) + 'px';
+                    bookWrapper.style.height = Math.max(200, startH + (e.clientY - startY)) + 'px';
+                });
+                window.addEventListener('mouseup', () => isResizing = false);
+            }
+        }
+
+        // Global Dismiss
+        document.addEventListener('click', (e) => {
+            // If clicking generic vignette/background, close things
+            if (e.target.id === 'ui-container' || e.target.classList.contains('ui-dimmed')) {
+                toggleUiFocus(false);
+                // Close Logbook if open
+                if (document.body.classList.contains('logbook-active') && typeof toggleLogbook === 'function') {
+                    toggleLogbook();
+                }
+                // Close Action Ring
+                const z = document.getElementById('action-zone');
+                if (z) z.classList.remove('outer-active');
+            }
+        });
+
+        // --- DEBUG: RESOLUTION & VIEWPORT DISPLAY ---
+        // (Overlay removed per user request)
+
+
+
+        function updateDebugRes() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            let label = "DESKTOP";
+
+            // Precise User Definitions (Hard Points)
+            if (w >= 1024) label = "DESKTOP";
+            else if (w >= 640) label = "TABLET"; 
+            else label = "MOBILE";
+
+            const inputEl = document.getElementById('llm-input');
+            if (inputEl) {
+                inputEl.setAttribute('placeholder', `VIEWPORT : ${label} * ${w}px x ${h}px`);
+            }
+
+            const deb = document.getElementById('debug-viewport');
+            if (deb) deb.innerText = `VIEWPORT: ${w}px x ${h}px`;
+
+            // REMOVED FUZZY SCALING PER USER REQUEST
+            const uiLayer = document.getElementById('ui-layer');
+            if (uiLayer) {
+                uiLayer.style.transform = 'none';
+                uiLayer.style.width = '100%';
+                uiLayer.style.height = '100%';
+            }
+
+            // Handle Mobile Viewport Change Logic
+            // REMOVED - Using Standard CSS Media Queries only.
+
+        }
+
+        // --- BUTTON CLICK ANIMATION ADSR ---
+        function attachClickBlooms() {
+            const btns = document.querySelectorAll('.u-btn, .kp-center-btn, .btn-action');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Reset
+                    btn.classList.remove('click-bloom');
+                    void btn.offsetWidth;
+                    // ADSR Trigger
+                    btn.classList.add('click-bloom');
+                });
+            });
+        }
+        // Run after init
+        document.addEventListener('DOMContentLoaded', () => { setTimeout(attachClickBlooms, 500); });
+
+        // Initial State Logic: Desktop visible by default, others hidden
+        function ensureInitialState() {
+            const z = document.getElementById('action-zone');
+            if (!z) return;
+            // Check if Desktop (> 860px)
+            if (window.innerWidth > 860) {
+                z.classList.add('outer-active');
+            } else {
+                z.classList.remove('outer-active');
+                z.classList.remove('resources-active');
+            }
+        }
+        // Run once on load
+        ensureInitialState();
+
+        window.addEventListener('resize', updateDebugRes);
+        // Run immediately
+        updateDebugRes();
+
+        // --- INPUT FORWARDING (Tunneling to Game) ---
+        // 1. KEYBOARD FORWARDING (Must match Input.Controller.js KEY_FORWARD format)
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Forward to Parent as KEY_FORWARD (matches Input.Controller.js)
+            window.parent.postMessage({
+                type: 'KEY_FORWARD',
+                key: e.key.toLowerCase(),
+                eventType: 'keydown'
+            }, '*');
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            window.parent.postMessage({
+                type: 'KEY_FORWARD',
+                key: e.key.toLowerCase(),
+                eventType: 'keyup'
+            }, '*');
+        });
+
+        // --- WCAG TEXT-TO-DRIVE AI NAVIGATION BRIDGE ---
+        const llmInput = document.getElementById('llm-input');
+        if (llmInput) {
+            llmInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    submitPanelChat();
+                } else {
+                    // Stop event bubbling to prevent keydown forwarding to the game while typing
+                    e.stopPropagation();
+                }
+            });
+        }
+        
+        // Core Synonym NLP Dictionary
+        const nlpDictionary = {
+            "bunny": "rabbit",
+            "bunnies": "rabbit",
+            "hop": "rabbit",
+            "rabbit": "rabbit",
+            "rabbits": "rabbit",
+            
+            "pony": "horse",
+            "horse": "horse",
+            "horses": "horse",
+            "mustang": "horse",
+            "stallion": "horse",
+            
+            "bird": "bird",
+            "birds": "bird",
+            "hawk": "bird",
+            "eagle": "bird",
+            "falcon": "bird",
+            "goose": "bird",
+            "geese": "bird",
+            
+            "girl": "bhg",
+            "lady": "bhg",
+            "friend": "bhg",
+            "npc": "bhg",
+            "bhg": "bhg",
+
+            "tipi": "tipi",
+            "tent": "tipi",
+            "home": "tipi",
+            "camp": "tipi",
+            "base": "tipi"
+        };
+        
+        function appendActionLog(speaker, message, type='sys') {
+            const logBox = document.getElementById('action-log');
+            if (!logBox) return;
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            if (speaker === 'Player') {
+                entry.innerHTML = `<i class="fa-solid fa-user log-icon log-user"></i> <span class="log-user">${message}</span>`;
+            } else if (type === 'warn') {
+                entry.innerHTML = `<i class="fa-solid fa-robot log-icon log-warn"></i> <span class="log-warn">${message}</span>`;
+            } else {
+                entry.innerHTML = `<i class="fa-solid fa-leaf log-icon log-sys"></i> <span class="log-sys">${message}</span>`;
+            }
+            
+            logBox.appendChild(entry);
+            // Snap to bottom
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+        
+        function submitPanelChat() {
+            const inputEl = document.getElementById('llm-input');
+            const narrator = document.getElementById('aria-live-narrator');
+            if (!inputEl) return;
+            
+            let text = inputEl.value.trim().toLowerCase();
+            if (!text) return;
+            
+            // Re-activate if Logbook is closed
+            const logContainer = document.getElementById('logbook-container');
+            if (logContainer && logContainer.classList.contains('hidden')) {
+               toggleLogbook(); // Quick open logbook to see the chat
+            }
+
+            appendActionLog('Player', inputEl.value.trim());
+            inputEl.value = ''; // clear instantly
+            
+            // Clean up common fluff words
+            const removeWords = ["go to the", "go to a", "go to", "find the", "find a", "find", "look at the", "look at a", "look at", "show me", "where is the", "where is a"];
+            for (let phrase of removeWords) {
+                if (text.startsWith(phrase)) {
+                    text = text.replace(phrase, '').trim();
+                }
+            }
+            
+            // Also gracefully handle if they STILL use the % prefix out of habit
+            if (text.startsWith('%')) text = text.substring(1).trim();
+            
+            // Extract core words
+            const words = text.split(' ');
+            let targetSystem = null;
+            let unknownWord = text; // Default assumption
+            
+            for (let word of words) {
+                if (nlpDictionary[word]) {
+                    targetSystem = nlpDictionary[word];
+                    break;
+                }
+            }
+            
+            if (targetSystem) {
+                const msg = `Navigating to ${targetSystem}... press W A S D to cancel.`;
+                if (narrator) narrator.innerText = msg;
+                appendActionLog('System', msg);
+                window.parent.postMessage({ type: 'SEEK_ENTITY', target: targetSystem }, '*');
+            } else {
+                const warnMsg = `Unknown object '${unknownWord}'. Archiving to dictionary for future learning.`;
+                if (narrator) narrator.innerText = warnMsg;
+                appendActionLog('System', warnMsg, 'warn');
+            }
+        }
+
+        // 1.5 ACTIVE FOCUS RESTORATION (Prevents UI buttons from infinitely trapping WASD focus)
+        document.addEventListener('mouseup', (e) => {
+            // Ignore if interacting with a text-field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            // Prevent the browser from letting an iframe button swallow keyboard scope
+            setTimeout(() => { if(window.parent) window.parent.focus(); }, 10);
+        });
+
+        // 2. CLICK TUNNELING (Background Clicks -> Movement)
+        document.addEventListener('mousedown', (e) => {
+            // Check if we clicked a UI button or active element
+            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.u-btn') || e.target.closest('.modal-box') || e.target.closest('.guide-card')) return;
+
+            // Allow click-through to game even if Logbook is open, but block explicit UI dim overlays
+            if (e.target.classList.contains('ui-dimmed') || e.target.id === 'ui-container') return;
+
+            // If logbook is open, clicking the void should close the logbook instead of moving the player
+            if (document.body.classList.contains('logbook-active')) {
+                if (typeof toggleLogbook === 'function') toggleLogbook();
+                return; 
+            }
+
+            // If clicking the "void" (body or container), forward to game
+            // Normalize coordinates (0 - 1)
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+
+            window.parent.postMessage({
+                type: 'CANVAS_CLICK',
+                x: x,
+                y: y,
+                button: e.button
+            }, '*');
+        });
+    </script>
+    <script>
+        // PHASE 6: Ensure Journal Input is always exactly +50px below the Logbook to prevent clipping
+        (function () {
+            const bookWrapper = document.getElementById('book-wrapper');
+            const inputContainer = document.getElementById('input-container');
+
+            if (bookWrapper && inputContainer) {
+                const updateInputPosition = () => {
+                    // Only apply dynamic positioning when Logbook is actively shown
+                    if (document.body.classList.contains('logbook-active')) {
+                        const rect = bookWrapper.getBoundingClientRect();
+                        // Anchor 50px strictly below the drawn bounds of the Journal
+                        inputContainer.style.top = `${rect.bottom + 50}px`;
+                        inputContainer.style.bottom = 'auto'; // release any static bottom anchors
+                    } else {
+                        // Reset when logbook closes (reverts to standard gameplay UI CSS)
+                        inputContainer.style.top = '';
+                        inputContainer.style.bottom = '';
+                    }
+                };
+
+                // Track size and positional mutations
+                const observer = new ResizeObserver(updateInputPosition);
+                observer.observe(bookWrapper);
+
+                // Track class toggles on body (logbook-active)
+                const mutationObserver = new MutationObserver(updateInputPosition);
+                mutationObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+                window.addEventListener('resize', updateInputPosition);
+            }
+        })();
+    </script>
+
+    
+        <div id="moondial-wrapper">
+        <!-- Reverted Layout: Compass rim natively frames the wrapper -->
+        <div class="compass-outer-ring">
+            <span class="compass-marker n">N</span>
+            <span class="compass-marker s">S</span>
+            <span class="compass-marker e">E</span>
+            <span class="compass-marker w">W</span>
+        </div>
+
+        <!-- NEW: Season / Time Dial Ring -->
+        <div class="season-bracket"></div>
+        <canvas id="pipCanvas" width="512" height="512" style="position: absolute; top:0; left:0; transform: none !important; width:100%; height:100%; border-radius:50%; z-index:-1; pointer-events:none;"></canvas>
+        <div class="pip-vignette" style="position: absolute; top:0; left:0; width:100%; height:100%; border-radius:50%; z-index:-1; pointer-events:none; box-shadow: inset 0 0 30px rgba(0,0,0,0.2), inset 0 0 60px rgba(255,255,255,0.5);"></div>
+        <div class="season-outer-ring" id="season-ring">
+            <div class="season-outer-bg"></div>
+            <div class="season-anchor" style="transform: rotate(0deg);"><div class="season-btn-wrap" style="transform: rotate(0deg);"><span class="season-btn" title="Starlight Night" onclick="window.postMessage({type:'SET_SEASON', season:'night'}, '*')">🌙</span></div></div>
+            <div class="season-anchor" style="transform: rotate(72deg);"><div class="season-btn-wrap" style="transform: rotate(-72deg);"><span class="season-btn" title="Cool Dawn" onclick="window.postMessage({type:'SET_SEASON', season:'dawn'}, '*')">🌤</span></div></div>
+            <div class="season-anchor" style="transform: rotate(144deg);"><div class="season-btn-wrap" style="transform: rotate(-144deg);"><span class="season-btn" title="Golden Spirit Day" onclick="window.postMessage({type:'SET_SEASON', season:'day'}, '*')">☀️</span></div></div>
+            <div class="season-anchor" style="transform: rotate(216deg);"><div class="season-btn-wrap" style="transform: rotate(-216deg);"><span class="season-btn" title="Amber Dusk" onclick="window.postMessage({type:'SET_SEASON', season:'dusk'}, '*')">🔅</span></div></div>
+            <div class="season-anchor" style="transform: rotate(288deg);"><div class="season-btn-wrap" style="transform: rotate(-288deg);"><span class="season-btn" title="Overcast Gray" onclick="window.postMessage({type:'SET_SEASON', season:'gray'}, '*')">☁️</span></div></div>
+        </div>
+
+        <!-- Original Restored MoonPhase System Frame -->
+        <iframe id="moondial-frame" src="Component.MoonDial.html" allowtransparency="true" style="background: transparent;"></iframe>
+        <!-- Click overlay — captures click on the entire PiP to toggle Village View -->
+        <!-- CRITICAL: Must use window.PARENT.postMessage since this is an iframe inside index.html -->
+        <div id="pip-click-overlay" onclick="window.parent.postMessage({type:'TOGGLE_VIEW_MODE'},'*');"
+             style="position:absolute; top:10%; left:10%; width:80%; height:80%; border-radius:50%; z-index:50; cursor:pointer; background:transparent; pointer-events:auto;" title="Click to toggle Village Map / FPV"></div>
+    </div>
+
+</body>
+
+</html>

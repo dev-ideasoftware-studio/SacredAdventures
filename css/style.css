@@ -1,0 +1,655 @@
+/* Sacred Ones Design System */
+:root {
+    --sage-900: #1e2610;
+    --sage-800: #303b1a;
+    --sage-600: #556B2F;
+    --sage-100: #e3ebe3;
+    --clay-600: #C04E38;
+    --cream: #FDFBF7;
+    --parchment: #fcf5e5;
+    --midnight-900: #0f172a;
+    --gold-500: #facc15;
+
+    --container-bg: rgba(30, 38, 26, 0.95);
+    --edge: rgba(253, 251, 247, 0.15);
+}
+
+.sr-only {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Skip navigation (WCAG 2.2 AA)
+   Hidden (0px) by default; becomes visible on keyboard focus.
+*/
+.so-skip-nav {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+}
+.so-skip-nav:focus,
+.so-skip-nav:focus-visible {
+    width: auto;
+    height: auto;
+    padding: 12px 16px;
+    margin: 12px;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    z-index: 100000;
+    border-radius: 9999px;
+    background: var(--cream);
+    color: var(--sage-900);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    outline: 3px solid var(--clay-600);
+    outline-offset: 2px;
+}
+
+/* Focus visible fallback (WCAG 2.2 AA) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid var(--clay-600);
+    outline-offset: 2px;
+}
+
+/* Sage 900 Background */
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #1e2610;
+    color: #FDFBF7;
+    font-family: "Nunito", sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#main-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    overflow: hidden;
+    transition: opacity 1s;
+}
+
+/* Viewports */
+#fpv-viewport {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+#fpv-viewport canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Strategy Map Wrapper */
+#mapview-wrapper {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: clamp(220px, 28vh, 320px);
+    height: clamp(220px, 28vh, 320px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.5s;
+}
+
+/* Natural Clock Ring */
+#day-night-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(var(--midnight-900) 0deg,
+            /* Night */
+            var(--clay-600) 90deg,
+            /* Dawn */
+            var(--gold-500) 180deg,
+            /* Noon */
+            var(--clay-700) 270deg,
+            /* Dusk */
+            var(--midnight-900) 360deg
+            /* Night */
+        );
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+    z-index: 90;
+    transition: transform 0.5s linear;
+}
+
+/* Inner Map Container */
+#mapview-container {
+    width: 100%;
+    height: 100%;
+    background: rgba(30, 38, 16, 0.6);
+    border-radius: 50%;
+    z-index: 100;
+    overflow: hidden;
+    position: relative;
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+    mask-image: radial-gradient(white, black);
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+#mapview-container .canvas-wrapper {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+/* Overlays */
+#fpv-room-tag,
+#fpv-fps-badge {
+    position: absolute;
+    top: 20px;
+    background: rgba(30, 38, 16, 0.8);
+    border: 1px solid var(--sage-600);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: var(--cream);
+    z-index: 50;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: opacity 0.5s;
+}
+
+#fpv-room-tag {
+    left: 20px;
+}
+
+#fpv-fps-badge {
+    right: 20px;
+}
+
+#turn-indicator {
+    position: absolute;
+    top: 70px;
+    right: 20px;
+    font-size: 12px;
+    color: var(--sage-100);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    z-index: 50;
+    opacity: 0.7;
+    font-family: 'Nunito', sans-serif;
+    transition: opacity 0.5s;
+}
+
+#fpv-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, transparent 50%, rgba(30, 38, 16, 0.9) 100%);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* Generic Modal */
+.modal-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--container-bg);
+    border: 2px solid var(--clay-600);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
+    min-width: 300px;
+}
+
+.modal-box h2 {
+    margin: 0 0 4px 0;
+    color: var(--gold-500);
+}
+
+.modal-box p {
+    color: var(--sage-100);
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Item Found Card */
+#item-card {
+    background: linear-gradient(135deg, var(--sage-800), var(--sage-900));
+    border: 4px solid var(--gold-500);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 0 40px rgba(250, 204, 21, 0.3);
+    max-width: 320px;
+}
+
+#item-card h2 {
+    font-size: 24px;
+    color: var(--cream);
+    margin-bottom: 10px;
+}
+
+#item-card .icon {
+    font-size: 60px;
+    margin: 10px 0;
+    filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.5));
+}
+
+#item-card p {
+    font-size: 16px;
+    color: var(--parchment);
+    line-height: 1.5;
+}
+
+.action-btn {
+    background: var(--sage-600);
+    color: var(--cream);
+    border: 1px solid var(--sage-100);
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+.action-btn:hover {
+    background: var(--sage-700);
+    transform: translateY(-2px);
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.action-btn.secondary {
+    background: transparent;
+    border-color: var(--clay-600);
+    color: var(--clay-600);
+}
+
+.action-btn.secondary:hover {
+    background: rgba(192, 78, 56, 0.1);
+}
+
+/* Encounter Avatar */
+.encounter-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--gold-500);
+    background-color: var(--sage-800);
+    background-size: cover;
+    background-position: center;
+    margin: 0 auto 10px auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Interaction Prompt Button */
+#interaction-prompt {
+    position: absolute;
+    bottom: 220px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 95;
+    animation: floatPrompt 2s infinite ease-in-out;
+}
+
+@keyframes floatPrompt {
+
+    0%,
+    100% {
+        transform: translate(-50%, 0);
+    }
+
+    50% {
+        transform: translate(-50%, -10px);
+    }
+}
+
+.guide-btn {
+    background: linear-gradient(135deg, var(--gold-500), #d97706);
+    color: #1e2610;
+    border: 2px solid #fff;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(250, 204, 21, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.1s;
+}
+
+.guide-btn:active {
+    transform: scale(0.95);
+}
+
+/* Adventure Panel */
+#adventure-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    height: 180px;
+    background: var(--container-bg);
+    border: 2px solid var(--sage-600);
+    border-radius: 24px;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+    padding: 20px;
+    z-index: 90;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    transition: opacity 0.5s;
+}
+
+.panel-left {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding-right: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+    padding: 15px;
+}
+
+.avatar-portrait {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 4px solid var(--gold-500);
+    background-color: var(--sage-800);
+    background-image: url('https://sacredones.org/wp-content/uploads/2025/05/cropped-Example.png');
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
+}
+
+.stats-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
+    color: var(--parchment);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 4px;
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-weight: 700;
+    color: var(--sage-100);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+.stat-value {
+    font-weight: 800;
+    color: var(--cream);
+}
+
+.panel-right {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    justify-content: space-between;
+}
+
+.guide-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.guide-bar::-webkit-scrollbar {
+    height: 4px;
+}
+
+.guide-bar::-webkit-scrollbar-thumb {
+    background: var(--sage-600);
+    border-radius: 2px;
+}
+
+.guide-action-btn {
+    height: 44px;
+    padding: 0 20px;
+    background: linear-gradient(180deg, rgba(66, 82, 36, 0.9), rgba(48, 59, 26, 0.9));
+    border: 1px solid var(--sage-600);
+    border-radius: 12px;
+    color: var(--cream);
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+}
+
+.guide-action-btn:hover {
+    background: var(--sage-600);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.guide-action-btn:active {
+    transform: translateY(0);
+}
+
+.guide-action-btn.magic {
+    border-color: #a855f7;
+    color: #f3e8ff;
+    background: linear-gradient(180deg, #581c87, #3b0764);
+}
+
+.guide-action-btn.primary {
+    border-color: var(--gold-500);
+    color: var(--gold-500);
+}
+
+/* Cards UI */
+.cards-drawer {
+    display: flex;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.card-item {
+    width: 40px;
+    height: 56px;
+    background: linear-gradient(135deg, #1e1b4b, #312e81);
+    border: 1px solid var(--gold-500);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.card-item:hover {
+    transform: translateY(-5px) scale(1.1);
+    z-index: 10;
+}
+
+#event-log {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #FDFBF7;
+    scrollbar-width: thin;
+    margin-bottom: 8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+#event-log p {
+    margin: 0 0 4px 0;
+}
+
+#event-log p:first-child {
+    font-weight: 700;
+    color: var(--clay-200);
+}
+
+.input-wrapper {
+    display: flex;
+    gap: 8px;
+}
+
+input[type="text"] {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--sage-600);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--cream);
+    outline: none;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+}
+
+input[type="text"]:focus {
+    border-color: var(--clay-600);
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* Mobile Controls */
+#mobile-controls {
+    position: absolute;
+    bottom: 240px;
+    right: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 56px);
+    gap: 12px;
+    z-index: 80;
+}
+
+.ctrl-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(66, 82, 36, 0.8);
+    border: 2px solid var(--sage-100);
+    color: var(--cream);
+    font-size: 24px;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+    -webkit-user-select: none;
+    user-select: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.ctrl-btn:active {
+    background: var(--clay-600);
+    color: var(--cream);
+    transform: scale(0.95);
+}
+
+.ctrl-up {
+    grid-column: 2;
+}
+
+.ctrl-left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.ctrl-down {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+.ctrl-right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+/* Cinematic Mode */
+body.cinematic #adventure-panel,
+body.cinematic #mapview-wrapper,
+body.cinematic #fpv-room-tag,
+body.cinematic #fpv-fps-badge,
+body.cinematic #turn-indicator,
+body.cinematic #mobile-controls {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media (min-width: 769px) {
+    #mobile-controls {
+        display: none;
+    }
+}

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sacred Moon Dial – PIP</title>
+    <style>
+        /* --- Theme Variables --- */
+        :root {
+            --color-wood-light: #d2b48c;
+            --color-wood-dark: #5d4037;
+            --color-accent: #8d6e63;
+            --color-parchment: #fdf6e3;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+            font-family: 'Georgia', serif;
+        }
+
+        /* --- Main Wrapper --- */
+        #dial-wrapper {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        /* --- The Outer Wooden Ring (The Calendar) --- */
+        #moon-dial-bezel {
+            position: relative;
+            width: 95vmin;
+            height: 95vmin;
+            max-width: 600px;
+            max-height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, transparent 68%, var(--color-wood-light) 70%, var(--color-wood-dark) 100%);
+            box-shadow:
+                0 0 0 4px var(--color-wood-dark),
+                0 0 15px rgba(251, 192, 45, 0.15),
+                0 10px 25px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            pointer-events: auto;
+        }
+
+        /* Decorative Dashes Ring — hidden when map fills center */
+        #dial-ticks {
+            display: none;
+        }
+
+        /* --- Inner Ring Frame (The Lens Border) --- */
+        #pip-lens {
+            position: absolute;
+            inset: 12%;
+            border-radius: 50%;
+            background: transparent;
+            box-shadow: none;
+            z-index: 20;
+            border: none;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* PIP canvas fills the circular lens */
+        #pip-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+
+        /* --- Rotating Phases Layer --- */
+        #phases-layer {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 30;
+            pointer-events: none;
+            transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* --- Moon Phase Slots --- */
+        .phase-slot {
+            position: absolute;
+            width: 10%;
+            height: 10%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(62, 39, 35, 0.85);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* SVG Icon styling */
+        .moon-svg {
+            width: 80%;
+            height: 80%;
+            fill: #0d1321; /* Deep navy night sky base */
+            stroke: #1a233a;
+            stroke-width: 1;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+            transition: fill 0.3s ease;
+        }
+
+        .moon-light-part {
+            fill: #e6e8e6; /* Glowing silver moon */
+            filter: drop-shadow(0 0 6px rgba(230, 232, 230, 0.8)); /* True physical glow */
+        }
+
+        /* Active State */
+        .phase-slot.active-phase {
+            border: 2px solid #fbc02d;
+            background: rgba(93, 64, 55, 1);
+            box-shadow: 0 0 12px rgba(251, 192, 45, 0.6), 0 0 4px rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%) scale(1.15);
+            animation: moonGlow 2s ease-in-out infinite;
+        }
+
+        .phase-slot.active-phase .moon-svg {
+            filter: drop-shadow(0 0 4px rgba(251, 192, 45, 0.5));
+        }
+
+        @keyframes moonGlow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 8px rgba(251, 192, 45, 0.4), 0 0 2px rgba(255, 255, 255, 0.2);
+            }
+
+            50% {
+                box-shadow: 0 0 16px rgba(251, 192, 45, 0.7), 0 0 6px rgba(255, 255, 255, 0.4);
+            }
+        }
+
+        /* Top Bracket Indicator */
+        #top-bracket {
+            display: none;
+        }
+
+        #top-bracket::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 15px solid var(--color-wood-dark);
+            filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+        }
+
+        /* Positioning the 8 phases tighter on the bezel ring */
+        .slot-0 {
+            top: 5%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .slot-1 {
+            top: 16%;
+            left: 82%;
+            transform: translate(-50%, -50%);
+        }
+
+        .slot-2 {
+            top: 50%;
+            left: 95%;
+            transform: translate(-50%, -50%);
+        }
+
+        .slot-3 {
+            top: 84%;
+            left: 82%;
+            transform: translate(-50%, -50%);
+        }
+
+        .slot-4 {
+            top: 95%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .slot-5 {
+            top: 84%;
+            left: 18%;
+            transform: translate(-50%, -50%);
+        }
+
+        .slot-6 {
+            top: 50%;
+            left: 5%;
+            transform: translate(-50%, -50%);
+        }
+
+        .slot-7 {
+            top: 16%;
+            left: 18%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Moon Phase Name Label — sits outside the bezel */
+        #phase-label {
+            position: absolute;
+            bottom: -18%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 40;
+            pointer-events: none;
+            color: var(--color-parchment);
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+            white-space: nowrap;
+            background: rgba(62, 39, 35, 0.7);
+            padding: 2px 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(210, 180, 140, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="dial-wrapper">
+        <!-- Main Bezel -->
+        <div id="moon-dial-bezel">
+            <!-- Fixed Top Indicator -->
+            <div id="top-bracket"></div>
+            <!-- Decorative Dashes -->
+            <div id="dial-ticks"></div>
+
+            <!-- Rotating Moon Phases Ring -->
+            <div id="phases-layer">
+                <!-- 0: New Moon -->
+                <div class="phase-slot slot-0" id="ph0"><svg class="moon-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" />
+                    </svg></div>
+                <!-- 1: Waxing Crescent -->
+                <div class="phase-slot slot-1" id="ph1"><svg class="moon-svg" viewBox="0 0 100 100">
+                        <path d="M50 5 A45 45 0 1 1 50 95 A45 45 0 1 1 50 5 Z" fill="inherit" />
+                        <path class="moon-light-part" d="M50 5 A45 45 0 0 1 50 95 A30 45 0 0 0 50 5 Z" />
+                    </svg></div>
+                <!-- 2: First Quarter -->
+                <div class="phase-slot slot-2" id="ph2"><svg class="moon-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" />
+                        <path class="moon-light-part" d="M50 5 A45 45 0 0 1 50 95 L 50 5 Z" />
+                    </svg></div>
+                <!-- 3: Waxing Gibbous -->
+                <div class="phase-slot slot-3" id="ph3"><svg class="moon-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" />
+                        <path class="moon-light-part" d="M50 5 A45 45 0 1 1 50 95 A30 45 0 0 1 50 5 Z" />
+                    </svg></div>
+                <!-- 4: Full Moon -->
+                <div class="phase-slot slot-4" id="ph4"><svg class="moon-svg" viewBox="0 0 100 100">
+                        <circle class="moon-light-part" cx="50" cy="50" r="45" />
+                    </svg></div>
+                <!-- 5: Waning Gibbous -->
+                <div class="phase-slot slot-5" id="ph5"><svg class="moon-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" />
+                        <path class="moon-light-part" d="M50 5 A45 45 0 1 0 50 95 A30 45 0 0 0 50 5 Z" />
+                    </svg></div>
+                <!-- 6: Last Quarter -->
+                <div class="phase-slot slot-6" id="ph6"><svg class="moon-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" />
+                        <path class="moon-light-part" d="M50 5 A45 45 0 0 0 50 95 L 50 5 Z" />
+                    </svg></div>
+                <!-- 7: Waning Crescent -->
+                <div class="phase-slot slot-7" id="ph7"><svg class="moon-svg" viewBox="0 0 100 100">
+                        <path d="M50 5 A45 45 0 1 0 50 95 A45 45 0 1 0 50 5 Z" fill="inherit" />
+                        <path class="moon-light-part" d="M50 5 A45 45 0 0 0 50 95 A30 45 0 0 1 50 5 Z" />
+                    </svg></div>
+            </div>
+
+            <!-- Moon Phase Name -->
+            <div id="phase-label">New Moon</div>
+
+            <!-- The Inner Rim (PIP View) -->
+            <div id="pip-lens">
+                <canvas id="pip-canvas" width="200" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PHASE_NAMES = [
+            '🌑 New Moon', '🌒 Waxing Crescent', '🌓 First Quarter', '🌔 Waxing Gibbous',
+            '🌕 Full Moon', '🌖 Waning Gibbous', '🌗 Last Quarter', '🌘 Waning Crescent'
+        ];
+
+        let currentPhase = -1;
+        window._isOverridden = false;
+
+        // --- PUBLIC API ---
+
+        /**
+         * Calculates the precise decimal lunar phase (0.0 to 1.0) based on the user's real-world current date.
+         */
+        function getRealLunarPhase(date) {
+            const LUNAR_MONTH = 29.53058867;
+            const newMoonEpoch = new Date("2000-01-06T18:14:00Z").getTime();
+            const diff = date.getTime() - newMoonEpoch;
+            const days = diff / (1000 * 60 * 60 * 24);
+            // Return fractional phase locked strictly between 0 and 1
+            return ((days % LUNAR_MONTH) + LUNAR_MONTH) % LUNAR_MONTH / LUNAR_MONTH; 
+        }
+
+        /**
+         * Safely visually rotate the Moon Dial to the target slot
+         */
+        function setDialToPhase(phaseIdx, skipAnimation = false) {
+            if (phaseIdx === currentPhase) return;
+            currentPhase = phaseIdx;
+
+            // Slots are mapped around 360 degrees: 0 = 0deg, 1 = 45deg, 2 = 90deg offset logically reversed
+            const rotation = phaseIdx * -45;
+            const layer = document.getElementById('phases-layer');
+            const prevTransition = layer.style.transition;
+            if (skipAnimation) layer.style.transition = 'none';
+            
+            layer.style.transform = `rotate(${rotation}deg)`;
+            
+            if (skipAnimation) {
+                // Force layout reflow then restore transition
+                layer.offsetHeight;
+                layer.style.transition = prevTransition;
+            }
+
+            document.querySelectorAll('.phase-slot').forEach((el, i) => {
+                if (i === phaseIdx) el.classList.add('active-phase');
+                else el.classList.remove('active-phase');
+            });
+
+            document.getElementById('phase-label').textContent = PHASE_NAMES[phaseIdx];
+        }
+
+        /**
+         * Automatically aligns the Moon Dial ring to the physical real-world lunar reality.
+         */
+        window.syncRealLunarCycle = function () {
+            if (window._isOverridden) return; // Halt auto-sync if player triggered God-Mode
+            
+            const fraction = getRealLunarPhase(new Date());
+            const phaseF = fraction * 8;
+            const phaseIdx = Math.floor(phaseF) % 8;
+            
+            setDialToPhase(phaseIdx);
+        };
+
+        // Pre-bind User Inputs for Manual Overrides
+        document.querySelectorAll('.phase-slot').forEach((el, i) => {
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', () => {
+                window._isOverridden = true; // Suspend Reality Sync
+                setDialToPhase(i); // Spin dial manually to 12 o'clock
+                window.parent.postMessage({ type: 'SET_MOON_PHASE', phase: i }, '*');
+            });
+            el.dataset.clickBound = true;
+        });
+
+        /**
+         * Get the PIP canvas element for external rendering.
+         */
+        window.getPIPCanvas = function () {
+            return document.getElementById('pip-canvas');
+        };
+
+        /**
+         * Resize the PIP canvas to natively match the DOM lens dimensions.
+         */
+        window.resizePIP = function () {
+            const lens = document.getElementById('pip-lens');
+            const canvas = document.getElementById('pip-canvas');
+            const size = Math.min(lens.clientWidth, lens.clientHeight);
+            if (size > 0) {
+                canvas.width = size;
+                canvas.height = size;
+            }
+        };
+
+        // --- MESSAGE API ---
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (data.type === 'RESIZE_PIP') {
+                window.resizePIP();
+            }
+        });
+
+        // Initialize and bind auto-refresher
+        window.syncRealLunarCycle();
+        setInterval(() => window.syncRealLunarCycle(), 60000); // Re-sync dial every real-world minute
+        
+        window.addEventListener('load', window.resizePIP);
+        window.addEventListener('resize', window.resizePIP);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Animation Inspector</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #333; color: white; font-family: sans-serif; }
+        #info { position: absolute; top: 10px; left: 10px; font-size: 40px; font-weight: bold; }
+    </style>
+    <!-- Import map for three.js from the local files or unpkg -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+</head>
+<body>
+    <div id="info">Loading...</div>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x333333);
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.5, 3);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+        scene.add(light);
+        
+        const dLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dLight.position.set(0, 5, 5);
+        scene.add(dLight);
+        
+        const loader = new GLTFLoader();
+        let mixer;
+        let animations = [];
+        let currentAnimIndex = 0;
+        let currentAction;
+        let clock = new THREE.Clock();
+        const info = document.getElementById('info');
+        
+        loader.load('Assets/Avatar2.glb', (gltf) => {
+            scene.add(gltf.scene);
+            
+            // Re-center model
+            const box = new THREE.Box3().setFromObject(gltf.scene);
+            const center = box.getCenter(new THREE.Vector3());
+            gltf.scene.position.x += (gltf.scene.position.x - center.x);
+            gltf.scene.position.y += (gltf.scene.position.y - box.min.y);
+            gltf.scene.position.z += (gltf.scene.position.z - center.z);
+            
+            mixer = new THREE.AnimationMixer(gltf.scene);
+            animations = gltf.animations;
+            
+            if (animations.length > 0) {
+                playAnim(0);
+                // Cycle every 3 seconds
+                setInterval(() => {
+                    currentAnimIndex = (currentAnimIndex + 1) % animations.length;
+                    playAnim(currentAnimIndex);
+                }, 3000);
+            } else {
+                info.innerText = 'No animations found';
+            }
+        });
+        
+        function playAnim(index) {
+            if (currentAction) currentAction.stop();
+            const clip = animations[index];
+            info.innerText = `Anim ${index}: ${clip.name} (${clip.duration.toFixed(2)}s)`;
+            currentAction = mixer.clipAction(clip);
+            currentAction.play();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (mixer) mixer.update(clock.getDelta());
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>

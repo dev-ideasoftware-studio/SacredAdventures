@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+    Sacred Adventures — WordPress Embed Wrapper
+    ============================================
+    
+    USAGE IN WORDPRESS:
+    
+    Option 1: Custom HTML Block (RECOMMENDED)
+      Paste this into a Custom HTML block on any WordPress page:
+      
+      <div style="position:relative;width:100%;height:80vh;min-height:500px;overflow:hidden;border-radius:12px;">
+        <iframe src="/wp-content/uploads/sacredones-game/wordpress-embed.html" 
+                style="position:absolute;inset:0;width:100%;height:100%;border:none;" 
+                allow="autoplay; fullscreen; web-share"
+                allowfullscreen>
+        </iframe>
+      </div>
+    
+    Option 2: Full Page (no WordPress chrome)
+      Create a blank WordPress page template that loads this file directly.
+      Best for mobile — gives full viewport to the game.
+    
+    DEPLOYMENT:
+      1. Upload the entire dist/ folder contents to:
+         wp-content/uploads/sacredones-game/
+      2. The folder should contain:
+         - index.html (game entry point)
+         - wordpress-embed.html (this file)
+         - SacredGame.Panel.html, Component.NewJournal.html, etc.
+         - js/, vendor/, Assets/ directories
+      3. All paths are relative — no config changes needed.
+      4. Total size: ~335MB (mostly 3D model files)
+      5. After first load, game plays fully OFFLINE via Service Worker.
+    
+    HOSTING NOTE:
+      WordPress hosts with <100MB upload limits will need the Assets/
+      folder hosted on a CDN or subdomain. Contact your host for
+      large file upload support, or use WP-CLI for server-side upload.
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sacred Adventures — Play Now</title>
+    <meta name="description" content="Sacred Adventures: An interactive 3D learning game where children explore an enchanted Indigenous world. Built for accessibility and offline play.">
+    <link rel="icon" href="Assets/pwa-icon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #1a0f0a;
+        }
+
+        #game-frame {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Fullscreen button — WCAG 44px touch target */
+        #fullscreen-btn {
+            position: fixed;
+            bottom: 12px;
+            right: 12px;
+            z-index: 10000;
+            width: 44px;
+            height: 44px;
+            background: rgba(62, 44, 31, 0.9);
+            border: 1px solid rgba(210, 180, 140, 0.4);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s, transform 0.2s;
+            opacity: 0.7;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #fullscreen-btn:hover,
+        #fullscreen-btn:focus-visible {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        #fullscreen-btn:focus-visible {
+            outline: 2px solid #cda434;
+            outline-offset: 2px;
+        }
+
+        #fullscreen-btn svg {
+            width: 22px;
+            height: 22px;
+            stroke: #e8d4b8;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        /* Loading overlay while iframe boots */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #1a0f0a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 1s ease-out;
+            pointer-events: none;
+        }
+
+        #loading-overlay.fade-out {
+            opacity: 0;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(205, 164, 52, 0.2);
+            border-top: 4px solid #cda434;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-label {
+            margin-top: 16px;
+            color: #d2b48c;
+            font-family: 'Fredoka', 'Nunito', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading overlay -->
+    <div id="loading-overlay" role="status" aria-label="Loading Sacred Adventures">
+        <div class="loading-spinner"></div>
+        <div class="loading-label">Loading Sacred Adventures...</div>
+    </div>
+
+    <!-- Game iframe -->
+    <iframe id="game-frame" src="index.html" 
+            allow="autoplay; fullscreen; web-share"
+            allowfullscreen
+            title="Sacred Adventures Game"></iframe>
+
+    <!-- Fullscreen toggle -->
+    <button id="fullscreen-btn" title="Toggle Fullscreen" aria-label="Toggle Fullscreen">
+        <svg id="fs-icon-expand" viewBox="0 0 24 24">
+            <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" />
+        </svg>
+        <svg id="fs-icon-shrink" viewBox="0 0 24 24" style="display:none;">
+            <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7" />
+        </svg>
+    </button>
+
+    <script>
+        const frame = document.getElementById('game-frame');
+        const overlay = document.getElementById('loading-overlay');
+        const expandIcon = document.getElementById('fs-icon-expand');
+        const shrinkIcon = document.getElementById('fs-icon-shrink');
+
+        // Hide loading overlay when iframe loads
+        frame.addEventListener('load', () => {
+            setTimeout(() => {
+                overlay.classList.add('fade-out');
+                setTimeout(() => overlay.remove(), 1000);
+            }, 500);
+        });
+
+        // Fullscreen toggle with icon swap
+        document.getElementById('fullscreen-btn').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => { });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Swap fullscreen icons
+        document.addEventListener('fullscreenchange', () => {
+            const isFS = !!document.fullscreenElement;
+            expandIcon.style.display = isFS ? 'none' : 'block';
+            shrinkIcon.style.display = isFS ? 'block' : 'none';
+        });
+
+        // Forward resize events to the game iframe
+        window.addEventListener('resize', () => {
+            if (frame && frame.contentWindow) {
+                frame.contentWindow.postMessage({
+                    type: 'PARENT_RESIZE',
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                }, '*');
+            }
+        });
+
+        // Bridge messages: WordPress parent ↔ game iframe
+        window.addEventListener('message', (event) => {
+            if (frame && frame.contentWindow && event.source !== frame.contentWindow) {
+                // WordPress → Game
+                frame.contentWindow.postMessage(event.data, '*');
+            } else if (event.source === frame?.contentWindow && window.parent !== window) {
+                // Game → WordPress
+                window.parent.postMessage(event.data, '*');
+            }
+        });
+    </script>
+</body>
+
+</html>
