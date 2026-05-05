@@ -1815,10 +1815,12 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         // Robust NLA search for BHG
                         gltf.animations.forEach(clip => {
                             const name = clip.name.toLowerCase();
-                            if (name.includes('sit') || name.includes('sitting') || name.includes('003')) window._bhgSitAction = window.bhgMixer.clipAction(clip);
+                            // User request: NlaTrack.004 is the greeting/wave for BHG
+                            if (name === 'nlatrack.004') window._bhgWaveAction = window.bhgMixer.clipAction(clip);
+                            else if (name.includes('sit') || name.includes('sitting') || name.includes('003')) window._bhgSitAction = window.bhgMixer.clipAction(clip);
                             else if (name.includes('idle') || name.includes('002')) window._bhgIdleAction = window.bhgMixer.clipAction(clip);
                             else if (name.includes('wave') || name.includes('001')) window._bhgWaveAction = window.bhgMixer.clipAction(clip);
-                            else if (name.includes('walk') || name.includes('004')) window._bhgWalkAction = window.bhgMixer.clipAction(clip);
+                            else if (name.includes('walk')) window._bhgWalkAction = window.bhgMixer.clipAction(clip);
                         });
 
                         // Fallbacks

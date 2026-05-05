@@ -27,8 +27,7 @@ class StateSitting extends FSMState {
         }
     }
     onUpdate(delta, flags) {
-        if (flags.isEngaged && this.ai.id !== 'NPC_BHG') { 
-            // BHG might stay sitting longer, but others stand up
+        if (flags.isEngaged) { 
             this.ai.fsm.transition('STANDING_UP');
         }
     }
