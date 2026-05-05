@@ -3,6 +3,25 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
         this.scene = scene;
     }
 
+    /**
+     * Professional Recursion-Safe Object Disposal
+     * Ensures all WebGL buffers are released back to the GPU to prevent memory leaks during world resets.
+     */
+    disposeObject(obj) {
+        if (!obj) return;
+
+        obj.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+    }
+
     setupLighting() {
         // Hemisphere Light — warm sky, cool shadow
         const hemiLight = new THREE.HemisphereLight(0xfff4e6, 0x3a5f3a, 0.8);
@@ -401,104 +420,11 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             const HILL_HEIGHT = 4.0; // Halved height to lower the angle of the surrounding valley
 
             const getGroundY = (gx, gz) => {
-                // 1. BASE — gentle undulation everywhere
-                let baseNoise = Math.sin(gx * 0.08) * Math.cos(gz * 0.1) * 1.5
-                    + Math.sin(gx * 0.2 + gz * 0.15) * 0.4;
-
-                let y = baseNoise;
-
-                const dx = gx - TIPI_X, dz = gz - TIPI_Z;
-                const dist = Math.sqrt(dx * dx + dz * dz);
-
-                // 2. SACRED CLEARING — 100-foot flat valley floor
-                if (dist < CLEARING_R) { // Apply to the entire grass clearing
-                    if (dist < 12.0) { // Extended flat radius to completely contain Tipi + front entrance
-                        y = 0; // Completely flat ground for the Tipi interior and girl
-                    } else {
-                        // Smooth blend from 0 to full undulation
-                        const t = (dist - 12.0) / (CLEARING_R - 12.0);
-                        const flatten = 0.5 + 0.5 * Math.cos(t * Math.PI); // 1.0 at dist=12, 0.0 at dist=30
-                        y = baseNoise * (1.0 - flatten);
-                    }
+                if (window.UniverseAnu) {
+                    return window.UniverseAnu.getGroundY(gx, gz);
                 }
-
-                // 2b. BRINGS HAPPINESS GIRL TIPI PLATEAU (Quest Tipi) & TIPI 3 PLATEAU
-                const plateauX = 12, plateauZ = 12;
-                const p3X = -12, p3Z = 12;
-                
-                const dx2 = gx - plateauX, dz2 = gz - plateauZ;
-                const dist2 = Math.sqrt(dx2 * dx2 + dz2 * dz2);
-                
-                const dx3 = gx - p3X, dz3 = gz - p3Z;
-                const dist3 = Math.sqrt(dx3 * dx3 + dz3 * dz3);
-                
-                if (dist2 < 12.0) {
-                    const plateauY = Math.sin(plateauX * 0.08) * Math.cos(plateauZ * 0.1) * 1.5 + Math.sin(plateauX * 0.2 + plateauZ * 0.15) * 0.4;
-                    if (dist2 < 8.0) {
-                        y = plateauY; // Broadened flat ground for Tipi footprint
-                    } else {
-                        // Smooth blend from plateau to full undulation
-                        const t2 = (dist2 - 8.0) / 4.0;
-                        const flatten2 = 0.5 + 0.5 * Math.cos(t2 * Math.PI); // 1.0 at center, 0.0 at edge
-                        y = y * (1.0 - flatten2) + plateauY * flatten2;
-                    }
-                } else if (dist3 < 12.0) {
-                    const plateau3Y = Math.sin(p3X * 0.08) * Math.cos(p3Z * 0.1) * 1.5 + Math.sin(p3X * 0.2 + p3Z * 0.15) * 0.4;
-                    if (dist3 < 8.0) {
-                        y = plateau3Y;
-                    } else {
-                        const t3 = (dist3 - 8.0) / 4.0;
-                        const flatten3 = 0.5 + 0.5 * Math.cos(t3 * Math.PI);
-                        y = y * (1.0 - flatten3) + plateau3Y * flatten3;
-                    }
-                }
-
-                // 3. PROTECTIVE HILLS — steep ring around the valley
-                if (dist >= HILL_INNER && dist < HILL_OUTER) {
-                    const t = (dist - HILL_INNER) / (HILL_OUTER - HILL_INNER);
-                    const hillShape = Math.sin(t * Math.PI); // Peak at midpoint
-                    const angle = Math.atan2(dz, dx);
-                    // Natural variation — 3 lobes
-                    const noise = 0.65 + 0.35 * Math.sin(angle * 3 + 0.8) * Math.sin(angle * 5 + 2.1) * 0.3;
-                    const lobe = 0.7 + 0.3 * Math.sin(angle * 2.3 + 1.2);
-                    y += HILL_HEIGHT * hillShape * (noise + 0.5) * lobe;
-                }
-
-                // 4. ROLLING HILLS — outer terrain
-                if (dist > HILL_OUTER) {
-                    const outerBlend = Math.min(1.0, (dist - HILL_OUTER) / 10);
-                    const rollingH = Math.sin(gx * 0.06 + 1.0) * Math.cos(gz * 0.05 + 0.7) * 2.5
-                        + Math.sin(gx * 0.12 + gz * 0.1) * 1.0;
-                    y += rollingH * outerBlend;
-                }
-
-                // Edge flattening for modular tile maps (+/- 120)
-                const edgeDistX = Math.max(0, Math.abs(gx) - 100); 
-                const edgeDistZ = Math.max(0, Math.abs(gz) - 100); 
-                const maxEdge = Math.max(edgeDistX, edgeDistZ); 
-                if (maxEdge > 0) {
-                    // Smoothly fade height to perfectly 0 over the last 20 units
-                    const flattenT = Math.min(1.0, maxEdge / 20.0);
-                    y = y * (1.0 - flattenT);
-                }
-
-                if (window._flattenedZones) {
-                    for (let z of window._flattenedZones) {
-                        const fdx = gx - z.x;
-                        const fdz = gz - z.z;
-                        const fdist = Math.sqrt(fdx*fdx + fdz*fdz);
-                        if (fdist < z.radius) {
-                            let blend = 1.0;
-                            if (fdist > z.radius * 0.8) {
-                                const t = (fdist - z.radius * 0.8) / (z.radius * 0.2);
-                                blend = 0.5 + 0.5 * Math.cos(t * Math.PI);
-                            }
-                            y = y * (1.0 - blend) + z.y * blend;
-                        }
-                    }
-                }
-
-                return y;
+                // Fallback baseline
+                return 0;
             };
             window._getGroundY = getGroundY;
 
@@ -609,9 +535,44 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             };
 
 
-            function createNPCHalo(modelRef) {
-                // Return our standard interactive 3D miniature base (size 1.2 for NPCs, nice deep gold color)
-                return window.createEditorBase(1.2, modelRef, 0xFFD700);
+            // Create standard NPC Base Marker identical to Avatar base
+            // applyScale allows us to reverse the massive NPC model scale so the base remains perfectly uniform with the Avatar.
+            function createNPCHalo(modelRef, applyScale = 1.0, baseColor = 0x2e7d32) {
+                const markerGroup = new THREE.Group();
+                markerGroup.position.y = 0.02;
+                
+                // User requested EXACT same size as avatar circle, so ignore applyScale
+                const pRadius = 0.375;
+                
+                // Raised platform (Base)
+                const pMarkerGeo = new THREE.CylinderGeometry(pRadius, pRadius, 0.02, 32);
+                const pMarkerMat = new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.2, metalness: 0.1 });
+                const baseMesh = new THREE.Mesh(pMarkerGeo, pMarkerMat);
+                baseMesh.position.y = 0.01;
+                markerGroup.add(baseMesh);
+
+                // Brilliant white border
+                const borderGeo = new THREE.TorusGeometry(pRadius, 0.02, 16, 48);
+                const borderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
+                const borderMesh = new THREE.Mesh(borderGeo, borderMat);
+                borderMesh.rotation.x = Math.PI / 2;
+                borderMesh.position.y = 0.01;
+                markerGroup.add(borderMesh);
+                
+                // Directional wedge (Arrow)
+                const arrowGeo = new THREE.ConeGeometry(0.08, 0.2, 32);
+                const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
+                const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
+                arrowMesh.rotation.set(Math.PI / 2, 0, 0); // Tip points forward (+Z)
+                arrowMesh.scale.set(1.0, 1.0, 0.25);
+                arrowMesh.position.set(0, 0.01, pRadius + 0.1); 
+                markerGroup.add(arrowMesh);
+                
+                // Allow Map View interaction
+                baseMesh.userData = { isEditorBase: true, type: 'TRANSLATE', modelRef: modelRef };
+                if (window._editorBases) window._editorBases.push(markerGroup);
+
+                return markerGroup;
             }
 
             function createQuestBalloon(markerText, questId) {
@@ -839,271 +800,145 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         
                         scene.add(bObj);
                         
-                        // === YELLOW BUTTERFLY NPC ===
-                        const ybGltfLoader = new GLTFLoader();
-                        ybGltfLoader.load('Assets/animated.yellowbutterfly.glb', (gltf) => {
-                            const ybModel = gltf.scene;
-                            // User Request: Restore to reasonable size
-                            ybModel.scale.set(1.728, 1.382, 1.728); 
-                            
-                            // Rigid wrapper to permanently correct the mesh orientation.
-                            // Yellow Butterfly natively points -X locally. Rotate -90 degrees (CW) so her face aligns to -Z.
-                            const meshRig = new THREE.Group();
-                            meshRig.rotation.y = -Math.PI / 2; 
-                            meshRig.add(ybModel);
-                            
-                            const ybX = -2.0;
-                            const ybZ = 2.4;
-                            const ybY = getGroundY(ybX, ybZ); // snap to ground to stop floating
-                            
-                            const ybGroup = new THREE.Group();
-                            ybGroup.position.set(ybX, ybY, ybZ);
-                            ybGroup.rotation.y = -Math.PI / 4;
-                            ybGroup.add(meshRig);
+                            // === YELLOW BUTTERFLY NPC ===
+                            const ybGltfLoader = new GLTFLoader();
+                            ybGltfLoader.load('Assets/NPC.YB.glb', (gltf) => {
+                                const ybModel = gltf.scene;
+                                // User Request: Increase size by 30% + 1 foot (Approx 2.6, 2.1, 2.6)
+                                ybModel.scale.set(2.6, 2.1, 2.6); 
+                                
+                                // Rigid wrapper to permanently correct the mesh orientation.
+                                // Yellow Butterfly natively points -X locally. Rotate -90 degrees (CW) so her face aligns to -Z.
+                                // NEW COORDS FOR YB = X0.3 Y1.7 Z-0.5 FACING SOUTH
+                                const startX = 0.3;
+                                const startZ = -0.5;
+                                // Snap to platform height to prevent floating
+                                const startY = (typeof platformY !== 'undefined') ? platformY + 0.05 : 1.7; 
+                                
+                                const finalX = -2.0;
+                                const finalZ = 2.4;
+                                
+                                const ybGroup = new THREE.Group();
+                                ybGroup.position.set(startX, startY, startZ);
+                                // Facing South (+Z)
+                                ybGroup.rotation.y = 0;
+                                
+                                // --- Procedural Sitting Chair for YB ---
+                                const chairGroup = new THREE.Group();
+                                const seatGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.15, 8);
+                                const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a3122, roughness: 0.9 });
+                                const seat = new THREE.Mesh(seatGeo, woodMat);
+                                seat.position.y = 0.15; // Lowered to avoid floating on seat
+                                chairGroup.add(seat);
+                                ybGroup.add(chairGroup);
 
-                            ybModel.traverse(child => {
-                                if (child.isMesh) {
-                                    child.castShadow = false; // FPS FIX
-                                    child.receiveShadow = false; // FPS FIX
+                                // Position YB on the chair
+                                ybModel.position.set(0, 0.2, 0.1); 
+                                // Face East relative to group (aligns with -Z forward mapping)
+                                ybModel.rotation.y = -Math.PI / 2; 
+                                ybGroup.add(ybModel);
+                                ybGroup.updateMatrixWorld(true);
+    
+                                ybModel.traverse(child => {
+                                    if (child.isMesh) {
+                                        child.castShadow = false; // FPS FIX
+                                        child.receiveShadow = false; // FPS FIX
+                                        child.frustumCulled = false; // User Request: Disable culling
+                                        child.layers.set(3); // Hide from Minimap PiP
+                                    }
+                                });
+                                
+                                // --- FLOATING QUEST MARKER ---
+                                const questGroup = createQuestBalloon('1', 'quest_1_start_game');
+                                // Move balloon to sit more intimately over her directly in FPV
+                                questGroup.position.set(0, 6.2, 0);
+                                questGroup.userData.baseY = 6.2; 
+                                
+                                // Drop string straight down to the top of the NPC's head
+                                // USER REQUEST: 70% thinner (0.006 -> 0.0018) and 70% more transparent (0.8 -> 0.24)
+                                const stringGeo = new THREE.CylinderGeometry(0.0018, 0.0018, 3.8, 4);
+                                stringGeo.translate(0, -1.9, 0);
+                                const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.24 });
+                                const stringMesh = new THREE.Mesh(stringGeo, stringMat);
+                                stringMesh.position.set(0, -0.6, 0); 
+                                stringMesh.rotation.set(0, 0, 0);
+                                
+                                questGroup.add(stringMesh);
+    
+                                ybGroup.add(questGroup);
+                                window._questMarker = questGroup; 
+                                
+                                // Attach PIP marker (NPC: 6ft diameter = ~0.9m radius), with facing arrow = true
+                                const ybMarker = window.createPIPMarker(0x2e8b57, 0.8, 0.9, true);
+                                ybGroup.add(ybMarker);
+                                
+                                // YB = Gray Circle. Attach to ybGroup so it sits on the platform.
+                                const halo = createNPCHalo(ybGroup, 0.969, 0x2e7d32);
+                                halo.position.y += 0.11; // Lift above Tipi platform thickness
+                                ybGroup.add(halo);
+                                
+                                // Save actual model mesh to scale during rendering
+                                window._ybCharacterMesh = ybModel;
+    
+                                scene.add(ybGroup);
+                                // Save to global for EngineMain
+                                window._yellowButterflyNPC = ybGroup;
+    
+                                if (gltf.animations && gltf.animations.length > 0) {
+                                    window.ybMixer = new THREE.AnimationMixer(ybModel);
                                     
-                                    // Make faces and hands smooth
-                                    if (child.material) {
-                                        child.material.flatShading = false;
-                                        child.material.needsUpdate = true;
+                                    // Robust track mapping based on User request:
+                                    // 003 = Sit (Index 3), 004 = Walk (Index 4), 002 = Idle (Index 2)
+                                    const actions = {};
+                                    gltf.animations.forEach((clip, idx) => {
+                                        const name = clip.name.toLowerCase();
+                                        // Robust NLA search
+                                        if (name.includes('sit') || name.includes('sitting') || name.includes('003')) actions.sit = window.ybMixer.clipAction(clip);
+                                        else if (name.includes('walk') || name.includes('004')) actions.walk = window.ybMixer.clipAction(clip);
+                                        else if (name.includes('idle') || name.includes('002')) actions.idle = window.ybMixer.clipAction(clip);
+                                        else if (name.includes('wave') || name.includes('001')) actions.wave = window.ybMixer.clipAction(clip);
+                                    });
+
+                                    // Direct Index Fallbacks (NLA order standard)
+                                    if (!actions.sit && gltf.animations.length > 3) actions.sit = window.ybMixer.clipAction(gltf.animations[3]);
+                                    if (!actions.walk && gltf.animations.length > 4) actions.walk = window.ybMixer.clipAction(gltf.animations[4]);
+                                    if (!actions.idle && gltf.animations.length > 2) actions.idle = window.ybMixer.clipAction(gltf.animations[2]);
+                                    if (!actions.wave && gltf.animations.length > 1) actions.wave = window.ybMixer.clipAction(gltf.animations[1]);
+
+                                    if (actions.sit) {
+                                        console.log("[NPC.YB] Forcing Sit Animation (NLA Track Identified)");
+                                        actions.sit.reset().setEffectiveWeight(1.0).play();
+                                        window.ybMixer.update(0); // Snap to frame 0
+                                    } else {
+                                        console.warn("[NPC.YB] Sit track missing, using first available.");
+                                        if (gltf.animations[0]) window.ybMixer.clipAction(gltf.animations[0]).play();
                                     }
-                                    // Remove destructive computeVertexNormals block that was overwriting rigged geometry smooth shading
-                                }
-                            });
-                            
-                            // FPS FIX: Disabled localized point light on high-poly meshes
-                            // const ybLight = new THREE.PointLight(0xffeedd, 1.2, 8);
-                            // Light should always be strictly behind head (-1.0 in local Z)
-                            // ybLight.position.set(0, 3.5, -3.0);
-                            // ybGroup.add(ybLight);
-                            
-                            // Attach aesthetic Halo proxy
-                            const halo = createNPCHalo(ybGroup);
-                            ybGroup.add(halo);
-                            
-                            // --- FLOATING QUEST MARKER ---
-                            const questGroup = createQuestBalloon('1', 'quest_1_start_game');
-                            // Move balloon to sit more intimately over her directly in FPV
-                            questGroup.position.set(0, 4.4, 0);
-                            questGroup.userData.baseY = 4.4; 
-                            
-                            // Slant the tether string to visually attach directly into her LEFT hand!
-                            // USER REQUEST: 70% thinner (0.006 -> 0.0018) and 70% more transparent (0.8 -> 0.24)
-                            const stringGeo = new THREE.CylinderGeometry(0.0018, 0.0018, 3.2, 4);
-                            // By translating the geometry downwards by half its height, its active pivot locks exactly at its Top Point
-                            stringGeo.translate(0, -1.6, 0);
-                            const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.24 });
-                            const stringMesh = new THREE.Mesh(stringGeo, stringMat);
-                            // Position the string precisely inside the bottom knot of the balloon so it stays attached under all circumstances
-                            stringMesh.position.set(0, -0.69, 0); 
-                            // Slant the string like a pendulum to terminate neatly at her left hand node
-                            stringMesh.rotation.set(0.15, 0, 0.12);
-                            
-                            questGroup.add(stringMesh);
 
-                            ybGroup.add(questGroup);
-                            window._questMarker = questGroup; 
-                            
-                            // Attach PIP marker (NPC: 6ft diameter = ~0.9m radius), with facing arrow = true
-                            const ybMarker = window.createPIPMarker(0x2e8b57, 0.8, 0.9, true);
-                            ybGroup.add(ybMarker);
-                            
-                            // Attach styled golden circle under NPC
-                            const npcCircle = new THREE.Group();
-                            npcCircle.position.y = 0.02;
-                            // Match the player's circle perfectly
-                            npcCircle.scale.set(1.1046, 1.1085, 1.1046);
-                            
-                            const pRadius = 0.375;
-                            const baseGeo = new THREE.CylinderGeometry(pRadius, pRadius, 0.02, 32);
-                            const baseMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.4, metalness: 0.8 });
-                            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-                            baseMesh.position.y = 0.01;
-                            baseMesh.receiveShadow = true;
-                            npcCircle.add(baseMesh);
-
-                            const borderGeo = new THREE.TorusGeometry(pRadius, 0.02, 16, 48);
-                            const borderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
-                            const borderMesh = new THREE.Mesh(borderGeo, borderMat);
-                            borderMesh.rotation.x = Math.PI / 2;
-                            borderMesh.position.y = 0.01;
-                            npcCircle.add(borderMesh);
-
-                            const arrowGeo = new THREE.ConeGeometry(0.08, 0.2, 32);
-                            const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
-                            const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
-                            arrowMesh.rotation.set(Math.PI / 2, 0, 0); 
-                            arrowMesh.scale.set(1.0, 1.0, 0.25); // Flattened vertically
-                            arrowMesh.position.set(0, 0.01, pRadius + 0.1); 
-                            npcCircle.add(arrowMesh);
-                            
-                            ybGroup.add(npcCircle);
-                            
-                            // Save actual model mesh to scale during rendering without scaling circles
-                            window._ybCharacterMesh = ybModel;
-
-                            scene.add(ybGroup);
-                            // Save to global for EngineMain
-                            window._yellowButterflyNPC = ybGroup;
-
-                            if (gltf.animations && gltf.animations.length > 0) {
-                                window.ybMixer = new THREE.AnimationMixer(ybModel);
-                                
-                                // gltf.animations mapping:
-                                // [0] Rest/Tpose, [1] Walk, [2] Idle, [3] Wait, [4] Heart, [5] Wave
-                                const walkClip = gltf.animations.length > 1 ? gltf.animations[1] : null;
-                                const idleClip = gltf.animations.length > 2 ? gltf.animations[2] : null;
-                                const waitClip = gltf.animations.length > 3 ? gltf.animations[3] : null;
-                                const heartClip = gltf.animations.length > 4 ? gltf.animations[4] : null;
-                                const waveClip = gltf.animations.length > 5 ? gltf.animations[5] : null;
-
-                                const system = {
-                                    mixer: window.ybMixer,
-                                    clips: { walk: walkClip, idle: idleClip, wait: waitClip, heart: heartClip, wave: waveClip },
-                                    actions: {},
-                                    hasGreeted: false,
-                                    hasWaved: false,
-                                    currentBaseAction: null,
-                                    proximityTimeout: null,
-                                    petTimer: 3.0,
-                                    hasGreetedPlayer: false,
-                                    // GC-free gaze pool — reused every frame instead of .clone()
-                                    _gazeQuat: new THREE.Quaternion(),
-                                    _gazeQuat2: new THREE.Quaternion(),
-                                    _gazeTarget: new THREE.Vector3(),
-                                    update(delta) {
-                                        if (this.mixer) this.mixer.update(delta);
-                                        
-                                        const playerPos = window.camera ? window.camera.position : null;
-                                        const playerDist = playerPos ? window._yellowButterflyNPC.position.distanceTo(playerPos) : Infinity;
-                                        const isPlayerNear = playerDist <= 75.0; // 3 tiles (3 * 25m)
-
-                                        // AI STATE MACHINE
-                                        if (!this.aiState) {
-                                            this.aiState = 'idle';
-                                            this.stateTimer = Math.random() * 5 + 3;
-                                            this.spawnPoint = window._yellowButterflyNPC.position.clone();
-                                            this.walkTarget = new THREE.Vector3();
-                                            this.hasWaved = false;
-                                        }
-
-                                        // High Priority: Player Proximity Waving
-                                        if (isPlayerNear && playerPos) {
-                                            if (this.aiState !== 'waving') {
-                                                this.aiState = 'waving';
-                                                this.hasWaved = true;
-                                                if (this.actions.wave) {
-                                                    this.actions.wave.reset().play();
-                                                    if (this.currentBaseAction) this.actions.wave.crossFadeFrom(this.currentBaseAction, 0.5, false);
-                                                    this.currentBaseAction = this.actions.wave;
-                                                }
-                                            }
-                                            
-                                            // Smoothly track player with gaze
-                                            this._gazeQuat.copy(window._yellowButterflyNPC.quaternion);
-                                            this._gazeTarget.copy(playerPos);
-                                            this._gazeTarget.y = window._yellowButterflyNPC.position.y;
-                                            window._yellowButterflyNPC.lookAt(this._gazeTarget);
-                                            this._gazeQuat2.copy(window._yellowButterflyNPC.quaternion);
-                                            window._yellowButterflyNPC.quaternion.copy(this._gazeQuat);
-                                            window._yellowButterflyNPC.quaternion.slerp(this._gazeQuat2, 4.0 * delta);
-                                            
-                                            return; // Halt other AI logic while interacting
-                                        } else if (this.aiState === 'waving' && playerDist > 80.0) {
-                                            // Player left the area
-                                            this.aiState = 'idle';
-                                            this.stateTimer = 2.0;
-                                            if (this.actions.idle) {
-                                                this.actions.idle.reset().play();
-                                                if (this.currentBaseAction) this.actions.idle.crossFadeFrom(this.currentBaseAction, 0.5, false);
-                                                this.currentBaseAction = this.actions.idle;
-                                            }
-                                        }
-
-                                        // Ambient AI: Idle and Random Walk
-                                        if (this.aiState === 'idle') {
-                                            this.stateTimer -= delta;
-                                            if (this.stateTimer <= 0) {
-                                                this.aiState = 'walking';
-                                                // Pick a random destination within 15 meters of spawn point
-                                                const angle = Math.random() * Math.PI * 2;
-                                                const rad = Math.random() * 15;
-                                                this.walkTarget.set(this.spawnPoint.x + Math.cos(angle)*rad, 0, this.spawnPoint.z + Math.sin(angle)*rad);
-                                                
-                                                if (this.actions.walk) {
-                                                    this.actions.walk.reset().play();
-                                                    if (this.currentBaseAction) this.actions.walk.crossFadeFrom(this.currentBaseAction, 0.5, false);
-                                                    this.currentBaseAction = this.actions.walk;
-                                                }
-                                            }
-                                        } else if (this.aiState === 'walking') {
-                                            const dx = this.walkTarget.x - window._yellowButterflyNPC.position.x;
-                                            const dz = this.walkTarget.z - window._yellowButterflyNPC.position.z;
-                                            const distToTarget = Math.sqrt(dx*dx + dz*dz);
-                                            
-                                            if (distToTarget < 1.0) {
-                                                this.aiState = 'idle';
-                                                this.stateTimer = Math.random() * 8 + 4;
-                                                if (this.actions.idle) {
-                                                    this.actions.idle.reset().play();
-                                                    if (this.currentBaseAction) this.actions.idle.crossFadeFrom(this.currentBaseAction, 0.5, false);
-                                                    this.currentBaseAction = this.actions.idle;
-                                                }
-                                            } else {
-                                                // Turn toward destination
-                                                this._gazeQuat.copy(window._yellowButterflyNPC.quaternion);
-                                                this._gazeTarget.copy(this.walkTarget);
-                                                this._gazeTarget.y = window._yellowButterflyNPC.position.y;
-                                                window._yellowButterflyNPC.lookAt(this._gazeTarget);
-                                                this._gazeQuat2.copy(window._yellowButterflyNPC.quaternion);
-                                                window._yellowButterflyNPC.quaternion.copy(this._gazeQuat);
-                                                window._yellowButterflyNPC.quaternion.slerp(this._gazeQuat2, 4.0 * delta);
-                                                
-                                                // Translate forward
-                                                window._yellowButterflyNPC.translateZ(1.5 * delta); // Normal walking speed
-                                                
-                                                // Ground Snapping
-                                                if (typeof getGroundY !== 'undefined') {
-                                                    window._yellowButterflyNPC.position.y = getGroundY(window._yellowButterflyNPC.position.x, window._yellowButterflyNPC.position.z);
-                                                }
-                                            }
-                                        }
+                                    if (actions.wave) {
+                                        actions.wave.setLoop(THREE.LoopOnce, 1);
+                                        actions.wave.clampWhenFinished = true;
                                     }
-                                };
-
-                                // Cache Actions
-                                if (walkClip) system.actions.walk = window.ybMixer.clipAction(walkClip);
-                                if (idleClip) system.actions.idle = window.ybMixer.clipAction(idleClip);
-                                if (waitClip) system.actions.wait = window.ybMixer.clipAction(waitClip);
-                                if (heartClip) system.actions.heart = window.ybMixer.clipAction(heartClip);
-                                if (waveClip) system.actions.wave = window.ybMixer.clipAction(waveClip);
-                                
-                                // Default settings
-                                if (system.actions.heart) {
-                                    system.actions.heart.setLoop(THREE.LoopOnce);
-                                    system.actions.heart.clampWhenFinished = true;
+    
+                                    const system = {
+                                        mesh: ybGroup,
+                                        mixer: window.ybMixer,
+                                        actions: actions,
+                                        isAware: false,
+                                        baseRotation: -Math.PI / 4,
+                                        startupState: 'sitting',
+                                        nsGreetingState: 'none'
+                                    };
+                                    if (window.npcMaster) window.npcMaster.register('NPC_YB', system);
+                                    window.ybSystem = system;
+                                    
+                                    if (actions.sit) {
+                                        actions.sit.play();
+                                    } else {
+                                        actions.idle.play();
+                                    }
                                 }
-                                if (system.actions.wave) {
-                                    system.actions.wave.setLoop(THREE.LoopOnce);
-                                    system.actions.wave.clampWhenFinished = true;
-                                }
-
-                                if (system.actions.idle) {
-                                    system.currentBaseAction = system.actions.idle;
-                                    system.actions.idle.play();
-                                }
-                                
-                                window.ybSystem = system;
-                                if (window.fuzzyBrain) {
-                                    window.fuzzyBrain.linkNPC('yellowbutterfly', window._yellowButterflyNPC, window.ybSystem);
-                                }
-                            }
                             
-                            console.log(`[NPC] Spawned YellowButterfly NPC at (${ybX}, ${ybZ})`);
+                            console.log(`[NPC] Spawned YellowButterfly NPC at (${startX}, ${startZ})`);
 
 
                         });
@@ -1143,6 +978,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                                 if (c.isMesh) {
                                     c.castShadow = false;
                                     c.receiveShadow = false;
+                                    c.layers.set(3); // Hide from Minimap PiP
                                     const origMat = c.material;
                                     if (origMat) {
                                         c.material = origMat.clone();
@@ -1180,7 +1016,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                                 // Majestic slow motion
                                 walkAction.setEffectiveTimeScale(0.35); 
                                 bowAction.setEffectiveTimeScale(0.5); // Bowing happens gently
-                                walkAction.play();
+                                idleAction.play();
                                 
                                 // LOGBOOK OPENING REMOVED FROM HERE: Previously opened the logbook during asset loading,
                                 // which caused it to bleed through the loading screen. Now handled exclusively
@@ -1192,145 +1028,24 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                                     mesh: nsGroup,
                                     asset: nsAsset,
                                     materials: myMaterials,
-                                    light: null, // FPS FIX: removed spiritLight
-                                    state: 'walking_in', // Start walking immediately
-                                    speed: 0.8, // Calibrated exactly to match 0.35 timescale footprints over 6.4m scale
-                                    update(delta) {
-                                        if (this.mixer) this.mixer.update(delta);
-                                        
-                                        // Dynamically re-anchor baseline to terrain while walking
-                                        this.mesh.position.y = getGroundY(this.mesh.position.x, this.mesh.position.z) + 3.2;
-                                        
-                                        if (this.state === 'walking_in') {
-                                            this.mesh.position.x += this.speed * delta;
-                                            
-                                            // Smoothly ensure it stays looking forward strictly along the movement path
-                                            const marchTarget = this.mesh.position.clone();
-                                            marchTarget.x += 10.0;
-                                            const currentQuat = this.mesh.quaternion.clone();
-                                            this.mesh.lookAt(marchTarget);
-                                            const targetQuat = this.mesh.quaternion.clone();
-                                            this.mesh.quaternion.copy(currentQuat);
-                                            this.mesh.quaternion.slerp(targetQuat, 2.5 * delta);
-
-                                            // Stop behind Tipi when aligned with Yellow Butterfly (-2 X)
-                                            if (this.mesh.position.x >= -2) {
-                                                this.state = 'bowing_turn'; // Begin smooth turn toward butterfly
-                                                this.mixer.stopAllAction(); 
-                                                
-                                                // Yellow Butterfly waits eagerly
-                                                if (window._yellowButterflyNPC && window.ybSystem && window.ybSystem.actions.wait) {
-                                                    window.ybSystem.actions.wait.reset().play();
-                                                    window.ybSystem.actions.wait.crossFadeFrom(window.ybSystem.currentBaseAction, 0.5, false);
-                                                }
-
-                                                // Wait 1.5 seconds to turn completely
-                                                setTimeout(() => {
-                                                    if (this.state === 'bowing_turn') {
-                                                        this.state = 'bowing_action';
-                                                        bowAction.reset().play(); // Nod
-                                                        
-                                                        // Yellow Butterfly enthusiastically waves
-                                                        if (window._yellowButterflyNPC && window.ybSystem && window.ybSystem.actions.wave) {
-                                                            setTimeout(() => {
-                                                                if (window.ybSystem.actions.wave) {
-                                                                    window.ybSystem.actions.wave.reset().play();
-                                                                    window.ybSystem.actions.wave.crossFadeFrom(window.ybSystem.actions.wait, 0.5, false);
-                                                                }
-                                                            }, 1000); 
-                                                        }
-                                                        
-                                                        setTimeout(() => { if (window.triggerYellowButterflyHeart) window.triggerYellowButterflyHeart(); }, 2500);
-                                                        
-                                                        // Finish bowing interaction, turn away
-                                                        setTimeout(() => {
-                                                            this.state = 'turning_away';
-                                                            this.mixer.stopAllAction();
-                                                            
-                                                            // YB gently returns her rig to baseline Idle when the Stag turns
-                                                            if (window.ybSystem && window.ybSystem.actions.idle) {
-                                                                 window.ybSystem.actions.idle.reset().play();
-                                                            }
-                                                            
-                                                            // Give 2.5 seconds to slowly turn away before walking
-                                                            setTimeout(() => {
-                                                                this.state = 'walking_out';
-                                                                walkAction.reset().play();
-                                                            }, 2500);
-                                                            
-                                                        }, 5000); // 5 seconds for greeting and nod interaction
-                                                    }
-                                                }, 1500);
-                                            }
-                                        } 
-                                        else if (this.state === 'bowing_turn' || this.state === 'bowing_action') {
-                                            if (window._yellowButterflyNPC) {
-                                                const currentQuat = this.mesh.quaternion.clone();
-                                                this.mesh.lookAt(window._yellowButterflyNPC.position);
-                                                const targetQuat = this.mesh.quaternion.clone();
-                                                this.mesh.quaternion.copy(currentQuat);
-                                                this.mesh.quaternion.slerp(targetQuat, 2.5 * delta); // Smooth turn
-                                            }
-                                        }
-                                        else if (this.state === 'turning_away' || this.state === 'walking_out') {
-                                            const marchTarget = this.mesh.position.clone();
-                                            marchTarget.x += 10.0;
-                                            const currentQuat = this.mesh.quaternion.clone();
-                                            this.mesh.lookAt(marchTarget);
-                                            const targetQuat = this.mesh.quaternion.clone();
-                                            this.mesh.quaternion.copy(currentQuat);
-                                            this.mesh.quaternion.slerp(targetQuat, 2.0 * delta); // Smooth turn toward east
-                                            
-                                            if (this.state === 'walking_out') {
-                                                this.mesh.position.x += this.speed * delta;
-                                            }
-                                            
-                                            // Glow intensely after heart interaction
-                                            if (this.state === 'walking_out') {
-                                                this.materials.forEach(mat => {
-                                                    if (mat.emissiveIntensity < 1.8) {
-                                                        mat.emissiveIntensity += 0.5 * delta;
-                                                    }
-                                                });
-                                                if (this.light && this.light.intensity < 3.0) this.light.intensity += 1.0 * delta;
-                                                
-                                                // Fade out as it passes deep into trees (X > 20)
-                                                if (this.mesh.position.x > 20) {
-                                                    let finished = false;
-                                                    this.materials.forEach(mat => {
-                                                        mat.opacity -= 0.15 * delta;
-                                                        if (mat.opacity <= 0) finished = true;
-                                                    });
-                                                    if (this.light) this.light.intensity -= 1.0 * delta;
-                                                    
-                                                    if (finished) {
-                                                        this.state = 'hidden';
-                                                        this.mesh.visible = false;
-                                                        console.log("[NPC] Nature Spirit departed. Waiting 10 minutes to return.");
-                                                        
-                                                        setTimeout(() => {
-                                                            this.mesh.position.set(-20, getGroundY(-20, -10) + 3.2, -10);
-                                                            const initialTarget = this.mesh.position.clone();
-                                                            initialTarget.x += 10.0;
-                                                            this.mesh.lookAt(initialTarget);
-                                                            this.mesh.visible = true;
-                                                            
-                                                            this.materials.forEach(mat => {
-                                                                mat.opacity = 0.50;
-                                                                mat.emissiveIntensity = 0.5;
-                                                            });
-                                                            
-                                                            this.state = 'walking_in';
-                                                            this.mixer.stopAllAction();
-                                                            walkAction.reset().play();
-                                                            console.log("[NPC] Nature Spirit returned.");
-                                                        }, 10 * 60 * 1000); // 10 minutes
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                                    light: null, 
+                                    actions: {
+                                        walk: walkAction,
+                                        idle: idleAction,
+                                        wave: bowAction
+                                    },
+                                    ignoreProximity: true, // Never interrupt cinematic with player proximity
+                                    state: 'walking_in',
+                                    speed: 0.8, // Calibrated for 0.35 timescale footprints over 6.4m scale
+                                    timer: 0,
+                                    opacityTarget: 0.0,
+                                    currentOpacity: 0.0,
+                                    startX: -20,
+                                    startZ: -10
+                                    // Note: Inline update() removed. 
+                                    // Logic is now formally governed by MasterNPCAI.js FSM.
                                 };
+                                if (window.npcMaster) window.npcMaster.register('NatureSpirit', window.natureSpiritSystem);
                                 if (window.fuzzyBrain) {
                                     window.fuzzyBrain.linkNPC('naturespirit', window.natureSpiritSystem.mesh, window.natureSpiritSystem);
                                 }
@@ -1787,7 +1502,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             const emberMat = new THREE.MeshStandardMaterial({
                 color: 0xff2200,
                 emissive: 0xff1100,
-                emissiveIntensity: 0.8,
+                emissiveIntensity: 0.3, // Reduced from 0.8 to remove excess glow
                 roughness: 0.8
             });
             const emberMesh = new THREE.Mesh(emberGeo, emberMat);
@@ -1916,7 +1631,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             // scene.add(fireFill);
 
             // Store fire refs for animation
-            window._fireData = { flameMesh, smokeMesh, fireLight: null, fireFill: null, emberMesh, baseY: fireY };
+            window._fireData = { flameMesh, smokeMesh, fireLight: null, fireFill: null, emberMesh, baseY: fireY, tipiX: TIPI_X, tipiZ: TIPI_Z };
 
             console.log('[Tipi] Campfire and smoke placed inside tipi');
 
@@ -2006,7 +1721,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
 
                 const tipi3Group = bhgGroup.clone();
                 tipi3Group.position.set(tipi3Hex.x, tipi3Y, tipi3Hex.z);
-                tipi3Group.rotation.y = 0; // Rotate to face East / center
+                tipi3Group.rotation.y = Math.PI; // Face towards player start
                 
                 tipi3Group.userData.isBuilding = true;
                 window._interactiveBuildings.push(tipi3Group);
@@ -2050,22 +1765,22 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
 
                 // --- FLOATING QUEST MARKER 2 ---
                 const questGroup2 = createQuestBalloon('2', 'quest_2_find_her');
-                const markerY2 = bhgY + 3.5; // Lowered from 7.5 to float directly above the entrance
+                const markerY2 = bhgY + 5.3; // Raised by 6ft per user request
                 // Offset quest marker to be squarely in front of the tipi entrance
                 // bhgGroup rotated Math.PI (180deg). Thus +Z local is -Z global.
-                const markerZ2 = bhgZ - 4.0;
+                const markerZ2 = bhgZ; // Position directly over her head
                 questGroup2.position.set(bhgX, markerY2, markerZ2);
                 questGroup2.userData.baseY = markerY2;
                 
-                // Construct Tether string safely locked onto the balloon knot swinging down to her hand
+                // Construct Tether string dropping straight down to her head
                 // USER REQUEST: 70% thinner (0.006 -> 0.0018) and 70% more transparent (0.8 -> 0.24)
-                const stringGeo2 = new THREE.CylinderGeometry(0.0018, 0.0018, 3.2, 4);
-                stringGeo2.translate(0, -1.6, 0); 
+                const stringGeo2 = new THREE.CylinderGeometry(0.0018, 0.0018, 2.9, 4);
+                stringGeo2.translate(0, -1.45, 0); 
                 const stringMat2 = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.24 });
                 const stringMesh2 = new THREE.Mesh(stringGeo2, stringMat2);
-                stringMesh2.position.set(0, -0.69, 0); 
-                // Pitch it backwards along the Z-axis to cleanly span the 1.5m gap to her hand!
-                stringMesh2.rotation.set(0.40, 0, 0);
+                stringMesh2.position.set(0, -0.6, 0); 
+                // Straight down
+                stringMesh2.rotation.set(0, 0, 0);
                 questGroup2.add(stringMesh2);
                 
                 questGroup2.visible = false; // Hidden until Quest 1 Pops!
@@ -2076,64 +1791,90 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                 // Axe will be built and placed dynamically below, directly into the bhgGroup
                 // so it can effortlessly lean against the tipi structure next to the girl.an effortlessly lean against the tipi structure next to the girl.
 
-                // Load the actual girl model and place her at the Tipi entrance
+                // Load the actual upgraded girl model and place her inside the Tipi
                 const gltfLoader = new GLTFLoader();
-                gltfLoader.load('Assets/animated.bringshappiness.glb', (gltf) => {
+                gltfLoader.load('Assets/NPC.BHG.glb', (gltf) => {
                     const girlModel = gltf.scene;
 
                     // --- Avatar Scale Fix ---
                     // Hardcode scale instead of using Box3, as rigged armature bounds
                     // create massive invisible footprints that cause microscopic shrinkage.
                     window.targetGirlH = 1.3;
-                    // User Request: Restore to the 100% increased size!
-                    girlModel.scale.set(2.28, 2.86, 2.28); 
+                    // User Request: Reduce by 30% from the previous size
+                    girlModel.scale.set(1.277, 1.602, 1.277); 
                     
-                    const halo = createNPCHalo(girlModel);
-                    girlModel.add(halo);
+                    // Apply inverse scale so halo matches player's 0.969 scale perfectly
+                    // BHG = White Circle (Structure/Rules)
+                    const halo = createNPCHalo(bhgGroup, 0.969, 0x2e7d32);
+                    halo.position.y += 0.11; // Lift above Tipi platform thickness
+                    bhgGroup.add(halo);
                     
                     if (gltf.animations && gltf.animations.length > 0) {
                         window.bhgMixer = new THREE.AnimationMixer(girlModel);
                         
-                        // Default Blender Export places static Rest Pose at [0] inside NlaTrack strips.
-                        window._bhgIdleClip = gltf.animations.find(a => a.name.toLowerCase().includes('idle')) || (gltf.animations.length > 1 ? gltf.animations[1] : gltf.animations[0]);
-                        window._bhgWaveClip = gltf.animations.find(a => a.name.toLowerCase().includes('wave')) || (gltf.animations.length > 2 ? gltf.animations[2] : null);
-                        window._bhgWalkClip = gltf.animations.find(a => a.name.toLowerCase().includes('walk')) || (gltf.animations.length > 3 ? gltf.animations[3] : null);
+                        // Robust NLA search for BHG
+                        gltf.animations.forEach(clip => {
+                            const name = clip.name.toLowerCase();
+                            if (name.includes('sit') || name.includes('sitting') || name.includes('003')) window._bhgSitAction = window.bhgMixer.clipAction(clip);
+                            else if (name.includes('idle') || name.includes('002')) window._bhgIdleAction = window.bhgMixer.clipAction(clip);
+                            else if (name.includes('wave') || name.includes('001')) window._bhgWaveAction = window.bhgMixer.clipAction(clip);
+                            else if (name.includes('walk') || name.includes('004')) window._bhgWalkAction = window.bhgMixer.clipAction(clip);
+                        });
+
+                        // Fallbacks
+                        if (!window._bhgSitAction && gltf.animations[3]) window._bhgSitAction = window.bhgMixer.clipAction(gltf.animations[3]);
+                        if (!window._bhgIdleAction && gltf.animations[2]) window._bhgIdleAction = window.bhgMixer.clipAction(gltf.animations[2]);
                         
-                        window._bhgIdleAction = window.bhgMixer.clipAction(window._bhgIdleClip);
-                        window._bhgIdleAction.play();
-                        
-                        if (window._bhgWaveClip) {
-                            window._bhgWaveAction = window.bhgMixer.clipAction(window._bhgWaveClip);
+                        // Force Sit Animation for BHG
+                        if (window._bhgSitAction) {
+                            window._bhgSitAction.reset().setEffectiveWeight(1.0).play();
+                            window.bhgMixer.update(0);
+                        } else if (window._bhgIdleAction) {
+                            window._bhgIdleAction.play();
+                        }
+
+                        if (window._bhgWaveAction) {
                             window._bhgWaveAction.setLoop(THREE.LoopOnce, 1);
                             window._bhgWaveAction.clampWhenFinished = true;
                         }
-                        if (window._bhgWalkClip) {
-                            window._bhgWalkAction = window.bhgMixer.clipAction(window._bhgWalkClip);
-                        }
                     }
 
-                    // Position her exactly at the Tipi entrance (Local coords relative to bhgGroup)
-                    // CRITICAL FIX: Because bhgGroup is rotated Math.PI, local +Z means global -Z
-                    // This terrain slopes heavily. We MUST query the actual ground height at her specific foot-placement!
-                    const globalZ = bhgZ - 5.5; // (since local +Z faces global -Z due to Math.PI rotation on bhgGroup)
-                    const trueGroundY = typeof getGroundY !== 'undefined' ? getGroundY(bhgX, globalZ) : bhgY;
+                    // --- Position Calculation for Tipi Interior ---
+                    // Query the actual ground height at the center of the Tipi
+                    const trueGroundY = typeof getGroundY !== 'undefined' ? getGroundY(bhgX, bhgZ) : bhgY;
                     const localYOffset = trueGroundY - bhgY; // Difference from the Tipi's base zero-plane
 
-                    // Fix: Set offset exactly to 0.0 so the animated girl's feet are perfectly anchored to the ground
-                    girlModel.position.set(0, localYOffset + 0.0, 5.5);
+                    // --- Procedural Elder Chair ---
+                    const chairGroup = new THREE.Group();
+                    const seatGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.15, 8);
+                    const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a3122, roughness: 0.9, metalness: 0.05 });
+                    const seat = new THREE.Mesh(seatGeo, woodMat);
+                    seat.position.y = 0.4;
+                    chairGroup.add(seat);
+                    
+                    const legGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.4, 4);
+                    for (let i = 0; i < 4; i++) {
+                        const leg = new THREE.Mesh(legGeo, woodMat);
+                        const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+                        leg.position.set(Math.cos(angle) * 0.25, 0.2, Math.sin(angle) * 0.25);
+                        chairGroup.add(leg);
+                    }
+                    chairGroup.position.set(0, localYOffset, 0); // Center of Tipi
+                    bhgGroup.add(chairGroup);
 
-                    // Rotate her directly to the right 90 degrees so she faces True Forward (+Z)
-                    girlModel.rotation.y = -Math.PI / 2;
+                    // Position her inside Tipi 2, seated on the chair
+                    girlModel.position.set(0, localYOffset + 0.45, 0.1); 
+
+                    // Face the entrance (Relative to group rotation Math.PI)
+                    // If group is Math.PI, girlModel rotation 0 faces South.
+                    girlModel.rotation.y = 0; 
 
                     girlModel.traverse(child => {
                         if (child.isMesh) {
                             child.castShadow = true;
                             child.receiveShadow = true;
-                            
-                            if (child.material) {
-                                child.material.flatShading = false;
-                                child.material.needsUpdate = true;
-                            }
+                            child.frustumCulled = false; // User Request: Disable culling
+                            child.layers.set(3); // Hide from Minimap PiP
                         }
                     });
 
@@ -2142,37 +1883,6 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                     
                     // Removed counter-rotation since avatar model is now facing the correct direction
                     girlModel.add(bhgSelfMarker);
-
-                    // Attach styled golden circle under NPC
-                    const bhgCircle = new THREE.Group();
-                    bhgCircle.position.y = 0.02;
-                    // Match the player's circle perfectly
-                    bhgCircle.scale.set(1.1046, 1.1085, 1.1046);
-
-                    const pRadius = 0.375;
-                    const bhgBaseGeo = new THREE.CylinderGeometry(pRadius, pRadius, 0.02, 32);
-                    const bhgBaseMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.4, metalness: 0.8 });
-                    const bhgBaseMesh = new THREE.Mesh(bhgBaseGeo, bhgBaseMat);
-                    bhgBaseMesh.position.y = 0.01;
-                    bhgBaseMesh.receiveShadow = true;
-                    bhgCircle.add(bhgBaseMesh);
-
-                    const bhgBorderGeo = new THREE.TorusGeometry(pRadius, 0.02, 16, 48);
-                    const bhgBorderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
-                    const bhgBorderMesh = new THREE.Mesh(bhgBorderGeo, bhgBorderMat);
-                    bhgBorderMesh.rotation.x = Math.PI / 2;
-                    bhgBorderMesh.position.y = 0.01;
-                    bhgCircle.add(bhgBorderMesh);
-
-                    const bhgArrowGeo = new THREE.ConeGeometry(0.08, 0.2, 32);
-                    const bhgArrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
-                    const bhgArrowMesh = new THREE.Mesh(bhgArrowGeo, bhgArrowMat);
-                    bhgArrowMesh.rotation.set(Math.PI / 2, 0, 0); 
-                    bhgArrowMesh.scale.set(1.0, 1.0, 0.25); // Flattened vertically
-                    bhgArrowMesh.position.set(0, 0.01, pRadius + 0.1); 
-                    bhgCircle.add(bhgArrowMesh);
-
-                    bhgGroup.add(bhgCircle);
 
                     bhgGroup.add(girlModel);
                     window._bhgCharacterMesh = girlModel; // Save a reference for the camera to track
@@ -2229,137 +1939,120 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         window._worldAxeMesh = axeGrp;
                     });
                     
-                    window.bhgSystem = {
-                        mesh: girlModel,
+                    const system = {
+                        mesh: bhgGroup,
+                        npcModel: girlModel,
                         mixer: window.bhgMixer,
-                        hasWaved: false,
-                        aiState: null,
-                        stateTimer: 0,
-                        spawnPoint: null,
-                        walkTarget: new THREE.Vector3(),
-                        _gazeQuat: new THREE.Quaternion(),
-                        _gazeQuat2: new THREE.Quaternion(),
-                        _gazeTarget: new THREE.Vector3(),
-                        currentBaseAction: window._bhgIdleAction,
-                        
-                        update(delta) {
-                            if (this.mixer) this.mixer.update(delta);
-                            
-                            const playerPos = window.camera ? window.camera.position : null;
-                            
-                            if (!this.aiState) {
-                                this.aiState = 'idle';
-                                this.stateTimer = Math.random() * 5 + 3;
-                                const bhgWorldPos = new THREE.Vector3();
-                                window._bhgCharacterMesh.getWorldPosition(bhgWorldPos);
-                                this.spawnPoint = bhgWorldPos.clone();
-                                this.hasWaved = false;
-                            }
-                            
-                            const bhgPos = new THREE.Vector3();
-                            window._bhgCharacterMesh.getWorldPosition(bhgPos);
-                            const playerDist = playerPos ? playerPos.distanceTo(bhgPos) : Infinity;
-                            const isPlayerNear = playerDist <= 75.0; // 3 tiles (3 * 25m)
-
-                            // High Priority: Player Proximity Waving
-                            if (isPlayerNear && playerPos) {
-                                if (this.aiState !== 'waving') {
-                                    this.aiState = 'waving';
-                                    this.hasWaved = true;
-                                    if (window._bhgWaveAction) {
-                                        window._bhgWaveAction.reset().play();
-                                        if (this.currentBaseAction) window._bhgWaveAction.crossFadeFrom(this.currentBaseAction, 0.5, false);
-                                        this.currentBaseAction = window._bhgWaveAction;
-                                    }
-                                }
-                                
-                                // Smoothly track player with gaze
-                                this._gazeQuat.copy(window._bhgCharacterMesh.quaternion);
-                                this._gazeTarget.copy(playerPos);
-                                this._gazeTarget.y = window._bhgCharacterMesh.position.y;
-                                window._bhgCharacterMesh.lookAt(this._gazeTarget);
-                                this._gazeQuat2.copy(window._bhgCharacterMesh.quaternion);
-                                window._bhgCharacterMesh.quaternion.copy(this._gazeQuat);
-                                window._bhgCharacterMesh.quaternion.slerp(this._gazeQuat2, 4.0 * delta);
-                                
-                                return; // Halt other AI logic
-                            } else if (this.aiState === 'waving' && playerDist > 80.0) {
-                                this.aiState = 'idle';
-                                this.stateTimer = 2.0;
-                                if (window._bhgIdleAction) {
-                                    window._bhgIdleAction.reset().play();
-                                    if (this.currentBaseAction) window._bhgIdleAction.crossFadeFrom(this.currentBaseAction, 0.5, false);
-                                    this.currentBaseAction = window._bhgIdleAction;
-                                }
-                            }
-
-                            // Ambient AI: Idle and Random Walk
-                            if (this.aiState === 'idle') {
-                                this.stateTimer -= delta;
-                                if (this.stateTimer <= 0) {
-                                    this.aiState = 'walking';
-                                    // Pick random destination within 15 meters of spawn
-                                    const angle = Math.random() * Math.PI * 2;
-                                    const rad = Math.random() * 15;
-                                    this.walkTarget.set(this.spawnPoint.x + Math.cos(angle)*rad, 0, this.spawnPoint.z + Math.sin(angle)*rad);
-                                    
-                                    if (window._bhgWalkAction) {
-                                        window._bhgWalkAction.reset().play();
-                                        if (this.currentBaseAction) window._bhgWalkAction.crossFadeFrom(this.currentBaseAction, 0.5, false);
-                                        this.currentBaseAction = window._bhgWalkAction;
-                                    }
-                                }
-                            } else if (this.aiState === 'walking') {
-                                // To calculate distance, we need the parent group because local mesh positions translate relative to parent
-                                const dx = this.walkTarget.x - window._bhgGroup.position.x;
-                                const dz = this.walkTarget.z - window._bhgGroup.position.z;
-                                const distToTarget = Math.sqrt(dx*dx + dz*dz);
-                                
-                                if (distToTarget < 1.0) {
-                                    this.aiState = 'idle';
-                                    this.stateTimer = Math.random() * 8 + 4;
-                                    if (window._bhgIdleAction) {
-                                        window._bhgIdleAction.reset().play();
-                                        if (this.currentBaseAction) window._bhgIdleAction.crossFadeFrom(this.currentBaseAction, 0.5, false);
-                                        this.currentBaseAction = window._bhgIdleAction;
-                                    }
-                                } else {
-                                    // Turn toward destination (rotate entire group so mesh doesn't detach)
-                                    this._gazeQuat.copy(window._bhgGroup.quaternion);
-                                    this._gazeTarget.copy(this.walkTarget);
-                                    this._gazeTarget.y = window._bhgGroup.position.y;
-                                    window._bhgGroup.lookAt(this._gazeTarget);
-                                    this._gazeQuat2.copy(window._bhgGroup.quaternion);
-                                    window._bhgGroup.quaternion.copy(this._gazeQuat);
-                                    window._bhgGroup.quaternion.slerp(this._gazeQuat2, 4.0 * delta);
-                                    
-                                    // Translate forward
-                                    window._bhgGroup.translateZ(1.5 * delta); // Normal walking speed
-                                    
-                                    // Ground Snapping
-                                    if (typeof getGroundY !== 'undefined') {
-                                        window._bhgGroup.position.y = getGroundY(window._bhgGroup.position.x, window._bhgGroup.position.z);
-                                    }
-                                }
-                            }
-                        }
+                        actions: {
+                            sit: window._bhgSitAction,
+                            idle: window._bhgIdleAction,
+                            wave: window._bhgWaveAction,
+                            walk: window._bhgWalkAction
+                        },
+                        isAware: false,
+                        baseRotation: Math.PI,
+                        startupState: 'sitting',
+                        startupTimer: 10.0
                     };
-                    
-                    if (window.fuzzyBrain) {
-                        window.fuzzyBrain.linkNPC('bringshappinessgirl', window._bhgCharacterMesh, window.bhgSystem);
-                    }
+                    if (window.npcMaster) window.npcMaster.register('NPC_BHG', system);
+                    window.bhgSystem = system;
                 });
                 
                 scene.add(bhgGroup);
                 window._bhgGroup = bhgGroup;
                 window._bhgBalloon = questGroup2;
                 
+                // === NPC REG (Tipi 3) ===
+                const regLoader = new GLTFLoader();
+                regLoader.load('Assets/NPC.REG.glb', (gltf) => {
+                    const regModel = gltf.scene;
+                    regModel.scale.set(1.824, 2.288, 1.824); // Parity with BHG scale
+                    
+                    // REG = Black Circle (Quests/Feelings)
+                    const halo = createNPCHalo(tipi3Group, 0.969, 0x2e7d32);
+                    halo.position.y += 0.11; // Lift above Tipi platform thickness
+                    tipi3Group.add(halo);
+
+                    const regMixer = new THREE.AnimationMixer(regModel);
+                    const actions = {};
+                    gltf.animations.forEach(clip => {
+                        const name = clip.name.toLowerCase();
+                        if (name.includes('sit') || name.includes('sitting') || name.includes('003')) actions.sit = regMixer.clipAction(clip);
+                        else if (name.includes('walk') || name.includes('004')) actions.walk = regMixer.clipAction(clip);
+                        else if (name.includes('idle') || name.includes('002')) actions.idle = regMixer.clipAction(clip);
+                        else if (name.includes('wave') || name.includes('001')) actions.wave = regMixer.clipAction(clip);
+                    });
+                    
+                    // Fallbacks
+                    if (!actions.sit && gltf.animations[3]) actions.sit = regMixer.clipAction(gltf.animations[3]);
+                    if (!actions.idle && gltf.animations[2]) actions.idle = regMixer.clipAction(gltf.animations[2]);
+
+                    // Positioning inside Tipi 3
+                    const trueGroundY = typeof getGroundY !== 'undefined' ? getGroundY(tipi3X, tipi3Z) : tipi3Y;
+                    const localYOffset = trueGroundY - tipi3Y;
+
+                    // Add Chair
+                    const chairGroup = new THREE.Group();
+                    const seatGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.15, 8);
+                    const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a3122, roughness: 0.9 });
+                    const seat = new THREE.Mesh(seatGeo, woodMat);
+                    seat.position.y = 0.4;
+                    chairGroup.add(seat);
+                    chairGroup.position.set(0, localYOffset, 0);
+                    tipi3Group.add(chairGroup);
+
+                    regModel.position.set(0, localYOffset + 0.45, 0.1);
+                    regModel.rotation.y = 0; // Face entrance relative to tipi3Group.rotation.y = Math.PI
+                    
+                    regModel.traverse(child => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            child.frustumCulled = false; // User Request: Disable culling
+                            child.layers.set(3); // Hide from Minimap PiP
+                        }
+                    });
+
+                    tipi3Group.add(regModel);
+
+                    if (actions.sit) {
+                        actions.sit.reset().setEffectiveWeight(1.0).play();
+                        regMixer.update(0);
+                    }
+
+                    const system = {
+                        mesh: tipi3Group,
+                        npcModel: regModel,
+                        mixer: regMixer,
+                        actions: actions,
+                        isAware: false,
+                        baseRotation: 0,
+                        startupState: 'sitting'
+                    };
+                    if (window.npcMaster) window.npcMaster.register('NPC_Reg', system);
+                });
+                
                 // === RABBIT SYSTEM ===
                 if (typeof RabbitSystem !== 'undefined') {
                     window.rabbitSystem = new RabbitSystem(scene, camera, window._getGroundY);
-                    if (window.fuzzyBrain) {
-                        window.fuzzyBrain.linkCreatureSystem('rabbits', window.rabbitSystem);
+                    if (window.masterAI) {
+                        window.masterAI.registerSystem('rabbits', window.rabbitSystem);
                     }
+                    if (window.fuzzyBrain) {
+                        window.fuzzyBrain.linkCreatureSystem('rabbits', window.rabbitSystem); // Still need for culling
+                    }
+                }
+                
+                // === BIRD SYSTEM ===
+                if (typeof BirdSystem !== 'undefined') {
+                    window.birdSystem = new BirdSystem(scene);
+                    if (window.masterAI) window.masterAI.registerSystem('birds', window.birdSystem);
+                }
+
+                // === HERD SYSTEM (Buffalo & Horse) ===
+                if (typeof HerdSystem !== 'undefined') {
+                    window.herdSystem = new HerdSystem(scene, window._getGroundY);
+                    if (window.masterAI) window.masterAI.registerSystem('herds', window.herdSystem);
                 }
 
                 console.log(`[Quest] Placed Brings Happiness Girl at (${bhgX}, ${bhgZ})`);
@@ -2368,7 +2061,64 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             });
 
 
+    }
+
+    /**
+     * Universe.Anu: Professional World Reconfiguration
+     * Safely clears the current firmament and regenerates a fresh topographical simulation.
+     */
+    async rebuildWorld(assetFactory) {
+        console.log("%c[Universe.Anu] Commencing world reconfiguration sequence...", "color: #fbc02d; font-weight: bold;");
+        
+        // 1. SIGNAL TRANSITION
+        this.updateLoadingScreen("Reconfiguring Firmament...");
+        
+        // 2. CLEAR EXISTING WORLD (With Disposal)
+        const toRemove = [];
+        this.scene.children.forEach(child => {
+            if (child.isLight) return;
+            // Keep the Sky and Fog baseline
+            if (child.isMesh && child.geometry && child.geometry.type === 'SphereGeometry' && child.scale.x > 300) return; 
+            toRemove.push(child);
+        });
+        
+        toRemove.forEach(obj => {
+            this.disposeObject(obj); // Release GPU Resources
+            this.scene.remove(obj);
+        });
+        
+        // 3. RESET REGISTRIES & STATE
+        if (window.npcMaster && window.npcMaster.npcs) {
+            window.npcMaster.npcs.clear();
         }
+        window.allTrees = [];
+        window.swayTrees = [];
+        window._editorBases = [];
+        window._flattenedZones = [];
+        window._hexGridMeshes = [];
+        
+        // 4. RECONFIGURE GOVERNANCE
+        if (window.UniverseAnu) {
+            window.UniverseAnu.reconfigure();
+            
+            // Register Structural Anchors for deterministic flattening
+            window.UniverseAnu.registerAnchor('Center_Tipi1', 0, 0, 8, 4);
+            window.UniverseAnu.registerAnchor('BHG_Tipi2', 12, 12, 8, 4);
+            window.UniverseAnu.registerAnchor('REG_Tipi3', -12, 12, 8, 4);
+        }
+        
+        // 5. GENERATE NEW WORLD
+        this.updateLoadingScreen("Rebuilding Topography...");
+        await this.generateWorld(assetFactory);
+        
+        this.updateLoadingScreen("Restoring Life...");
+        console.log("%c[Universe.Anu] New world reconfiguration complete.", "color: #4caf50; font-weight: bold;");
+        
+        // Optional: Trigger a slight camera shake or flash to signal completion
+        if (window.uiManager && window.uiManager.showCenterBubble) {
+            window.uiManager.showCenterBubble("The Great Spirit has reshaped the land.", 3000);
+        }
+    }
 }
 
         // --- NO INPUT (Clean Slate) ---

@@ -17,6 +17,10 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
         import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+        
+        // Expose loaders globally for classic script components (like RabbitSystem)
+        window.GLTFLoader = GLTFLoader;
+        window.OBJLoader = OBJLoader;
 
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -61,7 +65,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         let axeRenderer,
             pipCamera, _pipRenderTarget, _pipQuad, _pipPostScene, _pipPostCam;
         let tipiRenderer,
-            tipiOrthoCam, tipiPerspCam, axePipCam, _tipiRenderTarget, _tipiQuad, _tipiPostScene; // Native UI Camera Pipline
+            tipiOrthoCam, tipiPerspCam, axePipCam, _tipiRenderTarget, _tipiQuad, _tipiPostScene, _selfieRenderTarget; // Native UI Camera Pipline
         let gameTime = 8.0; // 8 AM start
         let sunLight;
         // Wildlife variables removed
@@ -102,6 +106,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         };
         const PIP_SIZE = 1024;
         let assetFactory;
+        window._assetFactory = null;
         const vegData = { bushes: [], trees: [] };
 
         
@@ -260,7 +265,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                         }
 
                         window._playerAvatar = avatar;
-                        window._playerAvatar.layers.set(1); // Ensure root group is on Layer 1
+                        window._playerAvatar.traverse(c => c.layers.enable(1)); // Enable Layer 1 for entire subtree
                         scene.add(avatar);
                         resolve();
                     });
@@ -357,6 +362,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             };
 
             assetFactory = new AssetFactoryNextGen(THREE.DefaultLoadingManager);
+            window._assetFactory = assetFactory;
 
             // 5 & 6. LIGHTING & ENVIRONMENT
             window.envBuilder = new EnvironmentBuilder(scene);
@@ -390,13 +396,18 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                     window._worldGenerationComplete = true;
                     window._isGeneratingWorld = false;
                     fuzzyBrain = new FuzzyBrain(renderer, null, scene);
+                    window.fuzzyBrain = fuzzyBrain; // EXPOSE TO GLOBAL
                     fuzzyBrain.linkCamera(camera);
                     fuzzyBrain.linkSun(window.sunLight);
                     fuzzyBrain.linkPIP(typeof axeRenderer !== 'undefined' ? axeRenderer : null, pipCamera);
                     if (assetFactory && assetFactory.treeMeshes) {
                         fuzzyBrain.linkTrees(assetFactory.treeMeshes);
                     }
-                    // Link creature systems to master AI (Wildlife removed)
+
+                    // Link creature systems to master AI
+                    if (window.rabbitSystem) fuzzyBrain.linkCreatureSystem('rabbits', window.rabbitSystem);
+                    if (window.birdSystem) fuzzyBrain.linkCreatureSystem('birds', window.birdSystem);
+                    
                     checkReadyToStart();
                     
                     // CRITICAL FIX: Only start the massive 60FPS render loop AFTER all geometries are parsed and loaded!
@@ -414,7 +425,12 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             setupPIP();
             setupLensflare();
 
-            // 11. LOOP
+            // 11. NPC INTELLIGENCE (MasterAI Subset)
+            if (window.MasterNPCAI) {
+                window.npcMaster = new window.MasterNPCAI();
+            }
+
+            // 12. LOOP
             clock = new THREE.Clock();
 
             // FORCE REMOVE LOADING SCREEN (Now handled by DefaultLoadingManager.onLoad)
@@ -504,11 +520,31 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             axePipCam.position.set(4.7, 1.8, 10.0);
             axePipCam.lookAt(0, 1.2, 0); // Vector math corrected! Now faces the exact center of the Tipi where the axe floats
 
-            // Limit render layers to avoid drawing full map
             tipiOrthoCam.layers.set(0); // Tipi / Base layers
             tipiPerspCam = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
             tipiPerspCam.layers.set(0);
             axePipCam.layers.set(0);       // NATIVE WEBGLL RENDERTARGET SETUP (Replaces ES6 EffectComposer)
+            
+            // ----------------------------------------------------------------
+            // SELFIE CAM OVERLAY (For Journal Page 3)
+            // ----------------------------------------------------------------
+            window.selfieCanvas2D = document.createElement('canvas');
+            window.selfieCanvas2D.id = 'selfie-hardware-canvas';
+            window.selfieCtx = window.selfieCanvas2D.getContext('2d', { alpha: true, willReadFrequently: true });
+            window.selfieCanvas2D.style.position = 'absolute';
+            window.selfieCanvas2D.style.zIndex = '10006';
+            window.selfieCanvas2D.style.display = 'none';
+            window.selfieCanvas2D.style.pointerEvents = 'none';
+            window.selfieCanvas2D.style.borderRadius = '8px';
+            document.body.appendChild(window.selfieCanvas2D);
+
+            window.selfieCam = new THREE.OrthographicCamera(-2, 2, 3, -3, 0.1, 50);
+            window.selfieCam.position.set(0, 1.5, 5); // Base position, will be dynamically updated
+            window.selfieCam.lookAt(0, 1.0, 0);
+            window.selfieCam.layers.enable(0); // Environment
+            window.selfieCam.layers.enable(1); // Player Avatar
+
+            _selfieRenderTarget = new THREE.WebGLRenderTarget(256, 384, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
             _pipRenderTarget = new THREE.WebGLRenderTarget(PIP_SIZE, PIP_SIZE, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
             _tipiRenderTarget = new THREE.WebGLRenderTarget(256, 256, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
 
@@ -885,15 +921,22 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 // --- NLP ROUTER FOR JOURNAL INPUT ---
                 if (msg.type === 'PROCESS_INPUT') {
                     const rawText = (msg.value || '').toLowerCase().trim();
-                    if (rawText === 'start game' || rawText === 'start' || rawText.includes('start game')) {
+                    if (['start game', 'start', 'begin', 'go'].includes(rawText) || rawText.includes('start game')) {
                         const panel = document.getElementById('panel-frame');
                         if (panel && panel.contentWindow) {
                             panel.contentWindow.postMessage({ type: 'NLP_RESPONSE', msg: `Command accepted: Starting Game...` }, '*');
                         }
+                        
+                        // Close journal immediately and remove bloom from input
+                        const logIframe = document.getElementById('logbookFrame');
+                        if (logIframe && logIframe.contentWindow) {
+                            logIframe.contentWindow.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');
+                        } else if (panel && panel.contentWindow) {
+                            panel.contentWindow.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); 
+                        }
+                        
+                        // Walk to Yellow Butterfly
                         window.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'yellowbutterfly' }, '*');
-                        setTimeout(() => { 
-                            if (panel && panel.contentWindow) panel.contentWindow.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); 
-                        }, 300);
                         return;
                     }
 
@@ -1254,6 +1297,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 }
                 if (msg.type === 'CLOSE_LOGBOOK') {
                     window._isLogbookOpen = false;
+                    window._logbookCooldown = performance.now() + 500; // Ignore all canvas clicks for 500ms after logbook closes
                 }
 
                 if (msg.type === 'GATHER_AXE' || msg.type === 'REQ_GATHER_AXE') {
@@ -1594,6 +1638,104 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                         }, 400);
                     } else if (window.tipiCanvas2D) {
                         window.tipiCanvas2D.style.display = 'none';
+                    }
+                }
+
+                if (msg.type === 'REQ_ALIGN_SELFIE' && msg.rect) {
+                    window._selfieRect = msg.rect;
+                    if (window.selfieCanvas2D) {
+                        const canvasNode = window.selfieCanvas2D;
+                        canvasNode.style.display = 'block';
+                        
+                        let wrapper = document.getElementById('selfie-overlay');
+                        if (!wrapper) {
+                            // index.html should have this, but fallback if not
+                            wrapper = document.createElement('div');
+                            wrapper.id = 'selfie-overlay';
+                            wrapper.style.position = 'absolute';
+                            wrapper.style.zIndex = '10006';
+                            wrapper.style.pointerEvents = 'none';
+                            wrapper.style.borderRadius = '8px';
+                            wrapper.style.overflow = 'hidden';
+                            wrapper.style.opacity = '0';
+                            wrapper.style.transition = 'opacity 0.4s ease-out';
+                            
+                            // Build REC UI
+                            const recDot = document.createElement('div');
+                            recDot.style.cssText = 'position: absolute; top: 10px; right: 15px; display: flex; align-items: center; gap: 6px;';
+                            recDot.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background-color:red;animation:blink 1s infinite;"></div><span style="color:white;font-family:monospace;font-weight:bold;font-size:14px;text-shadow:1px 1px 2px black;">REC</span>';
+                            
+                            const battery = document.createElement('div');
+                            battery.style.cssText = 'position: absolute; top: 12px; left: 15px; color: white; font-size: 18px; text-shadow: 1px 1px 2px black;';
+                            battery.innerHTML = '<i class="fa-solid fa-battery-three-quarters"></i>';
+                            
+                            wrapper.appendChild(recDot);
+                            wrapper.appendChild(battery);
+                            document.body.appendChild(wrapper);
+                            
+                            if (!document.getElementById('selfie-blink-style')) {
+                                const style = document.createElement('style');
+                                style.id = 'selfie-blink-style';
+                                style.innerHTML = '@keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }';
+                                document.head.appendChild(style);
+                            }
+                        }
+
+                        // Clean defaults from canvas
+                        canvasNode.style.position = 'absolute';
+                        canvasNode.style.top = '0';
+                        canvasNode.style.left = '0';
+                        canvasNode.style.width = '100%';
+                        canvasNode.style.height = '100%';
+                        canvasNode.style.zIndex = '-1'; // Behind REC UI
+
+                        if (canvasNode.parentElement !== wrapper) {
+                            wrapper.appendChild(canvasNode);
+                        }
+
+                        const bookWrapper = document.getElementById('panel-frame');
+                        const bwRect = bookWrapper ? bookWrapper.getBoundingClientRect() : { left: 0, top: 0 };
+
+                        if (wrapper.style.display === 'none' || wrapper.style.display === '') {
+                            wrapper.style.display = 'block';
+                            void wrapper.offsetWidth;
+                        }
+                        
+                        wrapper.style.opacity = '1';
+                        wrapper.style.left = (bwRect.left + msg.rect.x) + 'px';
+                        wrapper.style.top = (bwRect.top + msg.rect.y) + 'px';
+                        wrapper.style.width = msg.rect.width + 'px';
+                        wrapper.style.height = msg.rect.height + 'px';
+
+                        const w = Math.floor(msg.rect.width);
+                        const h = Math.floor(msg.rect.height);
+                        if (canvasNode.width !== w || canvasNode.height !== h) {
+                            window.selfieCanvas2D.width = w;
+                            window.selfieCanvas2D.height = h;
+                            const aspect = w / h;
+                            const selfieFrustum = 6.0; // Captures two models
+                            window.selfieCam.left = -selfieFrustum * aspect / 2;
+                            window.selfieCam.right = selfieFrustum * aspect / 2;
+                            window.selfieCam.top = selfieFrustum / 2;
+                            window.selfieCam.bottom = -selfieFrustum / 2;
+                            window.selfieCam.updateProjectionMatrix();
+                        }
+                    }
+                }
+
+                if (msg.type === 'REQ_HIDE_SELFIE') {
+                    window._selfieRect = null;
+                    const w = document.getElementById('selfie-overlay');
+                    if (w) {
+                        w.style.opacity = '0';
+                        setTimeout(() => {
+                            if (w.style.opacity === '0') {
+                                w.style.display = 'none';
+                                if (window.selfieCanvas2D) window.selfieCanvas2D.style.display = 'none';
+                            }
+                        }, 400);
+                    } else if (window.selfieCanvas2D) {
+                        window.selfieCanvas2D.style.display = 'none';
                     }
                 }
 
@@ -2358,6 +2500,9 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 if (msg.type === 'CANVAS_CLICK') {
                     // Prevent interacting with the 3D ground/scene if the Logbook modal is actively consuming the screen
                     if (window._isLogbookOpen) return;
+                    
+                    // Prevent phantom clicks from passing through the logbook's close button directly onto the canvas underneath!
+                    if (window._logbookCooldown && performance.now() < window._logbookCooldown) return;
 
                     // Convert normalized coords (0-1) to NDC (-1 to 1)
                     const _tunnelMouse = new THREE.Vector2(msg.x * 2 - 1, -(msg.y * 2 - 1));
@@ -2962,6 +3107,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         const _dir = new THREE.Vector3();
         const _right = new THREE.Vector3();
         const _up = new THREE.Vector3(0, 1, 0);
+        const _matrix = new THREE.Matrix4();
         const _walkDir = new THREE.Vector3();
         const _pipFwd = new THREE.Vector3();
 
@@ -2985,7 +3131,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             _statsEl = document.getElementById('dev-fps') || document.getElementById('stats-hud');
             _moonFrame = document.getElementById('moondial-frame');
         }
-        // Cache after DOM ready
+// Cache after DOM ready
         setTimeout(cacheDOMElements, 100);
 
         let cameraPitch = 0;
@@ -2994,20 +3140,19 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta();
+            const delta = Math.min(clock.getDelta(), 0.1); // Cap delta to avoid physics explosions on tab switch
             frameCount++;
 
-
-            // PASSIVE GRAVITY (Follow Terrain)
-            const x = camera.position.x;
-            const z = camera.position.z;
-            const groundY = window._getGroundY ? window._getGroundY(x, z)
-                : Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2 + Math.sin(x * 0.3 + z * 0.2) * 0.5;
+            // --- MASTER NPC INTELLIGENCE ---
+            if (window.npcMaster) {
+                window.npcMaster.update(delta);
+            }
 
             // --- MOVEMENT LOGIC ---
             const SPEED = 5.0;
             const TURN_SPEED = 2.0;
             let isMoving = false;
+            let oldPos = camera.position.clone();
 
             if (!window._isCinematic) {
                 // 1. Rotation (Keyboard A/D + Arrows + Keypad)
@@ -3095,7 +3240,46 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                     window._choppingTarget = null;
                     window._choppingTimer = 0;
                 }
+
+                // --- COLLISIONS ---
+                // Tipi Collision Check
+                const TIPI_RADIUS = 3.5;
+                const checkTipiCollision = (px, pz) => {
+                    if (px*px + pz*pz < TIPI_RADIUS*TIPI_RADIUS) return true; // YB Tipi at 0,0
+                    const dx = px - (-12);
+                    const dz = pz - 12;
+                    if (dx*dx + dz*dz < TIPI_RADIUS*TIPI_RADIUS) return true; // BHG Tipi at -12, 12
+                    return false;
+                };
+                
+                // Tree Collision Check
+                const TREE_RADIUS = 1.0;
+                const checkTreeCollision = (px, pz) => {
+                    if (!window._treeInstancedMeshes || window._treeInstancedMeshes.length === 0) return false;
+                    const dummy = new THREE.Object3D();
+                    for (const { instancedMesh } of window._treeInstancedMeshes) {
+                        for (let i = 0; i < instancedMesh.count; i++) {
+                            instancedMesh.getMatrixAt(i, _matrix);
+                            dummy.position.setFromMatrixPosition(_matrix);
+                            const tdx = px - dummy.position.x;
+                            const tdz = pz - dummy.position.z;
+                            if (tdx*tdx + tdz*tdz < TREE_RADIUS*TREE_RADIUS) return true;
+                        }
+                    }
+                    return false;
+                };
+
+                if (checkTipiCollision(camera.position.x, camera.position.z) || checkTreeCollision(camera.position.x, camera.position.z)) {
+                    camera.position.copy(oldPos);
+                }
+
             } // End of !window._isCinematic wrapper
+
+            // PASSIVE GRAVITY (Follow Terrain)
+            const cx = camera.position.x;
+            const cz = camera.position.z;
+            const groundY = window._getGroundY ? window._getGroundY(cx, cz)
+                : Math.sin(cx * 0.1) * Math.cos(cz * 0.1) * 2 + Math.sin(cx * 0.3 + cz * 0.2) * 0.5;
 
             // --- PROXIMITY QUEST TRIGGER (Manual Walking) ---
             if (window.SacredState && window.SacredState.questLevel === 2 && window._bhgGroup && !window._isCinematic && !window._pendingTipiGreeting) {
@@ -3275,7 +3459,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             }
 
             // Apply Height (Terrain + Height + Bob)
-            const BASE_HEIGHT = 1.7;
+            const BASE_HEIGHT = 1.2; // Lowered camera by 2 feet to see circle direction
             const GRAVITY = 9.8;
             player.dy = (player.dy || 0) - GRAVITY * delta;
 
@@ -3793,7 +3977,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
                 // TEMPORARILY DISABLED WESTERN SHADER PROCESSING FOR FPS TESTING
                 // FPS FIX: Throttle PIP rendering using FuzzyBrain to prevent double-rendering the massive scene at 60Hz
-                if (window.tipiCtx && window._isLogbookOpen && (!fuzzyBrain || fuzzyBrain.shouldRenderPIP())) {
+                if (window.tipiCtx && window._isLogbookOpen && window._tipiRect && window._tipiRect.width > 0 && (!fuzzyBrain || fuzzyBrain.shouldRenderPIP())) {
                     let camToUse = usePerspective ? tipiPerspCam : tipiOrthoCam;
                     if (window._tipiPipTarget === 'pip') {
                         camToUse = window._nativeMapCam || window._pendingPipCamera;
@@ -3850,6 +4034,74 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 }
             }
 
+            // --- SELFIE CAM JOURNAL FEED RENDER ---
+            if (window._isLogbookOpen && window.selfieCanvas2D && window.selfieCanvas2D.style.display === 'block' && window._selfieRect && window._selfieRect.width > 0) {
+                // Dynamically position camera between YB and Player
+                if (window._yellowButterflyNPC && window.selfieCam) {
+                    const ybPos = new THREE.Vector3();
+                    window._yellowButterflyNPC.getWorldPosition(ybPos);
+                    const playerPos = camera.position.clone();
+                    
+                    // Midpoint
+                    const midPos = ybPos.clone().lerp(playerPos, 0.5);
+                    
+                    // Offset camera to the side to capture both profiles
+                    const dirBetween = new THREE.Vector3().subVectors(playerPos, ybPos).normalize();
+                    const rightOffset = new THREE.Vector3(-dirBetween.z, 0, dirBetween.x).normalize().multiplyScalar(4.0);
+                    
+                    window.selfieCam.position.set(midPos.x + rightOffset.x, ybPos.y + 1.2, midPos.z + rightOffset.z);
+                    window.selfieCam.lookAt(midPos.x, ybPos.y + 1.0, midPos.z);
+                    
+                    // Add slight handheld sway to the selfie cam
+                    const swayT = performance.now() * 0.001;
+                    window.selfieCam.position.x += Math.sin(swayT) * 0.05;
+                    window.selfieCam.position.y += Math.cos(swayT * 0.8) * 0.05;
+                    window.selfieCam.updateMatrixWorld();
+                }
+
+                const w = window.selfieCanvas2D.width || 256;
+                const h = window.selfieCanvas2D.height || 384;
+                
+                const dpr = renderer.getPixelRatio();
+                const scW = w * dpr;
+                const scH = h * dpr;
+
+                const origAutoClear = renderer.autoClear;
+                renderer.autoClear = false;
+
+                renderer.setScissorTest(true);
+                renderer.setScissor(0, 0, scW, scH);
+                renderer.setViewport(0, 0, scW, scH);
+
+                // Background
+                if (!window._selfieBgScene) {
+                    window._selfieBgScene = new THREE.Scene();
+                    window._selfieBgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+                    const bgMat = new THREE.MeshBasicMaterial({ color: 0x87CEEB, depthWrite: false, depthTest: false }); // Sky blue fallback
+                    window._selfieBgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
+                    window._selfieBgScene.add(window._selfieBgMesh);
+                }
+
+                renderer.clearDepth();
+                renderer.render(window._selfieBgScene, window._selfieBgCam);
+
+                try {
+                    renderer.render(scene, window.selfieCam);
+                } catch (err) {}
+
+                window.selfieCtx.clearRect(0, 0, w, h);
+                window.selfieCtx.drawImage(
+                    renderer.domElement, 
+                    0, renderer.domElement.height - scH, scW, scH, 
+                    0, 0, w, h
+                );
+
+                renderer.clearDepth();
+                renderer.setScissorTest(false);
+                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                renderer.autoClear = origAutoClear;
+            }
+
             // --- QUEST MARKER ANIMATION ---
             const ft = performance.now() * 0.001;
             if (window._questMarker) {
@@ -3880,122 +4132,44 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             if (!window._isMapView) {
                 if (window.butterflySystem) window.butterflySystem.update(delta); // Visual fx keep full Hz
                 
-                // Brings Happiness Girl AI System
-                if (window._bhgCharacterMesh && window._playerAvatar) {
-                    const girl = window._bhgCharacterMesh;
+                // --- SPIRIT GUIDE BUTTERFLY (Continuous Animation) ---
+                if (window._butterflySpirit) {
+                    const b = window._butterflySpirit;
+                    const pPos = camera.position.clone();
                     
-                    if (!window._bhgState) window._bhgState = { phase: 'idle', timer: 0 };
-                    const state = window._bhgState;
-                    state.timer -= delta;
+                    // Add erratic nature movement (hovering) always
+                    const time = performance.now() * 0.001;
                     
-                    girl.getWorldPosition(_pool.v3);
-                    const distToPlayer = _pool.v3.distanceTo(window._playerAvatar.position);
-                    const isNearby = distToPlayer < 6.0;
-
-                    if (isNearby) {
-                        if (state.phase !== 'wave') {
-                            state.phase = 'wave';
-                            if (window._bhgWaveAction && window._bhgIdleAction) {
-                                window._bhgWaveAction.reset();
-                                window._bhgIdleAction.crossFadeTo(window._bhgWaveAction, 0.3, true);
-                                window._bhgWaveAction.play();
-                            }
-                        }
-                        // Always face player when nearby
-                        _pool.v1.copy(window._playerAvatar.position);
-                        _pool.v1.y = _pool.v3.y; 
-                        girl.lookAt(_pool.v1);
-                        girl.rotateY(-Math.PI / 2); // Native bone correction
+                    if (window._spiritGuideActive) {
+                        // Float 2m in front of player and 0.5m above eye level
+                        const forward = new THREE.Vector3(0, 0, -1);
+                        forward.applyQuaternion(camera.quaternion);
+                        const target = pPos.add(forward.multiplyScalar(2.5)).add(new THREE.Vector3(0, 0.5, 0));
+                        
+                        target.x += Math.sin(time * 3) * 0.6;
+                        target.y += Math.cos(time * 2) * 0.4;
+                        target.z += Math.sin(time * 2.5) * 0.6;
+                        
+                        b.position.lerp(target, delta * 2.0); // Smooth follow
+                        
+                        // Always face the direction of flight or the player
+                        const lookAtTarget = target.clone().add(forward);
+                        b.lookAt(lookAtTarget);
                     } else {
-                        if (state.phase === 'wave') {
-                            state.phase = 'idle';
-                            if (window._bhgWaveAction && window._bhgIdleAction) {
-                                window._bhgWaveAction.crossFadeTo(window._bhgIdleAction, 0.5, true);
-                                window._bhgIdleAction.play();
-                            }
-                        }
-
-                        if (state.timer <= 0) {
-                            state.phase = Math.random() > 0.4 ? 'look_axe' : 'idle';
-                            state.timer = 3.0 + Math.random() * 4.0;
-                        }
-
-                        if (state.phase === 'look_axe' && window._worldAxeMesh) {
-                            window._worldAxeMesh.getWorldPosition(_pool.v1);
-                            _pool.v1.y = _pool.v3.y;
-                            girl.lookAt(_pool.v1);
-                            girl.rotateY(-Math.PI / 2);
-                        } else if (state.phase === 'idle') {
-                            // Slowly rotate / look around the Tipi area
-                            girl.rotation.y += delta * 0.2;
-                        }
+                        // Just hover in its base position
+                        b.position.y += Math.sin(time * 2) * 0.005; 
+                        b.rotation.y += delta * 0.5;
                     }
                 }
-
-                if (window.fuzzyBrain) window.fuzzyBrain.updateAnimations(delta);
                 
-                if (window.ybSystem && window._yellowButterflyNPC) {
-                    const sys = window.ybSystem;
-                    
-                    if (sys.proximityTimeout === undefined) sys.proximityTimeout = 3.0; // Initial delay before swapping
-                    sys.proximityTimeout -= delta;
-                    
-                    // 10 feet = ~3.0 units in 3D coordinate mapping
-                    const distToPlayer = camera.position.distanceTo(window._yellowButterflyNPC.position);
-                    const isNear = distToPlayer < 4.0;
-                    
-                    // Dim NPC Glow when within 20 feet (6.0 units)
-                    [window._yellowButterflyNPC, window._bhgCharacterMesh].forEach(npc => {
-                        if (npc) {
-                            const dCam = camera.position.distanceTo(npc.position);
-                            const tIn = dCam < 6.0 ? 0.2 : 1.2;
-                            const tOp = dCam < 6.0 ? 0.08 : 0.4;
-                            npc.traverse(c => {
-                                // FPS FIX: Removed point lights to reduce draw calls
-                                // if (c.isPointLight) c.intensity += (tIn - c.intensity) * delta * 2.0;
-                                if (c.isMesh && c.material && c.material.transparent && c.material.opacity < 0.9) {
-                                    c.material.opacity += (tOp - c.material.opacity) * delta * 2.0;
-                                }
-                            });
-                        }
-                    });
-                    
-                    if (isNear && !sys.hasOpenedLogbook && !window._gameStartedCTA) {
-                        sys.hasOpenedLogbook = true;
-                        const panelFrame = document.getElementById('panel-frame');
-                        if (panelFrame && panelFrame.contentWindow) {
-                            panelFrame.contentWindow.postMessage({ type: 'FORCE_OPEN_JOURNAL' }, '*');
-                            panelFrame.contentWindow.postMessage({ type: 'SYNC_LOGBOOK_PAGE', pageIdx: 2 }, '*'); // Open to Quest 1 Start Game Page
-                        }
-                    }
-                    
-                    if (isNear && !sys.hasPlayerWaved) {
-                        sys.hasPlayerWaved = true;
-                        if (window._avWaveAction && window._avIdleAction) {
-                            window._avWaveAction.reset().play();
-                            window._avWaveAction.crossFadeFrom(window._avIdleAction, 0.4, false);
-                            setTimeout(() => {
-                                window._avIdleAction.reset().play();
-                                window._avIdleAction.crossFadeFrom(window._avWaveAction, 0.4, false);
-                            }, 2500);
-                        }
-                    } else if (!isNear) {
-                        sys.hasPlayerWaved = false;
-                        sys.hasGreeted = false;
-                    }
-                    
-                    // Ping-pong between idle and wait randomly every 5 to 10 seconds
-                    if (sys.proximityTimeout <= 0) {
-                        sys.proximityTimeout = 5.0 + (Math.random() * 5.0);
-                        // If they are safe and far away, we can execute ambient swaps
-                        if (sys.actions.idle && sys.actions.wait && sys.currentBaseAction) {
-                            const targetAction = (sys.currentBaseAction === sys.actions.idle) ? sys.actions.wait : sys.actions.idle;
-                            targetAction.reset().play();
-                            targetAction.crossFadeFrom(sys.currentBaseAction, 1.0, false);
-                            sys.currentBaseAction = targetAction;
-                        }
-                    }
+                // Delegate wildlife logic to the new Fixed-Time-Step MasterAI Director
+                if (window.masterAI) {
+                    window.masterAI.update(delta);
                 }
+                
+                // --- UNIVERSAL NPC PROXIMITY AI REMOVED ---
+                // Centralized logic now handled by window.npcMaster.update(delta) 
+                // in the main animation loop to prevent duplicate updates and parameter errors.
 
                 // --- WIND SWAY Optimization ---
                 const windTime = performance.now() * 0.001;
@@ -4132,75 +4306,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             
             // Avatar walk animation sync is handled earlier (line ~3020) using the correct isMoving flag
 
-            // --- AVATAR UI RENDER PASS ---
-            // THROTTLED: Managed dynamically by FuzzyBrain
-            const shouldAvatarRender = window.fuzzyBrain ? window.fuzzyBrain.shouldRenderAvatarPIP() : (frameCount % 3 === 0);
-            if (window._playerAvatar && window.avatarCtx && window.avatarCanvas2D && typeof window.avatarOrthoCam !== 'undefined' && shouldAvatarRender) {
-                const pFrame = document.getElementById('panel-frame');
-                if (pFrame && pFrame.contentWindow) {
-                    const tgt = pFrame.contentWindow.document.getElementById('avatar-pip-target');
-                    if (tgt) {
-                        // EVENT-DRIVEN LAYOUT FIX: Zero-cost asynchronous boundary updates
-                        if (!window._avatarObserver && window.ResizeObserver) {
-                            window._cachedAvatarRect = tgt.getBoundingClientRect();
-                            window._avatarObserver = new ResizeObserver(() => {
-                                window._cachedAvatarRect = tgt.getBoundingClientRect();
-                            });
-                            window._avatarObserver.observe(tgt);
-                        }
-                        
-                        const rect = window._cachedAvatarRect;
 
-                        if (rect && rect.width > 0) {
-                            // 2D Portrait Lock (GC-free: using pooled vectors)
-                            window._playerAvatar.getWorldPosition(_pool.v1);
-                            
-                            // Lock camera statically in front of the avatar for a pseudo-2D look
-                            window.avatarOrthoCam.position.set(_pool.v1.x, _pool.v1.y + 1.2, _pool.v1.z + 2.5);
-                            window.avatarOrthoCam.lookAt(_pool.v1.x, _pool.v1.y + 0.8, _pool.v1.z);
-
-                            const origAutoClear = renderer.autoClear;
-                            const oldClearAlpha = renderer.getClearAlpha();
-                            
-                            renderer.getClearColor(_pool.c1);
-                            renderer.setClearColor(0x000000, 0.0); // Transparent background!
-
-                            // We use high-speed HW Scissor rendering directly onto the main WebGL screen!
-                            const scX = rect.left;
-                            const scY = window.innerHeight - rect.bottom;
-                            const w = rect.width;
-                            const h = rect.height;
-
-                            renderer.setScissorTest(true);
-                            renderer.setScissor(scX, scY, w, h);
-                            renderer.setViewport(scX, scY, w, h);
-                            renderer.clear(true, true, true);
-
-                            // Isolate ONLY the avatar and lights (GC-free: reuse pre-allocated array)
-                            if (!window._avatarVisFlags) window._avatarVisFlags = new Array(256);
-                            const oldVisFlags = window._avatarVisFlags;
-                            scene.children.forEach((c, idx) => {
-                                oldVisFlags[idx] = c.visible;
-                                if (c !== window._playerAvatar && !c.isLight) {
-                                    c.visible = false;
-                                }
-                            });
-
-                            renderer.render(scene, window.avatarOrthoCam);
-
-                            // Restore Scene Visibility
-                            scene.children.forEach((c, idx) => {
-                                c.visible = oldVisFlags[idx];
-                            });
-
-                            renderer.setClearColor(_pool.c1, oldClearAlpha);
-                            renderer.setScissorTest(false);
-                            renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                            renderer.autoClear = origAutoClear;
-                        }
-                    }
-                }
-            }
 
 
             // --- SMART TARGETED CULLING ---
@@ -4291,28 +4397,42 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 // GC-free: reuse pool vectors for scale backup
                 const oa = _pool.v3;
                 const ob = _pool.v4;
+                const oc = window.THREE.Vector3 ? new window.THREE.Vector3() : new THREE.Vector3(); // extra backup
                 let restoreMainAvatar = false;
                 let restoreMainYB = false;
+                let restoreMainBHG = false;
 
                 if (window._isMapView) {
                     if (window._playerAvatar) { 
                         oa.copy(window._playerAvatar.scale); 
-                        window._playerAvatar.scale.multiplyScalar(5.0); 
+                        window._playerAvatar.scale.multiplyScalar(3.5); // 30% smaller than old 5.0
                         window._playerAvatar.updateMatrixWorld(true); 
                         restoreMainAvatar = true;
                     }
                     if (window._ybCharacterMesh) { 
                         ob.copy(window._ybCharacterMesh.scale); 
-                        window._ybCharacterMesh.scale.multiplyScalar(5.0 * 0.75); // Top down view: -25% base
+                        window._ybCharacterMesh.scale.multiplyScalar(3.5);
                         window._ybCharacterMesh.updateMatrixWorld(true); 
                         restoreMainYB = true;
+                    }
+                    if (window._bhgCharacterMesh) {
+                        oc.copy(window._bhgCharacterMesh.scale);
+                        window._bhgCharacterMesh.scale.multiplyScalar(3.5);
+                        window._bhgCharacterMesh.updateMatrixWorld(true);
+                        restoreMainBHG = true;
                     }
                 } else {
                     if (window._ybCharacterMesh) { 
                         ob.copy(window._ybCharacterMesh.scale); 
-                        window._ybCharacterMesh.scale.multiplyScalar(1.5); // FPV view: +50%
+                        window._ybCharacterMesh.scale.multiplyScalar(1.0); // Normal size in FPV
                         window._ybCharacterMesh.updateMatrixWorld(true); 
                         restoreMainYB = true;
+                    }
+                    if (window._bhgCharacterMesh) {
+                        oc.copy(window._bhgCharacterMesh.scale);
+                        window._bhgCharacterMesh.scale.multiplyScalar(1.0); // Normal size in FPV
+                        window._bhgCharacterMesh.updateMatrixWorld(true);
+                        restoreMainBHG = true;
                     }
                 }
 
@@ -4338,6 +4458,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 // Restore original scale matrices
                 if (restoreMainAvatar && window._playerAvatar) { window._playerAvatar.scale.copy(oa); window._playerAvatar.updateMatrixWorld(true); }
                 if (restoreMainYB && window._ybCharacterMesh) { window._ybCharacterMesh.scale.copy(ob); window._ybCharacterMesh.updateMatrixWorld(true); }
+                if (restoreMainBHG && window._bhgCharacterMesh) { window._bhgCharacterMesh.scale.copy(oc); window._bhgCharacterMesh.updateMatrixWorld(true); }
             }
             
             // Restore Fog Density
@@ -4368,39 +4489,88 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 window._pipObserver.observe(window.pipCanvas2D);
             }
             
-            // CORE FIX: We use high-speed Scissor rendering directly onto the main WebGL screen!
-            // This bypasses Canvas2D readbacks, but is now throttled by FuzzyBrain for low-end hardware rescue.
+            // --- AVATAR UI RENDER PASS (MOVED AFTER MAIN RENDER TO PREVENT WIPING) ---
+            if (window._playerAvatar && window.avatarCtx && window.avatarCanvas2D && typeof window.avatarOrthoCam !== 'undefined') {
+                const pFrame = document.getElementById('panel-frame');
+                if (pFrame && pFrame.contentWindow) {
+                    const tgt = pFrame.contentWindow.document.getElementById('avatar-pip-target');
+                    if (tgt) {
+                        if (!window._avatarObserver && window.ResizeObserver) {
+                            window._cachedAvatarRect = tgt.getBoundingClientRect();
+                            window._avatarObserver = new ResizeObserver(() => {
+                                window._cachedAvatarRect = tgt.getBoundingClientRect();
+                            });
+                            window._avatarObserver.observe(tgt);
+                        }
+                        const rect = window._cachedAvatarRect;
+                        if (rect && rect.width > 0) {
+                            window._playerAvatar.getWorldPosition(_pool.v1);
+                            window.avatarOrthoCam.position.set(_pool.v1.x, _pool.v1.y + 1.2, _pool.v1.z + 2.5);
+                            window.avatarOrthoCam.lookAt(_pool.v1.x, _pool.v1.y + 0.8, _pool.v1.z);
+
+                            const origAutoClear = renderer.autoClear;
+                            const oldClearAlpha = renderer.getClearAlpha();
+                            renderer.getClearColor(_pool.c1);
+                            renderer.setClearColor(0x000000, 0.0);
+
+                            const scX = rect.left;
+                            const scY = window.innerHeight - rect.bottom;
+                            const w = rect.width;
+                            const h = rect.height;
+
+                            renderer.setScissorTest(true);
+                            renderer.setScissor(scX, scY, w, h);
+                            renderer.setViewport(scX, scY, w, h);
+                            renderer.autoClear = false; // DON'T WIPE MAIN SCENE
+                            renderer.clearDepth(); // Only clear depth to layer on top
+
+                            renderer.render(scene, window.avatarOrthoCam);
+
+                            renderer.setClearColor(_pool.c1, oldClearAlpha);
+                            renderer.setScissorTest(false);
+                            renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                            renderer.autoClear = origAutoClear;
+                        }
+                    }
+                }
+            }
+
+            // Universe.Anu Engine Reconfiguration Listener
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'REQ_WORLD_RECONFIG') {
+                if (window.envBuilder && window._assetFactory) {
+                    console.log("[Universe.Anu] Triggering world reconfiguration...");
+                    window.envBuilder.rebuildWorld(window._assetFactory);
+                }
+            }
+        });
+
+        // --- COMPASS / MAP PIP RENDER ---
             const compassPip = window.pipCanvas2D;
-            const shouldCompassRender = window.fuzzyBrain ? window.fuzzyBrain.shouldRenderCompassPIP() : true;
-            if (compassPip && window._pendingPipCamera && window._cachedPipRect && shouldCompassRender) {
+            // REMOVED THROTTLE: WebGL-direct overlays must render every frame to avoid blinking when main buffer is cleared.
+            if (compassPip && window._pendingPipCamera && window._cachedPipRect) {
                 const rect = window._cachedPipRect;
-                
                 const w = Math.floor(rect.width);
                 const h = Math.floor(rect.height);
                 
                 if (w > 0 && h > 0) {
-                    // We must convert window coordinates to native WebGL bottom-left origin coordinates!
-                const scX = rect.left;
-                const scY = window.innerHeight - rect.bottom;
-                
-                const origAutoClear = renderer.autoClear;
-                
-                renderer.setScissorTest(true);
-                renderer.setScissor(scX, scY, w, h);
-                renderer.setViewport(scX, scY, w, h);
-                
-                // We explicitly clear inside the nested scissor instead of auto-clearing the color buffer.
-                // or we use the depth mask to carve the perfect circle.
-                renderer.autoClear = false;
-                
-                const origAspect = window._pendingPipCamera.aspect;
-                if (window._pendingPipCamera.isPerspectiveCamera) {
-                    const targetAspect = w / h;
-                    if (window._pendingPipCamera.aspect !== targetAspect) {
-                        window._pendingPipCamera.aspect = targetAspect;
-                        window._pendingPipCamera.updateProjectionMatrix();
+                    const scX = rect.left;
+                    const scY = window.innerHeight - rect.bottom;
+                    const origAutoClear = renderer.autoClear;
+                    
+                    renderer.setScissorTest(true);
+                    renderer.setScissor(scX, scY, w, h);
+                    renderer.setViewport(scX, scY, w, h);
+                    renderer.autoClear = false; 
+                    
+                    const origAspect = window._pendingPipCamera.aspect;
+                    if (window._pendingPipCamera.isPerspectiveCamera) {
+                        const targetAspect = w / h;
+                        if (window._pendingPipCamera.aspect !== targetAspect) {
+                            window._pendingPipCamera.aspect = targetAspect;
+                            window._pendingPipCamera.updateProjectionMatrix();
+                        }
                     }
-                }
                 
                 // Specific Render Hides/Shows
                 toggleFX(false);

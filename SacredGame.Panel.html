@@ -402,6 +402,14 @@
             color: black !important;
         }
 
+        #action-zone {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* Avatar */
         .avatar-circle {
             width: 86px;
@@ -414,7 +422,10 @@
             pointer-events: auto;
             cursor: pointer;
             z-index: 50;
-            position: relative;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             transition: transform 0.2s;
         }
 
@@ -1526,11 +1537,117 @@
             .build-btn.placeholder i {
                 color: rgba(141, 110, 99, 0.4);
             }
+            /* --- SETUP MODAL --- */
+        #setup-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(15px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+        #setup-modal.active { display: flex; }
+        .modal-box {
+            background: linear-gradient(145deg, #2b1a10, #1a100a);
+            border: 3px solid #fbc02d;
+            border-radius: 24px;
+            padding: 45px;
+            text-align: center;
+            max-width: 440px;
+            box-shadow: 0 0 40px rgba(251, 192, 45, 0.2), 0 20px 60px rgba(0,0,0,0.9);
+            position: relative;
+            overflow: hidden;
+        }
+        .modal-box::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(251, 192, 45, 0.05) 0%, transparent 70%);
+            animation: rotateGlow 10s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes rotateGlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .modal-box h2 {
+            font-family: 'Fredoka', sans-serif;
+            color: #fbc02d;
+            font-size: 2.4rem;
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .modal-box p {
+            color: #fff;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        .modal-btns { display: flex; gap: 20px; justify-content: center; }
+        .modal-btn {
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-family: 'Lato', sans-serif;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn-yes { background: #fbc02d; color: #000; border: none; }
+        .btn-no { background: transparent; color: #fff; border: 2px solid #fff; }
+        .modal-btn:hover { transform: scale(1.1); }
+
+        /* SETUP HUD BUTTON */
+        #setup-trigger {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 45px;
+            height: 45px;
+            background: rgba(43, 26, 16, 0.8);
+            border: 2px solid #fbc02d;
+            border-radius: 50%;
+            color: #fbc02d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: var(--z-hud);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: all 0.3s;
+        }
+        #setup-trigger:hover { transform: rotate(45deg) scale(1.1); background: #fbc02d; color: #000; }
         </style>
 </head>
 
 <body>
     <div id="ui-layer">
+        <!-- SETUP TRIGGER -->
+        <div id="setup-trigger" onclick="document.getElementById('setup-modal').classList.add('active')" title="Universe.Anu Engine Setup">
+            <i class="fa-solid fa-gear"></i>
+        </div>
+
+        <!-- SETUP MODAL -->
+        <div id="setup-modal">
+            <div class="modal-box">
+                <h2>UNIVERSE.ANU</h2>
+                <p>DO YOU WISH TO RECONFIGURE AND CREATE A NEW WORLD?</p>
+                <div class="modal-btns">
+                    <button class="modal-btn btn-yes" id="reconfig-confirm" onclick="
+                        this.innerHTML = '<i class=\'fa-solid fa-spinner fa-spin\'></i> Genesis...';
+                        this.style.pointerEvents = 'none';
+                        window.parent.postMessage({type:'REQ_WORLD_RECONFIG'}, '*'); 
+                        setTimeout(() => { document.getElementById('setup-modal').classList.remove('active'); this.innerHTML = 'YES'; this.style.pointerEvents = 'auto'; }, 2000);
+                    ">YES</button>
+                    <button class="modal-btn btn-no" onclick="document.getElementById('setup-modal').classList.remove('active')">NO</button>
+                </div>
+            </div>
+        </div>
         <div id="aria-announcer" class="sr-only" aria-live="polite" aria-atomic="true">Welcome to Sacred Adventures.
         </div>
         <div id="ui-container"></div>
@@ -1792,7 +1909,7 @@
         <div id="book-wrapper" class="book-hidden">
             <div class="drag-handle" id="book-drag-handle" title="Drag to move"></div>
             <div class="resize-handle" id="book-resize-handle" title="Drag to resize"></div>
-            <iframe id="logbookFrame" src="Component.NewJournal.html?v=7" allowtransparency="true" title="Logbook"
+            <iframe id="logbookFrame" src="Component.NewJournal.html?v=9" allowtransparency="true" title="Logbook"
                 style="border:none;"></iframe>
         </div>
 
@@ -2187,7 +2304,6 @@
                 document.body.classList.remove('hud-hidden');
             }
 
-            // 2b. FORCE OPEN JOURNAL ON ARRIVAL
             if (msg.type === 'FORCE_OPEN_JOURNAL') {
                 const book = document.getElementById('book-wrapper');
                 if (book && book.classList.contains('book-hidden')) {
@@ -2196,7 +2312,7 @@
                 setTimeout(() => {
                     const bookFrame = document.querySelector('#book-wrapper iframe');
                     if (bookFrame && bookFrame.contentWindow) {
-                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: 2 }, '*');
+                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: msg.pageIdx || 2 }, '*');
                     }
                 }, 300);
             }
@@ -2879,10 +2995,7 @@
             // If clicking generic vignette/background, close things
             if (e.target.id === 'ui-container' || e.target.classList.contains('ui-dimmed')) {
                 toggleUiFocus(false);
-                // Close Logbook if open
-                if (document.body.classList.contains('logbook-active') && typeof toggleLogbook === 'function') {
-                    toggleLogbook();
-                }
+                // Logbook auto-close removed per user request
                 // Close Action Ring
                 const z = document.getElementById('action-zone');
                 if (z) z.classList.remove('outer-active');

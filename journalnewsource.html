@@ -27,9 +27,9 @@
             --book-bg: transparent;
             --page-bg: #fdfbf7;
             --page-texture: url('vendor/textures/cream-paper.png');
-            --tab-inactive: rgba(30, 20, 15, 0.95);
-            --text-main: #2c1a14;
-            --text-heading: #1e293b;
+            --tab-inactive: rgba(35, 23, 17, 0.95);
+            --text-main: #000000;
+            --text-heading: #000000;
             --accent-gold: #fde047;
             /* Brightened for AAA 7:1 contrast on dark bg */
         }
@@ -59,6 +59,14 @@
             outline: 3px solid var(--accent-gold);
             outline-offset: 3px;
             border-radius: 4px;
+        }
+
+        @keyframes input-bloom {
+            0%, 100% { box-shadow: 0 0 5px 0px rgba(251, 192, 45, 0.2); border-color: rgba(255,255,255,0.25); }
+            50% { box-shadow: 0 0 20px 5px rgba(251, 192, 45, 0.8); border-color: rgba(251, 192, 45, 0.8); }
+        }
+        .bloom-input {
+            animation: input-bloom 2s infinite ease-in-out;
         }
 
         .sr-only {
@@ -100,14 +108,12 @@
             padding: 20px;
         }
 
-        /* MATHEMATICALLY LOCKED ASPECT RATIO 
-           1.35 creates a beautifully wide, majestic tome footprint 
-        */
+        /* MATHEMATICALLY LOCKED ASPECT RATIO */
         .book {
             width: 100%;
-            max-width: calc(85vh * 1.35);
+            max-width: calc(93.5vh * 1.136);
             height: auto;
-            aspect-ratio: 1.35;
+            aspect-ratio: 1.136;
             position: relative;
             background: transparent !important;
             box-shadow: none !important;
@@ -120,7 +126,7 @@
             top: 4%;
             bottom: 4%;
             left: 3%;
-            right: 8%;
+            right: 3%;
             display: flex;
             flex-direction: column;
             z-index: 10;
@@ -131,7 +137,7 @@
         /* --- PAGES WRAPPER --- */
         .pages-wrapper {
             height: 88%;
-            /* Leaves 12% for HUD to allow 44px touch targets */
+            /* Leaves 12% for HUD to allow 44px target heights */
             display: flex;
             position: relative;
             border-radius: 12px 12px 0 0;
@@ -158,6 +164,7 @@
             padding: 0 16px;
             background: var(--tab-inactive);
             color: #f5f5f4;
+            /* AAA contrast */
             border-radius: 8px 8px 0 0;
             cursor: pointer;
             display: flex;
@@ -228,7 +235,7 @@
             overflow-y: auto;
             overflow-x: hidden;
             padding-right: 4px;
-            padding-bottom: 45px;
+            padding-bottom: 50px;
             /* Buffer for pagination targets */
             display: flex;
             flex-direction: column;
@@ -303,6 +310,7 @@
             border-radius: 50%;
             background: rgba(28, 16, 11, 0.95);
             color: #fafaf9;
+            /* High contrast white */
             border: 2px solid rgba(255, 255, 255, 0.3);
             display: flex;
             align-items: center;
@@ -332,6 +340,7 @@
             opacity: 1;
             transition: all 0.3s;
             color: #44403c;
+            /* AAA contrast against light page */
             border-radius: 50%;
         }
 
@@ -380,6 +389,7 @@
         .integrated-hud {
             width: 100%;
             height: 12%;
+            /* Expanded for WCAG target spacing */
             flex-shrink: 0;
             display: flex;
             justify-content: space-between;
@@ -404,6 +414,7 @@
             border-radius: 6px;
             background: rgba(255, 255, 255, 0.05);
             color: #fde047;
+            /* AAA */
             cursor: pointer;
             transition: all 0.2s;
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -414,33 +425,7 @@
             color: #ffffff;
         }
 
-        .toy-btn-purple {
-            background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
-            border: 2px solid #581c87;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 4px 0 #581c87, 0 8px 15px rgba(0, 0, 0, 0.3);
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 13px;
-            min-height: 44px;
-            min-width: 44px;
-            padding: 10px 16px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.1s;
-            cursor: pointer;
-        }
-
-        .toy-btn-purple:active {
-            transform: translateY(4px);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 3px 5px rgba(0, 0, 0, 0.2);
-        }
-
-        /* ============================================
-           MOBILE VIEWPORT (Free Aspect Ratio adaptation)
-           ============================================ */
+        /* Responsive Resizing */
         @media (max-width: 860px) {
             #book-wrapper {
                 padding: 10px;
@@ -450,11 +435,11 @@
                 width: 100%;
                 max-width: none;
                 height: auto;
-                aspect-ratio: unset;
+                aspect-ratio: 1.136;
             }
 
             .book-tabs {
-                right: 8%;
+                right: 3%;
                 gap: 2px;
             }
 
@@ -471,6 +456,29 @@
             .integrated-hud {
                 padding: 0 8px;
             }
+        }
+
+        /* Purple Toy Button (48px) */
+        .toy-btn-purple {
+            background-color: #6a1b9a;
+            color: #ffffff;
+            height: 48px;
+            padding: 0 24px;
+            border-radius: 24px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            border: 3px solid #4a148c;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 0 #4a148c, 0 8px 10px rgba(0,0,0,0.2);
+            transition: all 0.1s;
+        }
+        .toy-btn-purple:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #4a148c, 0 4px 5px rgba(0,0,0,0.2);
         }
     </style>
 </head>
@@ -516,6 +524,11 @@
                             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('bestiary');}">
                             <i class="fa-solid fa-dragon" aria-hidden="true"></i> Bestiary
                         </div>
+                        <div class="book-tab" role="tab" tabindex="0" id="tab-buildings" aria-selected="false"
+                            onclick="switchBookTab('buildings')"
+                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('buildings');}">
+                            <i class="fa-solid fa-campground" aria-hidden="true"></i> Buildings
+                        </div>
                     </div>
 
                     <div class="pages-wrapper relative">
@@ -523,7 +536,7 @@
                         <div class="page-static left">
                             <div id="page-content-left" class="page-content"></div>
 
-                            <!-- Pagination on bottom-left -->
+                            <!-- BEST PRACTICE: Left page pagination on bottom-left -->
                             <div
                                 class="absolute bottom-4 left-6 flex items-center justify-start gap-4 text-stone-600 font-mono tracking-widest opacity-100 z-50">
                                 <span id="page-num-left" class="text-[14px] font-bold text-[#1c100b]"
@@ -540,7 +553,7 @@
                         <div class="page-static right">
                             <div id="page-content-right" class="page-content"></div>
 
-                            <!-- Pagination on bottom-right -->
+                            <!-- BEST PRACTICE: Right page pagination on bottom-right -->
                             <div
                                 class="absolute bottom-4 right-6 flex items-center justify-end gap-4 text-stone-600 font-mono tracking-widest opacity-100 z-50">
                                 <div class="nav-hitbox" tabindex="0" role="button" aria-label="Next Page"
@@ -608,8 +621,8 @@
 
                                 <!-- Input Box (WCAG AAA Contrast > 7:1 for text/bg) -->
                                 <input type="text" id="llm-input"
-                                    class="w-full h-full rounded-md font-medium text-[14px] transition-all shadow-inner focus:outline-none"
-                                    style="background-color: #291c14; border: 1px solid rgba(255,255,255,0.4); color: #f5f5f4; padding-left: 90px; padding-right: 140px; color-scheme: dark;"
+                                    class="w-full h-full font-medium transition-all shadow-inner focus:outline-none bloom-input"
+                                    style="background-color: #2b1a10; border: 0.25px solid rgba(255,255,255,0.25); border-radius: 7px; color: #f5f5f4; font-size: 14px; padding-left: 90px; padding-right: 140px; color-scheme: dark;"
                                     placeholder="Ask or Interact with the world..." autocomplete="off"
                                     onkeydown="if(event.key==='Enter'){event.preventDefault(); submitLogbookChat();}">
 
@@ -633,7 +646,7 @@
                                 </div>
                             </div>
 
-                            <!-- PARSER FEEDBACK ROW (1-line output) -->
+                            <!-- PARSER FEEDBACK / NLP OUTPUT (directly below input) -->
                             <div id="parser-feedback" aria-live="polite"
                                 class="font-mono whitespace-nowrap overflow-hidden text-ellipsis"
                                 style="color: #d6d3d1; font-size: 11px; line-height: 16px; height: 16px; margin-top: 4px; padding-left: 4px;">
@@ -656,6 +669,7 @@
         window.initiateOpenSequence = function () { };
         window.initiateCloseSequence = function () { };
         window._hasNotifiedClose = true;
+
         window._currentCW = 0;
         window._currentPW = 0;
 
@@ -852,51 +866,45 @@
             }
 
             // --- THE CALCULATOR ENGINE (+20px Perfect Alignment) ---
-            const cL = 14.0;
-            const cW = 7.7; // Dummy value, gets overridden by getCalculatedDimensions
-            const cT = 0.15;
-            const pT = 0.25;
-            const coverRadius = 0.4;
-            const pageRadius = 0.3;
-            const spineRadius = pT + cT / 2;
-
             function getCalculatedDimensions() {
                 const domBook = document.querySelector('.book');
                 const interior = document.querySelector('.book-interior-container');
-                const pagesDom = document.querySelector('.pages-wrapper');
+
+                // Base 3D book vertical dimension length
+                const cL = 14.0;
 
                 const h = domBook ? domBook.clientHeight : window.innerHeight * 0.85;
                 const pxPerUnit = h / cL;
 
                 // X-Axis Width calculations
-                const interiorW_Px = interior ? interior.clientWidth : h * 1.35 * 0.94;
+                // The interior wrapper leaves 3% margin on both left and right: (1.0 - 0.03*2) = 0.94
+                const interiorW_Px = interior ? interior.clientWidth : h * 1.25 * 0.94;
+
+                // One physical 3D page maps exactly to half the interior CSS pixel width
                 const singlePageW_Px = interiorW_Px / 2;
+
+                // Convert CSS Pixels to 3D Scene Units
                 const calcPW = singlePageW_Px / pxPerUnit;
 
-                // CALCULATOR: Open pages width + 20px on the free edge
+                // CALCULATOR REQUIREMENT: Cover width = open pages width + 20px on the free edge
                 const calcCW = (singlePageW_Px + 20) / pxPerUnit;
 
                 // Y-Axis Height calculations
-                const pageH_Px = pagesDom ? pagesDom.clientHeight : h * 0.92 * 0.88;
-                const calcPL = pageH_Px / pxPerUnit;
+                // The interior wrapper leaves 4% top and 4% bottom margin: (1.0 - 0.04*2) = 0.92
+                const interiorH_Px = interior ? interior.clientHeight : h * 0.92;
+                const calcPL = interiorH_Px / pxPerUnit;
 
-                // Find exactly where the center of the pages should be to underlay the DOM perfectly
-                let pageTopPx = h * 0.04;
-                let pageBottomPx = h - (pageTopPx + pageH_Px);
+                // Margins are perfectly symmetrical (top: 4%, bottom: 4%), meaning the center remains Z=0
+                const pageCenterZ = 0;
 
-                if (pagesDom && domBook) {
-                    const bookRect = domBook.getBoundingClientRect();
-                    const pagesRect = pagesDom.getBoundingClientRect();
-                    pageTopPx = pagesRect.top - bookRect.top;
-                    pageBottomPx = bookRect.bottom - pagesRect.bottom;
-                }
-
-                const marginTopUnits = pageTopPx / pxPerUnit;
-                const marginBottomUnits = pageBottomPx / pxPerUnit;
-                const pageCenterZ = -(marginBottomUnits - marginTopUnits) / 2;
-
-                return { cW: calcCW, pW: calcPW, pL: calcPL, pageCenterZ: pageCenterZ };
+                return { cW: calcCW, pW: calcPW, pL: calcPL, pageCenterZ: pageCenterZ, cL: cL };
             }
+
+            const cT = 0.15;
+            const pT = 0.25;
+            const coverRadius = 0.4;
+            const pageRadius = 0.3;
+            const spineRadius = pT + cT / 2;
 
             const leatherMat = new THREE.MeshStandardMaterial({ map: createLeatherTexture(), roughness: 0.85, metalness: 0.05, bumpMap: createLeatherBumpMap(), bumpScale: 0.015 });
             const edgeMat = new THREE.MeshStandardMaterial({ map: createPageEdgeTexture(), roughness: 0.9, metalness: 0.05 });
@@ -905,7 +913,7 @@
             const coverMatArray = [leatherMat, leatherMat, leatherMat, leatherMat, leatherMat, leatherMat];
 
             const texLoader = new THREE.TextureLoader();
-            const liveUrl = './Assets/Journal.CoverPage.png';
+            const liveUrl = './Assets/Journal.Cover.png';
 
             texLoader.load(liveUrl,
                 (tex) => {
@@ -932,13 +940,14 @@
                     this.currentRotY = -0.2;
                     this.targetRotY = -0.2;
 
+                    // Engage the dynamic calculator
                     const dims = getCalculatedDimensions();
                     window._currentCW = dims.cW;
                     window._currentPW = dims.pW;
 
                     this.targetPosX = -dims.cW / 2;
 
-                    this.rightCover = new THREE.Mesh(createBookGeo(dims.cW, cL, cT, coverRadius), coverMatArray);
+                    this.rightCover = new THREE.Mesh(createBookGeo(dims.cW, dims.cL, cT, coverRadius), coverMatArray);
                     this.rightCover.position.set(dims.cW / 2, -pT - cT / 2, 0);
                     this.group.add(this.rightCover);
 
@@ -948,7 +957,7 @@
                     this.rightPages.position.set(dims.pW / 2, -pT / 2, dims.pageCenterZ);
                     this.group.add(this.rightPages);
 
-                    this.spine = new THREE.Mesh(new THREE.CylinderGeometry(spineRadius, spineRadius, cL, 32, 1, false, Math.PI / 2, Math.PI), leatherMat);
+                    this.spine = new THREE.Mesh(new THREE.CylinderGeometry(spineRadius, spineRadius, dims.cL, 32, 1, false, Math.PI / 2, Math.PI), leatherMat);
                     this.spine.rotation.x = Math.PI / 2;
                     this.spine.position.set(0, -pT / 2, 0);
                     this.group.add(this.spine);
@@ -957,12 +966,13 @@
                     this.hinge.position.set(0, 0, 0);
                     this.group.add(this.hinge);
 
-                    this.leftCover = new THREE.Mesh(createBookGeo(dims.cW, cL, cT, coverRadius), coverMatArray);
+                    this.leftCover = new THREE.Mesh(createBookGeo(dims.cW, dims.cL, cT, coverRadius), coverMatArray);
                     this.leftCover.position.set(dims.cW / 2, pT + cT / 2, 0);
                     this.hinge.add(this.leftCover);
 
-                    const decalShape = getBookShape(dims.cW - 0.2, cL - 0.2, coverRadius);
+                    const decalShape = getBookShape(dims.cW - 0.2, dims.cL - 0.2, coverRadius);
                     const decalGeo = new THREE.ShapeGeometry(decalShape);
+
                     decalGeo.computeBoundingBox();
                     const min = decalGeo.boundingBox.min;
                     const max = decalGeo.boundingBox.max;
@@ -970,9 +980,9 @@
                     for (let i = 0; i < uvAttr.count; i++) {
                         uvAttr.setXY(i, (decalGeo.attributes.position.getX(i) - min.x) / (max.x - min.x), (decalGeo.attributes.position.getY(i) - min.y) / (max.y - min.y));
                     }
+
                     decalGeo.center();
                     decalGeo.rotateX(-Math.PI / 2);
-
                     this.decal = new THREE.Mesh(decalGeo, coverMat);
                     this.decal.position.set(dims.cW / 2, pT + cT + 0.05, 0);
                     this.hinge.add(this.decal);
@@ -991,7 +1001,7 @@
 
                 update() {
                     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                    const speed = prefersReducedMotion ? 1.0 : (this.isOpen ? 0.06 : 0.15);
+                    const speed = prefersReducedMotion ? 1.0 : (this.isOpen ? 0.2 : 0.35);
 
                     this.currentAngle += (this.targetAngle - this.currentAngle) * speed;
                     this.hinge.rotation.z = this.currentAngle;
@@ -1034,14 +1044,14 @@
                 window._currentPW = dims.pW;
 
                 window.journal3D.rightCover.geometry.dispose();
-                window.journal3D.rightCover.geometry = createBookGeo(dims.cW, cL, cT, coverRadius);
+                window.journal3D.rightCover.geometry = createBookGeo(dims.cW, dims.cL, cT, coverRadius);
                 window.journal3D.rightCover.position.set(dims.cW / 2, -pT - cT / 2, 0);
 
                 window.journal3D.leftCover.geometry.dispose();
-                window.journal3D.leftCover.geometry = createBookGeo(dims.cW, cL, cT, coverRadius);
+                window.journal3D.leftCover.geometry = createBookGeo(dims.cW, dims.cL, cT, coverRadius);
                 window.journal3D.leftCover.position.set(dims.cW / 2, pT + cT / 2, 0);
 
-                const decalShape = getBookShape(dims.cW - 0.2, cL - 0.2, coverRadius);
+                const decalShape = getBookShape(dims.cW - 0.2, dims.cL - 0.2, coverRadius);
                 const decalGeo = new THREE.ShapeGeometry(decalShape);
                 decalGeo.computeBoundingBox();
                 const min = decalGeo.boundingBox.min;
@@ -1074,14 +1084,15 @@
                 const domBook = document.querySelector('.book');
                 if (!domBook || domBook.clientHeight === 0) return;
 
+                const dims = getCalculatedDimensions();
                 const screenFraction = domBook.clientHeight / window.innerHeight;
-                const visibleLengthAtZ = cL / screenFraction;
+                const visibleLengthAtZ = dims.cL / screenFraction;
                 const distance = visibleLengthAtZ / (2 * Math.tan(Math.PI * camera.fov / 360));
 
                 const rect = domBook.getBoundingClientRect();
                 const domCenterY = rect.top + rect.height / 2;
                 const screenCenterY = window.innerHeight / 2;
-                const pixelsPerUnit = domBook.clientHeight / cL;
+                const pixelsPerUnit = domBook.clientHeight / dims.cL;
                 const cameraZOffset = -(domCenterY - screenCenterY) / pixelsPerUnit;
 
                 camera.position.set(0, distance, -cameraZOffset);
@@ -1387,17 +1398,20 @@
             { id: "axe", name: "Stone Axe", type: "tool", interactable: true },
             { id: "yellowbutterfly", name: "Yellow Butterfly", type: "creature", interactable: true },
             { id: "campfire", name: "Campfire", type: "object", interactable: true },
-            { id: "fox", name: "Wild Fox", type: "creature", interactable: true }
+            { id: "fox", name: "Wild Fox", type: "creature", interactable: true },
+            { id: "bringshappinessgirl", name: "Brings Happiness Girl", type: "npc", interactable: true },
+            { id: "rabbit", name: "Wild Rabbit", type: "creature", interactable: true },
+            { id: "deer", name: "Deer", type: "creature", interactable: true },
+            { id: "naturespirit", name: "Nature Spirit", type: "npc", interactable: true }
         ];
 
         /* --- VALID GAME VERBS --- */
         window.VALID_VERBS = [
             "get", "fish", "chop", "eat", "help", "talk", "sleep", "gather",
             "hide", "run", "walk", "look", "climb", "enter", "interact",
-            "use", "examine", "take", "go", "pick", "build", "craft"
+            "use", "examine", "take", "go", "pick", "build", "craft", "start"
         ];
 
-        /* PRE-PARSER & SUBMISSION */
         function submitLogbookChat() {
             const inputEl = document.getElementById('llm-input');
             const feedbackEl = document.getElementById('parser-feedback');
@@ -1405,15 +1419,20 @@
 
             if (!val) return;
 
-            // Strip punctuation for cleaner parsing
+            const cmd = val.toLowerCase();
+            const closeCommands = ['close', 'exit', 'exit journal', 'close journal', 'close book', 'exit book', 'quit', 'bye'];
+            if (closeCommands.includes(cmd)) {
+                inputEl.value = ''; inputEl.blur();
+                if (window.initiateCloseSequence) window.initiateCloseSequence();
+                return;
+            }
+
             const cleanVal = val.replace(/[^\w\s]/gi, '');
             const words = cleanVal.split(/\s+/);
             const firstWord = words[0];
 
-            // 1. Strict Verb Filtering (Block Junk Words)
             let matchedVerb = window.VALID_VERBS.find(v => words.includes(v));
 
-            // Fallback check
             if (!matchedVerb) {
                 matchedVerb = window.VALID_VERBS.find(v => firstWord.startsWith(v));
             }
@@ -1426,7 +1445,6 @@
                 return;
             }
 
-            // 2. Identify Target Entity
             let matchedEntity = null;
             for (let entity of window.INTERACTIVE_ENTITIES_MANIFEST) {
                 if (val.includes(entity.name.toLowerCase()) || val.includes(entity.id.toLowerCase())) {
@@ -1445,22 +1463,10 @@
                 feedbackEl.style.color = '#86efac';
             }
 
-            try {
-                window.parent.postMessage({
-                    type: 'PROCESS_INPUT',
-                    value: val,
-                    context: {
-                        currentTab: game.currentTab,
-                        currentPage: game.currentPageIdx,
-                        interactiveModels: window.INTERACTIVE_ENTITIES_MANIFEST,
-                        recognizedVerb: matchedVerb
-                    }
-                }, '*');
-            } catch (e) { }
+            try { window.top.postMessage({ type: 'PROCESS_INPUT', value: val, context: { currentTab: game.currentTab, currentPage: game.currentPageIdx, interactiveModels: window.INTERACTIVE_ENTITIES_MANIFEST, recognizedVerb: matchedVerb } }, '*'); } catch (e) { }
 
-            inputEl.value = '';
-            inputEl.blur();
-
+            inputEl.classList.remove('bloom-input');
+            inputEl.value = ''; inputEl.blur();
             const announcer = document.getElementById('sr-announcer');
             if (announcer) announcer.textContent = feedbackEl.textContent;
         }
@@ -1473,19 +1479,44 @@
                     title: "Welcome",
                     icon: "fa-solid fa-gamepad",
                     contentBlocks: [
-                        { type: "video-box", url: "https://www.sacredones.org/SacredAdventures/Assets/AnimatedOpening.mp4" },
-                        { type: "text-box", text: "You can interact with everything in the scene by typing if you would like." }
+                        {
+                            type: "html-box", html: `
+                            <div class="w-full mb-4">
+                                <video autoplay loop muted playsinline preload="auto" tabindex="0" class="rounded-md shadow-md w-full aspect-video object-cover cursor-pointer border border-[#1c100b]/20 focus:outline-none focus:ring-2 focus:ring-[#cda434]"
+                                    onclick="if(this.paused){this.play();}else{this.pause();}">
+                                    <source src="./Assets/AnimatedOpening.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <p class="book-text">Welcome to Sacred Adventures!<br><br>This game is connected to a real-world charity project to build the same buildings you will -- in the real world. This is a digital twin game, so the more you play, the more interest we get to help build our real Sioux Indian Village!</p>
+                        ` }
                     ]
                 },
                 {
                     pageId: 2,
-                    title: "Introduction to the PIP",
+                    title: "The Map PIP",
                     icon: "fa-solid fa-map",
                     contentBlocks: [
                         { type: "pip-box" },
-                        { type: "text-box", text: "Click the live viewfinder above to enter the Village View and start building. Click the button below to start playing." }
+                        { type: "text-box", text: "Click the live viewfinder above to enter the Village View and start building. Click the button below to start playing." },
+                        { type: "text-box", text: "Use the text box below to interact with the game. You can interact with everything in the scene by typing if you would like. This is a real 3D Game for WCAG Accessibility." }
                     ],
-                    button: { label: "Start Game", action: "window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'yellowbutterfly' }, '*'); setTimeout(() => { window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); }, 300);" }
+                    button: { label: "Start Game", action: "const input = document.getElementById('llm-input'); if(input) input.classList.remove('bloom-input'); window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'yellowbutterfly' }, '*'); setTimeout(() => { window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); }, 300);" }
+                },
+                {
+                    pageId: 3,
+                    title: "Yellow Butterfly",
+                    contentBlocks: [
+                        { type: "pip-box", target: "yellowButterfly" },
+                        { type: "text-box", text: "Welcome to our village. You can learn to build your own village by first helping to build the digital twin. To build a tipi, you must first speak with my daughter." }
+                    ],
+                    button: { label: "Meet Her", style: "background-color: #6a1b9a; color: white;", action: "window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'bringshappinessgirl' }, '*'); setTimeout(() => { window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); }, 300);" }
+                },
+                {
+                    pageId: 4,
+                    title: "Brings Happiness Girl",
+                    contentBlocks: [
+                        { type: "text-box", text: "Hello! I am Brings Happiness Girl. I will teach you the ways of building our home." }
+                    ]
                 }
             ],
             quests: [
@@ -1495,16 +1526,24 @@
                     contentBlocks: [
                         { type: "text-box", text: "Your journey starts here. Explore the world and discover your first quest." }
                     ],
-                    button: { label: "Start Game", action: "window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');" }
+                    button: { label: "Start Game", action: "const input = document.getElementById('llm-input'); if(input) input.classList.remove('bloom-input'); window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'yellowbutterfly' }, '*'); setTimeout(() => { window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); }, 300);" }
                 }
             ],
             bestiary: [
                 {
                     pageId: 1,
-                    title: "Wild Fox",
+                    title: "Creatures of the Valley",
                     contentBlocks: [
-                        { type: "image-box", url: "https://images.unsplash.com/photo-1590845947698-8924d7409b56?auto=format&fit=crop&w=400&q=80" },
-                        { type: "text-box", text: "A fast, clever creature often found near the forest edges." }
+                        { type: "text-box", text: "You have not discovered any creatures yet." }
+                    ]
+                }
+            ],
+            buildings: [
+                {
+                    pageId: 1,
+                    title: "Village Architecture",
+                    contentBlocks: [
+                        { type: "text-box", text: "Select a building in Village View to see its details." }
                     ]
                 }
             ]
@@ -1519,10 +1558,17 @@
                     }
                     return `<div class="book-text"><p>${text}</p></div>`;
                 }
+                if (block.type === 'html-box') {
+                    return `<div class="w-full text-left">${block.html}</div>`;
+                }
                 if (block.type === 'pip-box') {
+                    const targetId = block.target || 'pip';
+                    // We only want the click handler on the 'pip' map target, not on 3D holes
+                    const clickAction = targetId === 'pip' ? "if(window.parent.emit) window.parent.emit('TOGGLE_VIEW_MODE');" : "";
+                    const cursorClass = targetId === 'pip' ? "cursor-pointer hover:scale-[1.02]" : "";
                     return `
-                        <div class="w-full flex justify-center mt-2 mb-3">
-                            <div onclick="if(window.parent.emit) window.parent.emit('TOGGLE_VIEW_MODE');" data-pip-target="tipi" class="cursor-pointer hover:scale-105 transition-transform rounded-full shadow-[inset_0_4px_10px_rgba(0,0,0,0.6),0_4px_15px_rgba(28,16,11,0.4)] border-4 border-[#1c100b] w-[45px] h-[45px] md:w-[60px] md:h-[60px] bg-transparent relative overflow-hidden flex items-center justify-center">
+                        <div class="w-full flex justify-center mt-1 mb-2">
+                            <div onclick="${clickAction}" data-pip-target="${targetId}" class="w-full aspect-square max-w-[140px] bg-stone-300 rounded-full border-4 border-stone-800/40 shadow-inner flex flex-col items-center justify-center overflow-hidden relative ${cursorClass} transition-transform" style="background-image: url('Assets/PIP.SacredOnes.png'); background-size: cover; background-position: center;">
                             </div>
                         </div>
                     `;
@@ -1535,11 +1581,12 @@
                     `;
                 }
                 if (block.type === 'video-box') {
+                    const vidSrc = window.parent && window.parent._cachedVideoBlobUrl ? window.parent._cachedVideoBlobUrl : block.url;
                     return `
                         <div class="w-full flex justify-center mt-2 mb-3">
-                            <video muted playsinline autoplay class="rounded-md shadow-md max-w-[80%] max-h-[140px] cursor-pointer border border-[#1c100b]/20"
-                                onended="this.currentTime=0; this.pause();" onclick="if(this.paused){this.play();}else{this.pause();}">
-                                <source src="${block.url}" type="video/mp4">
+                            <video muted playsinline autoplay preload="auto" class="rounded-md shadow-md max-w-[80%] max-h-[140px] cursor-pointer border border-[#1c100b]/20"
+                                onended="this.pause();" onclick="if(this.paused){this.currentTime=0; this.play();}else{this.pause();}">
+                                <source src="${vidSrc}" type="video/mp4">
                             </video>
                         </div>
                     `;
@@ -1617,17 +1664,23 @@
             }
         }
 
-        let lastAlignTime = 0;
-        function alignLoop(timestamp) {
-            requestAnimationFrame(alignLoop);
+        function scheduleAlign() {
             if (window._isBookVisibleOverride === false) return;
-            if (timestamp - lastAlignTime >= 100) {
-                alignTipiCanvas();
-                alignAxeCanvas();
-                lastAlignTime = timestamp;
-            }
+            alignTipiCanvas();
+            alignAxeCanvas();
         }
-        requestAnimationFrame(alignLoop);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.ResizeObserver) {
+                const ro = new ResizeObserver(() => scheduleAlign());
+                ro.observe(document.body);
+            }
+            if (window.MutationObserver) {
+                const mo = new MutationObserver(() => scheduleAlign());
+                const container = document.querySelector('.book-content');
+                if (container) mo.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+            }
+        });
 
         window.addEventListener('message', (e) => {
             const d = e.data;
@@ -1656,6 +1709,47 @@
             }
             if (d.type === 'SWITCH_TAB') if (typeof window.switchBookTab === 'function') window.switchBookTab(d.tab);
             if (d.type === 'ADD_PAGE') window.addPage(d.category, d.title, d.text, d.state, d.imageUrl, d.videoUrl, d.buttonLabel, d.buttonAction);
+
+            if (d.type === 'NLP_RESPONSE') {
+                const logEl = document.getElementById('parser-feedback');
+                if (logEl) {
+                    logEl.textContent = d.msg;
+                    logEl.style.color = '#86efac';
+                    setTimeout(() => { if (logEl.textContent === d.msg) { logEl.textContent = 'System loaded and awaiting input.'; logEl.style.color = '#d6d3d1'; } }, 6000);
+                }
+                const announcer = document.getElementById('sr-announcer');
+                if (announcer) announcer.textContent = d.msg;
+            }
+
+            if (d.type === 'SHOW_BUILDING_INFO') {
+                window.LOGBOOK_DATA.buildings = [{
+                    pageId: 1,
+                    title: `Tipi ${d.tipiId}`,
+                    contentBlocks: [
+                        { type: "html-box", html: `<p class="book-text">${d.ownerText}</p>` }
+                    ]
+                }];
+                if (typeof window.switchBookTab === 'function') window.switchBookTab('buildings');
+                if (window.initiateOpenSequence && (!window.journal3D || !window.journal3D.isOpen)) {
+                    window.initiateOpenSequence();
+                }
+            }
+
+            if (d.type === 'YB_GREETING_ARRIVED') {
+                if (typeof window.switchBookTab === 'function') window.switchBookTab('log');
+                if (typeof window.turnPage === 'function') {
+                    game.currentPageIdx = 2;
+                    updateBookView();
+                }
+            }
+
+            if (d.type === 'BHG_GREETING_ARRIVED') {
+                if (typeof window.switchBookTab === 'function') window.switchBookTab('log');
+                if (typeof window.turnPage === 'function') {
+                    game.currentPageIdx = 2; // Fixed logic to point to the correct spread
+                    updateBookView();
+                }
+            }
         });
     </script>
 </body>

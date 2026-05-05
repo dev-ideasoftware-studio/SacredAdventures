@@ -150,32 +150,10 @@ class FuzzyBrain {
     }
     
     /**
-     * Update animations/physics ONLY for visible NPCs and creatures.
+     * Note: updateAnimations was removed in v2.0.0. 
+     * FuzzyBrain no longer controls AI logic or delta-time throttling.
+     * Wildlife and NPCs are now managed by MasterAI and MasterNPCAI respectively.
      */
-    updateAnimations(delta) {
-        if(!this.enabled) return;
-        
-        // 1. Update NPCs if visible
-        for(const npc of this.npcs) {
-            if(npc.mesh && npc.mesh.visible) {
-                if(npc.system && typeof npc.system.update === 'function') {
-                    npc.system.update(delta);
-                } else if(npc.system && npc.system.mixer) {
-                    npc.system.mixer.update(delta);
-                }
-            }
-        }
-        
-        // 2. Update Creature Systems (Throttled based on quality)
-        if(this.frameCount % this.aiThrottle === 0) {
-            const adjustedDelta = delta * this.aiThrottle;
-            for(const [name, sys] of Object.entries(this.creatureSystems)) {
-                if(sys.update) {
-                    sys.update(adjustedDelta);
-                }
-            }
-        }
-    }
     
     // --- MAIN UPDATE (call once per frame) ---
     update(delta) {
@@ -368,8 +346,6 @@ class FuzzyBrain {
 
     shouldRenderAvatarPIP() {
         if(!this.pipEnabled) return false;
-        // In SURVIVAL mode (skip > 8), pause avatar entirely to rescue frame rate
-        if (this.avatarSkipFrames >= 10) return false;
         return (this.frameCount % this.avatarSkipFrames === 0);
     }
 

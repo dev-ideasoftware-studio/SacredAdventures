@@ -7,13 +7,22 @@ class RabbitSystem {
         this.rabbits = [];
         this.mothers = [];
         
-        // Static burrows/holes around the map near Tipis
+        // Static burrows/holes around the map near Tipis (Snapped to hex tiles if available)
         this.burrows = [
-            new THREE.Vector3(4, 0, -5),   // Near Tipi 1 (0, 0)
-            new THREE.Vector3(-15, 0, 8),  // Near Tipi 3 (-12, 12)
+            new THREE.Vector3(12, 0, -12),   // Moved further from Tipi 1
+            new THREE.Vector3(-24, 0, 8),    // Moved further from Tipi 3
             new THREE.Vector3(25, 0, 25),
             new THREE.Vector3(-20, 0, -20)
         ];
+        
+        // Snap to hex grid if available
+        if (window.getNearestHexCenter) {
+            this.burrows.forEach(b => {
+                const hex = window.getNearestHexCenter(b.x, b.z);
+                b.x = hex.x;
+                b.z = hex.z;
+            });
+        }
         
         // Config
         this.alertDist = 20.0;
@@ -33,14 +42,16 @@ class RabbitSystem {
             FLEEING_TO_HOLE: 6,
             HIDDEN: 7,
             PEEK_OUT: 8,
-            FOLLOWING_MOM: 9
+            FOLLOWING_MOM: 9,
+            APPROACH_PLAYER: 10
         };
         
         this.init();
     }
     
     init() {
-        const loader = new THREE.OBJLoader();
+        // Fix: Use global OBJLoader explicitly exposed from EngineMain instead of THREE.OBJLoader
+        const loader = new window.OBJLoader();
         loader.load('Assets/Rabbit.obj', (obj) => {
             let mesh = null;
             obj.traverse(c => { if(c.isMesh) mesh = c; });
@@ -49,15 +60,29 @@ class RabbitSystem {
             // Natural Colors (Greys/Browns)
             const colors = [0xd2b48c, 0x8b4513, 0x877c74, 0x6e5c54, 0xa0522d];
             
-            // 0. Render visual burrows
-            const holeGeo = new THREE.CircleGeometry(0.6, 16);
-            const holeMat = new THREE.MeshBasicMaterial({ color: 0x110c08, depthWrite: false }); // dark dirt
+            // 0. Render High-Fidelity Neumorphic 3D Burrows
             this.burrows.forEach(b => {
-                const holeMesh = new THREE.Mesh(holeGeo, holeMat);
-                holeMesh.rotation.x = -Math.PI / 2;
-                b.y = this.getHeight(b.x, b.z);
-                holeMesh.position.set(b.x, b.y + 0.05, b.z); // slightly above ground to prevent z-fighting
-                this.scene.add(holeMesh);
+                const holeGroup = new THREE.Group();
+                const bY = this.getHeight(b.x, b.z);
+                b.y = bY;
+                holeGroup.position.set(b.x, bY, b.z);
+
+                // The "Home": A deep, dark cylinder sunk into the ground
+                const innerGeo = new THREE.CylinderGeometry(0.15, 0.12, 0.8, 12);
+                const innerMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 1.0, metalness: 0.0 });
+                const innerHole = new THREE.Mesh(innerGeo, innerMat);
+                innerHole.position.y = -0.35; // Sunk
+                holeGroup.add(innerHole);
+
+                // The Neumorphic Rim: Soft, organic torus for "dug out" dirt look
+                const rimGeo = new THREE.TorusGeometry(0.15, 0.06, 12, 24);
+                const rimMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.9, metalness: 0.0 });
+                const rim = new THREE.Mesh(rimGeo, rimMat);
+                rim.rotation.x = Math.PI / 2;
+                rim.position.y = 0.02;
+                holeGroup.add(rim);
+
+                this.scene.add(holeGroup);
             });
 
             // 1. Spawn Family Clusters (Mother + Bunnies) near burrows
@@ -128,8 +153,20 @@ class RabbitSystem {
         return rabbit;
     }
     
-    update(delta) {
+    update(delta, params = {}) {
+        if (this.player && delta > 0) {
+            if (!this.lastPlayerPos) this.lastPlayerPos = this.player.position.clone();
+            const distMoved = this.player.position.distanceTo(this.lastPlayerPos);
+            this.playerSpeed = distMoved / delta;
+            this.lastPlayerPos.copy(this.player.position);
+        } else {
+            this.playerSpeed = 0;
+        }
+
         for(const r of this.rabbits) {
+            // Restore missing animation update
+            if (r.mixer) r.mixer.update(delta);
+            
             this.updateAI(r, delta);
             this.updatePhysics(r, delta);
         }
@@ -179,7 +216,9 @@ class RabbitSystem {
         }
         
         // 2. Fleeing Phase
-        if(distToPlayer < this.fleeDist) {
+        const dynamicFleeDist = (this.playerSpeed > 2.0) ? 15.0 : 4.0;
+        
+        if(distToPlayer < dynamicFleeDist && this.playerSpeed > 0.5) {
             if(r.state !== this.STATES.FLEEING_TO_HOLE && r.state !== this.STATES.FLEEING) {
                 // Find nearest burrow
                 let nearestHole = null;
@@ -195,6 +234,20 @@ class RabbitSystem {
                 } else {
                     r.state = this.STATES.FLEEING;
                 }
+            }
+        } else if (distToPlayer < 20.0 && this.playerSpeed < 0.2 && r.state === this.STATES.IDLE && Math.random() < 0.05) {
+            // Player is standing still, approach curiously
+            r.state = this.STATES.APPROACH_PLAYER;
+        }
+        
+        // Approach Logic
+        if (r.state === this.STATES.APPROACH_PLAYER) {
+            if (distToPlayer < 3.0 || this.playerSpeed > 0.5) {
+                r.state = this.STATES.IDLE;
+            } else {
+                r.target.subVectors(this.player.position, r.mesh.position);
+                r.target.y = 0;
+                r.target.normalize();
             }
         }
 
@@ -276,45 +329,46 @@ class RabbitSystem {
         
         // Gather and Jump Locomotion
         if (speed > 0) {
-            r.hopCycle += speed * 0.8 * delta; // Increased frequency for shorter, quicker hops
+            r.hopCycle += speed * 0.9 * delta; // Faster cycle for snappier hops
             if (r.hopCycle > 1.0) r.hopCycle = 0;
             
-            // Phase Isolation: Air phase is 0.3 to 0.7
-            if (r.hopCycle > 0.3 && r.hopCycle < 0.7) {
+            // Phase Isolation: Air phase is 0.4 to 0.8 (creates a 40% gather pause, 40% jump, 20% land)
+            if (r.hopCycle > 0.4 && r.hopCycle < 0.8) {
                 // Translation only happens in the air
-                const airSpeed = speed * 1.2; // Reduced dramatically from 2.0 to shorten jump distance
+                const airSpeed = speed * 1.5; // Faster translation during the air phase
                 pos.addScaledVector(r.target, airSpeed * delta);
                 
-                // Parabolic Y offset
-                const airProgress = (r.hopCycle - 0.3) / 0.4; // 0.0 to 1.0
+                // Sharp Parabolic Y offset
+                const airProgress = (r.hopCycle - 0.4) / 0.4; // 0.0 to 1.0
                 hopYOffset = Math.sin(airProgress * Math.PI) * jumpHeight;
             } else {
                 // Grounded "Gather" Phase - no translation
                 hopYOffset = 0;
             }
             
-            // Orient smoothly
+            // Orient smoothly towards target
             const targetAngle = Math.atan2(r.target.x, r.target.z);
             let diff = targetAngle - r.mesh.rotation.y;
             while(diff < -Math.PI) diff += Math.PI * 2;
             while(diff > Math.PI) diff -= Math.PI * 2;
-            r.mesh.rotation.y += diff * 15 * delta;
+            r.mesh.rotation.y += diff * 12 * delta;
         } else {
             r.hopCycle = 0; // Reset
         }
         
-        // Hole Dive Physics Override
+        // Hole Dive Physics Override (Smooth Squeeze)
         if (r.state === this.STATES.FLEEING_TO_HOLE && r.holeTarget) {
             const distToHole = Math.sqrt((pos.x - r.holeTarget.x)**2 + (pos.z - r.holeTarget.z)**2);
-            if (distToHole < 0.5) {
+            if (distToHole < 0.3) {
                 // Successfully entered hole
                 r.state = this.STATES.HIDDEN;
                 r.timer = 5.0 + Math.random() * 5.0;
                 r.mesh.visible = false;
-            } else if (distToHole < 2.0) {
-                // Sinking into terrain
-                const diveDepth = (2.0 - distToHole) * 1.5; 
-                hopYOffset -= diveDepth;
+            } else if (distToHole < 1.5) {
+                // Smooth scale-down LERP to simulate squeezing into the burrow
+                const scaleLerp = Math.max(0.1, (distToHole - 0.3) / 1.2); 
+                const targetScale = r.baseScale * scaleLerp;
+                r.mesh.scale.set(targetScale, targetScale, targetScale);
             }
         }
         

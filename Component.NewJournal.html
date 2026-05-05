@@ -61,6 +61,14 @@
             border-radius: 4px;
         }
 
+        @keyframes input-bloom {
+            0%, 100% { box-shadow: 0 0 5px 0px rgba(251, 192, 45, 0.2); border-color: rgba(255,255,255,0.25); }
+            50% { box-shadow: 0 0 20px 5px rgba(251, 192, 45, 0.8); border-color: rgba(251, 192, 45, 0.8); }
+        }
+        .bloom-input {
+            animation: input-bloom 2s infinite ease-in-out;
+        }
+
         .sr-only {
             position: absolute;
             width: 1px;
@@ -613,7 +621,7 @@
 
                                 <!-- Input Box (WCAG AAA Contrast > 7:1 for text/bg) -->
                                 <input type="text" id="llm-input"
-                                    class="w-full h-full font-medium transition-all shadow-inner focus:outline-none"
+                                    class="w-full h-full font-medium transition-all shadow-inner focus:outline-none bloom-input"
                                     style="background-color: #2b1a10; border: 0.25px solid rgba(255,255,255,0.25); border-radius: 7px; color: #f5f5f4; font-size: 14px; padding-left: 90px; padding-right: 140px; color-scheme: dark;"
                                     placeholder="Ask or Interact with the world..." autocomplete="off"
                                     onkeydown="if(event.key==='Enter'){event.preventDefault(); submitLogbookChat();}">
@@ -1404,6 +1412,15 @@
             "use", "examine", "take", "go", "pick", "build", "craft", "start"
         ];
 
+        /* --- START GAME SEQUENCE --- */
+        window.startGameSequence = () => {
+            console.log("[Journal] START GAME CTA clicked!");
+            const input = document.getElementById('llm-input');
+            if(input) input.classList.remove('bloom-input');
+            window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'yellowbutterfly' }, '*');
+            window.parent.postMessage({ type: 'CLOSE_LOGBOOK' }, '*');
+        };
+
         function submitLogbookChat() {
             const inputEl = document.getElementById('llm-input');
             const feedbackEl = document.getElementById('parser-feedback');
@@ -1457,6 +1474,7 @@
 
             try { window.top.postMessage({ type: 'PROCESS_INPUT', value: val, context: { currentTab: game.currentTab, currentPage: game.currentPageIdx, interactiveModels: window.INTERACTIVE_ENTITIES_MANIFEST, recognizedVerb: matchedVerb } }, '*'); } catch (e) { }
 
+            inputEl.classList.remove('bloom-input');
             inputEl.value = ''; inputEl.blur();
             const announcer = document.getElementById('sr-announcer');
             if (announcer) announcer.textContent = feedbackEl.textContent;
@@ -1478,25 +1496,26 @@
                                     <source src="./Assets/AnimatedOpening.mp4" type="video/mp4">
                                 </video>
                             </div>
-                            <p class="book-text">Welcome to sacred adventures. This game is directly connected to a real world charity to build an authentic Sioux Village recreation in the realworld inside a real Sioux Indian Reservation.</p>
+                            <p class="book-text">Welcome to Sacred Adventures!<br><br>This game is connected to a real-world charity project to build the same buildings you will -- in the real world. This is a digital twin game, so the more you play, the more interest we get to help build our real Sioux Indian Village!</p>
                         ` }
                     ]
                 },
                 {
                     pageId: 2,
-                    title: "Introduction to the PIP",
+                    title: "The Map PIP",
                     icon: "fa-solid fa-map",
                     contentBlocks: [
                         { type: "pip-box" },
-                        { type: "text-box", text: "Click the live viewfinder above to enter the Village View and start building. Click the button below to start playing." }
+                        { type: "text-box", text: "Click the live viewfinder above to enter the Village View and start building. Click the button below to start playing." },
+                        { type: "text-box", text: "Use the text box below to interact with the game. You can interact with everything in the scene by typing if you would like. This is a real 3D Game for WCAG Accessibility." }
                     ],
-                    button: { label: "Start Game", action: "window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'yellowbutterfly' }, '*'); setTimeout(() => { window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); }, 300);" }
+                    button: { label: "Start Game", action: "window.startGameSequence();" }
                 },
                 {
                     pageId: 3,
                     title: "Yellow Butterfly",
                     contentBlocks: [
-                        { type: "pip-box", target: "yellowButterfly" },
+                        { type: "selfie-box", target: "yellowButterfly" },
                         { type: "text-box", text: "Welcome to our village. You can learn to build your own village by first helping to build the digital twin. To build a tipi, you must first speak with my daughter." }
                     ],
                     button: { label: "Meet Her", style: "background-color: #6a1b9a; color: white;", action: "window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'bringshappinessgirl' }, '*'); setTimeout(() => { window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); }, 300);" }
@@ -1516,7 +1535,7 @@
                     contentBlocks: [
                         { type: "text-box", text: "Your journey starts here. Explore the world and discover your first quest." }
                     ],
-                    button: { label: "Start Game", action: "window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');" }
+                    button: { label: "Start Game", action: "window.startGameSequence();" }
                 }
             ],
             bestiary: [
@@ -1553,12 +1572,20 @@
                 }
                 if (block.type === 'pip-box') {
                     const targetId = block.target || 'pip';
-                    // We only want the click handler on the 'pip' map target, not on 3D holes
                     const clickAction = targetId === 'pip' ? "if(window.parent.emit) window.parent.emit('TOGGLE_VIEW_MODE');" : "";
                     const cursorClass = targetId === 'pip' ? "cursor-pointer hover:scale-[1.02]" : "";
                     return `
-                        <div class="w-full flex justify-center mt-2 mb-4">
-                            <div onclick="${clickAction}" data-pip-target="${targetId}" class="w-full aspect-square max-w-[180px] bg-stone-300 rounded-full border-4 border-stone-800/40 shadow-inner flex flex-col items-center justify-center overflow-hidden relative ${cursorClass} transition-transform" style="background-image: url('Assets/PIP.SacredOnes.png'); background-size: cover; background-position: center;">
+                        <div class="w-full flex justify-center mt-1 mb-2">
+                            <div onclick="${clickAction}" data-pip-target="${targetId}" class="w-full aspect-square max-w-[140px] bg-stone-300 rounded-full border-4 border-stone-800/40 shadow-inner flex flex-col items-center justify-center overflow-hidden relative ${cursorClass} transition-transform" style="background-image: url('Assets/PIP.SacredOnes.png'); background-size: cover; background-position: center;">
+                            </div>
+                        </div>
+                    `;
+                }
+                if (block.type === 'selfie-box') {
+                    const targetId = block.target || 'selfie';
+                    return `
+                        <div class="w-full flex justify-center mt-1 mb-2">
+                            <div data-selfie-target="${targetId}" class="w-full aspect-[2/3] max-w-[180px] bg-stone-900 rounded-lg border-2 border-stone-600/40 shadow-inner flex flex-col items-center justify-center overflow-hidden relative" style="background-color: #000;">
                             </div>
                         </div>
                     `;
@@ -1654,10 +1681,36 @@
             }
         }
 
+        function alignSelfieCanvas() {
+            if (!window.isDOMActive) {
+                window.parent.postMessage({ type: 'REQ_HIDE_SELFIE' }, '*');
+                return;
+            }
+            const feedImgs = document.querySelectorAll('[data-selfie-target]');
+            let rects = [];
+            let targetId = 'selfie';
+
+            for (const img of feedImgs) {
+                if (!img.closest('.page-flipper') && window.getComputedStyle(img).display !== 'none') {
+                    const rect = img.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                        targetId = img.getAttribute('data-selfie-target');
+                        rects.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                    }
+                }
+            }
+            if (rects.length > 0) {
+                window.parent.postMessage({ type: 'REQ_ALIGN_SELFIE', target: targetId, rect: rects[0] }, '*');
+            } else {
+                window.parent.postMessage({ type: 'REQ_HIDE_SELFIE' }, '*');
+            }
+        }
+
         function scheduleAlign() {
             if (window._isBookVisibleOverride === false) return;
             alignTipiCanvas();
             alignAxeCanvas();
+            alignSelfieCanvas();
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -1725,15 +1778,16 @@
                 }
             }
 
-            if (d.type === 'YB_GREETING_ARRIVED') {
-                if (typeof window.switchBookTab === 'function') window.switchBookTab('log');
-                if (typeof window.turnPage === 'function') {
-                    game.currentPageIdx = 2;
-                    updateBookView();
+            if (d.type === 'YB_GREETING_ARRIVED' || d.type === 'BHG_GREETING_ARRIVED') {
+                // Remove all purple quest buttons from the log to permanently hide them
+                if (game.log) {
+                    game.log.forEach(page => {
+                        if (page.button) {
+                            delete page.button;
+                        }
+                    });
                 }
-            }
-
-            if (d.type === 'BHG_GREETING_ARRIVED') {
+                
                 if (typeof window.switchBookTab === 'function') window.switchBookTab('log');
                 if (typeof window.turnPage === 'function') {
                     game.currentPageIdx = 2; // Fixed logic to point to the correct spread
