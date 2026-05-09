@@ -1,186 +1,339 @@
 /**
  * Sacred Adventures v2 — World Module (Phase 1)
  *
- * This is the absolute minimum 3D world:
- *   - Procedural terrain (noise-based Great Plains rolling hills)
- *   - Sky gradient (atmospheric hemisphere light)
- *   - Directional sun with shadows
- *   - Ambient ground fog
- *   - Grass ground plane with vertex colour variation
- *   - WASD + mouse-look player movement (no physics, pure camera)
+ * Matches the exact AssetFactory terrain formula + neumorphic hex GLSL shader.
+ * Target: SOLID 60 FPS baseline.
  *
- * Target: SOLID 60 FPS with nothing else loaded.
- * All other systems build ON TOP of this verified baseline.
+ * FPS fixes vs original World.js:
+ *  - NO per-frame object allocation (no new THREE.Euler / new THREE.Vector3 in update)
+ *  - computeVertexNormals() called ONCE at build time, never again
+ *  - Movement uses pre-allocated _moveDir vector, mutated in place
+ *  - camera.rotation.order set once in load(), not every frame
  */
 
 import * as THREE from 'three';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOISE UTILITY (inline simplex-style — no external dep)
+// TERRAIN HEIGHT — exact match to AssetFactory.buildGroundChunk terrainY
 // ─────────────────────────────────────────────────────────────────────────────
-function hash(n) {
-  return (Math.sin(n * 127.1 + 311.7) * 43758.5453) % 1;
-}
-function smoothNoise(x, z) {
-  const ix = Math.floor(x), iz = Math.floor(z);
-  const fx = x - ix, fz = z - iz;
-  const ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz);
-  const a = hash(ix     + iz     * 57);
-  const b = hash(ix + 1 + iz     * 57);
-  const c = hash(ix     + (iz+1) * 57);
-  const d = hash(ix + 1 + (iz+1) * 57);
-  return a + (b-a)*ux + (c-a)*uz + (d-a+a-b-c+b)*ux*uz;
-}
-function terrainY(x, z) {
-  let y = 0;
-  y += smoothNoise(x * 0.04,  z * 0.04)  * 4.0;   // large rolling hills
-  y += smoothNoise(x * 0.12,  z * 0.12)  * 1.2;   // mid undulation
-  y += smoothNoise(x * 0.35,  z * 0.35)  * 0.3;   // surface texture
-  // Flatten center clearing (spawn zone)
-  const d = Math.sqrt(x*x + z*z);
-  if (d < 12) y *= (d / 12);
+function terrainY(gx, gz) {
+  const CLEARING_R = 30;
+  const HILL_INNER = 30;
+  const HILL_OUTER = 60;
+  const HILL_HEIGHT = 4.0;
+
+  let baseNoise =
+    Math.sin(gx * 0.08) * Math.cos(gz * 0.1) * 1.5 +
+    Math.sin(gx * 0.2 + gz * 0.15) * 0.4;
+  let y = baseNoise;
+  const dist = Math.sqrt(gx * gx + gz * gz);
+
+  if (dist < CLEARING_R) {
+    if (dist < 8) {
+      y = 0;
+    } else {
+      const t = (dist - 8) / (CLEARING_R - 8);
+      const flatten = 0.5 + 0.5 * Math.cos(t * Math.PI);
+      y = baseNoise * (1.0 - flatten);
+    }
+  }
+
+  if (dist >= HILL_INNER && dist < HILL_OUTER) {
+    const t = (dist - HILL_INNER) / (HILL_OUTER - HILL_INNER);
+    const hillShape = Math.sin(t * Math.PI);
+    const angle = Math.atan2(gz, gx);
+    const noise =
+      0.65 + 0.35 * Math.sin(angle * 3 + 0.8) * Math.sin(angle * 5 + 2.1) * 0.3;
+    const lobe = 0.7 + 0.3 * Math.sin(angle * 2.3 + 1.2);
+    y += HILL_HEIGHT * hillShape * (noise + 0.5) * lobe;
+  }
+
+  if (dist > HILL_OUTER) {
+    const outerBlend = Math.min(1.0, (dist - HILL_OUTER) / 10);
+    const rollingH =
+      Math.sin(gx * 0.06 + 1.0) * Math.cos(gz * 0.05 + 0.7) * 2.5 +
+      Math.sin(gx * 0.12 + gz * 0.1) * 1.0;
+    y += rollingH * outerBlend;
+  }
+
+  if (dist > 100) {
+    const dropT = Math.min(1.0, (dist - 100) / 20.0);
+    y = y * (1.0 - dropT) - Math.pow(dropT, 3.0) * 8.0;
+  }
+
   return y;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEUMORPHIC HEX SHADER — ported directly from AssetFactory onBeforeCompile
+// ─────────────────────────────────────────────────────────────────────────────
+function applyNeuHexShader(material) {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      '#include <common>\nvarying vec3 vWorldPos;'
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <worldpos_vertex>',
+      `#include <worldpos_vertex>
+       vWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+       varying vec3 vWorldPos;
+       float hexDist(vec2 p) {
+         p = abs(p);
+         float c = dot(p, normalize(vec2(1.0, 1.73205081)));
+         return max(c, p.x);
+       }`
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      `#include <color_fragment>
+       float hexRadius = 6.27;
+       float hr3 = hexRadius * 1.73205081;
+       vec2 r = vec2(hr3, hexRadius * 3.0);
+       vec2 h = r * 0.5;
+       vec2 uv = vWorldPos.xz;
+       vec2 a = mod(uv, r) - h;
+       vec2 b = mod(uv - h, r) - h;
+       vec2 localPos = dot(a,a) < dot(b,b) ? a : b;
+       float dist2 = hexDist(localPos);
+       float maxDist = hr3 * 0.5;
+       float edgeDist = maxDist - dist2;
+
+       if (edgeDist < 0.15) {
+         float crack = smoothstep(0.0, 0.15, edgeDist);
+         diffuseColor.rgb *= (crack * 0.6 + 0.1);
+       } else if (edgeDist < 0.4) {
+         float slope = smoothstep(0.15, 0.4, edgeDist);
+         diffuseColor.rgb *= (slope * 0.3 + 0.7);
+       } else if (edgeDist < 0.6) {
+         float highlight = smoothstep(0.4, 0.6, edgeDist);
+         diffuseColor.rgb *= (1.0 + (1.0 - highlight) * 0.10);
+       }
+       float cornerDist = length(localPos);
+       if (cornerDist > hexRadius * 0.7) {
+         float cornerDip = smoothstep(hexRadius * 0.7, hexRadius, cornerDist);
+         diffuseColor.rgb *= (1.0 - cornerDip * 0.3);
+       }`
+    );
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WORLD MODULE
 // ─────────────────────────────────────────────────────────────────────────────
 export const WorldModule = {
-  name: 'World',
+  name: "World",
 
-  // Internal refs — cleaned up on unload
   _objects: [],
   _keys: {},
   _yaw: 0,
   _pitch: 0,
   _pointerLocked: false,
   _camera: null,
-  _onKey:  null,
-  _onMouse: null,
-  _onPointerLock: null,
   _canvas: null,
+  _onKey: null,
+  _onMouse: null,
   _clickHandler: null,
+
+  // Pre-allocated vectors — NEVER recreated inside update()
+  _moveDir: new THREE.Vector3(),
+  _fwd: new THREE.Vector3(),
 
   // ──────────────────────────────────────────────────────────────────────────
   load(scene, camera) {
     this._camera = camera;
-    this._canvas = document.querySelector('canvas');
+    this._canvas = document.querySelector("canvas");
 
-    // ── Sky colour / hemisphere light ────────────────────────────────────
-    scene.background = new THREE.Color(0x87ceeb);
-    scene.fog = new THREE.FogExp2(0xc8dff0, 0.012);
+    // ── Sky ───────────────────────────────────────────────────────────────
+    scene.background = new THREE.Color(0xfff1ca); // match original warm sky
+    scene.fog = new THREE.FogExp2(0xfff1ca, 0.008);
 
-    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x4a7c3f, 0.9);
+    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x4a7c3f, 0.85);
     scene.add(hemi);
     this._objects.push(hemi);
 
-    // Gradient sky dome (cheap — just a sphere with vertex colour)
-    const skyGeo = new THREE.SphereGeometry(800, 16, 8);
-    const skyMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
-    skyMat.color.setHex(0x7ec8e3);
-    const skyMesh = new THREE.Mesh(skyGeo, skyMat);
-    scene.add(skyMesh);
-    this._objects.push(skyMesh);
-
-    // ── Sun / directional light ───────────────────────────────────────────
-    const sun = new THREE.DirectionalLight(0xfff5e0, 1.4);
+    // ── Sun ───────────────────────────────────────────────────────────────
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.3);
     sun.position.set(80, 120, 60);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far  = 400;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 400;
     sun.shadow.camera.left = sun.shadow.camera.bottom = -120;
-    sun.shadow.camera.right = sun.shadow.camera.top   =  120;
+    sun.shadow.camera.right = sun.shadow.camera.top = 120;
     sun.shadow.bias = -0.001;
     scene.add(sun);
     this._objects.push(sun);
 
-    // Subtle fill from opposite side
-    const fill = new THREE.DirectionalLight(0xb0d4ff, 0.25);
+    const fill = new THREE.DirectionalLight(0xb0d4ff, 0.22);
     fill.position.set(-60, 40, -80);
     scene.add(fill);
     this._objects.push(fill);
 
-    // ── Terrain ───────────────────────────────────────────────────────────
-    const GRID = 128, SIZE = 200;
-    const geo  = new THREE.PlaneGeometry(SIZE, SIZE, GRID, GRID);
+    // ── Terrain (matches AssetFactory exactly) ────────────────────────────
+    const geo = new THREE.PlaneGeometry(60 * 4, 60 * 4, 128, 128);
     geo.rotateX(-Math.PI / 2);
 
-    const pos    = geo.attributes.position;
-    const colors = new Float32Array(pos.count * 3);
-    const col    = new THREE.Color();
+    const pos = geo.attributes.position;
+    const count = pos.count;
+    const colors = new Float32Array(count * 3);
+    const _hCache = new Float32Array(count);
 
-    for (let i = 0; i < pos.count; i++) {
+    for (let i = 0; i < count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
-      const y = terrainY(x, z);
-      pos.setY(i, y);
+      const h = terrainY(x, z);
+      _hCache[i] = h;
+      pos.setY(i, h);
 
-      // Vertex colour — subtle grass variation
-      const t = Math.random() * 0.08;
-      col.setRGB(0.27 + t, 0.48 + t * 0.5, 0.18 + t * 0.3);
-      colors[i*3]   = col.r;
-      colors[i*3+1] = col.g;
-      colors[i*3+2] = col.b;
+      const dist = Math.sqrt(x * x + z * z);
+      const sc = z * 0.6 + Math.sin(x * 0.05) * 8 + 15;
+      const streamD = Math.abs(x - sc);
+
+      let r = 0.97 + Math.random() * 0.06;
+      let g = r,
+        b = r;
+
+      if (streamD < 3 && dist > 26) {
+        const sb = 0.5 + 0.5 * Math.cos((streamD / 3) * Math.PI);
+        r -= sb * 0.15;
+        g -= sb * 0.05;
+        b += sb * 0.1;
+      }
+      if (dist >= 16 && dist < 26) {
+        const hb = Math.sin(((dist - 8) / 10) * Math.PI);
+        r -= hb * 0.08;
+        g += hb * 0.05;
+        b -= hb * 0.06;
+      }
+      if (dist < 8) {
+        const cb = 0.5 + 0.5 * Math.cos((dist / 8) * Math.PI);
+        r = r * (1 - cb) + 0.8 * cb;
+        g = g * (1 - cb) + 0.7 * cb;
+        b = b * (1 - cb) + 0.48 * cb;
+      }
+      if (dist > 105) {
+        const darkness = Math.min(1.0, (dist - 105) / 15.0);
+        const v = 1.0 - darkness;
+        r *= v;
+        g *= v;
+        b *= v;
+      }
+
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
     }
     pos.needsUpdate = true;
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geo.computeVertexNormals();
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    geo.computeVertexNormals(); // called ONCE here, never in update()
 
-    const mat = new THREE.MeshLambertMaterial({
+    // Neumorphic hex material (MeshStandard so shader hooks work)
+    const groundMat = new THREE.MeshStandardMaterial({
       vertexColors: true,
+      roughness: 0.9,
+      metalness: 0.0,
     });
-    const terrain = new THREE.Mesh(geo, mat);
+    applyNeuHexShader(groundMat);
+
+    const terrain = new THREE.Mesh(geo, groundMat);
     terrain.receiveShadow = true;
-    terrain.name = 'terrain';
+    terrain.name = "terrain";
     scene.add(terrain);
     this._objects.push(terrain);
 
-    // Cache terrain Y for player grounding
-    this._terrainGeo = geo;
+    // ── Ethereal haze overlay (matches AssetFactory) ──────────────────────
+    const hazeGeo = new THREE.PlaneGeometry(60 * 4, 60 * 4, 128, 128);
+    hazeGeo.rotateX(-Math.PI / 2);
+    const hazePos = hazeGeo.attributes.position;
+    for (let i = 0; i < hazePos.count; i++) {
+      const hx = hazePos.getX(i),
+        hz = hazePos.getZ(i);
+      let hY = _hCache[i] + 0.15;
+      const d2 = Math.sqrt(hx * hx + hz * hz);
+      if (d2 < 6) hY -= 0.15;
+      else if (d2 < 10) hY -= 0.15 * (1 - (d2 - 6) / 4);
+      hazePos.setY(i, hY);
+    }
+    hazeGeo.computeVertexNormals();
+    const hazeMat = new THREE.MeshBasicMaterial({
+      color: 0x2d5a1e,
+      transparent: true,
+      opacity: 0.12,
+      depthWrite: false,
+      side: THREE.FrontSide,
+    });
+    const hazeMesh = new THREE.Mesh(hazeGeo, hazeMat);
+    scene.add(hazeMesh);
+    this._objects.push(hazeMesh);
 
-    // ── Ground horizon ring (hides terrain edge pop) ──────────────────────
-    const ringGeo = new THREE.CylinderGeometry(198, 198, 8, 48, 1, true);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x6fa858, side: THREE.BackSide });
-    const ring    = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.y = -2;
+    // Expose height cache globally (same interface as AssetFactory)
+    window._terrainHeightCache = { data: _hCache, geo, lookup: terrainY };
+    this._terrainY = terrainY;
+
+    // ── Horizon ring ──────────────────────────────────────────────────────
+    const ringGeo = new THREE.CylinderGeometry(238, 238, 10, 48, 1, true);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x6fa858,
+      side: THREE.BackSide,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.y = -3;
     scene.add(ring);
     this._objects.push(ring);
 
-    // ── Player start position ─────────────────────────────────────────────
-    camera.position.set(0, terrainY(0, 0) + 1.7, 5);
+    // ── Player start ──────────────────────────────────────────────────────
+    camera.position.set(0, terrainY(0, 0) + 1.7, 8);
+    camera.rotation.order = "YXZ"; // set ONCE — never reset in update()
 
     // ── Input ─────────────────────────────────────────────────────────────
-    this._setupInput(camera);
+    this._setupInput();
 
-    console.log('%c[World] ✅ Phase 1 world loaded — terrain, sky, sun, fog', 'color:#a5d6a7;');
-    console.log('[World] WASD to move, mouse-click canvas to lock pointer, ESC to release.');
+    console.log(
+      "%c[World] ✅ Phase 1 loaded — terrain + neumorphic hex shader, sky, sun, haze",
+      "color:#a5d6a7;font-weight:bold;",
+    );
+    console.log(
+      "[World] Click canvas → pointer lock → WASD to walk, ESC to release.",
+    );
   },
 
   // ──────────────────────────────────────────────────────────────────────────
-  update(delta, frameCount, scene, camera) {
-    const speed = 6.0;
+  // UPDATE — zero allocations, all vectors pre-built
+  // ──────────────────────────────────────────────────────────────────────────
+  update(delta, _frameCount, _scene, camera) {
     const k = this._keys;
+    const speed = 7.0;
+    const dir = this._moveDir;
 
-    // Build movement vector from keyboard
-    const dir = new THREE.Vector3();
-    if (k['w'] || k['arrowup'])    dir.z -= 1;
-    if (k['s'] || k['arrowdown'])  dir.z += 1;
-    if (k['a'] || k['arrowleft'])  dir.x -= 1;
-    if (k['d'] || k['arrowright']) dir.x += 1;
+    dir.set(0, 0, 0);
+    if (k["w"] || k["arrowup"]) dir.z -= 1;
+    if (k["s"] || k["arrowdown"]) dir.z += 1;
+    if (k["a"] || k["arrowleft"]) dir.x -= 1;
+    if (k["d"] || k["arrowright"]) dir.x += 1;
 
     if (dir.lengthSq() > 0) {
-      dir.normalize().applyEuler(new THREE.Euler(0, this._yaw, 0));
-      camera.position.addScaledVector(dir, speed * delta);
+      dir.normalize();
+      // Rotate movement direction by current yaw — no new Euler
+      const cos = Math.cos(this._yaw),
+        sin = Math.sin(this._yaw);
+      const wx = dir.x * cos + dir.z * sin;
+      const wz = -dir.x * sin + dir.z * cos;
+      camera.position.x += wx * speed * delta;
+      camera.position.z += wz * speed * delta;
     }
 
-    // Clamp to terrain + player height
-    const px = camera.position.x, pz = camera.position.z;
-    const groundY = terrainY(px, pz);
-    camera.position.y = groundY + 1.7;
+    // Ground clamping
+    camera.position.y =
+      this._terrainY(camera.position.x, camera.position.z) + 1.7;
 
-    // Apply yaw + pitch
-    camera.rotation.order = 'YXZ';
+    // Apply look rotation (rotation.order already 'YXZ' from load)
     camera.rotation.y = this._yaw;
     camera.rotation.x = this._pitch;
   },
@@ -189,42 +342,43 @@ export const WorldModule = {
   unload(scene) {
     for (const obj of this._objects) scene.remove(obj);
     this._objects = [];
-
-    if (this._onKey)         { window.removeEventListener('keydown', this._onKey);   window.removeEventListener('keyup', this._onKey); }
-    if (this._onMouse)       document.removeEventListener('mousemove', this._onMouse);
-    if (this._clickHandler)  this._canvas && this._canvas.removeEventListener('click', this._clickHandler);
-
+    if (this._onKey) {
+      window.removeEventListener("keydown", this._onKey);
+      window.removeEventListener("keyup", this._onKey);
+    }
+    if (this._onMouse) document.removeEventListener("mousemove", this._onMouse);
+    if (this._clickHandler)
+      this._canvas &&
+        this._canvas.removeEventListener("click", this._clickHandler);
     document.exitPointerLock && document.exitPointerLock();
-    console.log('[World] ⏹ World unloaded.');
+    console.log("[World] ⏹ Unloaded.");
   },
 
   // ──────────────────────────────────────────────────────────────────────────
-  _setupInput(camera) {
+  _setupInput() {
     this._keys = {};
 
     this._onKey = (e) => {
-      const k = e.key.toLowerCase();
-      this._keys[k] = (e.type === 'keydown');
+      this._keys[e.key.toLowerCase()] = e.type === "keydown";
     };
-    window.addEventListener('keydown', this._onKey);
-    window.addEventListener('keyup',   this._onKey);
+    window.addEventListener("keydown", this._onKey);
+    window.addEventListener("keyup", this._onKey);
 
     this._onMouse = (e) => {
       if (!this._pointerLocked) return;
-      this._yaw   -= e.movementX * 0.002;
+      this._yaw -= e.movementX * 0.002;
       this._pitch -= e.movementY * 0.002;
-      this._pitch  = Math.max(-Math.PI/3, Math.min(Math.PI/3, this._pitch));
+      this._pitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this._pitch));
     };
-    document.addEventListener('mousemove', this._onMouse);
+    document.addEventListener("mousemove", this._onMouse);
 
     this._clickHandler = () => {
-      if (!this._pointerLocked && this._canvas) {
+      if (!this._pointerLocked && this._canvas)
         this._canvas.requestPointerLock();
-      }
     };
-    this._canvas && this._canvas.addEventListener('click', this._clickHandler);
+    this._canvas && this._canvas.addEventListener("click", this._clickHandler);
 
-    document.addEventListener('pointerlockchange', () => {
+    document.addEventListener("pointerlockchange", () => {
       this._pointerLocked = document.pointerLockElement === this._canvas;
     });
   },
