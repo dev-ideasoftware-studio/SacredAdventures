@@ -134,12 +134,9 @@ export const WorldModule = {
   _keys: {},
   _yaw: 0,
   _pitch: 0,
-  _pointerLocked: false,
   _camera: null,
   _canvas: null,
   _onKey: null,
-  _onMouse: null,
-  _clickHandler: null,
 
   // Pre-allocated vectors — NEVER recreated inside update()
   _moveDir: new THREE.Vector3(),
@@ -300,7 +297,7 @@ export const WorldModule = {
       "color:#a5d6a7;font-weight:bold;",
     );
     console.log(
-      "[World] Click canvas → pointer lock → WASD to walk, ESC to release.",
+      "[World] WASD = move | Left/Right arrows = turn | Up/Down arrows = move forward/back",
     );
   },
 
@@ -310,17 +307,21 @@ export const WorldModule = {
   update(delta, _frameCount, _scene, camera) {
     const k = this._keys;
     const speed = 7.0;
+    const turnRate = 1.8; // radians/sec
     const dir = this._moveDir;
+
+    // Arrow left/right = TURN (yaw), not strafe
+    if (k["arrowleft"]) this._yaw += turnRate * delta;
+    if (k["arrowright"]) this._yaw -= turnRate * delta;
 
     dir.set(0, 0, 0);
     if (k["w"] || k["arrowup"]) dir.z -= 1;
     if (k["s"] || k["arrowdown"]) dir.z += 1;
-    if (k["a"] || k["arrowleft"]) dir.x -= 1;
-    if (k["d"] || k["arrowright"]) dir.x += 1;
+    if (k["a"]) dir.x -= 1; // A/D still strafe
+    if (k["d"]) dir.x += 1;
 
     if (dir.lengthSq() > 0) {
       dir.normalize();
-      // Rotate movement direction by current yaw — no new Euler
       const cos = Math.cos(this._yaw),
         sin = Math.sin(this._yaw);
       const wx = dir.x * cos + dir.z * sin;
@@ -346,40 +347,16 @@ export const WorldModule = {
       window.removeEventListener("keydown", this._onKey);
       window.removeEventListener("keyup", this._onKey);
     }
-    if (this._onMouse) document.removeEventListener("mousemove", this._onMouse);
-    if (this._clickHandler)
-      this._canvas &&
-        this._canvas.removeEventListener("click", this._clickHandler);
-    document.exitPointerLock && document.exitPointerLock();
     console.log("[World] ⏹ Unloaded.");
   },
 
-  // ──────────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────
   _setupInput() {
     this._keys = {};
-
     this._onKey = (e) => {
       this._keys[e.key.toLowerCase()] = e.type === "keydown";
     };
     window.addEventListener("keydown", this._onKey);
     window.addEventListener("keyup", this._onKey);
-
-    this._onMouse = (e) => {
-      if (!this._pointerLocked) return;
-      this._yaw -= e.movementX * 0.002;
-      this._pitch -= e.movementY * 0.002;
-      this._pitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this._pitch));
-    };
-    document.addEventListener("mousemove", this._onMouse);
-
-    this._clickHandler = () => {
-      if (!this._pointerLocked && this._canvas)
-        this._canvas.requestPointerLock();
-    };
-    this._canvas && this._canvas.addEventListener("click", this._clickHandler);
-
-    document.addEventListener("pointerlockchange", () => {
-      this._pointerLocked = document.pointerLockElement === this._canvas;
-    });
   },
 };

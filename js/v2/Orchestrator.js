@@ -29,7 +29,7 @@ export class Orchestrator {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
-      powerPreference: 'high-performance',
+      powerPreference: "high-performance",
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -39,8 +39,13 @@ export class Orchestrator {
     this.renderer.toneMappingExposure = 1.1;
 
     // ── Scene & Camera ────────────────────────────────────────────────────
-    this.scene  = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      2000,
+    );
     this.camera.position.set(0, 1.7, 5);
 
     // ── Clock ─────────────────────────────────────────────────────────────
@@ -49,11 +54,12 @@ export class Orchestrator {
     // ── Module registry ───────────────────────────────────────────────────
     // Map<name, { module, active, fpsCost, benchFrames, benchTotal }>
     this._registry = new Map();
-    this._activeModules = [];  // ordered list of active module names
+    this._activeModules = []; // ordered list of active module names
 
     // ── FPS tracking ──────────────────────────────────────────────────────
-    this.smoothFPS   = 60;
-    this.rawFPS      = 60;
+    this.smoothFPS = 0;
+    this.rawFPS = 0;
+    this._fpsReady = false; // wait for EMA to warm up before benchmarking
     this._frameCount = 0;
 
     // ── Benchmarking state ────────────────────────────────────────────────
@@ -63,14 +69,19 @@ export class Orchestrator {
     this._hud = this._buildHUD();
 
     // ── Resize ────────────────────────────────────────────────────────────
-    window.addEventListener('resize', () => this._onResize());
+    window.addEventListener("resize", () => this._onResize());
 
     // ── Expose globally ───────────────────────────────────────────────────
     window.Orchestrator = this;
 
-    console.log('%c[Orchestrator] 🚀 Sacred Adventures v2 — Engine Online', 'color:#fbc02d;font-weight:bold;font-size:14px;');
-    console.log('[Orchestrator] Renderer:', this.renderer.info.render);
-    console.log('[Orchestrator] Call Orchestrator.report() for full status at any time.');
+    console.log(
+      "%c[Orchestrator] 🚀 Sacred Adventures v2 — Engine Online",
+      "color:#fbc02d;font-weight:bold;font-size:14px;",
+    );
+    console.log("[Orchestrator] Renderer:", this.renderer.info.render);
+    console.log(
+      "[Orchestrator] Call Orchestrator.report() for full status at any time.",
+    );
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -102,19 +113,48 @@ export class Orchestrator {
    */
   async activate(name) {
     const entry = this._registry.get(name);
-    if (!entry) { console.error(`[Orchestrator] Unknown module: ${name}`); return; }
-    if (entry.active) { console.warn(`[Orchestrator] Already active: ${name}`); return; }
+    if (!entry) {
+      console.error(`[Orchestrator] Unknown module: ${name}`);
+      return;
+    }
+    if (entry.active) {
+      console.warn(`[Orchestrator] Already active: ${name}`);
+      return;
+    }
 
     const baselineFPS = this.smoothFPS;
-    console.log(`%c[Orchestrator] ▶ Activating: ${name} (baseline FPS: ${baselineFPS.toFixed(1)})`, 'color:#a5d6a7;');
+    console.log(
+      `%c[Orchestrator] ▶ Activating: ${name} (baseline FPS: ${baselineFPS.toFixed(1)})`,
+      "color:#a5d6a7;",
+    );
 
     await entry.module.load(this.scene, this.camera, this.renderer);
     entry.active = true;
     this._activeModules.push(name);
     this._updateHUD();
 
-    // Start benchmark for this module
-    this._bench = { name, frames: 0, totalDelta: 0, baselineFPS };
+    // Start benchmark after EMA warmup
+    if (!this._fpsReady) {
+      console.log(
+        `[Orchestrator] Waiting for FPS warmup before benchmarking ${name}…`,
+      );
+      const waitBench = setInterval(() => {
+        if (this._fpsReady) {
+          clearInterval(waitBench);
+          this._bench = {
+            name,
+            frames: 0,
+            totalDelta: 0,
+            baselineFPS: this.smoothFPS,
+          };
+          console.log(
+            `[Orchestrator] ⏱ Benchmarking ${name} (baseline ${this.smoothFPS.toFixed(1)} FPS)`,
+          );
+        }
+      }, 200);
+    } else {
+      this._bench = { name, frames: 0, totalDelta: 0, baselineFPS };
+    }
   }
 
   /** Deactivate a module — calls unload(), removes from loop */
@@ -151,8 +191,15 @@ export class Orchestrator {
     this._frameCount++;
 
     // ── FPS smoothing (EMA) ───────────────────────────────────────────────
-    this.rawFPS   = 1 / delta;
-    this.smoothFPS = this.smoothFPS * (1 - SMOOTH_ALPHA) + this.rawFPS * SMOOTH_ALPHA;
+    if (delta > 0) {
+      this.rawFPS = 1 / delta;
+      this.smoothFPS =
+        this._frameCount < 10
+          ? this.rawFPS // seed with raw until EMA stabilises
+          : this.smoothFPS * (1 - SMOOTH_ALPHA) + this.rawFPS * SMOOTH_ALPHA;
+    }
+    // Mark FPS ready after 60 frames of warmup
+    if (!this._fpsReady && this._frameCount >= 60) this._fpsReady = true;
 
     // ── Update active modules ─────────────────────────────────────────────
     for (const name of this._activeModules) {
@@ -253,23 +300,32 @@ export class Orchestrator {
   // ──────────────────────────────────────────────────────────────────────────
 
   _buildHUD() {
+    // Inject Google Font for the HUD
+    if (!document.getElementById('v2-font')) {
+      const lnk = document.createElement('link');
+      lnk.id = 'v2-font';
+      lnk.rel = 'stylesheet';
+      lnk.href = 'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap';
+      document.head.appendChild(lnk);
+    }
+
     const hud = document.createElement('div');
     hud.id = 'v2-orchestrator-hud';
     hud.style.cssText = `
       position: fixed;
-      top: 12px;
-      right: 12px;
+      top: 14px;
+      right: 14px;
       z-index: 9999;
-      background: rgba(0,0,0,0.72);
-      border: 1px solid rgba(251,192,45,0.4);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
+      background: linear-gradient(160deg, #1c1208 0%, #2a1c08 100%);
+      border: 2px solid rgba(251,192,45,0.35);
+      border-radius: 14px;
+      padding: 14px 18px 12px;
+      font-family: 'Fredoka', 'Segoe UI', sans-serif;
+      font-size: 13px;
       color: #fbc02d;
-      min-width: 220px;
+      min-width: 230px;
       pointer-events: none;
-      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,220,100,0.08);
       user-select: none;
     `;
     hud.innerHTML = this._hudHTML();
@@ -279,12 +335,13 @@ export class Orchestrator {
 
   _hudHTML() {
     return `
-      <div style="font-size:11px;letter-spacing:1px;color:#aaa;margin-bottom:6px;">SACRED ADV v2 — ORCHESTRATOR</div>
-      <div id="v2-fps" style="font-size:22px;font-weight:bold;color:#a5d6a7;">-- FPS</div>
-      <div id="v2-draws" style="font-size:10px;color:#aaa;margin-bottom:8px;">draws: -- | tris: --</div>
-      <div style="font-size:10px;color:#aaa;border-top:1px solid rgba(255,255,255,0.1);padding-top:6px;margin-bottom:4px;">ACTIVE MODULES</div>
-      <div id="v2-modules" style="font-size:11px;color:#81d4fa;line-height:1.7;">none</div>
-      <div id="v2-bench" style="font-size:10px;color:#ce93d8;margin-top:6px;"></div>
+      <div style="font-size:10px;letter-spacing:2px;color:rgba(251,192,45,0.5);margin-bottom:10px;font-weight:600;">SACRED ADV v2 · ORCHESTRATOR</div>
+      <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:2px;">-- FPS</div>
+      <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:12px;">warming up…</div>
+      <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
+      <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">ACTIVE MODULES</div>
+      <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
+      <div id="v2-bench" style="font-size:11px;color:#ce93d8;margin-top:10px;min-height:16px;"></div>
     `;
   }
 
@@ -310,10 +367,10 @@ export class Orchestrator {
     const benchEl = this._hud.querySelector('#v2-bench');
     if (!fpsEl) return;
 
-    const fps = this.smoothFPS;
+    const fps = this._fpsReady ? this.smoothFPS : this.rawFPS;
     const col = fps >= 55 ? '#a5d6a7' : fps >= 30 ? '#fbc02d' : '#ef5350';
     fpsEl.style.color   = col;
-    fpsEl.textContent   = `${fps.toFixed(1)} FPS`;
+    fpsEl.textContent = fps > 0 ? `${Math.round(fps)} FPS` : "Starting…";
 
     const r = this.renderer.info.render;
     if (drawEl) drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles/1000).toFixed(1)}k | frame: ${this._frameCount}`;
