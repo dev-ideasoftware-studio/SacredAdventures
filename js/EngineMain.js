@@ -1170,86 +1170,250 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 }
 
                 // --- NLP ROUTER FOR JOURNAL INPUT ---
-                if (msg.type === 'PROCESS_INPUT') {
-                    const rawText = (msg.value || '').toLowerCase().trim();
-                    if (['start game', 'start', 'begin', 'go'].includes(rawText) || rawText.includes('start game')) {
-                        const panel = document.getElementById('panel-frame');
-                        if (panel && panel.contentWindow) {
-                            panel.contentWindow.postMessage({ type: 'NLP_RESPONSE', msg: `Command accepted: Starting Game...` }, '*');
-                        }
-                        
-                        // Close journal immediately and remove bloom from input
-                        const logIframe = document.getElementById('logbookFrame');
-                        if (logIframe && logIframe.contentWindow) {
-                            logIframe.contentWindow.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');
-                        } else if (panel && panel.contentWindow) {
-                            panel.contentWindow.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); 
-                        }
-                        
-                        // Walk to Yellow Butterfly
-                        window.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'yellowbutterfly' }, '*');
-                        return;
-                    }
+                if (msg.type === "PROCESS_INPUT") {
+                  const rawText = (msg.value || "").toLowerCase().trim();
 
-                    const text = rawText.replace(/[^\w\s]/gi, ''); // remove punctuation
-                    const tokens = text.split(/\s+/).filter(t => t.length > 0);
-                    if (tokens.length === 0) return;
+                  // --- ANU GREETING / STATUS COMMAND ---
+                  const anuTriggers =
+                    /^(hi anu|hello anu|hey anu|anu status|anu report|how are you|status|how is the world)/;
+                  if (anuTriggers.test(rawText)) {
+                    const anu = window.UniverseAnu;
+                    const fb = window.fuzzyBrain;
+                    const uptime = anu
+                      ? Math.floor((Date.now() - anu.birthTime) / 1000)
+                      : 0;
+                    const mood = anu ? anu.mood : "unknown";
+                    const fps = fb ? fb.smoothFPS.toFixed(1) : "?";
+                    const quality = fb ? fb.qualityNames[fb.qualityLevel] : "?";
+                    const systems = anu ? anu._systems.size : 0;
+                    const trees = fb ? fb.maxVisibleTrees : "?";
+                    const moodEmoji =
+                      {
+                        serene: "🌿",
+                        restless: "⚡",
+                        troubled: "🔴",
+                        sacred: "✨",
+                      }[mood] || "🌐";
 
-                    // 1. Check if we have a valid verb
-                    const commonVerbs = ["get", "take", "pet", "go", "walk", "find", "look", "chase", "follow", "enter", "grab", "touch", "sleep", "rest"];
-                    let foundVerb = null;
-                    for (const token of tokens) {
-                        if (commonVerbs.includes(token)) {
-                            foundVerb = token;
-                            break;
-                        }
-                    }
+                    const greetings = [
+                      `Hello, little one. I am the Living Universe — I see everything that happens here.`,
+                      `Greetings, traveler. I am Anu — the spirit that watches over this world.`,
+                      `I hear you. I am Anu, and the Great Plains breathe with me.`,
+                    ];
+                    const greeting =
+                      greetings[
+                        Math.floor(Date.now() / 1000) % greetings.length
+                      ];
 
-                    // 2. Cross-reference entities with GameObjectsDatabase
-                    let matchedEntity = null;
-                    if (window.GameObjectsDatabase) {
-                        for (const obj of window.GameObjectsDatabase) {
-                            for (const token of tokens) {
-                                if (obj.aliases.includes(token)) {
-                                    matchedEntity = obj;
-                                    break;
-                                }
-                            }
-                            if (matchedEntity) break;
-                        }
-                    }
+                    let statusLines = [
+                      `${greeting}`,
+                      ``,
+                      `🌍 World Uptime: ${uptime}s | Mood: ${moodEmoji} ${mood.toUpperCase()}`,
+                      `⚡ FPS: ${fps} | Rendering Quality: ${quality}`,
+                      `🏕️ Active Systems: ${systems} | Trees Visible: ${trees}`,
+                    ];
 
-                    // 3. Execution
-                    if (matchedEntity) {
-                        // Check if verb is allowed (or just allow if no verb but entity mentioned)
-                        const isActionAllowed = !foundVerb || matchedEntity.allowedActions.includes(foundVerb);
-                        
-                        if (isActionAllowed) {
-                            console.log(`[NLP] Routing action '${foundVerb || 'go'}' to entity '${matchedEntity.targetName}'`);
-                            
-                            // Send feedback
-                            const panel = document.getElementById('panel-frame');
-                            if (panel && panel.contentWindow) {
-                                panel.contentWindow.postMessage({ type: 'NLP_RESPONSE', msg: `Command accepted: Pathfinding to ${matchedEntity.aliases[0]}...` }, '*');
-                            }
-
-                            // Dispatch auto-walk
-                            window.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: matchedEntity.targetName }, '*');
-                            
-                            // Close Journal so player can see it happen
-                            if (panel && panel.contentWindow) {
-                                panel.contentWindow.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');
-                            }
-                        } else {
-                            const panel = document.getElementById('panel-frame');
-                            if (panel && panel.contentWindow) panel.contentWindow.postMessage({ type: 'NLP_RESPONSE', msg: `You can't ${foundVerb} the ${matchedEntity.aliases[0]}.` }, '*');
-                        }
+                    // Ask FuzzyBrain if struggling
+                    if (fb && fb.smoothFPS < 30 && fb.diagnose) {
+                      const diag = fb.diagnose();
+                      statusLines.push(
+                        ``,
+                        `⚠️ I feel the world straining: ${diag.summary}`,
+                      );
                     } else {
-                        // Fallback generic response
-                        const panel = document.getElementById('panel-frame');
-                        if (panel && panel.contentWindow) panel.contentWindow.postMessage({ type: 'NLP_RESPONSE', msg: 'System: Unrecognized object or command.' }, '*');
+                      statusLines.push(
+                        ``,
+                        `✅ All is well. The world is serene.`,
+                      );
+                    }
+
+                    statusLines.push(
+                      ``,
+                      `Tip: Type '% tipi' to walk to the sacred fire, or 'help' to see all commands.`,
+                    );
+
+                    const bookFrame =
+                      document.getElementById("journal-frame") ||
+                      document.getElementById("logbookFrame");
+                    const panel = document.getElementById("panel-frame");
+
+                    if (bookFrame && bookFrame.contentWindow) {
+                      bookFrame.contentWindow.postMessage(
+                        {
+                          type: "ADD_PAGE",
+                          category: "encounters",
+                          layout: "storybook",
+                          title: "Anu Speaks",
+                          subtitle: `The Living Universe responds — Uptime: ${uptime}s`,
+                          mediaHTML: `<div class="w-full aspect-square bg-[#1a2e1a] rounded-[10px] border-4 border-[#fbc02d] shadow-md flex items-center justify-center flex-col gap-2"><span style="font-size:2.5rem">🌌</span><span style="color:#fbc02d;font-weight:bold;font-size:0.85rem">UNIVERSE ANU</span></div>`,
+                          mediaCaption: `Mood: ${mood} | FPS: ${fps}`,
+                          paragraphs: statusLines,
+                        },
+                        "*",
+                      );
+                      bookFrame.contentWindow.postMessage(
+                        { type: "SWITCH_TAB", tab: "encounters" },
+                        "*",
+                      );
+                    }
+                    if (panel && panel.contentWindow) {
+                      panel.contentWindow.postMessage(
+                        {
+                          type: "NLP_RESPONSE",
+                          msg: `Anu speaks: "${greeting.substring(0, 60)}..."`,
+                        },
+                        "*",
+                      );
                     }
                     return;
+                  }
+                  if (
+                    ["start game", "start", "begin", "go"].includes(rawText) ||
+                    rawText.includes("start game")
+                  ) {
+                    const panel = document.getElementById("panel-frame");
+                    if (panel && panel.contentWindow) {
+                      panel.contentWindow.postMessage(
+                        {
+                          type: "NLP_RESPONSE",
+                          msg: `Command accepted: Starting Game...`,
+                        },
+                        "*",
+                      );
+                    }
+
+                    // Close journal immediately and remove bloom from input
+                    const logIframe = document.getElementById("logbookFrame");
+                    if (logIframe && logIframe.contentWindow) {
+                      logIframe.contentWindow.postMessage(
+                        { type: "REQ_TOGGLE_LOGBOOK" },
+                        "*",
+                      );
+                    } else if (panel && panel.contentWindow) {
+                      panel.contentWindow.postMessage(
+                        { type: "REQ_TOGGLE_LOGBOOK" },
+                        "*",
+                      );
+                    }
+
+                    // Walk to Yellow Butterfly
+                    window.postMessage(
+                      {
+                        type: "REQ_AUTOWALK_TO_ENTITY",
+                        targetName: "yellowbutterfly",
+                      },
+                      "*",
+                    );
+                    return;
+                  }
+
+                  const text = rawText.replace(/[^\w\s]/gi, ""); // remove punctuation
+                  const tokens = text.split(/\s+/).filter((t) => t.length > 0);
+                  if (tokens.length === 0) return;
+
+                  // 1. Check if we have a valid verb
+                  const commonVerbs = [
+                    "get",
+                    "take",
+                    "pet",
+                    "go",
+                    "walk",
+                    "find",
+                    "look",
+                    "chase",
+                    "follow",
+                    "enter",
+                    "grab",
+                    "touch",
+                    "sleep",
+                    "rest",
+                  ];
+                  let foundVerb = null;
+                  for (const token of tokens) {
+                    if (commonVerbs.includes(token)) {
+                      foundVerb = token;
+                      break;
+                    }
+                  }
+
+                  // 2. Cross-reference entities with GameObjectsDatabase
+                  let matchedEntity = null;
+                  if (window.GameObjectsDatabase) {
+                    for (const obj of window.GameObjectsDatabase) {
+                      for (const token of tokens) {
+                        if (obj.aliases.includes(token)) {
+                          matchedEntity = obj;
+                          break;
+                        }
+                      }
+                      if (matchedEntity) break;
+                    }
+                  }
+
+                  // 3. Execution
+                  if (matchedEntity) {
+                    // Check if verb is allowed (or just allow if no verb but entity mentioned)
+                    const isActionAllowed =
+                      !foundVerb ||
+                      matchedEntity.allowedActions.includes(foundVerb);
+
+                    if (isActionAllowed) {
+                      console.log(
+                        `[NLP] Routing action '${foundVerb || "go"}' to entity '${matchedEntity.targetName}'`,
+                      );
+
+                      // Send feedback
+                      const panel = document.getElementById("panel-frame");
+                      if (panel && panel.contentWindow) {
+                        panel.contentWindow.postMessage(
+                          {
+                            type: "NLP_RESPONSE",
+                            msg: `Command accepted: Pathfinding to ${matchedEntity.aliases[0]}...`,
+                          },
+                          "*",
+                        );
+                      }
+
+                      // Dispatch auto-walk
+                      window.postMessage(
+                        {
+                          type: "REQ_AUTOWALK_TO_ENTITY",
+                          targetName: matchedEntity.targetName,
+                        },
+                        "*",
+                      );
+
+                      // Close Journal so player can see it happen
+                      if (panel && panel.contentWindow) {
+                        panel.contentWindow.postMessage(
+                          { type: "REQ_TOGGLE_LOGBOOK" },
+                          "*",
+                        );
+                      }
+                    } else {
+                      const panel = document.getElementById("panel-frame");
+                      if (panel && panel.contentWindow)
+                        panel.contentWindow.postMessage(
+                          {
+                            type: "NLP_RESPONSE",
+                            msg: `You can't ${foundVerb} the ${matchedEntity.aliases[0]}.`,
+                          },
+                          "*",
+                        );
+                    }
+                  } else {
+                    // Fallback generic response
+                    const panel = document.getElementById("panel-frame");
+                    if (panel && panel.contentWindow)
+                      panel.contentWindow.postMessage(
+                        {
+                          type: "NLP_RESPONSE",
+                          msg: "System: Unrecognized object or command.",
+                        },
+                        "*",
+                      );
+                  }
+                  return;
                 }
 
                 if (msg.type === 'GLOW_SIDEBAR_GATHER') {
