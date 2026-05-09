@@ -142,187 +142,132 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                     dracoLoader.setDecoderPath('vendor/three/examples/jsm/libs/draco/gltf/');
                     gltfLoader.setDRACOLoader(dracoLoader);
                     
-                    gltfLoader.load("Assets/Avatar2.glb", (gltf) => {
-                      const avatar = gltf.scene;
-                      // Move entire avatar asset securely into Layer 1 (Ghost to FPV, Visible to Minimap)
-                      avatar.traverse((child) => {
-                        if (child.isMesh) {
-                          child.layers.set(1);
-                          child.castShadow = false; // Disable shadows for 78MB mesh to rescue FPS
-                          child.receiveShadow = false;
-                        }
-                      });
-
-                      // Fix scale to rigidly match `BringsHappinessGirl` NPC (1.14, 1.43, 1.14)
-                      // User Request: Reduce by 15%
-                      avatar.scale.set(0.969, 1.2155, 0.969);
-
-                      // Attach pure black PIP directional marker (ghosted to Layer 1)
-                      const playerMarker = new THREE.Group();
-                      // Submerge group to ground level so it acts as a floor base!
-                      playerMarker.position.y = 0.02;
-                      // Counter-rotate the marker to cancel out the avatar's native mesh ROT_OFFSET (-90 deg)
-                      playerMarker.rotation.y = Math.PI / 2;
-
-                      // Raised platform
-                      const pRadius = 0.375;
-                      const pMarkerGeo = new THREE.CylinderGeometry(
-                        pRadius,
-                        pRadius,
-                        0.02,
-                        32,
-                      );
-                      const pMarkerMat = new THREE.MeshStandardMaterial({
-                        color: 0x2e7d32,
-                        roughness: 0.2,
-                        metalness: 0.1,
-                      });
-                      const baseMesh = new THREE.Mesh(pMarkerGeo, pMarkerMat);
-                      baseMesh.position.y = 0.01; // half thickness
-                      baseMesh.layers.set(1);
-                      playerMarker.add(baseMesh);
-
-                      // Add brilliant white border around player platform
-                      const borderGeo = new THREE.TorusGeometry(
-                        pRadius,
-                        0.02,
-                        16,
-                        48,
-                      );
-                      const borderMat = new THREE.MeshStandardMaterial({
-                        color: 0xffffff,
-                        roughness: 0.1,
-                        metalness: 0.1,
-                      });
-                      const borderMesh = new THREE.Mesh(borderGeo, borderMat);
-                      borderMesh.rotation.x = Math.PI / 2;
-                      borderMesh.position.y = 0.01; // Flush with base
-                      borderMesh.layers.set(1);
-                      playerMarker.add(borderMesh);
-
-                      // Attach directional wedge pointing natively to Forward (Player Avatar faces +Z locally)
-                      const arrowGeo = new THREE.ConeGeometry(0.08, 0.2, 32);
-                      const arrowMat = new THREE.MeshStandardMaterial({
-                        color: 0xffffff,
-                        roughness: 0.1,
-                        metalness: 0.1,
-                      });
-                      const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
-                      arrowMesh.rotation.set(Math.PI / 2, 0, 0); // Tip points forward (+Z) relative to avatar
-                      // Flatten the cone vertically. After Math.PI/2 X-rotation, the world Y axis is the cone's local Z axis.
-                      arrowMesh.scale.set(1.0, 1.0, 0.25); // 0.08 radius * 0.25 = 0.02, perfectly matching the Torus thickness
-                      arrowMesh.position.set(0, 0.01, pRadius + 0.1); // Connected exactly to border (radius + half cone height)
-                      arrowMesh.layers.set(1);
-
-                      playerMarker.add(arrowMesh);
-                      avatar.add(playerMarker);
-
-                      // Boot up the native skeletal animation cycle
-                      if (gltf.animations && gltf.animations.length > 0) {
-                        window._playerAvatarMixer = new THREE.AnimationMixer(
-                          avatar,
-                        );
-
-                        window._avIdleClip =
-                          gltf.animations.length > 7
-                            ? gltf.animations[7]
-                            : gltf.animations[0];
-                        window._avWalkClip =
-                          gltf.animations.length > 5
-                            ? gltf.animations[5]
-                            : null;
-                        window._avWaveClip =
-                          gltf.animations.length > 1
-                            ? gltf.animations[1]
-                            : null;
-
-                        // POPULATE ANIMATION PANEL FOR TESTING
-                        const animPanel =
-                          document.getElementById("animation-panel");
-                        const animContainer =
-                          document.getElementById("animation-buttons");
-                        if (animPanel && animContainer) {
-                          animPanel.style.display = "block"; // Show panel
-                          animContainer.innerHTML = ""; // Clear old buttons
-
-                          // Default to playing Idle so we know it works
-                          if (window._currentAvAction)
-                            window._currentAvAction.stop();
-                          window._currentAvAction =
-                            window._playerAvatarMixer.clipAction(
-                              window._avIdleClip,
-                            );
-                          window._currentAvAction.setEffectiveWeight(1.0);
-                          window._currentAvAction.play();
-
-                          gltf.animations.forEach((clip, index) => {
-                            const btn = document.createElement("button");
-                            btn.textContent = `[${index}] ${clip.name}`;
-                            btn.style.cssText =
-                              "padding:6px; background:#4a3122; color:#fff; border:1px solid #a37c58; border-radius:4px; cursor:pointer; text-align:left; font-size:12px;";
-                            btn.onclick = () => {
-                              if (window._currentAvAction) {
-                                window._currentAvAction.crossFadeTo(
-                                  window._playerAvatarMixer.clipAction(clip),
-                                  0.2,
-                                  true,
-                                );
-                                window._currentAvAction =
-                                  window._playerAvatarMixer.clipAction(clip);
-                                window._currentAvAction.reset().play();
-                              } else {
-                                window._currentAvAction =
-                                  window._playerAvatarMixer.clipAction(clip);
-                                window._currentAvAction.play();
-                              }
-                            };
-                            animContainer.appendChild(btn);
-                          });
-                        }
-
-                        if (window._avIdleClip) {
-                          window._avIdleAction =
-                            window._playerAvatarMixer.clipAction(
-                              window._avIdleClip,
-                            );
-                          window._avIdleAction.play();
-                        }
-                        if (window._avWalkClip) {
-                          // Filter out X/Z root motion to prevent double-sliding, but preserve Y bounce
-                          window._avWalkClip.tracks.forEach((track) => {
-                            if (track.name.endsWith(".position")) {
-                              const vals = track.values;
-                              if (vals.length >= 3) {
-                                const startX = vals[0];
-                                const startZ = vals[2];
-                                for (let i = 0; i < vals.length; i += 3) {
-                                  vals[i] = startX;
-                                  vals[i + 2] = startZ;
-                                }
-                              }
+                    gltfLoader.load('Assets/Avatar2_draco.glb', (gltf) => {
+                        const avatar = gltf.scene;
+                        // Move entire avatar asset securely into Layer 1 (Ghost to FPV, Visible to Minimap)
+                        avatar.traverse(child => {
+                            if (child.isMesh) {
+                                child.layers.set(1);
+                                child.castShadow = false; // Disable shadows for 78MB mesh to rescue FPS
+                                child.receiveShadow = false;
                             }
-                          });
-                          window._avWalkAction =
-                            window._playerAvatarMixer.clipAction(
-                              window._avWalkClip,
-                            );
-                          window._avWalkAction.play();
-                          window._avWalkAction.setEffectiveWeight(0);
-                        }
-                        if (window._avWaveClip) {
-                          window._avWaveAction =
-                            window._playerAvatarMixer.clipAction(
-                              window._avWaveClip,
-                            );
+                        });
+
+                        // Fix scale to rigidly match `BringsHappinessGirl` NPC (1.14, 1.43, 1.14)
+                        // User Request: Reduce by 15%
+                        avatar.scale.set(0.969, 1.2155, 0.969);
+
+                        // Attach pure black PIP directional marker (ghosted to Layer 1)
+                        const playerMarker = new THREE.Group();
+                        // Submerge group to ground level so it acts as a floor base!
+                        playerMarker.position.y = 0.02;
+                        // Counter-rotate the marker to cancel out the avatar's native mesh ROT_OFFSET (-90 deg)
+                        playerMarker.rotation.y = Math.PI / 2;
+                        
+                        // Raised platform
+                        const pRadius = 0.375;
+                        const pMarkerGeo = new THREE.CylinderGeometry(pRadius, pRadius, 0.02, 32);
+                        const pMarkerMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.2, metalness: 0.1 });
+                        const baseMesh = new THREE.Mesh(pMarkerGeo, pMarkerMat);
+                        baseMesh.position.y = 0.01; // half thickness
+                        baseMesh.layers.set(1);
+                        playerMarker.add(baseMesh);
+
+                        // Add brilliant white border around player platform
+                        const borderGeo = new THREE.TorusGeometry(pRadius, 0.02, 16, 48);
+                        const borderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
+                        const borderMesh = new THREE.Mesh(borderGeo, borderMat);
+                        borderMesh.rotation.x = Math.PI / 2;
+                        borderMesh.position.y = 0.01; // Flush with base
+                        borderMesh.layers.set(1);
+                        playerMarker.add(borderMesh);
+
+                        // Attach directional wedge pointing natively to Forward (Player Avatar faces +Z locally)
+                        const arrowGeo = new THREE.ConeGeometry(0.08, 0.2, 32);
+                        const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
+                        const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
+                        arrowMesh.rotation.set(Math.PI / 2, 0, 0); // Tip points forward (+Z) relative to avatar
+                        // Flatten the cone vertically. After Math.PI/2 X-rotation, the world Y axis is the cone's local Z axis.
+                        arrowMesh.scale.set(1.0, 1.0, 0.25); // 0.08 radius * 0.25 = 0.02, perfectly matching the Torus thickness
+                        arrowMesh.position.set(0, 0.01, pRadius + 0.1); // Connected exactly to border (radius + half cone height)
+                        arrowMesh.layers.set(1);
+                        
+                        playerMarker.add(arrowMesh);
+                        avatar.add(playerMarker);
+
+                        // Boot up the native skeletal animation cycle
+                        if (gltf.animations && gltf.animations.length > 0) {
+                            window._playerAvatarMixer = new THREE.AnimationMixer(avatar);
+                            
+                            window._avIdleClip = gltf.animations.length > 7 ? gltf.animations[7] : gltf.animations[0];
+                            window._avWalkClip = gltf.animations.length > 5 ? gltf.animations[5] : null;
+                            window._avWaveClip = gltf.animations.length > 1 ? gltf.animations[1] : null;
+
+                            // POPULATE ANIMATION PANEL FOR TESTING
+                            const animPanel = document.getElementById('animation-panel');
+                            const animContainer = document.getElementById('animation-buttons');
+                            if (animPanel && animContainer) {
+                                animPanel.style.display = 'block'; // Show panel
+                                animContainer.innerHTML = ''; // Clear old buttons
+                                
+                                // Default to playing Idle so we know it works
+                                if (window._currentAvAction) window._currentAvAction.stop();
+                                window._currentAvAction = window._playerAvatarMixer.clipAction(window._avIdleClip);
+                                window._currentAvAction.setEffectiveWeight(1.0);
+                                window._currentAvAction.play();
+
+                                gltf.animations.forEach((clip, index) => {
+                                    const btn = document.createElement('button');
+                                    btn.textContent = `[${index}] ${clip.name}`;
+                                    btn.style.cssText = "padding:6px; background:#4a3122; color:#fff; border:1px solid #a37c58; border-radius:4px; cursor:pointer; text-align:left; font-size:12px;";
+                                    btn.onclick = () => {
+                                        if (window._currentAvAction) {
+                                            window._currentAvAction.crossFadeTo(window._playerAvatarMixer.clipAction(clip), 0.2, true);
+                                            window._currentAvAction = window._playerAvatarMixer.clipAction(clip);
+                                            window._currentAvAction.reset().play();
+                                        } else {
+                                            window._currentAvAction = window._playerAvatarMixer.clipAction(clip);
+                                            window._currentAvAction.play();
+                                        }
+                                    };
+                                    animContainer.appendChild(btn);
+                                });
+                            }
+
+                            if (window._avIdleClip) {
+                                window._avIdleAction = window._playerAvatarMixer.clipAction(window._avIdleClip);
+                                window._avIdleAction.play();
+                            }
+                            if (window._avWalkClip) {
+                                // Filter out X/Z root motion to prevent double-sliding, but preserve Y bounce
+                                window._avWalkClip.tracks.forEach(track => {
+                                    if (track.name.endsWith('.position')) {
+                                        const vals = track.values;
+                                        if (vals.length >= 3) {
+                                            const startX = vals[0];
+                                            const startZ = vals[2];
+                                            for (let i = 0; i < vals.length; i += 3) {
+                                                vals[i] = startX;
+                                                vals[i+2] = startZ;
+                                            }
+                                        }
+                                    }
+                                });
+                                window._avWalkAction = window._playerAvatarMixer.clipAction(window._avWalkClip);
+                                window._avWalkAction.play();
+                                window._avWalkAction.setEffectiveWeight(0);
+                            }
+                            if (window._avWaveClip) {
+                                window._avWaveAction = window._playerAvatarMixer.clipAction(window._avWaveClip);
+                            }
+                            
+                            window._avIsWalking = false;
                         }
 
-                        window._avIsWalking = false;
-                      }
-
-                      window._playerAvatar = avatar;
-                      window._playerAvatar.traverse((c) => c.layers.enable(1)); // Enable Layer 1 for entire subtree
-                      scene.add(avatar);
-                      resolve();
+                        window._playerAvatar = avatar;
+                        window._playerAvatar.traverse(c => c.layers.enable(1)); // Enable Layer 1 for entire subtree
+                        scene.add(avatar);
+                        resolve();
                     });
                 });
             };

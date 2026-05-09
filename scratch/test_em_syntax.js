@@ -1,0 +1,1 @@
+const { parse } = require("acorn"); const fs = require("fs"); const code = fs.readFileSync("js/EngineMain.js", "utf8"); try { parse(code, { ecmaVersion: 2022, sourceType: "module" }); console.log("EM OK"); } catch(e) { console.error("EM ERROR:", e); }

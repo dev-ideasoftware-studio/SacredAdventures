@@ -1,0 +1,111 @@
+# Instructions to Duplicate the GLB Avatar Button
+
+This guide provides step-by-step instructions for an AI agent to duplicate the interactive `player-avatar-container` 3D GLB button within `NewOrigami.Panels.html`. 
+
+## 1. HTML DOM Structure
+Locate the existing avatar circle in the HTML and duplicate it with a new unique ID.
+
+```html
+<!-- Existing Button -->
+<div class="avatar-circle" id="player-avatar-container" onclick="toggleRing()"></div>
+
+<!-- NEW Duplicated Button -->
+<div class="avatar-circle" id="secondary-avatar-container" onclick="customAction()"></div>
+```
+
+> [!TIP]
+> The `.avatar-circle` CSS class automatically applies the neumorphic ring layout, 58x58px circular clipping bounds, and flexbox centering. You do not need to write new CSS unless you want different dimensions.
+
+## 2. Declare New Global Three.js Variables
+In the `<script type="module">` section where the existing avatar variables are declared, add a new set of independent variables for the secondary avatar.
+
+```javascript
+// Existing globals
+let avatarMixer = null;
+let avatarActions = {};
+let avatarScene, avatarCamera, avatarRenderer;
+
+// NEW globals for duplicated button
+let secondaryAvatarMixer = null;
+let secondaryAvatarActions = {};
+let secondaryAvatarScene, secondaryAvatarCamera, secondaryAvatarRenderer;
+```
+
+## 3. Duplicate Initialization Logic
+Locate the Three.js initialization block (where `avatarRenderer` is created). Duplicate this setup, swapping all references to point to the new variables and the new container ID.
+
+```javascript
+const container2 = document.getElementById('secondary-avatar-container');
+if (container2) {
+    const w = container2.clientWidth || 58;
+    const h = container2.clientHeight || 58;
+
+    // 1. Setup Renderer
+    secondaryAvatarRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
+    secondaryAvatarRenderer.setClearColor(0x000000, 0); 
+    secondaryAvatarRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    secondaryAvatarRenderer.setSize(w, h);
+    container2.appendChild(secondaryAvatarRenderer.domElement);
+    
+    // 2. Setup Scene & Camera
+    secondaryAvatarScene = new THREE.Scene();
+    secondaryAvatarCamera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
+    secondaryAvatarCamera.position.set(0, 1.2, 4.8);
+    secondaryAvatarCamera.lookAt(0, 0.85, 0);
+
+    // 3. Add Lights
+    const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(2, 5, 3);
+    secondaryAvatarScene.add(ambLight, dirLight);
+
+    // 4. Load the GLB Model
+    const loader = new GLTFLoader();
+    loader.load('assets/models/YOUR_NEW_MODEL.glb', (gltf) => {
+        const model = gltf.scene;
+        // Apply optional scaling/positioning
+        model.scale.set(1, 1, 1);
+        model.position.set(0, 0, 0);
+        secondaryAvatarScene.add(model);
+        
+        // 5. Setup Animation Mixer
+        if (gltf.animations && gltf.animations.length) {
+            secondaryAvatarMixer = new THREE.AnimationMixer(model);
+            gltf.animations.forEach(anim => {
+                const action = secondaryAvatarMixer.clipAction(anim);
+                secondaryAvatarActions[anim.name.toLowerCase()] = action;
+            });
+            // Play default animation
+            if (secondaryAvatarActions['idle']) secondaryAvatarActions['idle'].play();
+        }
+    });
+}
+```
+
+## 4. Hook into the Unified Render Loop
+Finally, locate the `renderLoop(time)` function. You must update the new mixer with the existing `delta` time, and tell the new renderer to draw the scene so the button stays animated.
+
+```javascript
+function renderLoop(time) {
+    requestAnimationFrame(renderLoop);
+    
+    // Throttle to 30 FPS logic (already exists)
+    if (time - lastRender < 33) return;
+    lastRender = time;
+    const delta = avatarClock.getDelta(); // Reuse existing clock
+
+    // Existing update
+    if (avatarMixer) avatarMixer.update(delta);
+    if (avatarRenderer) avatarRenderer.render(avatarScene, avatarCamera);
+
+    // NEW update logic for duplicate
+    if (secondaryAvatarMixer) {
+        secondaryAvatarMixer.update(delta);
+    }
+    
+    if (secondaryAvatarRenderer && secondaryAvatarScene && secondaryAvatarCamera) {
+        // Apply resize logic here if container dynamically scales
+        secondaryAvatarRenderer.render(secondaryAvatarScene, secondaryAvatarCamera);
+    }
+}
+```
