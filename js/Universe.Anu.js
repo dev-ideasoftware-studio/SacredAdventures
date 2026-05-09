@@ -486,6 +486,202 @@ class UniverseAnuEngine {
     );
   }
 
+  // =========================================================
+  // MODULE TOGGLES — Disable/enable systems from console
+  // Usage: window.UniverseAnu.disable('PIP')
+  //        window.UniverseAnu.enable('PIP')
+  //        window.UniverseAnu.toggles()   — show all states
+  // =========================================================
+
+  disable(moduleName) {
+    const m = moduleName.toUpperCase();
+    switch (m) {
+      case "PIP":
+        if (window.fuzzyBrain) {
+          window.fuzzyBrain.pipEnabled = false;
+        }
+        if (window._pipRenderer) window._pipRenderer.setSize(1, 1);
+        console.warn(
+          `%c[Universe.Anu] 🔴 PIP disabled`,
+          "color:#ff9800;font-weight:bold;",
+        );
+        break;
+      case "JOURNAL":
+        const jf = document.getElementById("panel-frame");
+        if (jf) {
+          jf.style.display = "none";
+          jf._anuDisabled = true;
+        }
+        console.warn(
+          `%c[Universe.Anu] 🔴 Journal disabled`,
+          "color:#ff9800;font-weight:bold;",
+        );
+        break;
+      case "TERRAIN":
+        if (window.envBuilder && window.envBuilder._terrainMesh) {
+          window.envBuilder._terrainMesh.visible = false;
+        }
+        console.warn(
+          `%c[Universe.Anu] 🔴 Terrain disabled`,
+          "color:#ff9800;font-weight:bold;",
+        );
+        break;
+      case "TREES":
+        if (window.fuzzyBrain) window.fuzzyBrain.maxVisibleTrees = 0;
+        if (window.fuzzyBrain)
+          window.fuzzyBrain.updateTreeLOD && window.fuzzyBrain.updateTreeLOD();
+        console.warn(
+          `%c[Universe.Anu] 🔴 Trees disabled`,
+          "color:#ff9800;font-weight:bold;",
+        );
+        break;
+      case "SHADOWS":
+        if (window.fuzzyBrain) {
+          window.fuzzyBrain.shadows = false;
+          window.fuzzyBrain._applyShadows && window.fuzzyBrain._applyShadows();
+        }
+        if (window.sunLight) window.sunLight.castShadow = false;
+        console.warn(
+          `%c[Universe.Anu] 🔴 Shadows disabled`,
+          "color:#ff9800;font-weight:bold;",
+        );
+        break;
+      case "NPCS":
+        if (window.MasterNPCAI) window.MasterNPCAI._paused = true;
+        console.warn(
+          `%c[Universe.Anu] 🔴 NPCs disabled`,
+          "color:#ff9800;font-weight:bold;",
+        );
+        break;
+      case "ANIMALS":
+        if (window.masterAI) window.masterAI.state = "PAUSED";
+        console.warn(
+          `%c[Universe.Anu] 🔴 Animals disabled`,
+          "color:#ff9800;font-weight:bold;",
+        );
+        break;
+      case "POSTFX":
+        if (window._composer)
+          window._composer.passes.forEach((p) => {
+            if (p.constructor.name !== "RenderPass") p.enabled = false;
+          });
+        console.warn(
+          `%c[Universe.Anu] 🔴 PostFX disabled`,
+          "color:#ff9800;font-weight:bold;",
+        );
+        break;
+      default:
+        console.warn(
+          `[Universe.Anu] Unknown module: "${moduleName}". Options: PIP, JOURNAL, TERRAIN, TREES, SHADOWS, NPCS, ANIMALS, POSTFX`,
+        );
+    }
+    this._moduleStates = this._moduleStates || {};
+    this._moduleStates[m] = false;
+  }
+
+  enable(moduleName) {
+    const m = moduleName.toUpperCase();
+    switch (m) {
+      case "PIP":
+        if (window.fuzzyBrain) window.fuzzyBrain.pipEnabled = true;
+        console.log(
+          `%c[Universe.Anu] ✅ PIP enabled`,
+          "color:#4caf50;font-weight:bold;",
+        );
+        break;
+      case "JOURNAL":
+        const jf = document.getElementById("panel-frame");
+        if (jf) {
+          jf.style.display = "";
+          jf._anuDisabled = false;
+        }
+        console.log(
+          `%c[Universe.Anu] ✅ Journal enabled`,
+          "color:#4caf50;font-weight:bold;",
+        );
+        break;
+      case "TERRAIN":
+        if (window.envBuilder && window.envBuilder._terrainMesh) {
+          window.envBuilder._terrainMesh.visible = true;
+        }
+        console.log(
+          `%c[Universe.Anu] ✅ Terrain enabled`,
+          "color:#4caf50;font-weight:bold;",
+        );
+        break;
+      case "TREES":
+        if (window.fuzzyBrain) window.fuzzyBrain.maxVisibleTrees = 200;
+        console.log(
+          `%c[Universe.Anu] ✅ Trees enabled`,
+          "color:#4caf50;font-weight:bold;",
+        );
+        break;
+      case "SHADOWS":
+        if (window.sunLight) window.sunLight.castShadow = true;
+        if (window.fuzzyBrain) {
+          window.fuzzyBrain.shadows = true;
+        }
+        console.log(
+          `%c[Universe.Anu] ✅ Shadows enabled`,
+          "color:#4caf50;font-weight:bold;",
+        );
+        break;
+      case "NPCS":
+        if (window.MasterNPCAI) window.MasterNPCAI._paused = false;
+        console.log(
+          `%c[Universe.Anu] ✅ NPCs enabled`,
+          "color:#4caf50;font-weight:bold;",
+        );
+        break;
+      case "ANIMALS":
+        if (window.masterAI) window.masterAI.state = "ACTIVE";
+        console.log(
+          `%c[Universe.Anu] ✅ Animals enabled`,
+          "color:#4caf50;font-weight:bold;",
+        );
+        break;
+      case "POSTFX":
+        if (window._composer)
+          window._composer.passes.forEach((p) => (p.enabled = true));
+        console.log(
+          `%c[Universe.Anu] ✅ PostFX enabled`,
+          "color:#4caf50;font-weight:bold;",
+        );
+        break;
+      default:
+        console.warn(`[Universe.Anu] Unknown module: "${moduleName}"`);
+    }
+    this._moduleStates = this._moduleStates || {};
+    this._moduleStates[m] = true;
+  }
+
+  /** Show all module toggle states */
+  toggles() {
+    const states = this._moduleStates || {};
+    const modules = [
+      "PIP",
+      "JOURNAL",
+      "TERRAIN",
+      "TREES",
+      "SHADOWS",
+      "NPCS",
+      "ANIMALS",
+      "POSTFX",
+    ];
+    console.group(
+      "%c[Universe.Anu] Module Toggles",
+      "color:#fbc02d;font-weight:bold;",
+    );
+    console.log(
+      'Usage: UniverseAnu.disable("MODULE") / UniverseAnu.enable("MODULE")',
+    );
+    modules.forEach((m) => {
+      const on = states[m] !== false;
+      console.log(`${on ? "✅" : "🔴"} ${m}`);
+    });
+    console.groupEnd();
+  }
+
   /**
    * Full integrity snapshot — call from console for diagnostics.
    * Usage: window.UniverseAnu.report()
