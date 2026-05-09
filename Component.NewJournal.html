@@ -352,6 +352,62 @@
             transform: scale(1.1);
         }
 
+        /* ---- PIP Circle + Bloom Ring ---- */
+        .pip-circle-wrap {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 4px solid rgba(60,40,20,0.45);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+            overflow: hidden;
+            transition: transform 0.15s ease;
+        }
+        .pip-circle-wrap:hover {
+            transform: scale(1.04);
+        }
+        .pip-circle-wrap:active {
+            transform: scale(0.97);
+        }
+        .pip-bloom-ring {
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            border: 4px solid rgba(251, 192, 45, 0.0);
+            box-shadow:
+                0 0 14px 4px rgba(251, 192, 45, 0.7),
+                0 0 28px 8px rgba(251, 192, 45, 0.35),
+                inset 0 0 10px 2px rgba(251, 192, 45, 0.2);
+            animation: pip-bloom-pulse 2.2s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+        @keyframes pip-bloom-pulse {
+            0%   { opacity: 0.5; transform: scale(0.97); }
+            50%  { opacity: 1.0; transform: scale(1.03); }
+            100% { opacity: 0.5; transform: scale(0.97); }
+        }
+        .pip-tap-hint {
+            position: absolute;
+            bottom: 6px;
+            left: 0; right: 0;
+            text-align: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fde047;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+            pointer-events: none;
+            z-index: 6;
+            animation: pip-hint-fade 2.2s ease-in-out infinite;
+        }
+        @keyframes pip-hint-fade {
+            0%   { opacity: 0.6; }
+            50%  { opacity: 1.0; }
+            100% { opacity: 0.6; }
+        }
+        /* --------------------------------- */
+
         .page-flipper {
             position: absolute;
             inset: 0;
@@ -1574,11 +1630,19 @@
                 }
                 if (block.type === 'pip-box') {
                     const targetId = block.target || 'pip';
-                    const clickAction = targetId === 'pip' ? "if(window.parent.emit) window.parent.emit('TOGGLE_VIEW_MODE');" : "";
-                    const cursorClass = targetId === 'pip' ? "cursor-pointer hover:scale-[1.02]" : "";
+                    const isPip = targetId === 'pip';
+                    const clickAction = isPip
+                        ? "window.parent.postMessage({type:'TOGGLE_VIEW_MODE'},'*'); this.closest('[data-pip-target]') && this.closest('[data-pip-target]').classList.add('pip-clicked');"
+                        : "";
+                    const cursorClass = isPip ? "cursor-pointer" : "";
+                    const bloomRing = isPip ? `
+                        <div class="pip-bloom-ring" aria-hidden="true"></div>
+                        <div class="pip-tap-hint" aria-hidden="true">👆 Tap to Switch View</div>
+                    ` : '';
                     return `
-                        <div class="w-full flex justify-center mt-1 mb-2">
-                            <div onclick="${clickAction}" data-pip-target="${targetId}" class="w-full aspect-square max-w-[140px] bg-stone-300 rounded-full border-4 border-stone-800/40 shadow-inner flex flex-col items-center justify-center overflow-hidden relative ${cursorClass} transition-transform" style="background-image: url('Assets/PIP.SacredOnes.png'); background-size: cover; background-position: center;">
+                        <div class="w-full flex justify-center mt-1 mb-2" style="position:relative;">
+                            <div onclick="${clickAction}" data-pip-target="${targetId}" class="pip-circle-wrap ${cursorClass}" style="background-image: url('Assets/PIP.SacredOnes.png'); background-size: cover; background-position: center;">
+                                ${bloomRing}
                             </div>
                         </div>
                     `;
