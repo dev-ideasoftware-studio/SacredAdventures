@@ -563,7 +563,8 @@ export const WorldModule = {
     );
 
     window.WorldPlayer = {
-      position: camera.position,
+      position: body.position,
+      cameraPosition: camera.position,
       yaw: this._yaw,
       grounded: body.grounded,
       distanceMeters: this._walkDistance,
