@@ -6,100 +6,118 @@
 
 class FuzzyBrain {
     constructor(renderer, composer, scene, config = {}) {
-        this.renderer = renderer;
-        this.composer = composer;
-        this.scene = scene;
-        
-        // --- TARGETS ---
-        this.targetFPS = config.targetFPS || 55;
-        this.criticalFPS = config.criticalFPS || 20;
-        this.recoveryFPS = config.recoveryFPS || 45;
-        
-        // --- FPS TRACKING ---
-        this.frameTimes = [];          // Rolling window of frame deltas
-        this.windowSize = 60;          // Average over 1 full second to ignore WebGL compile spikes
-        this.currentFPS = 60;
-        this.smoothFPS = 60;
-        this.frameCount = 0;
-        
-        // --- QUALITY LEVELS ---
-        // 0 = Ultra (everything on), 1 = High, 2 = Medium, 3 = Low, 4 = Survival
-        this.qualityLevel = 0;
-        this.qualityNames = ['ULTRA', 'HIGH', 'MEDIUM', 'LOW', 'SURVIVAL'];
-        this.cooldownFrames = 0;       // Prevent rapid quality changes
-        this.cooldownDuration = 60;    // Wait 60 frames between changes
-        
-        // --- CONTROLLED SYSTEMS ---
-        this.shadows = true;
-        this.shadowMapSize = 2048;     // Reduced from 4096 for 60fps base
-        this.pipEnabled = true;
-        this.pipSkipFrames = 1;        // Render PIP every N frames
-        this.fogDensity = 0.003;       // Base engine barebones fog
-        this.treeRenderDist = 120;     // Max distance to render trees
-        this.maxVisibleTrees = 200;
-        this.shadowCullRadius = 150;   // Default shadow radius
-        this.pixelRatio = window.devicePixelRatio || 1;
-        this.aiThrottle = 1;           // 1 = every frame, 3 = every 3rd frame
-        
-        // --- REFERENCES ---
-        this.pipRenderer = null;
-        this.pipCamera = null;
-        this.sunLight = null;
-        this.treeMeshes = [];          // Tree scene objects for LOD
-        this.camera = null;
-        this.creatureSystems = {};     // { name: system } — registered creature AIs
-        this.npcs = [];                // { id, mesh, system } — isolated interactive NPCs
-        
-        // --- DIAGNOSTICS ---
-        this.lastReport = 0;
-        this.reportInterval = 3000;    // Report every 3 seconds
-        this.enabled = true;
-        
-        // --- CONFIG REGISTRY ---
-        // Records of asset/texture decisions and rendering optimizations
-        // This is the AI's memory of what works and what doesn't
-        this.registry = {
-            textures: {
-                ground: {
-                    file: 'Assets/ground.png',
-                    type: 'photorealistic',
-                    repeat: [12, 12],
-                    note: 'Forest floor — pine needles, moss, pebbles. 1024x1024. Previous grass_seamless.png looked like a quilt. This one matches Ponderosa forest theme.'
-                },
-                treeBark: {
-                    file: 'Assets/PineTree/wood100.jpg',
-                    type: 'original_3ds',
-                    note: 'Loaded by TDSLoader from 3DS file. DO NOT override with custom materials.'
-                },
-                treeBranch: {
-                    file: 'Assets/PineTree/branch2.png',
-                    type: 'original_3ds',
-                    note: 'Loaded by TDSLoader. Needs alphaTest:0.5 and DoubleSide. DO NOT override.'
-                }
-            },
-            models: {
-                pineTree: {
-                    file: 'Assets/PineTree/tree.3ds',
-                    loader: 'TDSLoader',
-                    scale: 0.35,
-                    fixes: ['rotateX(-PI/2) for Z-up→Y-up', 'colorSpace=SRGB', 'DoubleSide', 'alphaTest=0.5'],
-                    note: 'PRESERVE original materials. TDSLoader auto-assigns textures via setResourcePath.'
-                }
-            },
-            performance: {
-                shadowMap: '2048 is sweet spot. 4096 too expensive, 1024 visibly worse.',
-                terrain: '64x64 segments. 128x128 was overkill for sine-wave hills.',
-                lensflare: 'Single element only. Multiple elements = visual noise + GPU waste.',
-                pip: 'Skip frames via FuzzyBrain. Every 2nd frame at HIGH, every 4th at MEDIUM, off at LOW.',
-                groundMaterial: 'No displacementMap on ground (doubles vertex processing). Vertex height is enough.',
-                statsHUD: 'scene.traverse every 30 frames max. More often kills FPS.',
-                treeRendering: 'Preserve 3DS original materials. Custom material overrides broke appearance.',
-                fog: 'FogExp2 density 0.008 default. Increase to 0.015-0.025 to hide distant geometry at low FPS.'
-            }
-        };
-        
-        console.log('[FuzzyBrain] Initialized — target: ' + this.targetFPS + ' FPS');
-        console.log('[FuzzyBrain] Config registry loaded:', Object.keys(this.registry.textures).length, 'textures,', Object.keys(this.registry.models).length, 'models');
+      this.renderer = renderer;
+      this.composer = composer;
+      this.scene = scene;
+
+      // --- TARGETS ---
+      this.targetFPS = config.targetFPS || 55;
+      this.criticalFPS = config.criticalFPS || 20;
+      this.recoveryFPS = config.recoveryFPS || 45;
+
+      // --- FPS TRACKING ---
+      this.frameTimes = []; // Rolling window of frame deltas
+      this.windowSize = 90; // Average over 1.5 seconds to smooth world-gen spikes
+      this.currentFPS = 60;
+      this.smoothFPS = 60;
+      this.frameCount = 0;
+      this.startupImmunity = 180; // Ignore first 3 seconds — world gen causes false critical readings
+
+      // --- QUALITY LEVELS ---
+      // 0 = Ultra (everything on), 1 = High, 2 = Medium, 3 = Low, 4 = Survival
+      this.qualityLevel = 0;
+      this.qualityNames = ["ULTRA", "HIGH", "MEDIUM", "LOW", "SURVIVAL"];
+      this.cooldownFrames = 0; // Prevent rapid quality changes
+      this.cooldownDuration = 120; // Wait 2 seconds between quality changes
+
+      // --- CONTROLLED SYSTEMS ---
+      this.shadows = true;
+      this.shadowMapSize = 2048; // Reduced from 4096 for 60fps base
+      this.pipEnabled = true;
+      this.pipSkipFrames = 1; // Render PIP every N frames
+      this.fogDensity = 0.003; // Base engine barebones fog
+      this.treeRenderDist = 120; // Max distance to render trees
+      this.maxVisibleTrees = 200;
+      this.shadowCullRadius = 150; // Default shadow radius
+      this.pixelRatio = window.devicePixelRatio || 1;
+      this.aiThrottle = 1; // 1 = every frame, 3 = every 3rd frame
+
+      // --- REFERENCES ---
+      this.pipRenderer = null;
+      this.pipCamera = null;
+      this.sunLight = null;
+      this.treeMeshes = []; // Tree scene objects for LOD
+      this.camera = null;
+      this.creatureSystems = {}; // { name: system } — registered creature AIs
+      this.npcs = []; // { id, mesh, system } — isolated interactive NPCs
+
+      // --- DIAGNOSTICS ---
+      this.lastReport = 0;
+      this.reportInterval = 3000; // Report every 3 seconds
+      this.enabled = true;
+
+      // --- CONFIG REGISTRY ---
+      // Records of asset/texture decisions and rendering optimizations
+      // This is the AI's memory of what works and what doesn't
+      this.registry = {
+        textures: {
+          ground: {
+            file: "Assets/ground.png",
+            type: "photorealistic",
+            repeat: [12, 12],
+            note: "Forest floor — pine needles, moss, pebbles. 1024x1024. Previous grass_seamless.png looked like a quilt. This one matches Ponderosa forest theme.",
+          },
+          treeBark: {
+            file: "Assets/PineTree/wood100.jpg",
+            type: "original_3ds",
+            note: "Loaded by TDSLoader from 3DS file. DO NOT override with custom materials.",
+          },
+          treeBranch: {
+            file: "Assets/PineTree/branch2.png",
+            type: "original_3ds",
+            note: "Loaded by TDSLoader. Needs alphaTest:0.5 and DoubleSide. DO NOT override.",
+          },
+        },
+        models: {
+          pineTree: {
+            file: "Assets/PineTree/tree.3ds",
+            loader: "TDSLoader",
+            scale: 0.35,
+            fixes: [
+              "rotateX(-PI/2) for Z-up→Y-up",
+              "colorSpace=SRGB",
+              "DoubleSide",
+              "alphaTest=0.5",
+            ],
+            note: "PRESERVE original materials. TDSLoader auto-assigns textures via setResourcePath.",
+          },
+        },
+        performance: {
+          shadowMap:
+            "2048 is sweet spot. 4096 too expensive, 1024 visibly worse.",
+          terrain: "64x64 segments. 128x128 was overkill for sine-wave hills.",
+          lensflare:
+            "Single element only. Multiple elements = visual noise + GPU waste.",
+          pip: "Skip frames via FuzzyBrain. Every 2nd frame at HIGH, every 4th at MEDIUM, off at LOW.",
+          groundMaterial:
+            "No displacementMap on ground (doubles vertex processing). Vertex height is enough.",
+          statsHUD: "scene.traverse every 30 frames max. More often kills FPS.",
+          treeRendering:
+            "Preserve 3DS original materials. Custom material overrides broke appearance.",
+          fog: "FogExp2 density 0.008 default. Increase to 0.015-0.025 to hide distant geometry at low FPS.",
+        },
+      };
+
+      console.log(
+        "[FuzzyBrain] Initialized — target: " + this.targetFPS + " FPS",
+      );
+      console.log(
+        "[FuzzyBrain] Config registry loaded:",
+        Object.keys(this.registry.textures).length,
+        "textures,",
+        Object.keys(this.registry.models).length,
+        "models",
+      );
     }
     
     // --- LINK EXTERNAL SYSTEMS ---
@@ -178,6 +196,9 @@ class FuzzyBrain {
             this.smoothFPS = this.smoothFPS * 0.9 + this.currentFPS * 0.1;
         }
         
+        // Startup immunity — ignore FPS during world gen spikes
+        if(this.frameCount < this.startupImmunity) return;
+        
         // Cooldown
         if(this.cooldownFrames > 0) {
             this.cooldownFrames--;
@@ -205,13 +226,15 @@ class FuzzyBrain {
         const fps = this.smoothFPS;
         
         if(fps < this.criticalFPS && this.qualityLevel < 4) {
-            // EMERGENCY — drop quality fast
-            this.setQuality(Math.min(this.qualityLevel + 2, 4));
-            this.lastDowngradeFrame = this.frameCount;
+          // EMERGENCY — drop quality fast
+          this.setQuality(Math.min(this.qualityLevel + 2, 4));
+          this.lastDowngradeFrame = this.frameCount;
+          this.cooldownFrames = this.cooldownDuration * 2; // Long pause after emergency drop
         } else if(fps < this.targetFPS && this.qualityLevel < 4) {
             // BELOW TARGET — reduce quality one step
             this.setQuality(this.qualityLevel + 1);
             this.lastDowngradeFrame = this.frameCount;
+            this.cooldownFrames = this.cooldownDuration;
         } else if(fps > this.recoveryFPS && this.qualityLevel > 0) {
             // ABOVE RECOVERY — restore quality one step, but ONLY after stable 10s
             // Prevents the infinite lighting flash loop (downgrade -> fps rises -> upgrade -> fps drops -> downgrade)
