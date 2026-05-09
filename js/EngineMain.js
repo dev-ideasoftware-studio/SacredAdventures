@@ -322,8 +322,43 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                       window._playerAvatar = avatar;
                       window._playerAvatar.traverse((c) => c.layers.enable(1)); // Enable Layer 1 for entire subtree
                       scene.add(avatar);
+
+                      // --- AVATAR PIP: Clone into dedicated mini scene ---
+                      if (window._avatarPipScene && window._avatarPipRenderer) {
+                        const pipClone = avatar.clone(true);
+                        // Ground the clone
+                        pipClone.updateMatrixWorld(true);
+                        const pipBox = new THREE.Box3().setFromObject(pipClone);
+                        pipClone.position.y = -pipBox.min.y + 0.02;
+                        pipClone.position.x = 0;
+                        pipClone.position.z = 0;
+                        window._avatarPipScene.add(pipClone);
+                        window._avatarPipClone = pipClone;
+                        // Position camera: waist-up portrait framing
+                        window.avatarOrthoCam.position.set(0, 1.2, 2.2);
+                        window.avatarOrthoCam.lookAt(0, 0.9, 0);
+                        // Inject renderer canvas into avatar-pip-target in panel-frame
+                        const _injectPipCanvas = () => {
+                          const pf = document.getElementById("panel-frame");
+                          const pd = pf && pf.contentDocument;
+                          const tgt =
+                            pd && pd.getElementById("avatar-pip-target");
+                          if (tgt) {
+                            window._avatarPipRenderer.domElement.style.cssText =
+                              "width:100%;height:100%;border-radius:50%;display:block;";
+                            tgt.innerHTML = ""; // remove fallback img
+                            tgt.appendChild(
+                              window._avatarPipRenderer.domElement,
+                            );
+                          } else {
+                            setTimeout(_injectPipCanvas, 500);
+                          }
+                        };
+                        _injectPipCanvas();
+                      }
+
                       resolve();
-                    });
+                    };);
                 });
             };
 
@@ -576,141 +611,198 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
         // setupLensflare and setupOpticalMask extracted to Component.PostProcessing.js
         function setupPIP() {
-            // PIP Renderer REMOVED: Replaced with Native WebGL Scissor Pipeline
-            const wrapper = document.getElementById('moondial-wrapper');
+          // PIP Renderer REMOVED: Replaced with Native WebGL Scissor Pipeline
+          const wrapper = document.getElementById("moondial-wrapper");
 
-            // AXE LOGBOOK RENDERER (CONSOLIDATED INTO MAIN RENDERER)
-            window.axeCanvas2D = document.createElement('canvas');
-            window.axeCtx = window.axeCanvas2D.getContext('2d', { alpha: true, willReadFrequently: true });
-            window.axeCanvas2D.style.pointerEvents = 'none';
-            // axeRenderer deleted to save WebGL context!
+          // AXE LOGBOOK RENDERER (CONSOLIDATED INTO MAIN RENDERER)
+          window.axeCanvas2D = document.createElement("canvas");
+          window.axeCtx = window.axeCanvas2D.getContext("2d", {
+            alpha: true,
+            willReadFrequently: true,
+          });
+          window.axeCanvas2D.style.pointerEvents = "none";
+          // axeRenderer deleted to save WebGL context!
 
-            // Cinematic Tilted Perspective Overhead Minimap Camera
-            pipCamera = new THREE.PerspectiveCamera(40, 1.0, 0.1, 3000);
-            pipCamera.layers.enable(1); // Enable Layer 1 so we can see the FPV Avatar
-            pipCamera.updateProjectionMatrix();
+          // Cinematic Tilted Perspective Overhead Minimap Camera
+          pipCamera = new THREE.PerspectiveCamera(40, 1.0, 0.1, 3000);
+          pipCamera.layers.enable(1); // Enable Layer 1 so we can see the FPV Avatar
+          pipCamera.updateProjectionMatrix();
 
-            // NATIVE CANVAS2D UI BLITTING PIPELINE (Replaces 3D Layer Masking Hack)
-            window.pipCanvas2D = document.createElement('canvas');
+          // NATIVE CANVAS2D UI BLITTING PIPELINE (Replaces 3D Layer Masking Hack)
+          window.pipCanvas2D = document.createElement("canvas");
+          window.pipCanvas2D.width = PIP_SIZE;
+          window.pipCanvas2D.height = PIP_SIZE;
+          window.pipCtx = window.pipCanvas2D.getContext("2d", {
+            alpha: true,
+            willReadFrequently: true,
+          });
+
+          // Clean DOM swap: Ensure existing pipCanvas takes over rendering natively if it exists
+          const frame = document.getElementById("panel-frame");
+          const panelDoc = frame ? frame.contentDocument : null;
+          const existingPip =
+            document.getElementById("pipCanvas") ||
+            (panelDoc ? panelDoc.getElementById("pipCanvas") : null);
+
+          if (existingPip) {
+            window.pipCanvas2D = existingPip;
             window.pipCanvas2D.width = PIP_SIZE;
             window.pipCanvas2D.height = PIP_SIZE;
-            window.pipCtx = window.pipCanvas2D.getContext('2d', { alpha: true, willReadFrequently: true });
-            
-
-            // Clean DOM swap: Ensure existing pipCanvas takes over rendering natively if it exists
-            const frame = document.getElementById('panel-frame');
-            const panelDoc = frame ? frame.contentDocument : null;
-            const existingPip = document.getElementById('pipCanvas') || (panelDoc ? panelDoc.getElementById('pipCanvas') : null);
-            
-            if (existingPip) {
-                window.pipCanvas2D = existingPip;
-                window.pipCanvas2D.width = PIP_SIZE;
-                window.pipCanvas2D.height = PIP_SIZE;
-                window.pipCtx = window.pipCanvas2D.getContext('2d', { alpha: true, willReadFrequently: true });
-            } else if (wrapper) {
-                wrapper.appendChild(window.pipCanvas2D);
-            }
-
-
-            _pipRenderTarget = new THREE.WebGLRenderTarget(PIP_SIZE, PIP_SIZE, {
-                format: THREE.RGBAFormat,
-                type: THREE.UnsignedByteType,
-                depthBuffer: true,
-                stencilBuffer: false
+            window.pipCtx = window.pipCanvas2D.getContext("2d", {
+              alpha: true,
+              willReadFrequently: true,
             });
+          } else if (wrapper) {
+            wrapper.appendChild(window.pipCanvas2D);
+          }
 
-            scene.add(pipCamera); // Add Camera to scene so its Mesh descendants evaluate during rendering
+          _pipRenderTarget = new THREE.WebGLRenderTarget(PIP_SIZE, PIP_SIZE, {
+            format: THREE.RGBAFormat,
+            type: THREE.UnsignedByteType,
+            depthBuffer: true,
+            stencilBuffer: false,
+          });
 
-            // ----------------------------------------------------------------
-            // TIPI HARDWARE OVERLAY (Secondary Renderer Pattern for Journal)
-            // ----------------------------------------------------------------
-            // TIPI HARDWARE OVERLAY (CONSOLIDATED INTO MAIN RENDERER)
-            window.tipiCanvas2D = document.createElement('canvas');
-            window.tipiCanvas2D.id = 'tipi-hardware-canvas';
-            window.tipiCtx = window.tipiCanvas2D.getContext('2d', { alpha: true, willReadFrequently: true });
-            window.tipiCanvas2D.style.position = 'absolute';
-            window.tipiCanvas2D.style.zIndex = '10005';
-            window.tipiCanvas2D.style.display = 'none';
-            window.tipiCanvas2D.style.pointerEvents = 'none';
-            window.tipiCanvas2D.style.borderRadius = '4px';
-            window.tipiCanvas2D.style.filter = 'sepia(0.12) contrast(1.1)';
-            document.body.appendChild(window.tipiCanvas2D);
-            // tipiRenderer deleted to save WebGL context!
+          scene.add(pipCamera); // Add Camera to scene so its Mesh descendants evaluate during rendering
 
-            // ----------------------------------------------------------------
-            // AVATAR SIDE-PANEL PIP OVERLAY
-            // ----------------------------------------------------------------
-            window.avatarCanvas2D = document.createElement('canvas');
-            window.avatarCtx = window.avatarCanvas2D.getContext('2d', { alpha: true, willReadFrequently: true });
-            window.avatarOrthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50);
-            window.avatarOrthoCam.layers.set(1); // Only render the Character Layer (1)
+          // ----------------------------------------------------------------
+          // TIPI HARDWARE OVERLAY (Secondary Renderer Pattern for Journal)
+          // ----------------------------------------------------------------
+          // TIPI HARDWARE OVERLAY (CONSOLIDATED INTO MAIN RENDERER)
+          window.tipiCanvas2D = document.createElement("canvas");
+          window.tipiCanvas2D.id = "tipi-hardware-canvas";
+          window.tipiCtx = window.tipiCanvas2D.getContext("2d", {
+            alpha: true,
+            willReadFrequently: true,
+          });
+          window.tipiCanvas2D.style.position = "absolute";
+          window.tipiCanvas2D.style.zIndex = "10005";
+          window.tipiCanvas2D.style.display = "none";
+          window.tipiCanvas2D.style.pointerEvents = "none";
+          window.tipiCanvas2D.style.borderRadius = "4px";
+          window.tipiCanvas2D.style.filter = "sepia(0.12) contrast(1.1)";
+          document.body.appendChild(window.tipiCanvas2D);
+          // tipiRenderer deleted to save WebGL context!
 
-            // Zoomed in 50% more (3.5 bounds instead of 7)
-            tipiOrthoCam = new THREE.OrthographicCamera(
-                -3.5, 3.5, 3.5, -3.5, 0.1, 1000
-            );
-            tipiOrthoCam.position.set(0, 15, 15); // Above and angled down
-            tipiOrthoCam.lookAt(0, 2.5, 0); // Looking at center to keep ground in frame
+          // ----------------------------------------------------------------
+          // AVATAR SIDE-PANEL PIP — Dedicated renderer + mini scene
+          // ----------------------------------------------------------------
+          window._avatarPipRenderer = new THREE.WebGLRenderer({
+            alpha: true,
+            antialias: false,
+            powerPreference: "low-power",
+          });
+          window._avatarPipRenderer.setPixelRatio(
+            Math.min(window.devicePixelRatio, 1.5),
+          );
+          window._avatarPipRenderer.setSize(92, 92, false);
+          window._avatarPipRenderer.setClearColor(0x000000, 0);
 
-            axePipCam = new THREE.PerspectiveCamera(60, 1, 0.1, 20);
-            axePipCam.position.set(4.7, 1.8, 10.0);
-            axePipCam.lookAt(0, 1.2, 0); // Vector math corrected! Now faces the exact center of the Tipi where the axe floats
+          window._avatarPipScene = new THREE.Scene();
+          window._avatarPipAmbient = new THREE.AmbientLight(0xfff8e1, 1.8);
+          window._avatarPipScene.add(window._avatarPipAmbient);
+          const _avatarPipSun = new THREE.DirectionalLight(0xffffff, 2.5);
+          _avatarPipSun.position.set(3, 5, 4);
+          window._avatarPipScene.add(_avatarPipSun);
 
-            tipiOrthoCam.layers.set(0); // Tipi / Base layers
-            tipiPerspCam = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-            tipiPerspCam.layers.set(0);
-            axePipCam.layers.set(0);       // NATIVE WEBGLL RENDERTARGET SETUP (Replaces ES6 EffectComposer)
-            
-            // ----------------------------------------------------------------
-            // SELFIE CAM OVERLAY (For Journal Page 3)
-            // ----------------------------------------------------------------
-            window.selfieCanvas2D = document.createElement('canvas');
-            window.selfieCanvas2D.id = 'selfie-hardware-canvas';
-            window.selfieCtx = window.selfieCanvas2D.getContext('2d', { alpha: true, willReadFrequently: true });
-            window.selfieCanvas2D.style.position = 'absolute';
-            window.selfieCanvas2D.style.zIndex = '10006';
-            window.selfieCanvas2D.style.display = 'none';
-            window.selfieCanvas2D.style.pointerEvents = 'none';
-            window.selfieCanvas2D.style.borderRadius = '8px';
-            document.body.appendChild(window.selfieCanvas2D);
+          window.avatarOrthoCam = new THREE.PerspectiveCamera(42, 1, 0.1, 50);
+          // Legacy compat — still checked as avatarOrthoCam exists
+          window.avatarCanvas2D = document.createElement("canvas");
+          window.avatarCtx = null; // not used — dedicated renderer handles output
 
-            window.selfieCam = new THREE.OrthographicCamera(-2, 2, 3, -3, 0.1, 50);
-            window.selfieCam.position.set(0, 1.5, 5); // Base position, will be dynamically updated
-            window.selfieCam.lookAt(0, 1.0, 0);
-            window.selfieCam.layers.enable(0); // Environment
-            window.selfieCam.layers.enable(1); // Player Avatar
+          // Zoomed in 50% more (3.5 bounds instead of 7)
+          tipiOrthoCam = new THREE.OrthographicCamera(
+            -3.5,
+            3.5,
+            3.5,
+            -3.5,
+            0.1,
+            1000,
+          );
+          tipiOrthoCam.position.set(0, 15, 15); // Above and angled down
+          tipiOrthoCam.lookAt(0, 2.5, 0); // Looking at center to keep ground in frame
 
-            _selfieRenderTarget = new THREE.WebGLRenderTarget(256, 384, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
-            _pipRenderTarget = new THREE.WebGLRenderTarget(PIP_SIZE, PIP_SIZE, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
-            _tipiRenderTarget = new THREE.WebGLRenderTarget(256, 256, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
+          axePipCam = new THREE.PerspectiveCamera(60, 1, 0.1, 20);
+          axePipCam.position.set(4.7, 1.8, 10.0);
+          axePipCam.lookAt(0, 1.2, 0); // Vector math corrected! Now faces the exact center of the Tipi where the axe floats
 
-            _pipPostCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
-            _pipPostCam.position.z = 1; // Pull back so the Quad at Z=0 is not clipped by the near plane
+          tipiOrthoCam.layers.set(0); // Tipi / Base layers
+          tipiPerspCam = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+          tipiPerspCam.layers.set(0);
+          axePipCam.layers.set(0); // NATIVE WEBGLL RENDERTARGET SETUP (Replaces ES6 EffectComposer)
 
-            _pipPostScene = new THREE.Scene();
-            const quadGeo = new THREE.PlaneGeometry(2, 2);
-            _pipQuad = new THREE.Mesh(quadGeo, null); // material set dynamically
-            _pipQuad.frustumCulled = false; // Never cull full-screen quads
-            _pipPostScene.add(_pipQuad);
+          // ----------------------------------------------------------------
+          // SELFIE CAM OVERLAY (For Journal Page 3)
+          // ----------------------------------------------------------------
+          window.selfieCanvas2D = document.createElement("canvas");
+          window.selfieCanvas2D.id = "selfie-hardware-canvas";
+          window.selfieCtx = window.selfieCanvas2D.getContext("2d", {
+            alpha: true,
+            willReadFrequently: true,
+          });
+          window.selfieCanvas2D.style.position = "absolute";
+          window.selfieCanvas2D.style.zIndex = "10006";
+          window.selfieCanvas2D.style.display = "none";
+          window.selfieCanvas2D.style.pointerEvents = "none";
+          window.selfieCanvas2D.style.borderRadius = "8px";
+          document.body.appendChild(window.selfieCanvas2D);
 
-            _tipiPostScene = new THREE.Scene();
-            _tipiQuad = new THREE.Mesh(quadGeo, null);
-            _tipiQuad.frustumCulled = false;
-            _tipiPostScene.add(_tipiQuad);
+          window.selfieCam = new THREE.OrthographicCamera(
+            -2,
+            2,
+            3,
+            -3,
+            0.1,
+            50,
+          );
+          window.selfieCam.position.set(0, 1.5, 5); // Base position, will be dynamically updated
+          window.selfieCam.lookAt(0, 1.0, 0);
+          window.selfieCam.layers.enable(0); // Environment
+          window.selfieCam.layers.enable(1); // Player Avatar
 
-            const westernFilmShader = {
-                uniforms: {
-                    "tDiffuse": { value: null },
-                    "time": { value: 0.0 }
-                },
-                vertexShader: `
+          _selfieRenderTarget = new THREE.WebGLRenderTarget(256, 384, {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            format: THREE.RGBAFormat,
+          });
+          _pipRenderTarget = new THREE.WebGLRenderTarget(PIP_SIZE, PIP_SIZE, {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            format: THREE.RGBAFormat,
+          });
+          _tipiRenderTarget = new THREE.WebGLRenderTarget(256, 256, {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            format: THREE.RGBAFormat,
+          });
+
+          _pipPostCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
+          _pipPostCam.position.z = 1; // Pull back so the Quad at Z=0 is not clipped by the near plane
+
+          _pipPostScene = new THREE.Scene();
+          const quadGeo = new THREE.PlaneGeometry(2, 2);
+          _pipQuad = new THREE.Mesh(quadGeo, null); // material set dynamically
+          _pipQuad.frustumCulled = false; // Never cull full-screen quads
+          _pipPostScene.add(_pipQuad);
+
+          _tipiPostScene = new THREE.Scene();
+          _tipiQuad = new THREE.Mesh(quadGeo, null);
+          _tipiQuad.frustumCulled = false;
+          _tipiPostScene.add(_tipiQuad);
+
+          const westernFilmShader = {
+            uniforms: {
+              tDiffuse: { value: null },
+              time: { value: 0.0 },
+            },
+            vertexShader: `
                    varying vec2 vUv;
                    void main() {
                        vUv = uv;
                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                    }
                `,
-                fragmentShader: `
+            fragmentShader: `
                    uniform sampler2D tDiffuse;
                    uniform float time;
                    varying vec2 vUv;
@@ -732,22 +824,22 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                        
                        gl_FragColor = vec4(clamp(color.rgb, 0.0, 1.0), 1.0);
                    }
-                `
-            };
+                `,
+          };
 
-            const vibrantMapShader = {
-                uniforms: {
-                    "tDiffuse": { value: null },
-                    "time": { value: 0.0 }
-                },
-                vertexShader: `
+          const vibrantMapShader = {
+            uniforms: {
+              tDiffuse: { value: null },
+              time: { value: 0.0 },
+            },
+            vertexShader: `
                    varying vec2 vUv;
                    void main() {
                        vUv = uv;
                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                    }
                 `,
-                fragmentShader: `
+            fragmentShader: `
                    uniform sampler2D tDiffuse;
                    uniform float time;
                    varying vec2 vUv;
@@ -771,22 +863,22 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                        vec3 safeColor = clamp(vibrant * vignette, 0.0, 1.0);
                        gl_FragColor = vec4(safeColor, 1.0);
                    }
-                `
-            };
+                `,
+          };
 
-            const brightMapShader = {
-                uniforms: {
-                    "tDiffuse": { value: null },
-                    "time": { value: 0.0 }
-                },
-                vertexShader: `
+          const brightMapShader = {
+            uniforms: {
+              tDiffuse: { value: null },
+              time: { value: 0.0 },
+            },
+            vertexShader: `
                    varying vec2 vUv;
                    void main() {
                        vUv = uv;
                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                    }
                 `,
-                fragmentShader: `
+            fragmentShader: `
                    uniform sampler2D tDiffuse;
                    uniform float time;
                    varying vec2 vUv;
@@ -810,37 +902,48 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                        vec3 safeVibrant = clamp(vibrant * mix(1.0, vignette, 0.5), 0.0, 1.0);
                        gl_FragColor = vec4(safeVibrant, 1.0);
                    }
-                `
-            };
+                `,
+          };
 
-            // Build ShaderMaterials from our configs to use natively on hardware Quads
-            const mapMat = new THREE.ShaderMaterial({ ...brightMapShader, uniforms: THREE.UniformsUtils.clone(brightMapShader.uniforms) });
-            window._mapMat = mapMat;
+          // Build ShaderMaterials from our configs to use natively on hardware Quads
+          const mapMat = new THREE.ShaderMaterial({
+            ...brightMapShader,
+            uniforms: THREE.UniformsUtils.clone(brightMapShader.uniforms),
+          });
+          window._mapMat = mapMat;
 
-            const pipMat = new THREE.ShaderMaterial({ ...vibrantMapShader, uniforms: THREE.UniformsUtils.clone(vibrantMapShader.uniforms) });
-            window._pipMat = pipMat;
+          const pipMat = new THREE.ShaderMaterial({
+            ...vibrantMapShader,
+            uniforms: THREE.UniformsUtils.clone(vibrantMapShader.uniforms),
+          });
+          window._pipMat = pipMat;
 
-            const tipiMat = new THREE.ShaderMaterial({ ...westernFilmShader, uniforms: THREE.UniformsUtils.clone(westernFilmShader.uniforms) });
-            window._tipiMat = tipiMat;
-            _tipiQuad.material = tipiMat; // Tipi uses the Old Western shader permanently
+          const tipiMat = new THREE.ShaderMaterial({
+            ...westernFilmShader,
+            uniforms: THREE.UniformsUtils.clone(westernFilmShader.uniforms),
+          });
+          window._tipiMat = tipiMat;
+          _tipiQuad.material = tipiMat; // Tipi uses the Old Western shader permanently
 
-            // Look down from angle
-            pipCamera.position.set(20, 20, 20);
-            pipCamera.lookAt(0, 0, 0);
+          // Look down from angle
+          pipCamera.position.set(20, 20, 20);
+          pipCamera.lookAt(0, 0, 0);
 
-            // PIP CLICK EVENTS: Forwarded to `wrapper` beneath
+          // PIP CLICK EVENTS: Forwarded to `wrapper` beneath
 
-            // CLICK PIP TO SWAP MODES
-            window._swapModes = false;
-            if (wrapper) {
-                wrapper.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    window._swapModes = !window._swapModes;
-                    console.log(`[PIP] Modes swapped: ${window._swapModes ? 'FPV in PIP, Map Main' : 'Map in PIP, FPV Main'} `);
-                    // Force recalculation of aspect ratios and swap the root camera variable
-                    window.dispatchEvent(new Event('resize'));
-                });
-            }
+          // CLICK PIP TO SWAP MODES
+          window._swapModes = false;
+          if (wrapper) {
+            wrapper.addEventListener("click", (event) => {
+              event.stopPropagation();
+              window._swapModes = !window._swapModes;
+              console.log(
+                `[PIP] Modes swapped: ${window._swapModes ? "FPV in PIP, Map Main" : "Map in PIP, FPV Main"} `,
+              );
+              // Force recalculation of aspect ratios and swap the root camera variable
+              window.dispatchEvent(new Event("resize"));
+            });
+          }
         }
 
         // setupEnvironment extracted to EnvironmentBuilder.js?v=1776936956';
@@ -3772,11 +3875,13 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
               if (isMoving && !window._avIsWalking) {
                 window._avIsWalking = true;
                 window._avWalkAction.reset().play();
-                window._avWalkAction.crossFadeFrom(
-                  window._avIdleAction,
-                  0.3,
-                  true,
-                );
+                window._avWalkAction.crossFadeFrom(window._avIdleAction, 0.3, true);
+                // Mirror onto pip clone
+                if (window._avatarPipMixer && window._avWalkClip && window._avIdleClip) {
+                  const pipWalk = window._avatarPipMixer.clipAction(window._avWalkClip);
+                  const pipIdle = window._avatarPipMixer.clipAction(window._avIdleClip);
+                  pipWalk.reset().play(); pipWalk.crossFadeFrom(pipIdle, 0.3, true);
+                }
                 const panelFrame = document.getElementById("panel-frame");
                 if (panelFrame && panelFrame.contentWindow)
                   panelFrame.contentWindow.postMessage(
@@ -3786,11 +3891,13 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
               } else if (!isMoving && window._avIsWalking) {
                 window._avIsWalking = false;
                 window._avIdleAction.reset().play();
-                window._avIdleAction.crossFadeFrom(
-                  window._avWalkAction,
-                  0.3,
-                  true,
-                );
+                window._avIdleAction.crossFadeFrom(window._avWalkAction, 0.3, true);
+                // Mirror onto pip clone
+                if (window._avatarPipMixer && window._avIdleClip && window._avWalkClip) {
+                  const pipIdle = window._avatarPipMixer.clipAction(window._avIdleClip);
+                  const pipWalk = window._avatarPipMixer.clipAction(window._avWalkClip);
+                  pipIdle.reset().play(); pipIdle.crossFadeFrom(pipWalk, 0.3, true);
+                }
                 const panelFrame = document.getElementById("panel-frame");
                 if (panelFrame && panelFrame.contentWindow)
                   panelFrame.contentWindow.postMessage(
@@ -5031,81 +5138,21 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             window._pipObserver.observe(window.pipCanvas2D);
           }
 
-          // --- AVATAR UI RENDER PASS (MOVED AFTER MAIN RENDER TO PREVENT WIPING) ---
-          if (
-            window._playerAvatar &&
-            window.avatarCtx &&
-            window.avatarCanvas2D &&
-            typeof window.avatarOrthoCam !== "undefined"
-          ) {
-            const pFrame = document.getElementById("panel-frame");
-            if (pFrame && pFrame.contentWindow) {
-              const tgt =
-                pFrame.contentWindow.document.getElementById(
-                  "avatar-pip-target",
-                );
-              if (tgt) {
-                if (!window._avatarObserver && window.ResizeObserver) {
-                  window._cachedAvatarRect = tgt.getBoundingClientRect();
-                  window._avatarObserver = new ResizeObserver(() => {
-                    window._cachedAvatarRect = tgt.getBoundingClientRect();
-                  });
-                  window._avatarObserver.observe(tgt);
-                }
-                const rect = window._cachedAvatarRect;
-                if (rect && rect.width > 0) {
-                  window._playerAvatar.getWorldPosition(_pool.v1);
-                  window.avatarOrthoCam.position.set(
-                    _pool.v1.x,
-                    _pool.v1.y + 1.2,
-                    _pool.v1.z + 2.5,
-                  );
-                  window.avatarOrthoCam.lookAt(
-                    _pool.v1.x,
-                    _pool.v1.y + 0.8,
-                    _pool.v1.z,
-                  );
-
-                  const origAutoClear = renderer.autoClear;
-                  const oldClearAlpha = renderer.getClearAlpha();
-                  renderer.getClearColor(_pool.c1);
-                  renderer.setClearColor(0x000000, 0.0);
-
-                  const scX = rect.left;
-                  const scY = window.innerHeight - rect.bottom;
-                  const w = rect.width;
-                  const h = rect.height;
-
-                  renderer.setScissorTest(true);
-                  renderer.setScissor(scX, scY, w, h);
-                  renderer.setViewport(scX, scY, w, h);
-                  renderer.autoClear = false; // DON'T WIPE MAIN SCENE
-                  renderer.clearDepth(); // Only clear depth to layer on top
-
-                  renderer.render(scene, window.avatarOrthoCam);
-
-                  renderer.setClearColor(_pool.c1, oldClearAlpha);
-                  renderer.setScissorTest(false);
-                  renderer.setViewport(
-                    0,
-                    0,
-                    window.innerWidth,
-                    window.innerHeight,
-                  );
-                  renderer.autoClear = origAutoClear;
-
-                  // Hide static fallback PNG once live WebGL avatar is rendering
-                  if (!window._avatarLiveActive) {
-                    window._avatarLiveActive = true;
-                    const fallback =
-                      pFrame.contentWindow.document.getElementById(
-                        "avatar-static-fallback",
-                      );
-                    if (fallback) fallback.style.display = "none";
-                  }
+          // --- AVATAR PIP RENDER (dedicated renderer — no scissor, no framebuffer fights) ---
+          if (window._avatarPipRenderer && window._avatarPipScene && window._avatarPipClone) {
+            // Sync animation: mirror main avatar mixer state onto clone
+            if (window._playerAvatarMixer && window._avatarPipClone) {
+              // Clone shares geometry but needs its own mixer
+              if (!window._avatarPipMixer) {
+                window._avatarPipMixer = new THREE.AnimationMixer(window._avatarPipClone);
+                if (window._avIdleClip) {
+                  window._avatarPipIdleAction = window._avatarPipMixer.clipAction(window._avIdleClip);
+                  window._avatarPipIdleAction.play();
                 }
               }
+              window._avatarPipMixer.update(delta);
             }
+            window._avatarPipRenderer.render(window._avatarPipScene, window.avatarOrthoCam);
           }
 
           // Universe.Anu Engine Reconfiguration Listener
