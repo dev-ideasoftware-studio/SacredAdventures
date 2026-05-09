@@ -3275,1602 +3275,1997 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         // function updateMovement(delta) {} // Removed
 
         function animate() {
-            requestAnimationFrame(animate);
-            const delta = Math.min(clock.getDelta(), 0.1); // Cap delta to avoid physics explosions on tab switch
-            frameCount++;
+          requestAnimationFrame(animate);
+          const delta = Math.min(clock.getDelta(), 0.1); // Cap delta to avoid physics explosions on tab switch
+          frameCount++;
 
-            // --- MASTER NPC INTELLIGENCE ---
-            if (window.npcMaster && !window.npcMaster._paused) {
-              window.npcMaster.update(delta);
+          // --- MASTER NPC INTELLIGENCE ---
+          const _aiThrottle =
+            window.fuzzyBrain && window.fuzzyBrain.aiThrottle > 1
+              ? window.fuzzyBrain.aiThrottle
+              : 1;
+          if (
+            window.npcMaster &&
+            !window.npcMaster._paused &&
+            frameCount % _aiThrottle === 0
+          ) {
+            window.npcMaster.update(delta * _aiThrottle);
+          }
+
+          // --- MOVEMENT LOGIC ---
+          const SPEED = 5.0;
+          const TURN_SPEED = 2.0;
+          let isMoving = false;
+          let oldPos = camera.position.clone();
+
+          if (!window._isCinematic) {
+            // 1. Rotation (Keyboard A/D + Arrows + Keypad)
+            if (keys.arrowleft || keys.a) {
+              camera.rotation.y += TURN_SPEED * delta;
+              isMoving = true;
+            }
+            if (keys.arrowright || keys.d) {
+              camera.rotation.y -= TURN_SPEED * delta;
+              isMoving = true;
             }
 
-            // --- MOVEMENT LOGIC ---
-            const SPEED = 5.0;
-            const TURN_SPEED = 2.0;
-            let isMoving = false;
-            let oldPos = camera.position.clone();
+            // 2. Direction Vectors (reuse pre-allocated)
+            camera.getWorldDirection(_dir);
+            _dir.y = 0;
+            _dir.normalize();
 
-            if (!window._isCinematic) {
-                // 1. Rotation (Keyboard A/D + Arrows + Keypad)
-                if (keys.arrowleft || keys.a) { camera.rotation.y += TURN_SPEED * delta; isMoving = true; }
-                if (keys.arrowright || keys.d) { camera.rotation.y -= TURN_SPEED * delta; isMoving = true; }
+            _right.crossVectors(_dir, _up).normalize();
 
-                // 2. Direction Vectors (reuse pre-allocated)
-                camera.getWorldDirection(_dir);
-                _dir.y = 0; _dir.normalize();
-
-                _right.crossVectors(_dir, _up).normalize();
-
-                // 3. Move (WASD + Arrows)
-                if (keys.w || keys.arrowup) { camera.position.addScaledVector(_dir, SPEED * delta); isMoving = true; }
-                if (keys.s || keys.arrowdown) { camera.position.addScaledVector(_dir, -SPEED * delta); isMoving = true; }
-
-                // 3a. Virtual thumbstick (from panel iframe)
-                const tx = window._thumbX || 0;
-                const ty = window._thumbY || 0;
-                if (Math.abs(tx) > 0.1 || Math.abs(ty) > 0.1) {
-                    // Autoturn: X axis turns the player
-                    if (Math.abs(tx) > 0.1) {
-                        camera.rotation.y -= tx * TURN_SPEED * 1.5 * delta;
-                    }
-                    // Move: Y axis moves forward/backward
-                    if (Math.abs(ty) > 0.1) {
-                        camera.position.addScaledVector(_dir, -ty * SPEED * delta);
-                    }
-                    isMoving = true;
-                }
-
-                // 3b. CLICK-TO-MOVE auto-walk (from PIP map click or Gather)
-                if (window._moveTarget && !isMoving) {
-                    const target = window._moveTarget;
-                    const dx = target.x - camera.position.x;
-                    const dz = target.z - camera.position.z;
-                    const dist = Math.sqrt(dx * dx + dz * dz);
-
-                    if (dist > 1.2) {
-                        _dir.set(dx, 0, dz).normalize();
-                        const currentSpeed = window._slowWalkcinematic ? (SPEED * 0.3) : SPEED;
-                        camera.position.addScaledVector(_dir, currentSpeed * delta);
-
-                        // Face target (Camera looks down -Z, so add PI)
-                        if (!window._activeLookTarget) {
-                            const targetAngle = Math.atan2(dx, dz) + Math.PI;
-
-                            // Shortest path interpolation for angle
-                            let diff = targetAngle - camera.rotation.y;
-                            while (diff < -Math.PI) diff += Math.PI * 2;
-                            while (diff > Math.PI) diff -= Math.PI * 2;
-
-                            camera.rotation.y += diff * delta * 5.0;
-                        }
-                        isMoving = true;
-                    } else {
-                        // Reached the coordinate target
-                        window._moveTarget = null;
-                        window._activeLookTarget = null; // Clear the cinematic look lock
-                        if (window._autoWalkCompleteEvent) {
-                            window._autoWalkCompleteEvent();
-                            window._autoWalkCompleteEvent = null;
-                        }
-
-                        // Remove legacy redundant arrival checks from dist loop
-
-                        // Start chopping if we have a target
-                        if (window._choppingTarget && !window._isCinematic) {
-                            if (window._choppingTimer === undefined || window._choppingTimer === null) {
-                                window._choppingTimer = 1.2; // 1.2s total chop
-                            }
-                        } else if (!window._isCinematic) {
-                            window._moveTarget = null;
-                        }
-
-                        if (window._lookTarget) {
-                            window._activeLookTarget = window._lookTarget;
-                            window._lookTarget = null;
-                        }
-                    }
-                } else if (isMoving && (window._moveTarget || (window._choppingTimer || 0) > 0)) {
-                    window._moveTarget = null; // Manual input cancels auto-walk
-                    window._lookTarget = null;
-                    window._activeLookTarget = null;
-                    window._choppingTarget = null;
-                    window._choppingTimer = 0;
-                }
-
-                // --- COLLISIONS ---
-                // Tipi Collision Check
-                const TIPI_RADIUS = 3.5;
-                const checkTipiCollision = (px, pz) => {
-                    if (px*px + pz*pz < TIPI_RADIUS*TIPI_RADIUS) return true; // YB Tipi at 0,0
-                    const dx = px - (-12);
-                    const dz = pz - 12;
-                    if (dx*dx + dz*dz < TIPI_RADIUS*TIPI_RADIUS) return true; // BHG Tipi at -12, 12
-                    return false;
-                };
-                
-                // Tree Collision Check
-                const TREE_RADIUS = 1.0;
-                const checkTreeCollision = (px, pz) => {
-                    if (!window._treeInstancedMeshes || window._treeInstancedMeshes.length === 0) return false;
-                    const dummy = new THREE.Object3D();
-                    for (const { instancedMesh } of window._treeInstancedMeshes) {
-                        for (let i = 0; i < instancedMesh.count; i++) {
-                            instancedMesh.getMatrixAt(i, _matrix);
-                            dummy.position.setFromMatrixPosition(_matrix);
-                            const tdx = px - dummy.position.x;
-                            const tdz = pz - dummy.position.z;
-                            if (tdx*tdx + tdz*tdz < TREE_RADIUS*TREE_RADIUS) return true;
-                        }
-                    }
-                    return false;
-                };
-
-                if (checkTipiCollision(camera.position.x, camera.position.z) || checkTreeCollision(camera.position.x, camera.position.z)) {
-                    camera.position.copy(oldPos);
-                }
-
-            } // End of !window._isCinematic wrapper
-
-            // PASSIVE GRAVITY (Follow Terrain)
-            const cx = camera.position.x;
-            const cz = camera.position.z;
-            const groundY = window._getGroundY ? window._getGroundY(cx, cz)
-                : Math.sin(cx * 0.1) * Math.cos(cz * 0.1) * 2 + Math.sin(cx * 0.3 + cz * 0.2) * 0.5;
-
-            // --- PROXIMITY QUEST TRIGGER (Manual Walking) ---
-            if (window.SacredState && window.SacredState.questLevel === 2 && window._bhgGroup && !window._isCinematic && !window._pendingTipiGreeting) {
-                const dx = camera.position.x - window._bhgGroup.position.x;
-                const dz = camera.position.z - window._bhgGroup.position.z;
-                if ((dx * dx + dz * dz) < 144) { // 12 units radius
-                    window.SacredState.questLevel = 3;
-                    window._hasTriggeredGirlQuest = true; // Legacy binding support
-
-                    // Hide floating quest marker 2 if it exists since we are in the dialogue now
-                    if (window._questMarker2) window._questMarker2.visible = false;
-                    // OPEN JOURNAL TO PAGE 5 FOR THE QUEST
-                    setTimeout(() => {
-                        const panel = document.getElementById('panel-frame');
-                        if (panel && panel.contentWindow) {
-                            panel.contentWindow.postMessage({ type: 'FORCE_OPEN_FOUND_HER' }, '*');
-                        }
-                    }, 500);
-                }
+            // 3. Move (WASD + Arrows)
+            if (keys.w || keys.arrowup) {
+              camera.position.addScaledVector(_dir, SPEED * delta);
+              isMoving = true;
             }
-            // 3c. CHOPPING PROGRESS
-            if ((window._choppingTimer || 0) > 0) {
-                window._choppingTimer -= delta;
-
-                // Animate FPV Axe Swinging
-                if (window._equippedAxe && window._equippedAxe.visible) {
-                    const swingPhase = (1.6 - window._choppingTimer) * Math.PI * 4; // roughly 2+ full swings
-                    const dip = Math.sin(swingPhase);
-                    window._equippedAxe.rotation.x = window._equippedAxe._baseRotation.x + Math.max(0, dip) * 1.5;
-                    window._equippedAxe.position.y = -0.6 - Math.max(0, dip) * 0.4;
-                }
-
-                if (window._choppingTarget) {
-                    // Legacy non-instanced tree shake
-                    window._choppingTarget.rotation.z = Math.sin(Date.now() * 0.05) * 0.03;
-                    // Face tree while chopping
-                    const t = window._choppingTarget.position;
-                    const c = camera.position;
-                    const angle = Math.atan2(t.x - c.x, t.z - c.z);
-                    camera.rotation.y = THREE.MathUtils.lerp(camera.rotation.y, angle, delta * 10);
-                } else if (window._chopTargetInstanceId !== null && window._chopTargetInstanceId !== undefined) {
-                    // Shake camera slightly on hit for instanced trees
-                    const dip = Math.sin((1.6 - window._choppingTimer) * Math.PI * 4);
-                    if (dip > 0.95) camera.rotation.x += Math.random() * 0.005 - 0.0025;
-                }
-
-                if (window._choppingTimer <= 0) {
-                    // Hide axe
-                    if (window._equippedAxe) window._equippedAxe.visible = false;
-
-                    if (window._choppingTarget) {
-                        if (typeof chopTree === 'function') chopTree(window._choppingTarget, scene);
-                        window._choppingTarget = null;
-                    } else if (window._chopTargetInstanceId !== null && window._chopTargetInstanceId !== undefined) {
-                        // Destroy Instanced Tree
-                        const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
-                        if (window._chopTargetMesh && window._chopTargetMesh.userData && window._chopTargetMesh.userData.chunkSiblings) {
-                            window._chopTargetMesh.userData.chunkSiblings.forEach(({ instancedMesh }) => {
-                                instancedMesh.setMatrixAt(window._chopTargetInstanceId, zeroMatrix);
-                                instancedMesh.instanceMatrix.needsUpdate = true;
-                            });
-                        }
-                        if (window._treeHighlightMesh) window._treeHighlightMesh.visible = false;
-                        window._selectedTreeId = null;
-                        window._chopTargetInstanceId = null;
-
-                        if (window.parent) window.parent.postMessage({ type: 'LOG_TEXT', text: "You chopped down a pine tree." }, '*');
-                        // Award Wood
-                        if (window.parent) window.parent.postMessage({ type: 'RESOURCE_UPDATE', resource: 'wood', amount: 1 }, '*');
-                    }
-                    window._moveTarget = null;
-                    window._choppingTimer = 0;
-                }
-                return; // Freeze movement while chopping
+            if (keys.s || keys.arrowdown) {
+              camera.position.addScaledVector(_dir, -SPEED * delta);
+              isMoving = true;
             }
 
-            if (window._activeLookTarget) {
-                // Smoothly turn to face the lookTarget after arriving (or during cinematic walk)
-                const t = window._activeLookTarget;
-                const dx = t.x - camera.position.x;
-                const dz = t.z - camera.position.z;
-                const targetAngle = Math.atan2(-dx, -dz);
-                let angleDiff = targetAngle - camera.rotation.y;
-                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            // 3a. Virtual thumbstick (from panel iframe)
+            const tx = window._thumbX || 0;
+            const ty = window._thumbY || 0;
+            if (Math.abs(tx) > 0.1 || Math.abs(ty) > 0.1) {
+              // Autoturn: X axis turns the player
+              if (Math.abs(tx) > 0.1) {
+                camera.rotation.y -= tx * TURN_SPEED * 1.5 * delta;
+              }
+              // Move: Y axis moves forward/backward
+              if (Math.abs(ty) > 0.1) {
+                camera.position.addScaledVector(_dir, -ty * SPEED * delta);
+              }
+              isMoving = true;
+            }
 
-                if (Math.abs(angleDiff) > 0.02) {
-                    camera.rotation.y += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), TURN_SPEED * 1.5 * delta);
-                } else {
-                    if (!isMoving) {
-                        window._activeLookTarget = null; // Finished looking
-                        if (window._lookCompleteEvent) {
-                            window._lookCompleteEvent();
-                            window._lookCompleteEvent = null;
-                        }
-                    }
+            // 3b. CLICK-TO-MOVE auto-walk (from PIP map click or Gather)
+            if (window._moveTarget && !isMoving) {
+              const target = window._moveTarget;
+              const dx = target.x - camera.position.x;
+              const dz = target.z - camera.position.z;
+              const dist = Math.sqrt(dx * dx + dz * dz);
+
+              if (dist > 1.2) {
+                _dir.set(dx, 0, dz).normalize();
+                const currentSpeed = window._slowWalkcinematic
+                  ? SPEED * 0.3
+                  : SPEED;
+                camera.position.addScaledVector(_dir, currentSpeed * delta);
+
+                // Face target (Camera looks down -Z, so add PI)
+                if (!window._activeLookTarget) {
+                  const targetAngle = Math.atan2(dx, dz) + Math.PI;
+
+                  // Shortest path interpolation for angle
+                  let diff = targetAngle - camera.rotation.y;
+                  while (diff < -Math.PI) diff += Math.PI * 2;
+                  while (diff > Math.PI) diff -= Math.PI * 2;
+
+                  camera.rotation.y += diff * delta * 5.0;
                 }
+                isMoving = true;
+              } else {
+                // Reached the coordinate target
+                window._moveTarget = null;
+                window._activeLookTarget = null; // Clear the cinematic look lock
+                if (window._autoWalkCompleteEvent) {
+                  window._autoWalkCompleteEvent();
+                  window._autoWalkCompleteEvent = null;
+                }
+
+                // Remove legacy redundant arrival checks from dist loop
+
+                // Start chopping if we have a target
+                if (window._choppingTarget && !window._isCinematic) {
+                  if (
+                    window._choppingTimer === undefined ||
+                    window._choppingTimer === null
+                  ) {
+                    window._choppingTimer = 1.2; // 1.2s total chop
+                  }
+                } else if (!window._isCinematic) {
+                  window._moveTarget = null;
+                }
+
+                if (window._lookTarget) {
+                  window._activeLookTarget = window._lookTarget;
+                  window._lookTarget = null;
+                }
+              }
+            } else if (
+              isMoving &&
+              (window._moveTarget || (window._choppingTimer || 0) > 0)
+            ) {
+              window._moveTarget = null; // Manual input cancels auto-walk
+              window._lookTarget = null;
+              window._activeLookTarget = null;
+              window._choppingTarget = null;
+              window._choppingTimer = 0;
             }
 
-            // 3c. Update click-to-move visual indicator
-            if (!_markerAdded && scene) {
-                scene.add(_marker);
-                _markerAdded = true;
+            // --- COLLISIONS ---
+            // Tipi Collision Check
+            const TIPI_RADIUS = 3.5;
+            const checkTipiCollision = (px, pz) => {
+              if (px * px + pz * pz < TIPI_RADIUS * TIPI_RADIUS) return true; // YB Tipi at 0,0
+              const dx = px - -12;
+              const dz = pz - 12;
+              if (dx * dx + dz * dz < TIPI_RADIUS * TIPI_RADIUS) return true; // BHG Tipi at -12, 12
+              return false;
+            };
+
+            // Tree Collision Check
+            const TREE_RADIUS = 1.0;
+            const checkTreeCollision = (px, pz) => {
+              if (
+                !window._treeInstancedMeshes ||
+                window._treeInstancedMeshes.length === 0
+              )
+                return false;
+              const dummy = new THREE.Object3D();
+              for (const { instancedMesh } of window._treeInstancedMeshes) {
+                for (let i = 0; i < instancedMesh.count; i++) {
+                  instancedMesh.getMatrixAt(i, _matrix);
+                  dummy.position.setFromMatrixPosition(_matrix);
+                  const tdx = px - dummy.position.x;
+                  const tdz = pz - dummy.position.z;
+                  if (tdx * tdx + tdz * tdz < TREE_RADIUS * TREE_RADIUS)
+                    return true;
+                }
+              }
+              return false;
+            };
+
+            if (
+              checkTipiCollision(camera.position.x, camera.position.z) ||
+              checkTreeCollision(camera.position.x, camera.position.z)
+            ) {
+              camera.position.copy(oldPos);
             }
-            if (window._moveTarget) {
-                const t = window._moveTarget;
-                const groundAtTarget = window._getGroundY ? window._getGroundY(t.x, t.z)
-                    : Math.sin(t.x * 0.1) * Math.cos(t.z * 0.1) * 2 + Math.sin(t.x * 0.3 + t.z * 0.2) * 0.5;
-                _marker.visible = false;
-                _marker.position.set(t.x, groundAtTarget + 0.05, t.z);
-                _marker.material.opacity = 0.5 + Math.sin(performance.now() * 0.004) * 0.2;
+          } // End of !window._isCinematic wrapper
+
+          // PASSIVE GRAVITY (Follow Terrain)
+          const cx = camera.position.x;
+          const cz = camera.position.z;
+          const groundY = window._getGroundY
+            ? window._getGroundY(cx, cz)
+            : Math.sin(cx * 0.1) * Math.cos(cz * 0.1) * 2 +
+              Math.sin(cx * 0.3 + cz * 0.2) * 0.5;
+
+          // --- PROXIMITY QUEST TRIGGER (Manual Walking) ---
+          if (
+            window.SacredState &&
+            window.SacredState.questLevel === 2 &&
+            window._bhgGroup &&
+            !window._isCinematic &&
+            !window._pendingTipiGreeting
+          ) {
+            const dx = camera.position.x - window._bhgGroup.position.x;
+            const dz = camera.position.z - window._bhgGroup.position.z;
+            if (dx * dx + dz * dz < 144) {
+              // 12 units radius
+              window.SacredState.questLevel = 3;
+              window._hasTriggeredGirlQuest = true; // Legacy binding support
+
+              // Hide floating quest marker 2 if it exists since we are in the dialogue now
+              if (window._questMarker2) window._questMarker2.visible = false;
+              // OPEN JOURNAL TO PAGE 5 FOR THE QUEST
+              setTimeout(() => {
+                const panel = document.getElementById("panel-frame");
+                if (panel && panel.contentWindow) {
+                  panel.contentWindow.postMessage(
+                    { type: "FORCE_OPEN_FOUND_HER" },
+                    "*",
+                  );
+                }
+              }, 500);
+            }
+          }
+          // 3c. CHOPPING PROGRESS
+          if ((window._choppingTimer || 0) > 0) {
+            window._choppingTimer -= delta;
+
+            // Animate FPV Axe Swinging
+            if (window._equippedAxe && window._equippedAxe.visible) {
+              const swingPhase = (1.6 - window._choppingTimer) * Math.PI * 4; // roughly 2+ full swings
+              const dip = Math.sin(swingPhase);
+              window._equippedAxe.rotation.x =
+                window._equippedAxe._baseRotation.x + Math.max(0, dip) * 1.5;
+              window._equippedAxe.position.y = -0.6 - Math.max(0, dip) * 0.4;
+            }
+
+            if (window._choppingTarget) {
+              // Legacy non-instanced tree shake
+              window._choppingTarget.rotation.z =
+                Math.sin(Date.now() * 0.05) * 0.03;
+              // Face tree while chopping
+              const t = window._choppingTarget.position;
+              const c = camera.position;
+              const angle = Math.atan2(t.x - c.x, t.z - c.z);
+              camera.rotation.y = THREE.MathUtils.lerp(
+                camera.rotation.y,
+                angle,
+                delta * 10,
+              );
+            } else if (
+              window._chopTargetInstanceId !== null &&
+              window._chopTargetInstanceId !== undefined
+            ) {
+              // Shake camera slightly on hit for instanced trees
+              const dip = Math.sin((1.6 - window._choppingTimer) * Math.PI * 4);
+              if (dip > 0.95)
+                camera.rotation.x += Math.random() * 0.005 - 0.0025;
+            }
+
+            if (window._choppingTimer <= 0) {
+              // Hide axe
+              if (window._equippedAxe) window._equippedAxe.visible = false;
+
+              if (window._choppingTarget) {
+                if (typeof chopTree === "function")
+                  chopTree(window._choppingTarget, scene);
+                window._choppingTarget = null;
+              } else if (
+                window._chopTargetInstanceId !== null &&
+                window._chopTargetInstanceId !== undefined
+              ) {
+                // Destroy Instanced Tree
+                const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+                if (
+                  window._chopTargetMesh &&
+                  window._chopTargetMesh.userData &&
+                  window._chopTargetMesh.userData.chunkSiblings
+                ) {
+                  window._chopTargetMesh.userData.chunkSiblings.forEach(
+                    ({ instancedMesh }) => {
+                      instancedMesh.setMatrixAt(
+                        window._chopTargetInstanceId,
+                        zeroMatrix,
+                      );
+                      instancedMesh.instanceMatrix.needsUpdate = true;
+                    },
+                  );
+                }
+                if (window._treeHighlightMesh)
+                  window._treeHighlightMesh.visible = false;
+                window._selectedTreeId = null;
+                window._chopTargetInstanceId = null;
+
+                if (window.parent)
+                  window.parent.postMessage(
+                    { type: "LOG_TEXT", text: "You chopped down a pine tree." },
+                    "*",
+                  );
+                // Award Wood
+                if (window.parent)
+                  window.parent.postMessage(
+                    { type: "RESOURCE_UPDATE", resource: "wood", amount: 1 },
+                    "*",
+                  );
+              }
+              window._moveTarget = null;
+              window._choppingTimer = 0;
+            }
+            return; // Freeze movement while chopping
+          }
+
+          if (window._activeLookTarget) {
+            // Smoothly turn to face the lookTarget after arriving (or during cinematic walk)
+            const t = window._activeLookTarget;
+            const dx = t.x - camera.position.x;
+            const dz = t.z - camera.position.z;
+            const targetAngle = Math.atan2(-dx, -dz);
+            let angleDiff = targetAngle - camera.rotation.y;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+            if (Math.abs(angleDiff) > 0.02) {
+              camera.rotation.y +=
+                Math.sign(angleDiff) *
+                Math.min(Math.abs(angleDiff), TURN_SPEED * 1.5 * delta);
             } else {
-                _marker.visible = false;
-            }
-
-            // 3.5 Hover Physics for Tipi 2 Magical Axe
-            if (window._worldAxeMesh) {
-                window._worldAxeMesh.position.y = 1.2 + Math.sin(performance.now() * 0.002) * 0.15;
-                window._worldAxeMesh.rotation.y += delta * 0.5;
-            }
-
-            // 4. Head Bob Animation (Walking)
-            let bobOffset = 0;
-            if (isMoving || window._isCinematicWalking) {
-                headBobTimer += delta * 12; // Walking frequency
-                bobOffset = Math.sin(headBobTimer) * 0.15; // Amplitude
-
-                // 4a. Update Quest Proximity (only while moving to save cycles)
-                const panelFrame = document.getElementById('panel-frame');
-                if (panelFrame && panelFrame.contentWindow) {
-                    let nearestDist = Infinity;
-                    let nearestId = 'tipi';
-
-                    // Check Main Tipi (0, 0)
-                    if (!window._questMarker || window._questMarker.visible) {
-                        const dTipi = Math.sqrt(Math.pow(camera.position.x - 0, 2) + Math.pow(camera.position.z - 0, 2));
-                        if (dTipi < nearestDist) {
-                            nearestDist = dTipi;
-                            nearestId = 'tipi';
-                        }
-                    }
-
-                    // Check Brings Happiness Girl (35, 45)
-                    if (window._bhgBalloon && window._bhgBalloon.visible) {
-                        const dBhg = Math.sqrt(Math.pow(camera.position.x - 35, 2) + Math.pow(camera.position.z - 45, 2));
-                        if (dBhg < nearestDist) {
-                            nearestDist = dBhg;
-                            nearestId = 'bhg';
-                        }
-                    }
-
-                    if (nearestDist === Infinity) {
-                        nearestDist = Math.sqrt(Math.pow(camera.position.x - 0, 2) + Math.pow(camera.position.z - 0, 2)); // fallback
-                    }
-
-                    // Convert meters to feet (1m = ~3.28ft)
-                    const distFeet = Math.round(nearestDist * 3.28084);
-
-                    // Throttle postMessage slightly using a simple frame counter or just send it since it's only while moving
-                    if (!window._lastDistFeet || Math.abs(window._lastDistFeet - distFeet) >= 2 || window._lastNearestId !== nearestId) {
-                        window._lastDistFeet = distFeet;
-                        window._lastNearestId = nearestId;
-                        panelFrame.contentWindow.postMessage({ type: 'QUEST_DISTANCE_UPDATE', distance: distFeet, nearestId: nearestId }, '*');
-                    }
+              if (!isMoving) {
+                window._activeLookTarget = null; // Finished looking
+                if (window._lookCompleteEvent) {
+                  window._lookCompleteEvent();
+                  window._lookCompleteEvent = null;
                 }
-            } else {
-                headBobTimer = 0;
+              }
             }
+          }
 
-            // 4b. Notify panel of movement state (for guide card transparency)
-            if (isMoving !== window._lastMovingState) {
-                window._lastMovingState = isMoving;
-                const panelFrame = document.getElementById('panel-frame');
-                if (panelFrame && panelFrame.contentWindow) {
-                    panelFrame.contentWindow.postMessage({ type: 'playerMoving', moving: isMoving }, '*');
-                }
-            }
+          // 3c. Update click-to-move visual indicator
+          if (!_markerAdded && scene) {
+            scene.add(_marker);
+            _markerAdded = true;
+          }
+          if (window._moveTarget) {
+            const t = window._moveTarget;
+            const groundAtTarget = window._getGroundY
+              ? window._getGroundY(t.x, t.z)
+              : Math.sin(t.x * 0.1) * Math.cos(t.z * 0.1) * 2 +
+                Math.sin(t.x * 0.3 + t.z * 0.2) * 0.5;
+            _marker.visible = false;
+            _marker.position.set(t.x, groundAtTarget + 0.05, t.z);
+            _marker.material.opacity =
+              0.5 + Math.sin(performance.now() * 0.004) * 0.2;
+          } else {
+            _marker.visible = false;
+          }
 
-            // Apply Height (Terrain + Height + Bob)
-            const BASE_HEIGHT = 1.2; // Lowered camera by 2 feet to see circle direction
-            const GRAVITY = 9.8;
-            player.dy = (player.dy || 0) - GRAVITY * delta;
+          // 3.5 Hover Physics for Tipi 2 Magical Axe
+          if (window._worldAxeMesh) {
+            window._worldAxeMesh.position.y =
+              1.2 + Math.sin(performance.now() * 0.002) * 0.15;
+            window._worldAxeMesh.rotation.y += delta * 0.5;
+          }
 
-            // Calc target Y
-            let targetY = camera.position.y + player.dy * delta;
+          // 4. Head Bob Animation (Walking)
+          let bobOffset = 0;
+          if (isMoving || window._isCinematicWalking) {
+            headBobTimer += delta * 12; // Walking frequency
+            bobOffset = Math.sin(headBobTimer) * 0.15; // Amplitude
 
-            // Floor Snap with Bob
-            if (targetY < groundY + BASE_HEIGHT + bobOffset) {
-                camera.position.y = groundY + BASE_HEIGHT + bobOffset;
-                player.dy = 0;
-            } else {
-                camera.position.y = targetY;
-            }
+            // 4a. Update Quest Proximity (only while moving to save cycles)
+            const panelFrame = document.getElementById("panel-frame");
+            if (panelFrame && panelFrame.contentWindow) {
+              let nearestDist = Infinity;
+              let nearestId = "tipi";
 
-            // Sync player object
-            player.x = camera.position.x;
-            player.z = camera.position.z;
-
-            // --- PATHFINDING VISUAL UPDATE ---
-            if (window._moveTarget && window._pathLine && window._targetRing) {
-                window._pathLine.visible = true;
-                window._targetRing.visible = true;
-                
-                // Update Target Ring Height
-                window._targetRing.position.set(window._moveTarget.x, (window.envBuilder && typeof window.envBuilder.getGroundY === 'function') ? window.envBuilder.getGroundY(window._moveTarget.x, window._moveTarget.z) + 0.1 : 0.1, window._moveTarget.z);
-                window._targetRing.scale.setScalar(1.0 + Math.sin(gameTime * 10) * 0.1);
-
-                // Update Line
-                const positions = window._pathLine.geometry.attributes.position.array;
-                positions[0] = camera.position.x;
-                positions[1] = groundY + 0.2;
-                positions[2] = camera.position.z;
-                positions[3] = window._moveTarget.x;
-                positions[4] = window._targetRing.position.y;
-                positions[5] = window._moveTarget.z;
-                window._pathLine.geometry.attributes.position.needsUpdate = true;
-                window._pathLine.computeLineDistances();
-                
-                // Marching Ants Animation
-                window._pathLine.material.dashOffset -= delta * 5.0;
-            } else if (window._pathLine && window._targetRing) {
-                window._pathLine.visible = false;
-                window._targetRing.visible = false;
-            }
-
-            // --- AVATAR SYNCHRONIZATION ---
-            if (window._playerAvatarMixer) {
-                window._playerAvatarMixer.update(delta);
-                
-                // Crossfade animation states
-                if (window._avIdleAction && window._avWalkAction) {
-                    if (isMoving && !window._avIsWalking) {
-                        window._avIsWalking = true;
-                        window._avWalkAction.reset().play();
-                        window._avWalkAction.crossFadeFrom(window._avIdleAction, 0.3, true);
-                        const panelFrame = document.getElementById('panel-frame');
-                        if (panelFrame && panelFrame.contentWindow) panelFrame.contentWindow.postMessage({ type: 'AVATAR_ANIM_CHANGE', anim: 'walk' }, '*');
-                    } else if (!isMoving && window._avIsWalking) {
-                        window._avIsWalking = false;
-                        window._avIdleAction.reset().play();
-                        window._avIdleAction.crossFadeFrom(window._avWalkAction, 0.3, true);
-                        const panelFrame = document.getElementById('panel-frame');
-                        if (panelFrame && panelFrame.contentWindow) panelFrame.contentWindow.postMessage({ type: 'AVATAR_ANIM_CHANGE', anim: 'idle' }, '*');
-                    }
-                }
-            }
-
-            if (window.bhgMixer) {
-                window.bhgMixer.update(delta);
-            }
-            if (window._playerAvatar) {
-                camera.getWorldDirection(_pool.v1);
-                
-                // Place avatar at camera's XZ but at ground level (Y - 1.6 = eye height)
-                window._playerAvatar.position.copy(camera.position);
-                window._playerAvatar.position.y -= 1.6;
-
-                // Push avatar forward by 0.6 units (2 feet) along the camera's view direction
-                // This makes the FPV camera correctly trail 2 feet behind the avatar's back
-                camera.getWorldDirection(_pool.v1);
-                _pool.v1.y = 0;
-                _pool.v1.normalize();
-                _pool.v1.multiplyScalar(0.6);
-                window._playerAvatar.position.add(_pool.v1);
-
-                // Extract 2D Planar Yaw (XZ rotation)
-                const ROT_OFFSET = -Math.PI / 2; // Turned 90 degrees right per USER request
-                if (window._isMapView && isMoving && window._moveTarget) {
-                    _pool.v1.subVectors(window._moveTarget, window._playerAvatar.position);
-                    window._playerAvatar.rotation.y = Math.atan2(_pool.v1.x, _pool.v1.z) + ROT_OFFSET;
-                } else {
-                    camera.getWorldDirection(_pool.v1);
-                    _pool.v1.y = 0;
-                    _pool.v1.normalize();
-                    window._playerAvatar.rotation.y = Math.atan2(_pool.v1.x, _pool.v1.z) + ROT_OFFSET;
-                }
-            }
-            player.rot = camera.rotation.y;
-
-            // --- TIME & SUN ---
-            // If the user clicked a season, fast forward smoothly to the destination!
-            if (window._targetGameTime !== undefined) {
-                // Determine shortest path (direct or across midnight boundary)
-                // Actually simple lerp is fine since seasons don't cross zero except night
-                window._manualTimeMode = true;
-                const diff = window._targetGameTime - gameTime;
-                if (Math.abs(diff) < 0.1) {
-                    gameTime = window._targetGameTime;
-                    window._targetGameTime = undefined;
-                } else {
-                    gameTime += diff * delta * 2.0; 
-                }
-            } else if (window._isTimeLocked) {
-                // Time is explicitly locked by God Mode — no clock advancement allowed
-            } else if (!window._manualTimeMode) {
-                // Advance Time
-                // Slow down extremely realistically (1 game hour = ~200 real seconds)
-                gameTime += delta * 0.005; 
-                if (gameTime >= 24) gameTime -= 24;
-            } else {
-                gameTime += delta * 0.01;
-                if (gameTime >= 24) gameTime -= 24;
-            }
-
-            // Day/Night Cycle Shaders
-            if (window._skyUniforms && window._sceneFog && window._sceneTarget) {
-                // Colors (R, G, B, Intensity)
-                const ND = { t: [6, 11, 19], m: [13, 27, 42], b: [58, 69, 85], f: [58, 69, 85], i: 0.1 }; // Night Dark
-                const DW = { t: [58, 90, 122], m: [125, 164, 199], b: [201, 213, 227], f: [201, 213, 227], i: 0.6 }; // Dawn
-                const DY = { t: [255, 170, 34], m: [255, 213, 128], b: [255, 241, 202], f: [255, 241, 202], i: 1.0 }; // Day Happy
-                const DK = { t: [65, 82, 112], m: [220, 140, 80], b: [255, 190, 120], f: [255, 190, 120], i: 0.4 }; // Dusk (Warm bright instead of purple)
-                const GY = { t: [140, 145, 150], m: [160, 165, 170], b: [180, 185, 190], f: [180, 185, 190], i: 0.5 }; // Gray Overcast
-                
-                let p1, p2, prog;
-                if (window._isOvercastMode) {
-                    p1 = GY; p2 = GY; prog = 1.0;
-                } else if (gameTime >= 4 && gameTime < 8) { p1 = ND; p2 = DW; prog = (gameTime - 4) / 4; } // Night -> Dawn
-                else if (gameTime >= 8 && gameTime < 11) { p1 = DW; p2 = DY; prog = (gameTime - 8) / 3; } // Dawn -> Day
-                else if (gameTime >= 11 && gameTime < 17) { p1 = DY; p2 = DY; prog = 1.0; } // Day
-                else if (gameTime >= 17 && gameTime < 20) { p1 = DY; p2 = DK; prog = (gameTime - 17) / 3; } // Day -> Dusk
-                else if (gameTime >= 20 && gameTime < 22) { p1 = DK; p2 = ND; prog = (gameTime - 20) / 2; } // Dusk -> Night
-                else { p1 = ND; p2 = ND; prog = 1.0; } // Night (22 to 4)
-
-                // Lerp helper
-                const lerpRGB = (arr1, arr2, p) => new THREE.Color(
-                    (arr1[0] + (arr2[0] - arr1[0]) * p) / 255.0,
-                    (arr1[1] + (arr2[1] - arr1[1]) * p) / 255.0,
-                    (arr1[2] + (arr2[2] - arr1[2]) * p) / 255.0
+              // Check Main Tipi (0, 0)
+              if (!window._questMarker || window._questMarker.visible) {
+                const dTipi = Math.sqrt(
+                  Math.pow(camera.position.x - 0, 2) +
+                    Math.pow(camera.position.z - 0, 2),
                 );
-
-                window._skyUniforms.topColor.value.copy(lerpRGB(p1.t, p2.t, prog));
-                window._skyUniforms.midColor.value.copy(lerpRGB(p1.m, p2.m, prog));
-                window._skyUniforms.bottomColor.value.copy(lerpRGB(p1.b, p2.b, prog));
-                
-                const fogColor = lerpRGB(p1.f, p2.f, prog);
-                window._sceneFog.color.copy(fogColor);
-                window._sceneTarget.background.copy(fogColor);
-                
-                if (window.sunLight) {
-                    window.sunLight.intensity = Math.max(p1.i + (p2.i - p1.i) * prog, 0.1);
+                if (dTipi < nearestDist) {
+                  nearestDist = dTipi;
+                  nearestId = "tipi";
                 }
-            }
+              }
 
-            // Update Sun Position
-            const angle = (gameTime / 24) * Math.PI * 2 - Math.PI / 2; // -PI/2 to start at sunrise approx
+              // Check Brings Happiness Girl (35, 45)
+              if (window._bhgBalloon && window._bhgBalloon.visible) {
+                const dBhg = Math.sqrt(
+                  Math.pow(camera.position.x - 35, 2) +
+                    Math.pow(camera.position.z - 45, 2),
+                );
+                if (dBhg < nearestDist) {
+                  nearestDist = dBhg;
+                  nearestId = "bhg";
+                }
+              }
+
+              if (nearestDist === Infinity) {
+                nearestDist = Math.sqrt(
+                  Math.pow(camera.position.x - 0, 2) +
+                    Math.pow(camera.position.z - 0, 2),
+                ); // fallback
+              }
+
+              // Convert meters to feet (1m = ~3.28ft)
+              const distFeet = Math.round(nearestDist * 3.28084);
+
+              // Throttle postMessage slightly using a simple frame counter or just send it since it's only while moving
+              if (
+                !window._lastDistFeet ||
+                Math.abs(window._lastDistFeet - distFeet) >= 2 ||
+                window._lastNearestId !== nearestId
+              ) {
+                window._lastDistFeet = distFeet;
+                window._lastNearestId = nearestId;
+                panelFrame.contentWindow.postMessage(
+                  {
+                    type: "QUEST_DISTANCE_UPDATE",
+                    distance: distFeet,
+                    nearestId: nearestId,
+                  },
+                  "*",
+                );
+              }
+            }
+          } else {
+            headBobTimer = 0;
+          }
+
+          // 4b. Notify panel of movement state (for guide card transparency)
+          if (isMoving !== window._lastMovingState) {
+            window._lastMovingState = isMoving;
+            const panelFrame = document.getElementById("panel-frame");
+            if (panelFrame && panelFrame.contentWindow) {
+              panelFrame.contentWindow.postMessage(
+                { type: "playerMoving", moving: isMoving },
+                "*",
+              );
+            }
+          }
+
+          // Apply Height (Terrain + Height + Bob)
+          const BASE_HEIGHT = 1.2; // Lowered camera by 2 feet to see circle direction
+          const GRAVITY = 9.8;
+          player.dy = (player.dy || 0) - GRAVITY * delta;
+
+          // Calc target Y
+          let targetY = camera.position.y + player.dy * delta;
+
+          // Floor Snap with Bob
+          if (targetY < groundY + BASE_HEIGHT + bobOffset) {
+            camera.position.y = groundY + BASE_HEIGHT + bobOffset;
+            player.dy = 0;
+          } else {
+            camera.position.y = targetY;
+          }
+
+          // Sync player object
+          player.x = camera.position.x;
+          player.z = camera.position.z;
+
+          // --- PATHFINDING VISUAL UPDATE ---
+          if (window._moveTarget && window._pathLine && window._targetRing) {
+            window._pathLine.visible = true;
+            window._targetRing.visible = true;
+
+            // Update Target Ring Height
+            window._targetRing.position.set(
+              window._moveTarget.x,
+              window.envBuilder &&
+                typeof window.envBuilder.getGroundY === "function"
+                ? window.envBuilder.getGroundY(
+                    window._moveTarget.x,
+                    window._moveTarget.z,
+                  ) + 0.1
+                : 0.1,
+              window._moveTarget.z,
+            );
+            window._targetRing.scale.setScalar(
+              1.0 + Math.sin(gameTime * 10) * 0.1,
+            );
+
+            // Update Line
+            const positions =
+              window._pathLine.geometry.attributes.position.array;
+            positions[0] = camera.position.x;
+            positions[1] = groundY + 0.2;
+            positions[2] = camera.position.z;
+            positions[3] = window._moveTarget.x;
+            positions[4] = window._targetRing.position.y;
+            positions[5] = window._moveTarget.z;
+            window._pathLine.geometry.attributes.position.needsUpdate = true;
+            window._pathLine.computeLineDistances();
+
+            // Marching Ants Animation
+            window._pathLine.material.dashOffset -= delta * 5.0;
+          } else if (window._pathLine && window._targetRing) {
+            window._pathLine.visible = false;
+            window._targetRing.visible = false;
+          }
+
+          // --- AVATAR SYNCHRONIZATION ---
+          if (window._playerAvatarMixer) {
+            window._playerAvatarMixer.update(delta);
+
+            // Crossfade animation states
+            if (window._avIdleAction && window._avWalkAction) {
+              if (isMoving && !window._avIsWalking) {
+                window._avIsWalking = true;
+                window._avWalkAction.reset().play();
+                window._avWalkAction.crossFadeFrom(
+                  window._avIdleAction,
+                  0.3,
+                  true,
+                );
+                const panelFrame = document.getElementById("panel-frame");
+                if (panelFrame && panelFrame.contentWindow)
+                  panelFrame.contentWindow.postMessage(
+                    { type: "AVATAR_ANIM_CHANGE", anim: "walk" },
+                    "*",
+                  );
+              } else if (!isMoving && window._avIsWalking) {
+                window._avIsWalking = false;
+                window._avIdleAction.reset().play();
+                window._avIdleAction.crossFadeFrom(
+                  window._avWalkAction,
+                  0.3,
+                  true,
+                );
+                const panelFrame = document.getElementById("panel-frame");
+                if (panelFrame && panelFrame.contentWindow)
+                  panelFrame.contentWindow.postMessage(
+                    { type: "AVATAR_ANIM_CHANGE", anim: "idle" },
+                    "*",
+                  );
+              }
+            }
+          }
+
+          if (window.bhgMixer) {
+            window.bhgMixer.update(delta);
+          }
+          if (window._playerAvatar) {
+            camera.getWorldDirection(_pool.v1);
+
+            // Place avatar at camera's XZ but at ground level (Y - 1.6 = eye height)
+            window._playerAvatar.position.copy(camera.position);
+            window._playerAvatar.position.y -= 1.6;
+
+            // Push avatar forward by 0.6 units (2 feet) along the camera's view direction
+            // This makes the FPV camera correctly trail 2 feet behind the avatar's back
+            camera.getWorldDirection(_pool.v1);
+            _pool.v1.y = 0;
+            _pool.v1.normalize();
+            _pool.v1.multiplyScalar(0.6);
+            window._playerAvatar.position.add(_pool.v1);
+
+            // Extract 2D Planar Yaw (XZ rotation)
+            const ROT_OFFSET = -Math.PI / 2; // Turned 90 degrees right per USER request
+            if (window._isMapView && isMoving && window._moveTarget) {
+              _pool.v1.subVectors(
+                window._moveTarget,
+                window._playerAvatar.position,
+              );
+              window._playerAvatar.rotation.y =
+                Math.atan2(_pool.v1.x, _pool.v1.z) + ROT_OFFSET;
+            } else {
+              camera.getWorldDirection(_pool.v1);
+              _pool.v1.y = 0;
+              _pool.v1.normalize();
+              window._playerAvatar.rotation.y =
+                Math.atan2(_pool.v1.x, _pool.v1.z) + ROT_OFFSET;
+            }
+          }
+          player.rot = camera.rotation.y;
+
+          // --- TIME & SUN ---
+          // If the user clicked a season, fast forward smoothly to the destination!
+          if (window._targetGameTime !== undefined) {
+            // Determine shortest path (direct or across midnight boundary)
+            // Actually simple lerp is fine since seasons don't cross zero except night
+            window._manualTimeMode = true;
+            const diff = window._targetGameTime - gameTime;
+            if (Math.abs(diff) < 0.1) {
+              gameTime = window._targetGameTime;
+              window._targetGameTime = undefined;
+            } else {
+              gameTime += diff * delta * 2.0;
+            }
+          } else if (window._isTimeLocked) {
+            // Time is explicitly locked by God Mode — no clock advancement allowed
+          } else if (!window._manualTimeMode) {
+            // Advance Time
+            // Slow down extremely realistically (1 game hour = ~200 real seconds)
+            gameTime += delta * 0.005;
+            if (gameTime >= 24) gameTime -= 24;
+          } else {
+            gameTime += delta * 0.01;
+            if (gameTime >= 24) gameTime -= 24;
+          }
+
+          // Day/Night Cycle Shaders
+          if (window._skyUniforms && window._sceneFog && window._sceneTarget) {
+            // Colors (R, G, B, Intensity)
+            const ND = {
+              t: [6, 11, 19],
+              m: [13, 27, 42],
+              b: [58, 69, 85],
+              f: [58, 69, 85],
+              i: 0.1,
+            }; // Night Dark
+            const DW = {
+              t: [58, 90, 122],
+              m: [125, 164, 199],
+              b: [201, 213, 227],
+              f: [201, 213, 227],
+              i: 0.6,
+            }; // Dawn
+            const DY = {
+              t: [255, 170, 34],
+              m: [255, 213, 128],
+              b: [255, 241, 202],
+              f: [255, 241, 202],
+              i: 1.0,
+            }; // Day Happy
+            const DK = {
+              t: [65, 82, 112],
+              m: [220, 140, 80],
+              b: [255, 190, 120],
+              f: [255, 190, 120],
+              i: 0.4,
+            }; // Dusk (Warm bright instead of purple)
+            const GY = {
+              t: [140, 145, 150],
+              m: [160, 165, 170],
+              b: [180, 185, 190],
+              f: [180, 185, 190],
+              i: 0.5,
+            }; // Gray Overcast
+
+            let p1, p2, prog;
+            if (window._isOvercastMode) {
+              p1 = GY;
+              p2 = GY;
+              prog = 1.0;
+            } else if (gameTime >= 4 && gameTime < 8) {
+              p1 = ND;
+              p2 = DW;
+              prog = (gameTime - 4) / 4;
+            } // Night -> Dawn
+            else if (gameTime >= 8 && gameTime < 11) {
+              p1 = DW;
+              p2 = DY;
+              prog = (gameTime - 8) / 3;
+            } // Dawn -> Day
+            else if (gameTime >= 11 && gameTime < 17) {
+              p1 = DY;
+              p2 = DY;
+              prog = 1.0;
+            } // Day
+            else if (gameTime >= 17 && gameTime < 20) {
+              p1 = DY;
+              p2 = DK;
+              prog = (gameTime - 17) / 3;
+            } // Day -> Dusk
+            else if (gameTime >= 20 && gameTime < 22) {
+              p1 = DK;
+              p2 = ND;
+              prog = (gameTime - 20) / 2;
+            } // Dusk -> Night
+            else {
+              p1 = ND;
+              p2 = ND;
+              prog = 1.0;
+            } // Night (22 to 4)
+
+            // Lerp helper
+            const lerpRGB = (arr1, arr2, p) =>
+              new THREE.Color(
+                (arr1[0] + (arr2[0] - arr1[0]) * p) / 255.0,
+                (arr1[1] + (arr2[1] - arr1[1]) * p) / 255.0,
+                (arr1[2] + (arr2[2] - arr1[2]) * p) / 255.0,
+              );
+
+            window._skyUniforms.topColor.value.copy(lerpRGB(p1.t, p2.t, prog));
+            window._skyUniforms.midColor.value.copy(lerpRGB(p1.m, p2.m, prog));
+            window._skyUniforms.bottomColor.value.copy(
+              lerpRGB(p1.b, p2.b, prog),
+            );
+
+            const fogColor = lerpRGB(p1.f, p2.f, prog);
+            window._sceneFog.color.copy(fogColor);
+            window._sceneTarget.background.copy(fogColor);
 
             if (window.sunLight) {
-                // Keep the light orbiting, but relative to the player so shadows never clip
-                const rx = camera.position.x + Math.cos(angle) * 100;
-                const ry = Math.sin(angle) * 100; // Rise and set
-                const rz = camera.position.z - 30; // Slight offset from sun angle
-                window.sunLight.position.set(rx, Math.max(ry, -10), rz); // Clamp min Y so shadows don't break
-
-                // Point target directly at player
-                window.sunLight.target.position.copy(camera.position);
-                window.sunLight.target.updateMatrixWorld();
+              window.sunLight.intensity = Math.max(
+                p1.i + (p2.i - p1.i) * prog,
+                0.1,
+              );
             }
-            
-            // Update Moon position opposite the sun
-            if (window._3dMoonGroup && window._3dMoonGroup.visible) {
-                if (camera && camera.isPerspectiveCamera) {
-                    const fwd = new THREE.Vector3();
-                    camera.getWorldDirection(fwd);
-                    fwd.y = 0; fwd.normalize();
-                    
-                    // Keep moon fixed at a comfortable angle in the player's FOV
-                    window._3dMoonGroup.position.set(
-                        camera.position.x + fwd.x * 250,
-                        camera.position.y + 60, // Lowered from 120 to 60 for better FPV visibility
-                        camera.position.z + fwd.z * 250
-                    );
-                    
-                    if (window._3dMoonMesh && window._currentForcePhase !== undefined) {
-                        const phaseMod = Math.abs(window._currentForcePhase - 4) / 4; 
-                        window._3dMoonMesh.scale.x = (window._currentForcePhase === 0) ? 0.01 : 1.0;
-                        window._3dMoonMesh.material.emissiveIntensity = 1.0 - (phaseMod * 0.9);
-                    }
-                }
+          }
+
+          // Update Sun Position
+          const angle = (gameTime / 24) * Math.PI * 2 - Math.PI / 2; // -PI/2 to start at sunrise approx
+
+          if (window.sunLight) {
+            // Keep the light orbiting, but relative to the player so shadows never clip
+            const rx = camera.position.x + Math.cos(angle) * 100;
+            const ry = Math.sin(angle) * 100; // Rise and set
+            const rz = camera.position.z - 30; // Slight offset from sun angle
+            window.sunLight.position.set(rx, Math.max(ry, -10), rz); // Clamp min Y so shadows don't break
+
+            // Point target directly at player
+            window.sunLight.target.position.copy(camera.position);
+            window.sunLight.target.updateMatrixWorld();
+          }
+
+          // Update Moon position opposite the sun
+          if (window._3dMoonGroup && window._3dMoonGroup.visible) {
+            if (camera && camera.isPerspectiveCamera) {
+              const fwd = new THREE.Vector3();
+              camera.getWorldDirection(fwd);
+              fwd.y = 0;
+              fwd.normalize();
+
+              // Keep moon fixed at a comfortable angle in the player's FOV
+              window._3dMoonGroup.position.set(
+                camera.position.x + fwd.x * 250,
+                camera.position.y + 60, // Lowered from 120 to 60 for better FPV visibility
+                camera.position.z + fwd.z * 250,
+              );
+
+              if (
+                window._3dMoonMesh &&
+                window._currentForcePhase !== undefined
+              ) {
+                const phaseMod = Math.abs(window._currentForcePhase - 4) / 4;
+                window._3dMoonMesh.scale.x =
+                  window._currentForcePhase === 0 ? 0.01 : 1.0;
+                window._3dMoonMesh.material.emissiveIntensity =
+                  1.0 - phaseMod * 0.9;
+              }
             }
-
-            // Update UI
-            const hours = Math.floor(gameTime);
-            const minutes = Math.floor((gameTime - hours) * 60);
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            const h12 = hours % 12 || 12;
-
-            const timeStr = `${h12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm} `;
-            if (_timeEl) _timeEl.innerText = timeStr;
-
-            // Update Grandfather Clock Sun Dial Rotation
-            const celestialDial = document.getElementById('celestial-dial');
-            if (celestialDial) {
-                // Use the GAME time to drive the Sun Dial, not local PC time!
-                // 12 (Noon) = 0deg (Sun at top), 0 (Midnight) = 180deg (Moon at top)
-                const dialAngle = ((gameTime - 12) / 24) * 360;
-                celestialDial.style.transform = `rotate(${dialAngle}deg)`;
-
-                // Keep the emoji icons constantly pointing upwards despite the rotation
-                const cSun = document.getElementById('c-sun');
-                const cMoon = document.getElementById('c-moon');
-                if (cSun) cSun.style.transform = `translateX(-50%) rotate(${-dialAngle}deg)`;
-                // Moon started upside-down visually so we offset its reverse rotation by +180
-                if (cMoon) cMoon.style.transform = `translateX(-50%) rotate(${-dialAngle + 180}deg)`;
-            }
-            
-            // Constantly sync Moon Phase widget
-            window.postMessage({ type: 'UPDATE_MOON', time: gameTime }, '*');
-
-            // Sync Compass UI to the player's world camera rotation
-            const compassTurnDeg = THREE.MathUtils.radToDeg(camera.rotation.y);
-            const panelFrame = document.getElementById('panel-frame');
-            if (panelFrame && panelFrame.contentWindow) {
-                panelFrame.contentWindow.postMessage({ type: 'CAMERA_ROTATION', deg: compassTurnDeg }, '*');
-            }
-
-            // === ANIMATE BUTTERFLY SPIRIT ===
-            if (window._butterflySpirit) {
-                window._butterflySpirit.position.y += Math.sin(frameCount * 0.05) * 0.005;
-                window._butterflySpirit.rotation.y += delta * 0.5;
-            }
-
-            // --- PIP / MAIN SWAP RENDER ---
-            // Allow PIP strictly even when _isMapView is true so that FPV does not freeze at 1fps
-            // NATIVE WEBGL EXCEPTION: WebGL Overlay clears screen fully. Skipping PIP strobes the UI window.
-            const shouldPIP = window._isAxeCameraCloned !== true;
-            let drewMapMain = false;
-
-            if (typeof pipCamera !== 'undefined' && pipCamera) {
-                // USER REQUEST: Custom PIP FPV Mirror inside the PIP
-                if (window._isMapView && window._playerAvatar) {
-                    // Zoom into 3 feet behind avatar look ahead from just above the head, slight fish eye
-                    const avatar = window._playerAvatar;
-                    pipCamera.position.copy(avatar.position);
-                    
-                    // Avatar has a native 90-degree rotation offset, so its local +Z is right/left.
-                    // The main 'camera' object drives movement and its +Z is strictly backward.
-                    const backward = new THREE.Vector3(0,0,1);
-                    backward.applyQuaternion(camera.quaternion);
-                    backward.y = 0; // Flatten trajectory so we don't zoom into the sky/ground
-                    backward.normalize();
-                    
-                    pipCamera.position.addScaledVector(backward, 0.3); // 1 foot behind avatar
-                    pipCamera.position.y += 1.4; // Just above head
-                    
-                    // Look slightly down or straight ahead
-                    const lookPos = avatar.position.clone();
-                    lookPos.y += 1.6; 
-                    const forward = new THREE.Vector3(0,0,-1).applyQuaternion(avatar.quaternion);
-                    lookPos.addScaledVector(forward, 2.0);
-                    
-                    pipCamera.lookAt(lookPos);
-                    pipCamera.fov = 85; // Slight fish eye
-                    pipCamera.updateProjectionMatrix();
-                } else {
-                    pipCamera.position.copy(camera.position);
-                    pipCamera.quaternion.copy(camera.quaternion);
-                    pipCamera.fov = 40; // normal
-                    pipCamera.updateProjectionMatrix();
-                }
-
-                // Update Green Shader Time variables
-                // Shader time updates handled natively inside RenderTarget passes below
-                if (window._pipMat) window._pipMat.uniforms.time.value += delta;
-                if (window._mapMat) window._mapMat.uniforms.time.value += delta;
-
-                // SCENARIOS decoupled from execution to prevent z-fighting / erasing
-                if (window._isMapView) {
-                    drewMapMain = true;
-                    // In map view: moondial PiP shows the top-down map camera feed,
-                    // FPV is rendered separately into the top-left-fpv scissor window.
-                    if (shouldPIP) window._pendingPipCamera = pipCamera;
-                    else window._pendingPipCamera = null;
-                } else if (window._swapModes) {
-                    drewMapMain = true;
-                    window._pendingPipCamera = null;
-                } else {
-                    drewMapMain = false;
-                    if (shouldPIP) window._pendingPipCamera = pipCamera;
-                    else window._pendingPipCamera = null;
-                }
-
-
-
-
-                // No webGLCircularMask local definition. Hardware Blit will be executed before Main Render.
-            } else {
-                window._pendingPipCamera = null;
-            }
-
-            // --- TIPI JOURNAL FEED RENDER (Hardware Canvas Overlay) ---
-            // --- USER REQUEST: DISABLE ALL LOGBOOK PIP FEEDS FOR 60 FPS RESTORATION ---
-            if (window._isLogbookOpen && window.tipiCanvas2D && window.tipiCanvas2D.style.display === 'block') {
-                // Add tiny procedural sway (Handheld camera effect)
-                const swayT = performance.now() * 0.0005;
-                const sx = Math.sin(swayT) * 0.15;
-                const sy = Math.cos(swayT * 0.8) * 0.1;
-
-                const target = window._tipiPipTarget;
-
-                // --- PIP CAMERA ROUTING (Axe, Quest Cams, Portraits) ---
-                let usePerspective = true;
-                
-                // State resets
-                if (target !== 'yellowButterfly') window._ybSelfieActive = false;
-
-                try {
-                    let handled = false;
-                    if (target === 'bringsHappinessGirlPortrait' || target === 'bringsHappinessGirl' || target === 'bhg') {
-                        // Selfie Cam feed for Brings Happiness Girl
-                        if (window._bhgGroup) {
-                            const facePos = new THREE.Vector3();
-                            if (window._bhgCharacterMesh) {
-                                window._bhgCharacterMesh.getWorldPosition(facePos);
-                            } else {
-                                facePos.copy(window._bhgGroup.position);
-                            }
-                            facePos.y += 1.0; // Raise to face level
-
-                            const radius = (target === 'bhg') ? 6.0 : (2.5 + Math.sin(swayT * 0.4) * 1.5); // Zoom in / out or far view
-
-                            tipiOrthoCam.position.set(
-                                facePos.x + Math.sin(swayT * 0.3) * 0.5,
-                                facePos.y + ((target === 'bhg') ? 2.0 : (Math.cos(swayT * 0.6) * 0.2)),
-                                facePos.z - radius // She faces -Z, so stand in front of her
-                            );
-                            tipiOrthoCam.lookAt(facePos.x, facePos.y - 0.2, facePos.z);
-                            handled = true;
-
-                            // Trigger wave animation if close up
-                            if (target !== 'bhg') {
-                                try {
-                                    if (window._bhgWaveAction && window.bhgSystem) {
-                                        window.bhgSystem.hasWaved = true; // Block world proximity from double-starting
-                                        window._bhgWaveAction.reset().play();
-                                    } else if (window.playBhgWelcome) {
-                                        window.playBhgWelcome();
-                                    }
-                                } catch (animErr) { console.warn("[PIP] Waving anim failed:", animErr); }
-                            }
-                        } else {
-                            // Fallback if not loaded
-                            tipiOrthoCam.position.set(0, 2, -10);
-                            tipiOrthoCam.lookAt(0, 1, -10);
-                            handled = true;
-                        }
-                    } else if (target === 'yellowButterfly') {
-                        // Selfie Cam feed for Yellow Butterfly
-                        if (window._yellowButterflyNPC) {
-                            // MATHEMATICAL RIG: Attach camera strictly to her local coordinate matrix
-                            if (!window._ybCamPos) window._ybCamPos = new THREE.Vector3();
-                            if (!window._ybLookPos) window._ybLookPos = new THREE.Vector3();
-
-                            window._ybCamPos.set(0.5, 1.4, -2.5); // 2.5m in front of her face, slightly elevated
-                            window._ybLookPos.set(0, 1.2, 0);     // Look exactly at her face height
-                            
-                            window._yellowButterflyNPC.localToWorld(window._ybCamPos);
-                            window._yellowButterflyNPC.localToWorld(window._ybLookPos);
-                            
-                            tipiPerspCam.position.copy(window._ybCamPos);
-                            tipiPerspCam.lookAt(window._ybLookPos); 
-                            
-                            tipiOrthoCam.position.copy(tipiPerspCam.position);
-                            tipiOrthoCam.quaternion.copy(tipiPerspCam.quaternion);
-                            usePerspective = true;
-                            handled = true;
-                            window._skipPerspSync = true;
-
-                            // CLEAN STATE ARCHITECTURE: Trigger wave exactly once when the Logbook Page 2 opens
-                            if (!window._ybSelfieActive) {
-                                window._ybSelfieActive = true;
-                                if (window.ybSystem && window.ybSystem.actions && window.ybSystem.actions.wave) {
-                                    window.ybSystem.actions.wave.reset().play();
-                                    if (window.ybSystem.currentBaseAction) {
-                                        window.ybSystem.actions.wave.crossFadeFrom(window.ybSystem.currentBaseAction, 0.5, false);
-                                    }
-                                }
-                            }
-                        } else {
-                            // Fallback if not loaded
-                            const tx = typeof TIPI_X !== 'undefined' ? TIPI_X : 0;
-                            const tz = typeof TIPI_Z !== 'undefined' ? TIPI_Z : 0;
-                            tipiOrthoCam.position.set(tx, 2, tz + 2);
-                            tipiOrthoCam.lookAt(tx, 1, tz);
-                            handled = true;
-                        }
-                    } else if (target === 'axeZoomInTipi' || target === 'axeGathering') {
-                        if (window._worldAxeMesh) {
-                            // Detach axe from its parent (e.g., tipi) and add to global scene if not already
-                            if (window._worldAxeMesh.parent !== scene) {
-                                window._worldAxeMesh.getWorldPosition(window._worldAxeMesh.position); // Get current world position
-                                window._worldAxeMesh.rotation.setFromQuaternion(window._worldAxeMesh.getWorldQuaternion(new THREE.Quaternion())); // Get current world rotation
-                                scene.add(window._worldAxeMesh);
-                            }
-
-                            if (target === 'axeGathering') {
-                                // Dynamically fly axe into bottom-left camera viewport
-                                const axeTargetPos = new THREE.Vector3();
-                                const screenWidth = window.innerWidth;
-                                const screenHeight = window.innerHeight;
-
-                                // Target screen position (e.g., bottom-left corner, slightly offset)
-                                const targetScreenX = 0.15; // 15% from left
-                                const targetScreenY = 0.15; // 15% from bottom
-
-                                // Convert screen coordinates to world coordinates at a certain distance from camera
-                                const distanceToAxe = 2.0; // Distance in front of camera
-                                axeTargetPos.set(
-                                    (targetScreenX * 2 - 1) * (screenWidth / screenHeight), // X from -1 to 1, aspect ratio correction
-                                    (targetScreenY * 2 - 1), // Y from -1 to 1
-                                    -1 // Z for near plane
-                                );
-                                axeTargetPos.unproject(camera); // Convert to world space relative to camera
-
-                                const camDir = new THREE.Vector3();
-                                camera.getWorldDirection(camDir);
-                                axeTargetPos.add(camDir.multiplyScalar(distanceToAxe)); // Move along camera direction
-
-                                // Smoothly interpolate axe position
-                                window._worldAxeMesh.position.lerp(axeTargetPos, 0.1); // Adjust lerp factor for speed
-
-                                // Make axe face the camera
-                                window._worldAxeMesh.lookAt(camera.position);
-                                window._worldAxeMesh.rotation.y += Math.PI; // Adjust for model orientation if needed
-                            }
-
-                            // Position tipiOrthoCam to view the axe
-                            tipiOrthoCam.position.copy(window._worldAxeMesh.position).add(new THREE.Vector3(0, 0.5, 1.5)); // Slightly above and behind axe
-                            tipiOrthoCam.lookAt(window._worldAxeMesh.position);
-                            handled = true;
-                        } else {
-                            // Fallback if not loaded
-                            const tx = typeof TIPI_X !== 'undefined' ? TIPI_X : 0;
-                            const tz = typeof TIPI_Z !== 'undefined' ? TIPI_Z : 0;
-                            tipiOrthoCam.position.set(tx + 2, 2, tz);
-                            tipiOrthoCam.lookAt(tx, 0.5, tz);
-                            handled = true;
-                        }
-                    } else if (target === 'nearestTree' && window._treeInstancedMeshes) {
-                        let closestDist = Infinity;
-                        let closestPos = new THREE.Vector3();
-                        const camPos = camera.position;
-                        const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                        const dummy = new THREE.Matrix4();
-                        const wp = new THREE.Vector3();
-
-                        window._treeInstancedMeshes.forEach(({ instancedMesh }) => {
-                            for (let i = 0; i < instancedMesh.count; i++) {
-                                instancedMesh.getMatrixAt(i, dummy);
-                                wp.setFromMatrixPosition(dummy);
-                                if (wp.y < -100) continue; // Unused instance
-                                const dist = wp.distanceTo(camPos);
-                                const dir = new THREE.Vector3().subVectors(wp, camPos).normalize();
-                                const dot = fwd.dot(dir);
-                                const score = dist - (dot * 2.0);
-                                if (dot > 0.0 && score < closestDist) {
-                                    closestDist = score;
-                                    closestPos.copy(wp);
-                                }
-                            }
-                        });
-
-                        if (closestDist !== Infinity) {
-                            const tNow = performance.now() * 0.001;
-                            const orbitX = Math.cos(tNow) * 4;
-                            const orbitZ = Math.sin(tNow) * 4;
-                            tipiOrthoCam.position.set(closestPos.x + orbitX, closestPos.y + 3.0, closestPos.z + orbitZ);
-                            tipiOrthoCam.lookAt(closestPos.x, closestPos.y + 1.5, closestPos.z);
-                            handled = true;
-                        }
-                    }
-
-                    if (!handled) {
-                        const tNow = performance.now() * 0.0005;
-                        const orbitRadius = 12 + Math.sin(tNow * 0.5) * 4;
-                        const orbitAngle = tNow * 0.2;
-                        const sxOrbit = Math.cos(orbitAngle) * orbitRadius;
-                        const syOrbit = Math.sin(tNow * 0.8) * 2.0;
-                        const szOrbit = Math.sin(orbitAngle) * orbitRadius;
-                        const tx = typeof TIPI_X !== 'undefined' ? TIPI_X : 0;
-                        const tz = typeof TIPI_Z !== 'undefined' ? TIPI_Z : 0;
-                        const ty = (window._tipiPlatformY || 0);
-
-                        tipiOrthoCam.position.set(tx + sxOrbit, ty + 10 + syOrbit, tz + szOrbit);
-                        tipiOrthoCam.lookAt(tx, ty + 2.0, tz);
-                    }
-                } catch (pipErr) {
-                    console.error("[Camera] CRITICAL ERROR IN PIP RENDERER CAUGHT! Prevents game freeze:", pipErr);
-                }
-
-                if (usePerspective && typeof tipiPerspCam !== 'undefined' && tipiPerspCam && !window._skipPerspSync) {
-                    tipiPerspCam.position.copy(tipiOrthoCam.position);
-                    tipiPerspCam.quaternion.copy(tipiOrthoCam.quaternion);
-                }
-                window._skipPerspSync = false;
-
-                // TEMPORARILY DISABLED WESTERN SHADER PROCESSING FOR FPS TESTING
-                // FPS FIX: Throttle PIP rendering using FuzzyBrain to prevent double-rendering the massive scene at 60Hz
-                if (window.tipiCtx && window._isLogbookOpen && window._tipiRect && window._tipiRect.width > 0 && (!fuzzyBrain || fuzzyBrain.shouldRenderPIP())) {
-                    let camToUse = usePerspective ? tipiPerspCam : tipiOrthoCam;
-                    if (window._tipiPipTarget === 'pip') {
-                        camToUse = window._nativeMapCam || window._pendingPipCamera;
-                    }
-
-                    // Hardware accelerated blit from main WebGL context!
-                    const w = window.tipiCanvas2D.width || 256;
-                    const h = window.tipiCanvas2D.height || 256;
-                    
-                    const dpr = renderer.getPixelRatio();
-                    const scW = w * dpr;
-                    const scH = h * dpr;
-
-                    const origAutoClear = renderer.autoClear;
-                    renderer.autoClear = false;
-
-                    renderer.setScissorTest(true);
-                    renderer.setScissor(0, 0, scW, scH);
-                    renderer.setViewport(0, 0, scW, scH);
-
-                    // Create a solid background plane to avoid FPS-crashing partial clear
-                    if (!window._tipiBgScene) {
-                        window._tipiBgScene = new THREE.Scene();
-                        window._tipiBgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-                        const bgMat = new THREE.MeshBasicMaterial({ color: 0xfff1ca, depthWrite: false, depthTest: false });
-                        window._tipiBgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
-                        window._tipiBgScene.add(window._tipiBgMesh);
-                    }
-
-                    // Render background safely
-                    renderer.clearDepth(); // Only clear depth to prevent bleed
-                    renderer.render(window._tipiBgScene, window._tipiBgCam);
-
-                    // Render UI logic into bottom left corner
-                    if (camToUse) {
-                        try {
-                            renderer.render(scene, camToUse);
-                        } catch (err) {}
-                    }
-
-                    // Draw to 2D UI Canvas
-                    window.tipiCtx.clearRect(0, 0, w, h);
-                    window.tipiCtx.drawImage(
-                        renderer.domElement, 
-                        0, renderer.domElement.height - scH, scW, scH, 
-                        0, 0, w, h
-                    );
-
-                    // Cleanup corner
-                    renderer.clearDepth();
-                    renderer.setScissorTest(false);
-                    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                    renderer.autoClear = origAutoClear;
-                }
-            }
-
-            // --- SELFIE CAM JOURNAL FEED RENDER ---
-            if (window._isLogbookOpen && window.selfieCanvas2D && window.selfieCanvas2D.style.display === 'block' && window._selfieRect && window._selfieRect.width > 0) {
-                // Dynamically position camera between YB and Player
-                if (window._yellowButterflyNPC && window.selfieCam) {
-                    const ybPos = new THREE.Vector3();
-                    window._yellowButterflyNPC.getWorldPosition(ybPos);
-                    const playerPos = camera.position.clone();
-                    
-                    // Midpoint
-                    const midPos = ybPos.clone().lerp(playerPos, 0.5);
-                    
-                    // Offset camera to the side to capture both profiles
-                    const dirBetween = new THREE.Vector3().subVectors(playerPos, ybPos).normalize();
-                    const rightOffset = new THREE.Vector3(-dirBetween.z, 0, dirBetween.x).normalize().multiplyScalar(4.0);
-                    
-                    window.selfieCam.position.set(midPos.x + rightOffset.x, ybPos.y + 1.2, midPos.z + rightOffset.z);
-                    window.selfieCam.lookAt(midPos.x, ybPos.y + 1.0, midPos.z);
-                    
-                    // Add slight handheld sway to the selfie cam
-                    const swayT = performance.now() * 0.001;
-                    window.selfieCam.position.x += Math.sin(swayT) * 0.05;
-                    window.selfieCam.position.y += Math.cos(swayT * 0.8) * 0.05;
-                    window.selfieCam.updateMatrixWorld();
-                }
-
-                const w = window.selfieCanvas2D.width || 256;
-                const h = window.selfieCanvas2D.height || 384;
-                
-                const dpr = renderer.getPixelRatio();
-                const scW = w * dpr;
-                const scH = h * dpr;
-
-                const origAutoClear = renderer.autoClear;
-                renderer.autoClear = false;
-
-                renderer.setScissorTest(true);
-                renderer.setScissor(0, 0, scW, scH);
-                renderer.setViewport(0, 0, scW, scH);
-
-                // Background
-                if (!window._selfieBgScene) {
-                    window._selfieBgScene = new THREE.Scene();
-                    window._selfieBgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-                    const bgMat = new THREE.MeshBasicMaterial({ color: 0x87CEEB, depthWrite: false, depthTest: false }); // Sky blue fallback
-                    window._selfieBgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
-                    window._selfieBgScene.add(window._selfieBgMesh);
-                }
-
-                renderer.clearDepth();
-                renderer.render(window._selfieBgScene, window._selfieBgCam);
-
-                try {
-                    renderer.render(scene, window.selfieCam);
-                } catch (err) {}
-
-                window.selfieCtx.clearRect(0, 0, w, h);
-                window.selfieCtx.drawImage(
-                    renderer.domElement, 
-                    0, renderer.domElement.height - scH, scW, scH, 
-                    0, 0, w, h
-                );
-
-                renderer.clearDepth();
-                renderer.setScissorTest(false);
-                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                renderer.autoClear = origAutoClear;
-            }
-
-            // --- QUEST MARKER ANIMATION ---
-            const ft = performance.now() * 0.001;
-            if (window._questMarker) {
-                const markerBob = Math.sin(ft * 3) * 0.15;
-                window._questMarker.position.y = window._questMarker.userData.baseY + markerBob;
-                window._questMarker.rotation.y = ft; // Spin
-
-                window._questMarker.children.forEach(c => {
-                    if (c.userData && c.userData.isQuestBloom) {
-                        c.position.y = -5.95 - markerBob; // Counteract bob to stay completely flat on world dirt
-                        if (c.material) {
-                            c.material.opacity = 0.5 + Math.sin(ft * 1.5) * 0.4; // Glowing fade
-                        }
-                    }
-                });
-            }
-            if (window._bhgBalloon && window._bhgBalloon.visible) {
-                window._bhgBalloon.position.y = window._bhgBalloon.userData.baseY + Math.sin(ft * 3 + 1) * 0.15;
-                window._bhgBalloon.rotation.y = ft;
-            }
-
-            // --- MOON DIAL UPDATE (throttled) ---
-            if (frameCount % 60 === 0 && _moonFrame && _moonFrame.contentWindow) {
-                // Use postMessage to avoid cross-origin frame reading blocks on file://
-                _moonFrame.contentWindow.postMessage({ type: 'UPDATE_MOON', time: gameTime }, '*');
-            }
-            // --- WILDLIFE & WIND IN FPV ONLY ---
-            if (!window._isMapView) {
-                if (window.butterflySystem) window.butterflySystem.update(delta); // Visual fx keep full Hz
-                
-                // --- SPIRIT GUIDE BUTTERFLY (Continuous Animation) ---
-                if (window._butterflySpirit) {
-                    const b = window._butterflySpirit;
-                    const pPos = camera.position.clone();
-                    
-                    // Add erratic nature movement (hovering) always
-                    const time = performance.now() * 0.001;
-                    
-                    if (window._spiritGuideActive) {
-                        // Float 2m in front of player and 0.5m above eye level
-                        const forward = new THREE.Vector3(0, 0, -1);
-                        forward.applyQuaternion(camera.quaternion);
-                        const target = pPos.add(forward.multiplyScalar(2.5)).add(new THREE.Vector3(0, 0.5, 0));
-                        
-                        target.x += Math.sin(time * 3) * 0.6;
-                        target.y += Math.cos(time * 2) * 0.4;
-                        target.z += Math.sin(time * 2.5) * 0.6;
-                        
-                        b.position.lerp(target, delta * 2.0); // Smooth follow
-                        
-                        // Always face the direction of flight or the player
-                        const lookAtTarget = target.clone().add(forward);
-                        b.lookAt(lookAtTarget);
-                    } else {
-                        // Just hover in its base position
-                        b.position.y += Math.sin(time * 2) * 0.005; 
-                        b.rotation.y += delta * 0.5;
-                    }
-                }
-                
-                // Delegate wildlife logic to the new Fixed-Time-Step MasterAI Director
-                if (window.masterAI && !window.masterAI._anuPaused) {
-                  window.masterAI.update(delta);
-                }
-                
-                // --- UNIVERSAL NPC PROXIMITY AI REMOVED ---
-                // Centralized logic now handled by window.npcMaster.update(delta) 
-                // in the main animation loop to prevent duplicate updates and parameter errors.
-
-                // --- WIND SWAY Optimization ---
-                const windTime = performance.now() * 0.001;
-                if (window._globalTime) {
-                    window._globalTime.value = windTime;
-                }
-                
-                if (typeof swayTrees !== 'undefined' && swayTrees.length > 0) {
-                    // Pre-calculate highly optimal world bounds for the camera
-                    const camX = camera.position.x;
-                    const camZ = camera.position.z;
-
-                    for (let i = 0; i < swayTrees.length; i++) {
-                        const t = swayTrees[i];
-                        if (!t.visible) continue;
-
-                        // ULTRA OPTIMIZATION: Avoid using getWorldPosition inside loop! 
-                        // Instead, we rigidly cached the true world spawn coordinates onto the leaf mesh userData during generateWorld().
-                        // This entirely bypasses the deep structural nested GLTF zero-coordinates.
-                        const pX = t.userData.worldX;
-                        const pZ = t.userData.worldZ;
-                        if (pX === undefined) continue; // safety check
-
-                        const dx = pX - camX;
-                        const dz = pZ - camZ;
-                        const distToCamSq = (dx * dx) + (dz * dz);
-
-                        if (distToCamSq > 10000) continue;
-
-                        const phase = t.userData.windPhase;
-                        const amp = t.userData.windAmp * 1.2; // Increased sway by 20% per user request
-
-                        // t is guaranteed to be a non-trunk foliage branch mesh
-                        t.rotation.x = t.userData.baseRotX + Math.sin(windTime * 1.5 + phase) * amp;
-                        t.rotation.z = t.userData.baseRotZ + Math.cos(windTime * 1.2 + phase) * amp * 0.8;
-                    }
-                }
-            }
-
-            // --- FUZZYBRAIN AI UPDATE ---
-            if (fuzzyBrain) {
-                fuzzyBrain.update(delta);
-                if (window.UniverseAnu)
-                  window.UniverseAnu.senseFPS(fuzzyBrain.smoothFPS || 60);
-            }
-
-            // --- STATS HUD (throttled) ---
-            if (frameCount % 15 === 0 && _statsEl) {
-                // Determine true FPS (FuzzyBrain smooths the raw delta jumps out)
-                const rawFps = (1 / delta).toFixed(0);
-                const fps = fuzzyBrain ? fuzzyBrain.smoothFPS.toFixed(0) : rawFps;
-
-                // USER REQUEST: Provide live coordinates for waypoint plotting
-                const cx = camera ? camera.position.x.toFixed(1) : '0';
-                const cy = camera ? camera.position.y.toFixed(1) : '0';
-                const cz = camera ? camera.position.z.toFixed(1) : '0';
-
-                _statsEl.innerHTML = `<span style="font-size:16px;color:#fff;font-weight:900;">${fps} FPS (Raw: ${rawFps})</span><br><span style="font-size:10px;color:#bcaaa4;">X:${cx} Y:${cy} Z:${cz}</span>`;
-            }
-
-            // Update tipi screen position for fuzzy exemption
-            if (window.tipiObj && humanEyePass) {
-                const tipiWorldPos = new THREE.Vector3();
-                window.tipiObj.getWorldPosition(tipiWorldPos);
-                tipiWorldPos.y += 2; // Aim at tipi center, not base
-                const projected = tipiWorldPos.clone().project(camera);
-                // Convert from NDC (-1..1) to UV (0..1)
-                const screenX = (projected.x + 1) * 0.5;
-                const screenY = (projected.y + 1) * 0.5;
-                // Only update if tipi is in front of camera
-                if (projected.z > 0 && projected.z < 1) {
-                    humanEyePass.uniforms.tipiScreenPos.value.set(screenX, screenY);
-                    // Scale radius based on distance
-                    const dist = camera.position.distanceTo(tipiWorldPos);
-                    humanEyePass.uniforms.tipiScreenRadius.value = Math.min(0.15, 3.0 / Math.max(dist, 1));
-                } else {
-                    humanEyePass.uniforms.tipiScreenPos.value.set(-9, -9); // Offscreen
-                }
-            }
-
-            // Animate campfire (sprites)
-            if (window._fireData && window._fireData.flameMesh) {
-                const fd = window._fireData;
-                const ft = Date.now() * 0.003;
-
-                // Animate Particle Sprites
-                const positions = fd.flameMesh.geometry.attributes.position.array;
-                const phases = fd.flameMesh.geometry.attributes.phase.array;
-                const particleCount = phases.length;
-
-                for (let i = 0; i < particleCount; i++) {
-                    const idx = i * 3;
-                    // Move up slower
-                    positions[idx + 1] += delta * 0.8;
-                    // Tighter wobble
-                    positions[idx] += Math.sin(ft * 5 + phases[i]) * 0.005;
-                    positions[idx + 2] += Math.cos(ft * 4 + phases[i]) * 0.005;
-
-                    // Reset if too high (EXTREMELY reduced max height to keep the optical flare inside the stone ring)
-                    if (positions[idx + 1] > fd.baseY + 0.4 + Math.random() * 0.3) {
-                        positions[idx] = fd.tipiX + (Math.random() - 0.5) * 0.2;
-                        positions[idx + 1] = fd.baseY + Math.random() * 0.1;
-                        positions[idx + 2] = fd.tipiZ + (Math.random() - 0.5) * 0.2;
-                    }
-                }
-                fd.flameMesh.geometry.attributes.position.needsUpdate = true;
-
-                // Animate Smoke Sprites
-                if (fd.smokeMesh) {
-                    const sPos = fd.smokeMesh.geometry.attributes.position.array;
-                    const sPhases = fd.smokeMesh.geometry.attributes.phase.array;
-                    for (let i = 0; i < sPhases.length; i++) {
-                        const idx = i * 3;
-                        // Float up slowly
-                        sPos[idx + 1] += delta * 0.8;
-                        // Drift in wind (mostly drift + wobble)
-                        sPos[idx] += Math.sin(ft * 2 + sPhases[i]) * 0.01 + delta * 0.25; // Gentle wind push on X
-                        sPos[idx + 2] += Math.cos(ft * 1.5 + sPhases[i]) * 0.01;
-
-                        // Reset when high above the tipi
-                        if (sPos[idx + 1] > fd.baseY + 6.5 + Math.random() * 1.0) {
-                            sPos[idx] = fd.tipiX + (Math.random() - 0.5) * 0.25; // Re-cluster tightly at hole
-                            sPos[idx + 1] = fd.baseY + 3.8 + Math.random() * 0.5;
-                            sPos[idx + 2] = fd.tipiZ + (Math.random() - 0.5) * 0.25;
-                        }
-                    }
-                    fd.smokeMesh.geometry.attributes.position.needsUpdate = true;
-                }
-
-                // Flicker light intensity (calmer, non-looping)
-                if (fd.fireLight) fd.fireLight.intensity = 2.0 + (Math.random() * 0.8 - 0.4);
-                if (fd.fireFill) fd.fireFill.intensity = 0.8 + (Math.random() * 0.3 - 0.15);
-                // Ember glow pulse (non-looping)
-                fd.emberMesh.material.emissiveIntensity = 0.6 + Math.random() * 0.4;
-            }
-            
-            // Avatar walk animation sync is handled earlier (line ~3020) using the correct isMoving flag
-
-
-
-
-            // --- SMART TARGETED CULLING ---
-            function toggleFX(show) {
-                if (window._globalFlare) window._globalFlare.visible = show;
-                if (window._butterflySpirit) window._butterflySpirit.visible = show;
-                if (window._tipiGodray2) window._tipiGodray2.visible = show;
-                if (window.butterflySystem && window.butterflySystem.mesh) window.butterflySystem.mesh.visible = show;
-                if (window.natureSpiritSystem && window.natureSpiritSystem.mesh) window.natureSpiritSystem.mesh.visible = show;
-            }
-
-            // Render Main View
-            let activeMainCam = camera;
-            
-            let mainFogRestore = null;
-            // Ensure Map Camera always exists and is tracking position for PIP
-            if (!window._nativeMapCam || !window._nativeMapCam.isPerspectiveCamera) {
-                const curAspect = window.innerWidth / window.innerHeight;
-                window._nativeMapCam = new THREE.PerspectiveCamera(20, curAspect, 0.1, 2500);
-                window._nativeMapCam.layers.enable(1); // USER FIX: Enable Layer 1 so avatar is visible in Map View
-                window._nativeMapCam.layers.enable(2); // FIX: Ensure Village View can see Hex Grid (Layer 2)
-                window._nativeMapCam.layers.enable(3); // Branches visible in Map View
-            }
-
-            // Dynamically map its coordinates directly above the physically active player camera
-            if (typeof window._mapZoomLevel === 'undefined') {
-                window._mapZoomLevel = 120.0; 
-                window._currentMapZoom = window._mapZoomLevel;
-            }
-            
-            // Smooth zoom spring physics
-            window._currentMapZoom += (window._mapZoomLevel - window._currentMapZoom) * delta * 5.0;
-
-            const heightY = window._currentMapZoom;
-            const tiltZ = 0; // Pure Top-Down map, no angle distortion
-            window._nativeMapCam.position.set(
-                camera.position.x,
-                Math.max(camera.position.y + heightY, heightY),
-                camera.position.z + tiltZ
+          }
+
+          // Update UI
+          const hours = Math.floor(gameTime);
+          const minutes = Math.floor((gameTime - hours) * 60);
+          const ampm = hours >= 12 ? "PM" : "AM";
+          const h12 = hours % 12 || 12;
+
+          const timeStr = `${h12.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} ${ampm} `;
+          if (_timeEl) _timeEl.innerText = timeStr;
+
+          // Update Grandfather Clock Sun Dial Rotation
+          const celestialDial = document.getElementById("celestial-dial");
+          if (celestialDial) {
+            // Use the GAME time to drive the Sun Dial, not local PC time!
+            // 12 (Noon) = 0deg (Sun at top), 0 (Midnight) = 180deg (Moon at top)
+            const dialAngle = ((gameTime - 12) / 24) * 360;
+            celestialDial.style.transform = `rotate(${dialAngle}deg)`;
+
+            // Keep the emoji icons constantly pointing upwards despite the rotation
+            const cSun = document.getElementById("c-sun");
+            const cMoon = document.getElementById("c-moon");
+            if (cSun)
+              cSun.style.transform = `translateX(-50%) rotate(${-dialAngle}deg)`;
+            // Moon started upside-down visually so we offset its reverse rotation by +180
+            if (cMoon)
+              cMoon.style.transform = `translateX(-50%) rotate(${-dialAngle + 180}deg)`;
+          }
+
+          // Constantly sync Moon Phase widget
+          window.postMessage({ type: "UPDATE_MOON", time: gameTime }, "*");
+
+          // Sync Compass UI to the player's world camera rotation
+          const compassTurnDeg = THREE.MathUtils.radToDeg(camera.rotation.y);
+          const panelFrame = document.getElementById("panel-frame");
+          if (panelFrame && panelFrame.contentWindow) {
+            panelFrame.contentWindow.postMessage(
+              { type: "CAMERA_ROTATION", deg: compassTurnDeg },
+              "*",
             );
-            window._nativeMapCam.up.set(0, 0, -1); // Prevent Gimbal Lock; North stays Up on map
-            window._nativeMapCam.lookAt(camera.position.x, Math.max(camera.position.y, 0), camera.position.z);
+          }
 
-            // Define renderer override profiles to suppress heavy FPV passes or align logic
-            if (window._swapModes) {
-                // If Logbook overlay is open, cull FPV background entirely and only render PIP scale internally to save FPS
-                if (typeof pipCamera !== 'undefined' && pipCamera) activeMainCam = pipCamera;
-                toggleFX(false);
-            } else if (window._isMapView) {
-                // Physically assign the Widescreen Map Camera to the Renderer
-                activeMainCam = window._nativeMapCam;
-                toggleFX(false);
-                
-                // Aggressive Dynamic Culling:
-                // Because the Map Camera looks straight down, anything beyond ~250 meters is strictly out of frame or obscured by fog.
-                // Standard FPV far clipping is 2500. Using 300 perfectly culls hundreds of distant background trees saving rendering MS.
-                if (window._nativeMapCam) {
-                    // Make far plane dynamic relative to zoom height to prevent z-plane clipping at max zoom (350+)
-                    const targetFar = window._currentMapZoom + 150;
-                    if (window._nativeMapCam.far !== targetFar) {
-                        window._nativeMapCam.far = targetFar; 
-                        window._nativeMapCam.updateProjectionMatrix();
-                    }
-                }
-                
-                // CRITICAL FIX: Disable thick atmospheric fog in Map View, otherwise the high top-down 
-                // orthographic camera looks through thick fog and the whole screen greys out!
-                if (window._sceneFog) {
-                    mainFogRestore = window._sceneFog.density;
-                    window._sceneFog.density = 0;
-                }
+          // === ANIMATE BUTTERFLY SPIRIT ===
+          if (window._butterflySpirit) {
+            window._butterflySpirit.position.y +=
+              Math.sin(frameCount * 0.05) * 0.005;
+            window._butterflySpirit.rotation.y += delta * 0.5;
+          }
+
+          // --- PIP / MAIN SWAP RENDER ---
+          // Allow PIP strictly even when _isMapView is true so that FPV does not freeze at 1fps
+          // NATIVE WEBGL EXCEPTION: WebGL Overlay clears screen fully. Skipping PIP strobes the UI window.
+          const shouldPIP = window._isAxeCameraCloned !== true;
+          let drewMapMain = false;
+
+          if (typeof pipCamera !== "undefined" && pipCamera) {
+            // USER REQUEST: Custom PIP FPV Mirror inside the PIP
+            if (window._isMapView && window._playerAvatar) {
+              // Zoom into 3 feet behind avatar look ahead from just above the head, slight fish eye
+              const avatar = window._playerAvatar;
+              pipCamera.position.copy(avatar.position);
+
+              // Avatar has a native 90-degree rotation offset, so its local +Z is right/left.
+              // The main 'camera' object drives movement and its +Z is strictly backward.
+              const backward = new THREE.Vector3(0, 0, 1);
+              backward.applyQuaternion(camera.quaternion);
+              backward.y = 0; // Flatten trajectory so we don't zoom into the sky/ground
+              backward.normalize();
+
+              pipCamera.position.addScaledVector(backward, 0.3); // 1 foot behind avatar
+              pipCamera.position.y += 1.4; // Just above head
+
+              // Look slightly down or straight ahead
+              const lookPos = avatar.position.clone();
+              lookPos.y += 1.6;
+              const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(
+                avatar.quaternion,
+              );
+              lookPos.addScaledVector(forward, 2.0);
+
+              pipCamera.lookAt(lookPos);
+              pipCamera.fov = 85; // Slight fish eye
+              pipCamera.updateProjectionMatrix();
             } else {
-                toggleFX(true);
+              pipCamera.position.copy(camera.position);
+              pipCamera.quaternion.copy(camera.quaternion);
+              pipCamera.fov = 40; // normal
+              pipCamera.updateProjectionMatrix();
             }
 
-            // NEXT-GEN ARCHITECTURE FIX: Bypass `EffectComposer` fully.
-            // On High DPI Mac Retina displays, rendering physical geometries into a massive offscreen WebGLRenderTarget 
-            // and applying a full-screen fragment pass absolutely destroys the Fill-Rate, capping the game at ~19FPS.
-            if (false && window.fuzzyBrain && window.fuzzyBrain.postProcess) {
-                // Dynamically route Composer to active main camera (Map or FPV)
-                const passes = window.fuzzyBrain.postProcess.composer.passes;
-                if (passes && passes.length > 0 && passes[0].camera) {
-                    passes[0].camera = activeMainCam;
-                }
-                window.fuzzyBrain.postProcess.composer.render(delta);
-            } else if (renderer) {
-                // Dynamic scale injection to combat Orthographic "Low Res" sizing
-                // GC-free: reuse pool vectors for scale backup
-                const oa = _pool.v3;
-                const ob = _pool.v4;
-                const oc = window.THREE.Vector3 ? new window.THREE.Vector3() : new THREE.Vector3(); // extra backup
-                let restoreMainAvatar = false;
-                let restoreMainYB = false;
-                let restoreMainBHG = false;
+            // Update Green Shader Time variables
+            // Shader time updates handled natively inside RenderTarget passes below
+            if (window._pipMat) window._pipMat.uniforms.time.value += delta;
+            if (window._mapMat) window._mapMat.uniforms.time.value += delta;
 
-                if (window._isMapView) {
-                    if (window._playerAvatar) { 
-                        oa.copy(window._playerAvatar.scale); 
-                        window._playerAvatar.scale.multiplyScalar(3.5); // 30% smaller than old 5.0
-                        window._playerAvatar.updateMatrixWorld(true); 
-                        restoreMainAvatar = true;
-                    }
-                    if (window._ybCharacterMesh) { 
-                        ob.copy(window._ybCharacterMesh.scale); 
-                        window._ybCharacterMesh.scale.multiplyScalar(3.5);
-                        window._ybCharacterMesh.updateMatrixWorld(true); 
-                        restoreMainYB = true;
-                    }
-                    if (window._bhgCharacterMesh) {
-                        oc.copy(window._bhgCharacterMesh.scale);
-                        window._bhgCharacterMesh.scale.multiplyScalar(3.5);
-                        window._bhgCharacterMesh.updateMatrixWorld(true);
-                        restoreMainBHG = true;
-                    }
-                } else {
-                    if (window._ybCharacterMesh) { 
-                        ob.copy(window._ybCharacterMesh.scale); 
-                        window._ybCharacterMesh.scale.multiplyScalar(1.0); // Normal size in FPV
-                        window._ybCharacterMesh.updateMatrixWorld(true); 
-                        restoreMainYB = true;
-                    }
-                    if (window._bhgCharacterMesh) {
-                        oc.copy(window._bhgCharacterMesh.scale);
-                        window._bhgCharacterMesh.scale.multiplyScalar(1.0); // Normal size in FPV
-                        window._bhgCharacterMesh.updateMatrixWorld(true);
-                        restoreMainBHG = true;
-                    }
-                }
-
-                // Apply temporary 3rd person camera offset
-                const camOrig = _pool.v2; // Re-use pool vector
-                let offsetApplied = false;
-                if (!window._isMapView && window._playerAvatar && activeMainCam === camera) {
-                    camOrig.copy(camera.position);
-                    // Use local translation to move camera backwards from avatar (2 feet behind per user request)
-                    camera.translateZ(2.0);
-                    camera.position.y += 0.8;
-                    offsetApplied = true;
-                }
-
-                renderer.autoClear = true; // FORCE: Ensure main scene wipes residuals from PIP corner passes
-                renderer.render(scene, activeMainCam);
-
-                // Restore camera
-                if (offsetApplied) {
-                    camera.position.copy(camOrig);
-                }
-
-                // Restore original scale matrices
-                if (restoreMainAvatar && window._playerAvatar) { window._playerAvatar.scale.copy(oa); window._playerAvatar.updateMatrixWorld(true); }
-                if (restoreMainYB && window._ybCharacterMesh) { window._ybCharacterMesh.scale.copy(ob); window._ybCharacterMesh.updateMatrixWorld(true); }
-                if (restoreMainBHG && window._bhgCharacterMesh) { window._bhgCharacterMesh.scale.copy(oc); window._bhgCharacterMesh.updateMatrixWorld(true); }
-            }
-            
-            // Restore Fog Density
-            if (mainFogRestore !== null && window._sceneFog) {
-                window._sceneFog.density = mainFogRestore;
-            }
-            
-            // Restore visibility after all frames render so logical updates don't break
-            toggleFX(true);
-
-            // --- NATIVE HARDWARE PIP SCISSOR RENDER ---
-            // CROSS-BOUNDARY PIP RECOVERY (Heaven Panel PIP)
-            if (!window.pipCanvas2D || (!document.contains(window.pipCanvas2D) && (!window.pipCanvas2D.ownerDocument || !window.pipCanvas2D.ownerDocument.contains(window.pipCanvas2D)))) {
-                const frame = document.getElementById('panel-frame');
-                const panelDoc = frame ? frame.contentDocument : null;
-                const framePip = panelDoc ? panelDoc.getElementById('pipCanvas') : null;
-                if (framePip) {
-                    window.pipCanvas2D = framePip;
-                }
+            // SCENARIOS decoupled from execution to prevent z-fighting / erasing
+            if (window._isMapView) {
+              drewMapMain = true;
+              // In map view: moondial PiP shows the top-down map camera feed,
+              // FPV is rendered separately into the top-left-fpv scissor window.
+              if (shouldPIP) window._pendingPipCamera = pipCamera;
+              else window._pendingPipCamera = null;
+            } else if (window._swapModes) {
+              drewMapMain = true;
+              window._pendingPipCamera = null;
+            } else {
+              drewMapMain = false;
+              if (shouldPIP) window._pendingPipCamera = pipCamera;
+              else window._pendingPipCamera = null;
             }
 
-            // EVENT-DRIVEN LAYOUT FIX: Zero-cost asynchronous boundary updates
-            if (window.pipCanvas2D && !window._pipObserver && window.ResizeObserver) {
-                window._cachedPipRect = window.pipCanvas2D.getBoundingClientRect();
-                window._pipObserver = new ResizeObserver(() => {
-                    if (window.pipCanvas2D) window._cachedPipRect = window.pipCanvas2D.getBoundingClientRect();
-                });
-                window._pipObserver.observe(window.pipCanvas2D);
-            }
-            
-            // --- AVATAR UI RENDER PASS (MOVED AFTER MAIN RENDER TO PREVENT WIPING) ---
-            const _shouldRenderAvatar =
-              !window.fuzzyBrain || window.fuzzyBrain.shouldRenderAvatarPIP();
-            if (
-              _shouldRenderAvatar &&
-              window._playerAvatar &&
-              window.avatarCtx &&
-              window.avatarCanvas2D &&
-              typeof window.avatarOrthoCam !== "undefined"
-            ) {
-              const pFrame = document.getElementById("panel-frame");
-              if (pFrame && pFrame.contentWindow) {
-                const tgt =
-                  pFrame.contentWindow.document.getElementById(
-                    "avatar-pip-target",
-                  );
-                if (tgt) {
-                  if (!window._avatarObserver && window.ResizeObserver) {
-                    window._cachedAvatarRect = tgt.getBoundingClientRect();
-                    window._avatarObserver = new ResizeObserver(() => {
-                      window._cachedAvatarRect = tgt.getBoundingClientRect();
-                    });
-                    window._avatarObserver.observe(tgt);
+            // No webGLCircularMask local definition. Hardware Blit will be executed before Main Render.
+          } else {
+            window._pendingPipCamera = null;
+          }
+
+          // --- TIPI JOURNAL FEED RENDER (Hardware Canvas Overlay) ---
+          // --- USER REQUEST: DISABLE ALL LOGBOOK PIP FEEDS FOR 60 FPS RESTORATION ---
+          if (
+            window._isLogbookOpen &&
+            window.tipiCanvas2D &&
+            window.tipiCanvas2D.style.display === "block"
+          ) {
+            // Add tiny procedural sway (Handheld camera effect)
+            const swayT = performance.now() * 0.0005;
+            const sx = Math.sin(swayT) * 0.15;
+            const sy = Math.cos(swayT * 0.8) * 0.1;
+
+            const target = window._tipiPipTarget;
+
+            // --- PIP CAMERA ROUTING (Axe, Quest Cams, Portraits) ---
+            let usePerspective = true;
+
+            // State resets
+            if (target !== "yellowButterfly") window._ybSelfieActive = false;
+
+            try {
+              let handled = false;
+              if (
+                target === "bringsHappinessGirlPortrait" ||
+                target === "bringsHappinessGirl" ||
+                target === "bhg"
+              ) {
+                // Selfie Cam feed for Brings Happiness Girl
+                if (window._bhgGroup) {
+                  const facePos = new THREE.Vector3();
+                  if (window._bhgCharacterMesh) {
+                    window._bhgCharacterMesh.getWorldPosition(facePos);
+                  } else {
+                    facePos.copy(window._bhgGroup.position);
                   }
-                  const rect = window._cachedAvatarRect;
-                  if (rect && rect.width > 0) {
-                    window._playerAvatar.getWorldPosition(_pool.v1);
-                    window.avatarOrthoCam.position.set(
-                      _pool.v1.x,
-                      _pool.v1.y + 1.2,
-                      _pool.v1.z + 2.5,
-                    );
-                    window.avatarOrthoCam.lookAt(
-                      _pool.v1.x,
-                      _pool.v1.y + 0.8,
-                      _pool.v1.z,
-                    );
+                  facePos.y += 1.0; // Raise to face level
 
-                    const origAutoClear = renderer.autoClear;
-                    const oldClearAlpha = renderer.getClearAlpha();
-                    renderer.getClearColor(_pool.c1);
-                    renderer.setClearColor(0x000000, 0.0);
+                  const radius =
+                    target === "bhg" ? 6.0 : 2.5 + Math.sin(swayT * 0.4) * 1.5; // Zoom in / out or far view
 
-                    const scX = rect.left;
-                    const scY = window.innerHeight - rect.bottom;
-                    const w = rect.width;
-                    const h = rect.height;
+                  tipiOrthoCam.position.set(
+                    facePos.x + Math.sin(swayT * 0.3) * 0.5,
+                    facePos.y +
+                      (target === "bhg" ? 2.0 : Math.cos(swayT * 0.6) * 0.2),
+                    facePos.z - radius, // She faces -Z, so stand in front of her
+                  );
+                  tipiOrthoCam.lookAt(facePos.x, facePos.y - 0.2, facePos.z);
+                  handled = true;
 
-                    renderer.setScissorTest(true);
-                    renderer.setScissor(scX, scY, w, h);
-                    renderer.setViewport(scX, scY, w, h);
-                    renderer.autoClear = false; // DON'T WIPE MAIN SCENE
-                    renderer.clearDepth(); // Only clear depth to layer on top
-
-                    renderer.render(scene, window.avatarOrthoCam);
-
-                    renderer.setClearColor(_pool.c1, oldClearAlpha);
-                    renderer.setScissorTest(false);
-                    renderer.setViewport(
-                      0,
-                      0,
-                      window.innerWidth,
-                      window.innerHeight,
-                    );
-                    renderer.autoClear = origAutoClear;
-
-                    // Hide static fallback PNG once live WebGL avatar is rendering
-                    if (!window._avatarLiveActive) {
-                      window._avatarLiveActive = true;
-                      const fallback =
-                        pFrame.contentWindow.document.getElementById(
-                          "avatar-static-fallback",
-                        );
-                      if (fallback) fallback.style.display = "none";
+                  // Trigger wave animation if close up
+                  if (target !== "bhg") {
+                    try {
+                      if (window._bhgWaveAction && window.bhgSystem) {
+                        window.bhgSystem.hasWaved = true; // Block world proximity from double-starting
+                        window._bhgWaveAction.reset().play();
+                      } else if (window.playBhgWelcome) {
+                        window.playBhgWelcome();
+                      }
+                    } catch (animErr) {
+                      console.warn("[PIP] Waving anim failed:", animErr);
                     }
+                  }
+                } else {
+                  // Fallback if not loaded
+                  tipiOrthoCam.position.set(0, 2, -10);
+                  tipiOrthoCam.lookAt(0, 1, -10);
+                  handled = true;
+                }
+              } else if (target === "yellowButterfly") {
+                // Selfie Cam feed for Yellow Butterfly
+                if (window._yellowButterflyNPC) {
+                  // MATHEMATICAL RIG: Attach camera strictly to her local coordinate matrix
+                  if (!window._ybCamPos) window._ybCamPos = new THREE.Vector3();
+                  if (!window._ybLookPos)
+                    window._ybLookPos = new THREE.Vector3();
+
+                  window._ybCamPos.set(0.5, 1.4, -2.5); // 2.5m in front of her face, slightly elevated
+                  window._ybLookPos.set(0, 1.2, 0); // Look exactly at her face height
+
+                  window._yellowButterflyNPC.localToWorld(window._ybCamPos);
+                  window._yellowButterflyNPC.localToWorld(window._ybLookPos);
+
+                  tipiPerspCam.position.copy(window._ybCamPos);
+                  tipiPerspCam.lookAt(window._ybLookPos);
+
+                  tipiOrthoCam.position.copy(tipiPerspCam.position);
+                  tipiOrthoCam.quaternion.copy(tipiPerspCam.quaternion);
+                  usePerspective = true;
+                  handled = true;
+                  window._skipPerspSync = true;
+
+                  // CLEAN STATE ARCHITECTURE: Trigger wave exactly once when the Logbook Page 2 opens
+                  if (!window._ybSelfieActive) {
+                    window._ybSelfieActive = true;
+                    if (
+                      window.ybSystem &&
+                      window.ybSystem.actions &&
+                      window.ybSystem.actions.wave
+                    ) {
+                      window.ybSystem.actions.wave.reset().play();
+                      if (window.ybSystem.currentBaseAction) {
+                        window.ybSystem.actions.wave.crossFadeFrom(
+                          window.ybSystem.currentBaseAction,
+                          0.5,
+                          false,
+                        );
+                      }
+                    }
+                  }
+                } else {
+                  // Fallback if not loaded
+                  const tx = typeof TIPI_X !== "undefined" ? TIPI_X : 0;
+                  const tz = typeof TIPI_Z !== "undefined" ? TIPI_Z : 0;
+                  tipiOrthoCam.position.set(tx + 2, 2, tz);
+                  tipiOrthoCam.lookAt(tx, 0.5, tz);
+                  handled = true;
+                }
+              } else if (
+                target === "axeZoomInTipi" ||
+                target === "axeGathering"
+              ) {
+                if (window._worldAxeMesh) {
+                  // Detach axe from its parent (e.g., tipi) and add to global scene if not already
+                  if (window._worldAxeMesh.parent !== scene) {
+                    window._worldAxeMesh.getWorldPosition(
+                      window._worldAxeMesh.position,
+                    ); // Get current world position
+                    window._worldAxeMesh.rotation.setFromQuaternion(
+                      window._worldAxeMesh.getWorldQuaternion(
+                        new THREE.Quaternion(),
+                      ),
+                    ); // Get current world rotation
+                    scene.add(window._worldAxeMesh);
+                  }
+
+                  if (target === "axeGathering") {
+                    // Dynamically fly axe into bottom-left camera viewport
+                    const axeTargetPos = new THREE.Vector3();
+                    const screenWidth = window.innerWidth;
+                    const screenHeight = window.innerHeight;
+
+                    // Target screen position (e.g., bottom-left corner, slightly offset)
+                    const targetScreenX = 0.15; // 15% from left
+                    const targetScreenY = 0.15; // 15% from bottom
+
+                    // Convert screen coordinates to world coordinates at a certain distance from camera
+                    const distanceToAxe = 2.0; // Distance in front of camera
+                    axeTargetPos.set(
+                      (targetScreenX * 2 - 1) * (screenWidth / screenHeight), // X from -1 to 1, aspect ratio correction
+                      targetScreenY * 2 - 1, // Y from -1 to 1
+                      -1, // Z for near plane
+                    );
+                    axeTargetPos.unproject(camera); // Convert to world space relative to camera
+
+                    const camDir = new THREE.Vector3();
+                    camera.getWorldDirection(camDir);
+                    axeTargetPos.add(camDir.multiplyScalar(distanceToAxe)); // Move along camera direction
+
+                    // Smoothly interpolate axe position
+                    window._worldAxeMesh.position.lerp(axeTargetPos, 0.1); // Adjust lerp factor for speed
+
+                    // Make axe face the camera
+                    window._worldAxeMesh.lookAt(camera.position);
+                    window._worldAxeMesh.rotation.y += Math.PI; // Adjust for model orientation if needed
+                  }
+
+                  // Position tipiOrthoCam to view the axe
+                  tipiOrthoCam.position
+                    .copy(window._worldAxeMesh.position)
+                    .add(new THREE.Vector3(0, 0.5, 1.5)); // Slightly above and behind axe
+                  tipiOrthoCam.lookAt(window._worldAxeMesh.position);
+                  handled = true;
+                } else {
+                  // Fallback if not loaded
+                  const tx = typeof TIPI_X !== "undefined" ? TIPI_X : 0;
+                  const tz = typeof TIPI_Z !== "undefined" ? TIPI_Z : 0;
+                  tipiOrthoCam.position.set(tx + 2, 2, tz);
+                  tipiOrthoCam.lookAt(tx, 0.5, tz);
+                  handled = true;
+                }
+              } else if (
+                target === "nearestTree" &&
+                window._treeInstancedMeshes
+              ) {
+                let closestDist = Infinity;
+                let closestPos = new THREE.Vector3();
+                const camPos = camera.position;
+                const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(
+                  camera.quaternion,
+                );
+                const dummy = new THREE.Matrix4();
+                const wp = new THREE.Vector3();
+
+                window._treeInstancedMeshes.forEach(({ instancedMesh }) => {
+                  for (let i = 0; i < instancedMesh.count; i++) {
+                    instancedMesh.getMatrixAt(i, dummy);
+                    wp.setFromMatrixPosition(dummy);
+                    if (wp.y < -100) continue; // Unused instance
+                    const dist = wp.distanceTo(camPos);
+                    const dir = new THREE.Vector3()
+                      .subVectors(wp, camPos)
+                      .normalize();
+                    const dot = fwd.dot(dir);
+                    const score = dist - dot * 2.0;
+                    if (dot > 0.0 && score < closestDist) {
+                      closestDist = score;
+                      closestPos.copy(wp);
+                    }
+                  }
+                });
+
+                if (closestDist !== Infinity) {
+                  const tNow = performance.now() * 0.001;
+                  const orbitX = Math.cos(tNow) * 4;
+                  const orbitZ = Math.sin(tNow) * 4;
+                  tipiOrthoCam.position.set(
+                    closestPos.x + orbitX,
+                    closestPos.y + 3.0,
+                    closestPos.z + orbitZ,
+                  );
+                  tipiOrthoCam.lookAt(
+                    closestPos.x,
+                    closestPos.y + 1.5,
+                    closestPos.z,
+                  );
+                  handled = true;
+                }
+              }
+
+              if (!handled) {
+                const tNow = performance.now() * 0.0005;
+                const orbitRadius = 12 + Math.sin(tNow * 0.5) * 4;
+                const orbitAngle = tNow * 0.2;
+                const sxOrbit = Math.cos(orbitAngle) * orbitRadius;
+                const syOrbit = Math.sin(tNow * 0.8) * 2.0;
+                const szOrbit = Math.sin(orbitAngle) * orbitRadius;
+                const tx = typeof TIPI_X !== "undefined" ? TIPI_X : 0;
+                const tz = typeof TIPI_Z !== "undefined" ? TIPI_Z : 0;
+                const ty = window._tipiPlatformY || 0;
+
+                tipiOrthoCam.position.set(
+                  tx + sxOrbit,
+                  ty + 10 + syOrbit,
+                  tz + szOrbit,
+                );
+                tipiOrthoCam.lookAt(tx, ty + 2.0, tz);
+              }
+            } catch (pipErr) {
+              console.error(
+                "[Camera] CRITICAL ERROR IN PIP RENDERER CAUGHT! Prevents game freeze:",
+                pipErr,
+              );
+            }
+
+            if (
+              usePerspective &&
+              typeof tipiPerspCam !== "undefined" &&
+              tipiPerspCam &&
+              !window._skipPerspSync
+            ) {
+              tipiPerspCam.position.copy(tipiOrthoCam.position);
+              tipiPerspCam.quaternion.copy(tipiOrthoCam.quaternion);
+            }
+            window._skipPerspSync = false;
+
+            // TEMPORARILY DISABLED WESTERN SHADER PROCESSING FOR FPS TESTING
+            // FPS FIX: Throttle PIP rendering using FuzzyBrain to prevent double-rendering the massive scene at 60Hz
+            if (
+              window.tipiCtx &&
+              window._isLogbookOpen &&
+              window._tipiRect &&
+              window._tipiRect.width > 0 &&
+              (!fuzzyBrain || fuzzyBrain.shouldRenderPIP())
+            ) {
+              let camToUse = usePerspective ? tipiPerspCam : tipiOrthoCam;
+              if (window._tipiPipTarget === "pip") {
+                camToUse = window._nativeMapCam || window._pendingPipCamera;
+              }
+
+              // Hardware accelerated blit from main WebGL context!
+              const w = window.tipiCanvas2D.width || 256;
+              const h = window.tipiCanvas2D.height || 256;
+
+              const dpr = renderer.getPixelRatio();
+              const scW = w * dpr;
+              const scH = h * dpr;
+
+              const origAutoClear = renderer.autoClear;
+              renderer.autoClear = false;
+
+              renderer.setScissorTest(true);
+              renderer.setScissor(0, 0, scW, scH);
+              renderer.setViewport(0, 0, scW, scH);
+
+              // Create a solid background plane to avoid FPS-crashing partial clear
+              if (!window._tipiBgScene) {
+                window._tipiBgScene = new THREE.Scene();
+                window._tipiBgCam = new THREE.OrthographicCamera(
+                  -1,
+                  1,
+                  1,
+                  -1,
+                  0,
+                  1,
+                );
+                const bgMat = new THREE.MeshBasicMaterial({
+                  color: 0xfff1ca,
+                  depthWrite: false,
+                  depthTest: false,
+                });
+                window._tipiBgMesh = new THREE.Mesh(
+                  new THREE.PlaneGeometry(2, 2),
+                  bgMat,
+                );
+                window._tipiBgScene.add(window._tipiBgMesh);
+              }
+
+              // Render background safely
+              renderer.clearDepth(); // Only clear depth to prevent bleed
+              renderer.render(window._tipiBgScene, window._tipiBgCam);
+
+              // Render UI logic into bottom left corner
+              if (camToUse) {
+                try {
+                  renderer.render(scene, camToUse);
+                } catch (err) {}
+              }
+
+              // Draw to 2D UI Canvas
+              window.tipiCtx.clearRect(0, 0, w, h);
+              window.tipiCtx.drawImage(
+                renderer.domElement,
+                0,
+                renderer.domElement.height - scH,
+                scW,
+                scH,
+                0,
+                0,
+                w,
+                h,
+              );
+
+              // Cleanup corner
+              renderer.clearDepth();
+              renderer.setScissorTest(false);
+              renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+              renderer.autoClear = origAutoClear;
+            }
+          }
+
+          // --- SELFIE CAM JOURNAL FEED RENDER ---
+          if (
+            window._isLogbookOpen &&
+            window.selfieCanvas2D &&
+            window.selfieCanvas2D.style.display === "block" &&
+            window._selfieRect &&
+            window._selfieRect.width > 0
+          ) {
+            // Dynamically position camera between YB and Player
+            if (window._yellowButterflyNPC && window.selfieCam) {
+              const ybPos = new THREE.Vector3();
+              window._yellowButterflyNPC.getWorldPosition(ybPos);
+              const playerPos = camera.position.clone();
+
+              // Midpoint
+              const midPos = ybPos.clone().lerp(playerPos, 0.5);
+
+              // Offset camera to the side to capture both profiles
+              const dirBetween = new THREE.Vector3()
+                .subVectors(playerPos, ybPos)
+                .normalize();
+              const rightOffset = new THREE.Vector3(
+                -dirBetween.z,
+                0,
+                dirBetween.x,
+              )
+                .normalize()
+                .multiplyScalar(4.0);
+
+              window.selfieCam.position.set(
+                midPos.x + rightOffset.x,
+                ybPos.y + 1.2,
+                midPos.z + rightOffset.z,
+              );
+              window.selfieCam.lookAt(midPos.x, ybPos.y + 1.0, midPos.z);
+
+              // Add slight handheld sway to the selfie cam
+              const swayT = performance.now() * 0.001;
+              window.selfieCam.position.x += Math.sin(swayT) * 0.05;
+              window.selfieCam.position.y += Math.cos(swayT * 0.8) * 0.05;
+              window.selfieCam.updateMatrixWorld();
+            }
+
+            const w = window.selfieCanvas2D.width || 256;
+            const h = window.selfieCanvas2D.height || 384;
+
+            const dpr = renderer.getPixelRatio();
+            const scW = w * dpr;
+            const scH = h * dpr;
+
+            const origAutoClear = renderer.autoClear;
+            renderer.autoClear = false;
+
+            renderer.setScissorTest(true);
+            renderer.setScissor(0, 0, scW, scH);
+            renderer.setViewport(0, 0, scW, scH);
+
+            // Background
+            if (!window._selfieBgScene) {
+              window._selfieBgScene = new THREE.Scene();
+              window._selfieBgCam = new THREE.OrthographicCamera(
+                -1,
+                1,
+                1,
+                -1,
+                0,
+                1,
+              );
+              const bgMat = new THREE.MeshBasicMaterial({
+                color: 0x87ceeb,
+                depthWrite: false,
+                depthTest: false,
+              }); // Sky blue fallback
+              window._selfieBgMesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(2, 2),
+                bgMat,
+              );
+              window._selfieBgScene.add(window._selfieBgMesh);
+            }
+
+            renderer.clearDepth();
+            renderer.render(window._selfieBgScene, window._selfieBgCam);
+
+            try {
+              renderer.render(scene, window.selfieCam);
+            } catch (err) {}
+
+            window.selfieCtx.clearRect(0, 0, w, h);
+            window.selfieCtx.drawImage(
+              renderer.domElement,
+              0,
+              renderer.domElement.height - scH,
+              scW,
+              scH,
+              0,
+              0,
+              w,
+              h,
+            );
+
+            renderer.clearDepth();
+            renderer.setScissorTest(false);
+            renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+            renderer.autoClear = origAutoClear;
+          }
+
+          // --- QUEST MARKER ANIMATION ---
+          const ft = performance.now() * 0.001;
+          if (window._questMarker) {
+            const markerBob = Math.sin(ft * 3) * 0.15;
+            window._questMarker.position.y =
+              window._questMarker.userData.baseY + markerBob;
+            window._questMarker.rotation.y = ft; // Spin
+
+            window._questMarker.children.forEach((c) => {
+              if (c.userData && c.userData.isQuestBloom) {
+                c.position.y = -5.95 - markerBob; // Counteract bob to stay completely flat on world dirt
+                if (c.material) {
+                  c.material.opacity = 0.5 + Math.sin(ft * 1.5) * 0.4; // Glowing fade
+                }
+              }
+            });
+          }
+          if (window._bhgBalloon && window._bhgBalloon.visible) {
+            window._bhgBalloon.position.y =
+              window._bhgBalloon.userData.baseY + Math.sin(ft * 3 + 1) * 0.15;
+            window._bhgBalloon.rotation.y = ft;
+          }
+
+          // --- MOON DIAL UPDATE (throttled) ---
+          if (frameCount % 60 === 0 && _moonFrame && _moonFrame.contentWindow) {
+            // Use postMessage to avoid cross-origin frame reading blocks on file://
+            _moonFrame.contentWindow.postMessage(
+              { type: "UPDATE_MOON", time: gameTime },
+              "*",
+            );
+          }
+          // --- WILDLIFE & WIND IN FPV ONLY ---
+          if (!window._isMapView) {
+            if (window.butterflySystem) window.butterflySystem.update(delta); // Visual fx keep full Hz
+
+            // --- SPIRIT GUIDE BUTTERFLY (Continuous Animation) ---
+            if (window._butterflySpirit) {
+              const b = window._butterflySpirit;
+              const pPos = camera.position.clone();
+
+              // Add erratic nature movement (hovering) always
+              const time = performance.now() * 0.001;
+
+              if (window._spiritGuideActive) {
+                // Float 2m in front of player and 0.5m above eye level
+                const forward = new THREE.Vector3(0, 0, -1);
+                forward.applyQuaternion(camera.quaternion);
+                const target = pPos
+                  .add(forward.multiplyScalar(2.5))
+                  .add(new THREE.Vector3(0, 0.5, 0));
+
+                target.x += Math.sin(time * 3) * 0.6;
+                target.y += Math.cos(time * 2) * 0.4;
+                target.z += Math.sin(time * 2.5) * 0.6;
+
+                b.position.lerp(target, delta * 2.0); // Smooth follow
+
+                // Always face the direction of flight or the player
+                const lookAtTarget = target.clone().add(forward);
+                b.lookAt(lookAtTarget);
+              } else {
+                // Just hover in its base position
+                b.position.y += Math.sin(time * 2) * 0.005;
+                b.rotation.y += delta * 0.5;
+              }
+            }
+
+            // Delegate wildlife logic to the new Fixed-Time-Step MasterAI Director
+            if (
+              window.masterAI &&
+              !window.masterAI._anuPaused &&
+              frameCount % _aiThrottle === 0
+            ) {
+              window.masterAI.update(delta * _aiThrottle);
+            }
+
+            // --- UNIVERSAL NPC PROXIMITY AI REMOVED ---
+            // Centralized logic now handled by window.npcMaster.update(delta)
+            // in the main animation loop to prevent duplicate updates and parameter errors.
+
+            // --- WIND SWAY Optimization ---
+            const windTime = performance.now() * 0.001;
+            if (window._globalTime) {
+              window._globalTime.value = windTime;
+            }
+
+            if (
+              typeof swayTrees !== "undefined" &&
+              swayTrees.length > 0 &&
+              (_aiThrottle < 3 || frameCount % 2 === 0)
+            ) {
+              // Pre-calculate highly optimal world bounds for the camera
+              const camX = camera.position.x;
+              const camZ = camera.position.z;
+
+              for (let i = 0; i < swayTrees.length; i++) {
+                const t = swayTrees[i];
+                if (!t.visible) continue;
+
+                // ULTRA OPTIMIZATION: Avoid using getWorldPosition inside loop!
+                // Instead, we rigidly cached the true world spawn coordinates onto the leaf mesh userData during generateWorld().
+                // This entirely bypasses the deep structural nested GLTF zero-coordinates.
+                const pX = t.userData.worldX;
+                const pZ = t.userData.worldZ;
+                if (pX === undefined) continue; // safety check
+
+                const dx = pX - camX;
+                const dz = pZ - camZ;
+                const distToCamSq = dx * dx + dz * dz;
+
+                if (distToCamSq > 10000) continue;
+
+                const phase = t.userData.windPhase;
+                const amp = t.userData.windAmp * 1.2; // Increased sway by 20% per user request
+
+                // t is guaranteed to be a non-trunk foliage branch mesh
+                t.rotation.x =
+                  t.userData.baseRotX + Math.sin(windTime * 1.5 + phase) * amp;
+                t.rotation.z =
+                  t.userData.baseRotZ +
+                  Math.cos(windTime * 1.2 + phase) * amp * 0.8;
+              }
+            }
+          }
+
+          // --- FUZZYBRAIN AI UPDATE ---
+          if (fuzzyBrain) {
+            fuzzyBrain.update(delta);
+            if (window.UniverseAnu)
+              window.UniverseAnu.senseFPS(fuzzyBrain.smoothFPS || 60);
+          }
+
+          // --- STATS HUD (throttled) ---
+          if (frameCount % 15 === 0 && _statsEl) {
+            // Determine true FPS (FuzzyBrain smooths the raw delta jumps out)
+            const rawFps = (1 / delta).toFixed(0);
+            const fps = fuzzyBrain ? fuzzyBrain.smoothFPS.toFixed(0) : rawFps;
+
+            // USER REQUEST: Provide live coordinates for waypoint plotting
+            const cx = camera ? camera.position.x.toFixed(1) : "0";
+            const cy = camera ? camera.position.y.toFixed(1) : "0";
+            const cz = camera ? camera.position.z.toFixed(1) : "0";
+
+            _statsEl.innerHTML = `<span style="font-size:16px;color:#fff;font-weight:900;">${fps} FPS (Raw: ${rawFps})</span><br><span style="font-size:10px;color:#bcaaa4;">X:${cx} Y:${cy} Z:${cz}</span>`;
+          }
+
+          // Update tipi screen position for fuzzy exemption
+          if (window.tipiObj && humanEyePass) {
+            const tipiWorldPos = new THREE.Vector3();
+            window.tipiObj.getWorldPosition(tipiWorldPos);
+            tipiWorldPos.y += 2; // Aim at tipi center, not base
+            const projected = tipiWorldPos.clone().project(camera);
+            // Convert from NDC (-1..1) to UV (0..1)
+            const screenX = (projected.x + 1) * 0.5;
+            const screenY = (projected.y + 1) * 0.5;
+            // Only update if tipi is in front of camera
+            if (projected.z > 0 && projected.z < 1) {
+              humanEyePass.uniforms.tipiScreenPos.value.set(screenX, screenY);
+              // Scale radius based on distance
+              const dist = camera.position.distanceTo(tipiWorldPos);
+              humanEyePass.uniforms.tipiScreenRadius.value = Math.min(
+                0.15,
+                3.0 / Math.max(dist, 1),
+              );
+            } else {
+              humanEyePass.uniforms.tipiScreenPos.value.set(-9, -9); // Offscreen
+            }
+          }
+
+          // Animate campfire (sprites)
+          if (window._fireData && window._fireData.flameMesh) {
+            const fd = window._fireData;
+            const ft = Date.now() * 0.003;
+
+            // Animate Particle Sprites
+            const positions = fd.flameMesh.geometry.attributes.position.array;
+            const phases = fd.flameMesh.geometry.attributes.phase.array;
+            const particleCount = phases.length;
+
+            for (let i = 0; i < particleCount; i++) {
+              const idx = i * 3;
+              // Move up slower
+              positions[idx + 1] += delta * 0.8;
+              // Tighter wobble
+              positions[idx] += Math.sin(ft * 5 + phases[i]) * 0.005;
+              positions[idx + 2] += Math.cos(ft * 4 + phases[i]) * 0.005;
+
+              // Reset if too high (EXTREMELY reduced max height to keep the optical flare inside the stone ring)
+              if (positions[idx + 1] > fd.baseY + 0.4 + Math.random() * 0.3) {
+                positions[idx] = fd.tipiX + (Math.random() - 0.5) * 0.2;
+                positions[idx + 1] = fd.baseY + Math.random() * 0.1;
+                positions[idx + 2] = fd.tipiZ + (Math.random() - 0.5) * 0.2;
+              }
+            }
+            fd.flameMesh.geometry.attributes.position.needsUpdate = true;
+
+            // Animate Smoke Sprites
+            if (fd.smokeMesh) {
+              const sPos = fd.smokeMesh.geometry.attributes.position.array;
+              const sPhases = fd.smokeMesh.geometry.attributes.phase.array;
+              for (let i = 0; i < sPhases.length; i++) {
+                const idx = i * 3;
+                // Float up slowly
+                sPos[idx + 1] += delta * 0.8;
+                // Drift in wind (mostly drift + wobble)
+                sPos[idx] +=
+                  Math.sin(ft * 2 + sPhases[i]) * 0.01 + delta * 0.25; // Gentle wind push on X
+                sPos[idx + 2] += Math.cos(ft * 1.5 + sPhases[i]) * 0.01;
+
+                // Reset when high above the tipi
+                if (sPos[idx + 1] > fd.baseY + 6.5 + Math.random() * 1.0) {
+                  sPos[idx] = fd.tipiX + (Math.random() - 0.5) * 0.25; // Re-cluster tightly at hole
+                  sPos[idx + 1] = fd.baseY + 3.8 + Math.random() * 0.5;
+                  sPos[idx + 2] = fd.tipiZ + (Math.random() - 0.5) * 0.25;
+                }
+              }
+              fd.smokeMesh.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // Flicker light intensity (calmer, non-looping)
+            if (fd.fireLight)
+              fd.fireLight.intensity = 2.0 + (Math.random() * 0.8 - 0.4);
+            if (fd.fireFill)
+              fd.fireFill.intensity = 0.8 + (Math.random() * 0.3 - 0.15);
+            // Ember glow pulse (non-looping)
+            fd.emberMesh.material.emissiveIntensity = 0.6 + Math.random() * 0.4;
+          }
+
+          // Avatar walk animation sync is handled earlier (line ~3020) using the correct isMoving flag
+
+          // --- SMART TARGETED CULLING ---
+          function toggleFX(show) {
+            if (window._globalFlare) window._globalFlare.visible = show;
+            if (window._butterflySpirit) window._butterflySpirit.visible = show;
+            if (window._tipiGodray2) window._tipiGodray2.visible = show;
+            if (window.butterflySystem && window.butterflySystem.mesh)
+              window.butterflySystem.mesh.visible = show;
+            if (window.natureSpiritSystem && window.natureSpiritSystem.mesh)
+              window.natureSpiritSystem.mesh.visible = show;
+          }
+
+          // Render Main View
+          let activeMainCam = camera;
+
+          let mainFogRestore = null;
+          // Ensure Map Camera always exists and is tracking position for PIP
+          if (
+            !window._nativeMapCam ||
+            !window._nativeMapCam.isPerspectiveCamera
+          ) {
+            const curAspect = window.innerWidth / window.innerHeight;
+            window._nativeMapCam = new THREE.PerspectiveCamera(
+              20,
+              curAspect,
+              0.1,
+              2500,
+            );
+            window._nativeMapCam.layers.enable(1); // USER FIX: Enable Layer 1 so avatar is visible in Map View
+            window._nativeMapCam.layers.enable(2); // FIX: Ensure Village View can see Hex Grid (Layer 2)
+            window._nativeMapCam.layers.enable(3); // Branches visible in Map View
+          }
+
+          // Dynamically map its coordinates directly above the physically active player camera
+          if (typeof window._mapZoomLevel === "undefined") {
+            window._mapZoomLevel = 120.0;
+            window._currentMapZoom = window._mapZoomLevel;
+          }
+
+          // Smooth zoom spring physics
+          window._currentMapZoom +=
+            (window._mapZoomLevel - window._currentMapZoom) * delta * 5.0;
+
+          const heightY = window._currentMapZoom;
+          const tiltZ = 0; // Pure Top-Down map, no angle distortion
+          window._nativeMapCam.position.set(
+            camera.position.x,
+            Math.max(camera.position.y + heightY, heightY),
+            camera.position.z + tiltZ,
+          );
+          window._nativeMapCam.up.set(0, 0, -1); // Prevent Gimbal Lock; North stays Up on map
+          window._nativeMapCam.lookAt(
+            camera.position.x,
+            Math.max(camera.position.y, 0),
+            camera.position.z,
+          );
+
+          // Define renderer override profiles to suppress heavy FPV passes or align logic
+          if (window._swapModes) {
+            // If Logbook overlay is open, cull FPV background entirely and only render PIP scale internally to save FPS
+            if (typeof pipCamera !== "undefined" && pipCamera)
+              activeMainCam = pipCamera;
+            toggleFX(false);
+          } else if (window._isMapView) {
+            // Physically assign the Widescreen Map Camera to the Renderer
+            activeMainCam = window._nativeMapCam;
+            toggleFX(false);
+
+            // Aggressive Dynamic Culling:
+            // Because the Map Camera looks straight down, anything beyond ~250 meters is strictly out of frame or obscured by fog.
+            // Standard FPV far clipping is 2500. Using 300 perfectly culls hundreds of distant background trees saving rendering MS.
+            if (window._nativeMapCam) {
+              // Make far plane dynamic relative to zoom height to prevent z-plane clipping at max zoom (350+)
+              const targetFar = window._currentMapZoom + 150;
+              if (window._nativeMapCam.far !== targetFar) {
+                window._nativeMapCam.far = targetFar;
+                window._nativeMapCam.updateProjectionMatrix();
+              }
+            }
+
+            // CRITICAL FIX: Disable thick atmospheric fog in Map View, otherwise the high top-down
+            // orthographic camera looks through thick fog and the whole screen greys out!
+            if (window._sceneFog) {
+              mainFogRestore = window._sceneFog.density;
+              window._sceneFog.density = 0;
+            }
+          } else {
+            toggleFX(true);
+          }
+
+          // NEXT-GEN ARCHITECTURE FIX: Bypass `EffectComposer` fully.
+          // On High DPI Mac Retina displays, rendering physical geometries into a massive offscreen WebGLRenderTarget
+          // and applying a full-screen fragment pass absolutely destroys the Fill-Rate, capping the game at ~19FPS.
+          if (false && window.fuzzyBrain && window.fuzzyBrain.postProcess) {
+            // Dynamically route Composer to active main camera (Map or FPV)
+            const passes = window.fuzzyBrain.postProcess.composer.passes;
+            if (passes && passes.length > 0 && passes[0].camera) {
+              passes[0].camera = activeMainCam;
+            }
+            window.fuzzyBrain.postProcess.composer.render(delta);
+          } else if (renderer) {
+            // Dynamic scale injection to combat Orthographic "Low Res" sizing
+            // GC-free: reuse pool vectors for scale backup
+            const oa = _pool.v3;
+            const ob = _pool.v4;
+            const oc = window.THREE.Vector3
+              ? new window.THREE.Vector3()
+              : new THREE.Vector3(); // extra backup
+            let restoreMainAvatar = false;
+            let restoreMainYB = false;
+            let restoreMainBHG = false;
+
+            if (window._isMapView) {
+              if (window._playerAvatar) {
+                oa.copy(window._playerAvatar.scale);
+                window._playerAvatar.scale.multiplyScalar(3.5); // 30% smaller than old 5.0
+                window._playerAvatar.updateMatrixWorld(true);
+                restoreMainAvatar = true;
+              }
+              if (window._ybCharacterMesh) {
+                ob.copy(window._ybCharacterMesh.scale);
+                window._ybCharacterMesh.scale.multiplyScalar(3.5);
+                window._ybCharacterMesh.updateMatrixWorld(true);
+                restoreMainYB = true;
+              }
+              if (window._bhgCharacterMesh) {
+                oc.copy(window._bhgCharacterMesh.scale);
+                window._bhgCharacterMesh.scale.multiplyScalar(3.5);
+                window._bhgCharacterMesh.updateMatrixWorld(true);
+                restoreMainBHG = true;
+              }
+            } else {
+              if (window._ybCharacterMesh) {
+                ob.copy(window._ybCharacterMesh.scale);
+                window._ybCharacterMesh.scale.multiplyScalar(1.0); // Normal size in FPV
+                window._ybCharacterMesh.updateMatrixWorld(true);
+                restoreMainYB = true;
+              }
+              if (window._bhgCharacterMesh) {
+                oc.copy(window._bhgCharacterMesh.scale);
+                window._bhgCharacterMesh.scale.multiplyScalar(1.0); // Normal size in FPV
+                window._bhgCharacterMesh.updateMatrixWorld(true);
+                restoreMainBHG = true;
+              }
+            }
+
+            // Apply temporary 3rd person camera offset
+            const camOrig = _pool.v2; // Re-use pool vector
+            let offsetApplied = false;
+            if (
+              !window._isMapView &&
+              window._playerAvatar &&
+              activeMainCam === camera
+            ) {
+              camOrig.copy(camera.position);
+              // Use local translation to move camera backwards from avatar (2 feet behind per user request)
+              camera.translateZ(2.0);
+              camera.position.y += 0.8;
+              offsetApplied = true;
+            }
+
+            renderer.autoClear = true; // FORCE: Ensure main scene wipes residuals from PIP corner passes
+            renderer.render(scene, activeMainCam);
+
+            // Restore camera
+            if (offsetApplied) {
+              camera.position.copy(camOrig);
+            }
+
+            // Restore original scale matrices
+            if (restoreMainAvatar && window._playerAvatar) {
+              window._playerAvatar.scale.copy(oa);
+              window._playerAvatar.updateMatrixWorld(true);
+            }
+            if (restoreMainYB && window._ybCharacterMesh) {
+              window._ybCharacterMesh.scale.copy(ob);
+              window._ybCharacterMesh.updateMatrixWorld(true);
+            }
+            if (restoreMainBHG && window._bhgCharacterMesh) {
+              window._bhgCharacterMesh.scale.copy(oc);
+              window._bhgCharacterMesh.updateMatrixWorld(true);
+            }
+          }
+
+          // Restore Fog Density
+          if (mainFogRestore !== null && window._sceneFog) {
+            window._sceneFog.density = mainFogRestore;
+          }
+
+          // Restore visibility after all frames render so logical updates don't break
+          toggleFX(true);
+
+          // --- NATIVE HARDWARE PIP SCISSOR RENDER ---
+          // CROSS-BOUNDARY PIP RECOVERY (Heaven Panel PIP)
+          if (
+            !window.pipCanvas2D ||
+            (!document.contains(window.pipCanvas2D) &&
+              (!window.pipCanvas2D.ownerDocument ||
+                !window.pipCanvas2D.ownerDocument.contains(window.pipCanvas2D)))
+          ) {
+            const frame = document.getElementById("panel-frame");
+            const panelDoc = frame ? frame.contentDocument : null;
+            const framePip = panelDoc
+              ? panelDoc.getElementById("pipCanvas")
+              : null;
+            if (framePip) {
+              window.pipCanvas2D = framePip;
+            }
+          }
+
+          // EVENT-DRIVEN LAYOUT FIX: Zero-cost asynchronous boundary updates
+          if (
+            window.pipCanvas2D &&
+            !window._pipObserver &&
+            window.ResizeObserver
+          ) {
+            window._cachedPipRect = window.pipCanvas2D.getBoundingClientRect();
+            window._pipObserver = new ResizeObserver(() => {
+              if (window.pipCanvas2D)
+                window._cachedPipRect =
+                  window.pipCanvas2D.getBoundingClientRect();
+            });
+            window._pipObserver.observe(window.pipCanvas2D);
+          }
+
+          // --- AVATAR UI RENDER PASS (MOVED AFTER MAIN RENDER TO PREVENT WIPING) ---
+          if (
+            window._playerAvatar &&
+            window.avatarCtx &&
+            window.avatarCanvas2D &&
+            typeof window.avatarOrthoCam !== "undefined"
+          ) {
+            const pFrame = document.getElementById("panel-frame");
+            if (pFrame && pFrame.contentWindow) {
+              const tgt =
+                pFrame.contentWindow.document.getElementById(
+                  "avatar-pip-target",
+                );
+              if (tgt) {
+                if (!window._avatarObserver && window.ResizeObserver) {
+                  window._cachedAvatarRect = tgt.getBoundingClientRect();
+                  window._avatarObserver = new ResizeObserver(() => {
+                    window._cachedAvatarRect = tgt.getBoundingClientRect();
+                  });
+                  window._avatarObserver.observe(tgt);
+                }
+                const rect = window._cachedAvatarRect;
+                if (rect && rect.width > 0) {
+                  window._playerAvatar.getWorldPosition(_pool.v1);
+                  window.avatarOrthoCam.position.set(
+                    _pool.v1.x,
+                    _pool.v1.y + 1.2,
+                    _pool.v1.z + 2.5,
+                  );
+                  window.avatarOrthoCam.lookAt(
+                    _pool.v1.x,
+                    _pool.v1.y + 0.8,
+                    _pool.v1.z,
+                  );
+
+                  const origAutoClear = renderer.autoClear;
+                  const oldClearAlpha = renderer.getClearAlpha();
+                  renderer.getClearColor(_pool.c1);
+                  renderer.setClearColor(0x000000, 0.0);
+
+                  const scX = rect.left;
+                  const scY = window.innerHeight - rect.bottom;
+                  const w = rect.width;
+                  const h = rect.height;
+
+                  renderer.setScissorTest(true);
+                  renderer.setScissor(scX, scY, w, h);
+                  renderer.setViewport(scX, scY, w, h);
+                  renderer.autoClear = false; // DON'T WIPE MAIN SCENE
+                  renderer.clearDepth(); // Only clear depth to layer on top
+
+                  renderer.render(scene, window.avatarOrthoCam);
+
+                  renderer.setClearColor(_pool.c1, oldClearAlpha);
+                  renderer.setScissorTest(false);
+                  renderer.setViewport(
+                    0,
+                    0,
+                    window.innerWidth,
+                    window.innerHeight,
+                  );
+                  renderer.autoClear = origAutoClear;
+
+                  // Hide static fallback PNG once live WebGL avatar is rendering
+                  if (!window._avatarLiveActive) {
+                    window._avatarLiveActive = true;
+                    const fallback =
+                      pFrame.contentWindow.document.getElementById(
+                        "avatar-static-fallback",
+                      );
+                    if (fallback) fallback.style.display = "none";
                   }
                 }
               }
             }
+          }
 
-            // Universe.Anu Engine Reconfiguration Listener
-        window.addEventListener('message', (e) => {
-            if (e.data && e.data.type === 'REQ_WORLD_RECONFIG') {
-                if (window.envBuilder && window._assetFactory) {
-                    console.log("[Universe.Anu] Triggering world reconfiguration...");
-                    window.envBuilder.rebuildWorld(window._assetFactory);
-                }
+          // Universe.Anu Engine Reconfiguration Listener
+          window.addEventListener("message", (e) => {
+            if (e.data && e.data.type === "REQ_WORLD_RECONFIG") {
+              if (window.envBuilder && window._assetFactory) {
+                console.log(
+                  "[Universe.Anu] Triggering world reconfiguration...",
+                );
+                window.envBuilder.rebuildWorld(window._assetFactory);
+              }
             }
-        });
+          });
 
-        // --- COMPASS / MAP PIP RENDER ---
-            const compassPip = window.pipCanvas2D;
-            const _shouldRenderCompass =
-              !window.fuzzyBrain || window.fuzzyBrain.shouldRenderCompassPIP();
-            if (
-              _shouldRenderCompass &&
-              compassPip &&
-              window._pendingPipCamera &&
-              window._cachedPipRect
-            ) {
-              const rect = window._cachedPipRect;
-              const w = Math.floor(rect.width);
-              const h = Math.floor(rect.height);
+          // --- COMPASS / MAP PIP RENDER ---
+          const compassPip = window.pipCanvas2D;
+          if (compassPip && window._pendingPipCamera && window._cachedPipRect) {
+            const rect = window._cachedPipRect;
+            const w = Math.floor(rect.width);
+            const h = Math.floor(rect.height);
 
-              if (w > 0 && h > 0) {
-                const scX = rect.left;
-                const scY = window.innerHeight - rect.bottom;
-                const origAutoClear = renderer.autoClear;
+            if (w > 0 && h > 0) {
+              const scX = rect.left;
+              const scY = window.innerHeight - rect.bottom;
+              const origAutoClear = renderer.autoClear;
 
-                renderer.setScissorTest(true);
-                renderer.setScissor(scX, scY, w, h);
-                renderer.setViewport(scX, scY, w, h);
-                renderer.autoClear = false;
+              renderer.setScissorTest(true);
+              renderer.setScissor(scX, scY, w, h);
+              renderer.setViewport(scX, scY, w, h);
+              renderer.autoClear = false;
 
-                const origAspect = window._pendingPipCamera.aspect;
-                if (window._pendingPipCamera.isPerspectiveCamera) {
-                  const targetAspect = w / h;
-                  if (window._pendingPipCamera.aspect !== targetAspect) {
-                    window._pendingPipCamera.aspect = targetAspect;
-                    window._pendingPipCamera.updateProjectionMatrix();
-                  }
+              const origAspect = window._pendingPipCamera.aspect;
+              if (window._pendingPipCamera.isPerspectiveCamera) {
+                const targetAspect = w / h;
+                if (window._pendingPipCamera.aspect !== targetAspect) {
+                  window._pendingPipCamera.aspect = targetAspect;
+                  window._pendingPipCamera.updateProjectionMatrix();
+                }
+              }
+
+              // Specific Render Hides/Shows
+              toggleFX(false);
+              const oldFogDensity = window._sceneFog
+                ? window._sceneFog.density
+                : 0;
+              if (window._sceneFog) window._sceneFog.density = 0;
+
+              if (window._tipiGodray) window._tipiGodray.visible = false;
+              if (window._tipiGodray2) window._tipiGodray2.visible = false;
+              if (window.butterflySystem && window.butterflySystem.mesh)
+                window.butterflySystem.mesh.visible = true;
+              if (window.natureSpiritSystem && window.natureSpiritSystem.mesh)
+                window.natureSpiritSystem.mesh.visible = true;
+
+              const oldShadowAutoUpdate = renderer.shadowMap.autoUpdate;
+              renderer.shadowMap.autoUpdate = false;
+
+              // CRITICAL FPS & MASK FIX: Prevent ThreeJS from implicitly clearing the color buffer
+              // to scene.background inside the scissor. A partial clear on Apple Silicon TBDR flushes
+              // the entire GPU tile buffer, tanking FPS to 14-30. It also paints a white square mask!
+              const oldSceneBackground = scene.background;
+              scene.background = null;
+
+              // Execute PIP feed exactly inside scissor layout
+
+              let pipCamToUse = null;
+              if (window._isMapView) {
+                // In map view: PiP should be a "spirit view" slightly above and behind the Avatar
+                if (!window._spiritCam) {
+                  window._spiritCam = new THREE.PerspectiveCamera(
+                    40,
+                    1,
+                    0.1,
+                    80,
+                  ); // Zoomed in FOV for usable PIP!
+                  window._spiritCam.layers.set(0);
+                  window._spiritCam.layers.enable(1); // Enable Ghost Avatar
+                  window._spiritCam.layers.enable(3); // Enable High-Poly Trees (Branches)
+                  window._spiritCam.layers.disable(2); // CULL FIX: Prevent double-rendering boardgame HexGrid/UIs (Layer 2)
                 }
 
-                // Specific Render Hides/Shows
-                toggleFX(false);
-                const oldFogDensity = window._sceneFog
-                  ? window._sceneFog.density
-                  : 0;
-                if (window._sceneFog) window._sceneFog.density = 0;
+                window._spiritCam.position.copy(camera.position);
 
-                if (window._tipiGodray) window._tipiGodray.visible = false;
-                if (window._tipiGodray2) window._tipiGodray2.visible = false;
-                if (window.butterflySystem && window.butterflySystem.mesh)
-                  window.butterflySystem.mesh.visible = true;
-                if (window.natureSpiritSystem && window.natureSpiritSystem.mesh)
-                  window.natureSpiritSystem.mesh.visible = true;
+                // FPV Over-the-shoulder Style: 1 foot directly behind the head
+                const offset = new THREE.Vector3(0, 0.0, 0.3); // 0 up, 0.3 back (1 foot)
+                offset.applyQuaternion(camera.quaternion);
+                window._spiritCam.position.add(offset);
 
-                const oldShadowAutoUpdate = renderer.shadowMap.autoUpdate;
-                renderer.shadowMap.autoUpdate = false;
+                // Look straight ahead, with a precise 5-degree down angle
+                const lookPoint = camera.position.clone();
+                // 10 units forward, -0.87 units down (tan(5 degrees) * 10 = ~0.87)
+                const forward = new THREE.Vector3(0, -0.87, -10.0);
+                forward.applyQuaternion(camera.quaternion);
+                lookPoint.add(forward);
 
-                // CRITICAL FPS & MASK FIX: Prevent ThreeJS from implicitly clearing the color buffer
-                // to scene.background inside the scissor. A partial clear on Apple Silicon TBDR flushes
-                // the entire GPU tile buffer, tanking FPS to 14-30. It also paints a white square mask!
-                const oldSceneBackground = scene.background;
-                scene.background = null;
+                window._spiritCam.lookAt(lookPoint);
+                pipCamToUse = window._spiritCam;
+              } else {
+                // In FPV view: PiP should be the Top-Down diorama camera
+                pipCamToUse = window._nativeMapCam || window._pendingPipCamera;
+              }
 
-                // Execute PIP feed exactly inside scissor layout
+              if (pipCamToUse) {
+                // Inset 8px so the compass ring rim visually frames the PIP feed perfectly
+                const inset = 8;
+                const safeX = Math.max(0, scX + inset);
+                const safeY = Math.max(0, scY + inset);
+                const safeW = Math.max(1, w - inset * 2);
+                const safeH = Math.max(1, h - inset * 2);
 
-                let pipCamToUse = null;
-                if (window._isMapView) {
-                  // In map view: PiP should be a "spirit view" slightly above and behind the Avatar
-                  if (!window._spiritCam) {
-                    window._spiritCam = new THREE.PerspectiveCamera(
-                      40,
-                      1,
-                      0.1,
-                      80,
-                    ); // Zoomed in FOV for usable PIP!
-                    window._spiritCam.layers.set(0);
-                    window._spiritCam.layers.enable(1); // Enable Ghost Avatar
-                    window._spiritCam.layers.enable(3); // Enable High-Poly Trees (Branches)
-                    window._spiritCam.layers.disable(2); // CULL FIX: Prevent double-rendering boardgame HexGrid/UIs (Layer 2)
-                  }
+                renderer.setScissor(safeX, safeY, safeW, safeH);
+                renderer.setViewport(safeX, safeY, safeW, safeH);
+                // Explicitly clear depth strictly inside the active PiP region to prevent bleed! (Leave color buffer for circular mask)
+                renderer.clearDepth();
 
-                  window._spiritCam.position.copy(camera.position);
+                const origAspect = pipCamToUse.aspect;
+                const origFov = pipCamToUse.fov;
 
-                  // FPV Over-the-shoulder Style: 1 foot directly behind the head
-                  const offset = new THREE.Vector3(0, 0.0, 0.3); // 0 up, 0.3 back (1 foot)
-                  offset.applyQuaternion(camera.quaternion);
-                  window._spiritCam.position.add(offset);
+                const targetPipAspect = safeW / safeH;
+                let pipNeedsUpdate = false;
 
-                  // Look straight ahead, with a precise 5-degree down angle
-                  const lookPoint = camera.position.clone();
-                  // 10 units forward, -0.87 units down (tan(5 degrees) * 10 = ~0.87)
-                  const forward = new THREE.Vector3(0, -0.87, -10.0);
-                  forward.applyQuaternion(camera.quaternion);
-                  lookPoint.add(forward);
-
-                  window._spiritCam.lookAt(lookPoint);
-                  pipCamToUse = window._spiritCam;
-                } else {
-                  // In FPV view: PiP should be the Top-Down diorama camera
-                  pipCamToUse =
-                    window._nativeMapCam || window._pendingPipCamera;
+                if (pipCamToUse.aspect !== targetPipAspect) {
+                  pipCamToUse.aspect = targetPipAspect;
+                  pipNeedsUpdate = true;
                 }
-
-                if (pipCamToUse) {
-                  // Inset 8px so the compass ring rim visually frames the PIP feed perfectly
-                  const inset = 8;
-                  const safeX = Math.max(0, scX + inset);
-                  const safeY = Math.max(0, scY + inset);
-                  const safeW = Math.max(1, w - inset * 2);
-                  const safeH = Math.max(1, h - inset * 2);
-
-                  renderer.setScissor(safeX, safeY, safeW, safeH);
-                  renderer.setViewport(safeX, safeY, safeW, safeH);
-                  // Explicitly clear depth strictly inside the active PiP region to prevent bleed! (Leave color buffer for circular mask)
-                  renderer.clearDepth();
-
-                  const origAspect = pipCamToUse.aspect;
-                  const origFov = pipCamToUse.fov;
-
-                  const targetPipAspect = safeW / safeH;
-                  let pipNeedsUpdate = false;
-
-                  if (pipCamToUse.aspect !== targetPipAspect) {
-                    pipCamToUse.aspect = targetPipAspect;
+                if (pipCamToUse.isPerspectiveCamera) {
+                  // Apply ~25% fisheye effect (widen the FOV slightly)
+                  const targetFov = (origFov || 60) * 1.25;
+                  if (pipCamToUse.fov !== targetFov) {
+                    pipCamToUse.fov = targetFov;
                     pipNeedsUpdate = true;
                   }
-                  if (pipCamToUse.isPerspectiveCamera) {
-                    // Apply ~25% fisheye effect (widen the FOV slightly)
-                    const targetFov = (origFov || 60) * 1.25;
-                    if (pipCamToUse.fov !== targetFov) {
-                      pipCamToUse.fov = targetFov;
-                      pipNeedsUpdate = true;
-                    }
-                  }
-                  if (pipNeedsUpdate) pipCamToUse.updateProjectionMatrix();
+                }
+                if (pipNeedsUpdate) pipCamToUse.updateProjectionMatrix();
 
-                  const origSkyVisible = window._skyMesh
-                    ? window._skyMesh.visible
-                    : false;
-                  if (window._skyMesh) window._skyMesh.visible = false;
+                const origSkyVisible = window._skyMesh
+                  ? window._skyMesh.visible
+                  : false;
+                if (window._skyMesh) window._skyMesh.visible = false;
 
-                  // --- NATIVE WEBGL CIRCULAR DEPTH MASK ---
-                  // By rendering a mathematical circular hole into the depth buffer BEFORE the PiP scene renders,
-                  // any map terrain or trees outside the circle will fail the depth test and be physically discarded by the GPU!
-                  // This leaves the FPV sky completely untouched in the corners, perfectly masking the PiP into a circle.
-                  if (!window._pipMaskScene) {
-                    window._pipMaskScene = new THREE.Scene();
-                    window._pipMaskCam = new THREE.OrthographicCamera(
-                      -1,
-                      1,
-                      1,
-                      -1,
-                      0,
-                      1,
-                    );
-                    const maskGeom = new THREE.PlaneGeometry(2, 2);
-                    const maskMat = new THREE.ShaderMaterial({
-                      depthWrite: true,
-                      depthTest: true, // CRITICAL: WebGL ignores depthWrite if depthTest is false!
-                      colorWrite: false, // INVISIBLE WALL: only blocks depth!
-                      vertexShader: `
+                // --- NATIVE WEBGL CIRCULAR DEPTH MASK ---
+                // By rendering a mathematical circular hole into the depth buffer BEFORE the PiP scene renders,
+                // any map terrain or trees outside the circle will fail the depth test and be physically discarded by the GPU!
+                // This leaves the FPV sky completely untouched in the corners, perfectly masking the PiP into a circle.
+                if (!window._pipMaskScene) {
+                  window._pipMaskScene = new THREE.Scene();
+                  window._pipMaskCam = new THREE.OrthographicCamera(
+                    -1,
+                    1,
+                    1,
+                    -1,
+                    0,
+                    1,
+                  );
+                  const maskGeom = new THREE.PlaneGeometry(2, 2);
+                  const maskMat = new THREE.ShaderMaterial({
+                    depthWrite: true,
+                    depthTest: true, // CRITICAL: WebGL ignores depthWrite if depthTest is false!
+                    colorWrite: false, // INVISIBLE WALL: only blocks depth!
+                    vertexShader: `
                                 varying vec2 vUv;
                                 void main() {
                                     vUv = uv;
@@ -4878,7 +5273,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                                     gl_Position = vec4(position.xy, -0.99, 1.0); 
                                 }
                             `,
-                      fragmentShader: `
+                    fragmentShader: `
                                 varying vec2 vUv;
                                 void main() {
                                     vec2 center = vec2(0.5, 0.5);
@@ -4888,155 +5283,162 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                                     gl_FragColor = vec4(1.0);
                                 }
                             `,
-                    });
-                    const maskMesh = new THREE.Mesh(maskGeom, maskMat);
-                    maskMesh.frustumCulled = false;
-                    window._pipMaskScene.add(maskMesh);
-                  }
+                  });
+                  const maskMesh = new THREE.Mesh(maskGeom, maskMat);
+                  maskMesh.frustumCulled = false;
+                  window._pipMaskScene.add(maskMesh);
+                }
 
-                  // Render the Depth Mask FIRST to block the corners!
-                  renderer.render(window._pipMaskScene, window._pipMaskCam);
+                // Render the Depth Mask FIRST to block the corners!
+                renderer.render(window._pipMaskScene, window._pipMaskCam);
 
-                  // Render a solid sky-colored background plane so the Map ground doesn't show through the transparent FPV view
-                  if (!window._pipBgScene) {
-                    window._pipBgScene = new THREE.Scene();
-                    window._pipBgCam = new THREE.OrthographicCamera(
-                      -1,
-                      1,
-                      1,
-                      -1,
-                      0,
-                      1,
-                    );
-                    // A warm sky-blue color to match the atmosphere
-                    const bgMat = new THREE.MeshBasicMaterial({
-                      color: 0x9fbcd1,
-                      depthTest: true,
-                      depthWrite: false,
-                    });
-                    window._pipBgMesh = new THREE.Mesh(
-                      new THREE.PlaneGeometry(2, 2),
-                      bgMat,
-                    );
-                    window._pipBgMesh.position.z = -0.5; // CRITICAL: Push back so it fails depth test against the depth mask!
-                    window._pipBgScene.add(window._pipBgMesh);
-                  }
-                  renderer.render(window._pipBgScene, window._pipBgCam);
+                // Render a solid sky-colored background plane so the Map ground doesn't show through the transparent FPV view
+                if (!window._pipBgScene) {
+                  window._pipBgScene = new THREE.Scene();
+                  window._pipBgCam = new THREE.OrthographicCamera(
+                    -1,
+                    1,
+                    1,
+                    -1,
+                    0,
+                    1,
+                  );
+                  // A warm sky-blue color to match the atmosphere
+                  const bgMat = new THREE.MeshBasicMaterial({
+                    color: 0x9fbcd1,
+                    depthTest: true,
+                    depthWrite: false,
+                  });
+                  window._pipBgMesh = new THREE.Mesh(
+                    new THREE.PlaneGeometry(2, 2),
+                    bgMat,
+                  );
+                  window._pipBgMesh.position.z = -0.5; // CRITICAL: Push back so it fails depth test against the depth mask!
+                  window._pipBgScene.add(window._pipBgMesh);
+                }
+                renderer.render(window._pipBgScene, window._pipBgCam);
 
-                  // Disable Layer 3 (High-Poly Trees) during PiP Map View to save GPU fill-rate at zero CPU cost!
-                  const isPipMap = pipCamToUse === window._nativeMapCam;
-                  // USER REQUEST: Add branches back to PIP map
-                  // if (isPipMap) pipCamToUse.layers.disable(3);
+                // Disable Layer 3 (High-Poly Trees) during PiP Map View to save GPU fill-rate at zero CPU cost!
+                const isPipMap = pipCamToUse === window._nativeMapCam;
+                // USER REQUEST: Add branches back to PIP map
+                // if (isPipMap) pipCamToUse.layers.disable(3);
 
-                  // --- PIP AVATAR VISIBILITY FIX ---
-                  // If rendering the top-down minimap inside the FPV view, the avatar is a 1-pixel dot.
-                  // We must dynamically scale it up by 5x purely for this render pass!
-                  let pipScaleBackupA = null,
-                    pipScaleBackupB = null;
-                  let restorePipAvatar = false,
-                    restorePipYB = false;
+                // --- PIP AVATAR VISIBILITY FIX ---
+                // If rendering the top-down minimap inside the FPV view, the avatar is a 1-pixel dot.
+                // We must dynamically scale it up by 5x purely for this render pass!
+                let pipScaleBackupA = null,
+                  pipScaleBackupB = null;
+                let restorePipAvatar = false,
+                  restorePipYB = false;
 
-                  pipScaleBackupA = _pool.v1;
-                  pipScaleBackupB = _pool.v2;
+                pipScaleBackupA = _pool.v1;
+                pipScaleBackupB = _pool.v2;
 
-                  if (isPipMap) {
-                    if (window._playerAvatar) {
-                      pipScaleBackupA.copy(window._playerAvatar.scale);
-                      window._playerAvatar.scale.multiplyScalar(5.0); // "Zoom in avatar by 5 feet"
-                      window._playerAvatar.updateMatrixWorld(true);
-                      restorePipAvatar = true;
-                    }
-                    if (window._yellowButterflyNPC) {
-                      pipScaleBackupB.copy(window._yellowButterflyNPC.scale);
-                      window._yellowButterflyNPC.scale.multiplyScalar(
-                        5.0 * 0.75,
-                      ); // Top down: -25%
-                      window._yellowButterflyNPC.updateMatrixWorld(true);
-                      restorePipYB = true;
-                    }
-                  } else {
-                    // PIP is FPV view
-                    if (window._yellowButterflyNPC) {
-                      pipScaleBackupB.copy(window._yellowButterflyNPC.scale);
-                      window._yellowButterflyNPC.scale.multiplyScalar(1.5); // FPV: +50%
-                      window._yellowButterflyNPC.updateMatrixWorld(true);
-                      restorePipYB = true;
-                    }
-                  }
-
-                  renderer.render(scene, pipCamToUse);
-
-                  // Restore PIP Avatar Scaling
-                  if (restorePipAvatar && window._playerAvatar) {
-                    window._playerAvatar.scale.copy(pipScaleBackupA);
+                if (isPipMap) {
+                  if (window._playerAvatar) {
+                    pipScaleBackupA.copy(window._playerAvatar.scale);
+                    window._playerAvatar.scale.multiplyScalar(5.0); // "Zoom in avatar by 5 feet"
                     window._playerAvatar.updateMatrixWorld(true);
+                    restorePipAvatar = true;
                   }
-                  if (restorePipYB && window._yellowButterflyNPC) {
-                    window._yellowButterflyNPC.scale.copy(pipScaleBackupB);
+                  if (window._yellowButterflyNPC) {
+                    pipScaleBackupB.copy(window._yellowButterflyNPC.scale);
+                    window._yellowButterflyNPC.scale.multiplyScalar(5.0 * 0.75); // Top down: -25%
                     window._yellowButterflyNPC.updateMatrixWorld(true);
+                    restorePipYB = true;
                   }
-
-                  // if (isPipMap) pipCamToUse.layers.enable(3);
-
-                  // Restore Trees and Sky
-                  if (window._skyMesh) window._skyMesh.visible = origSkyVisible;
-
-                  // Restore
-                  let pipNeedsRestore = false;
-                  if (pipCamToUse.aspect !== origAspect) {
-                    pipCamToUse.aspect = origAspect;
-                    pipNeedsRestore = true;
+                } else {
+                  // PIP is FPV view
+                  if (window._yellowButterflyNPC) {
+                    pipScaleBackupB.copy(window._yellowButterflyNPC.scale);
+                    window._yellowButterflyNPC.scale.multiplyScalar(1.5); // FPV: +50%
+                    window._yellowButterflyNPC.updateMatrixWorld(true);
+                    restorePipYB = true;
                   }
-                  if (
-                    pipCamToUse.isPerspectiveCamera &&
-                    pipCamToUse.fov !== origFov
-                  ) {
-                    pipCamToUse.fov = origFov;
-                    pipNeedsRestore = true;
-                  }
-                  if (pipNeedsRestore) pipCamToUse.updateProjectionMatrix();
                 }
 
-                // Hide the legacy top-left-fpv div — no longer needed (pipCanvas overlay used instead)
-                const topLeftDom = document.getElementById("top-left-fpv");
-                if (topLeftDom) topLeftDom.style.display = "none";
+                renderer.render(scene, pipCamToUse);
 
-                // RESTORE DOM AND ENGINE GLOBALS
-                // (No longer restoring pendingPipCamera here; handled safely inside pipCamToUse block)
-
-                renderer.shadowMap.autoUpdate = oldShadowAutoUpdate;
-                scene.background = oldSceneBackground;
-                if (window._sceneFog) window._sceneFog.density = oldFogDensity;
-                if (window._tipiGodray) window._tipiGodray.visible = true;
-                if (window._tipiGodray2) window._tipiGodray2.visible = true;
-
-                renderer.setScissorTest(false);
-                renderer.setViewport(
-                  0,
-                  0,
-                  window.innerWidth,
-                  window.innerHeight,
-                );
-                renderer.autoClear = origAutoClear;
-
-                if (window._globalFlare) window._globalFlare.visible = true;
-
-                // RESTORE visibility after PIP pass so next frame's Main View isn't blank/whiteout!
-                toggleFX(true);
-              } // End of w > 0 && h > 0 culling check
-            }
-
-            // PIP was natively rendered here AFTER Main View.
-            // --- AXE LOGBOOK OVERLAY RENDER ---
-            const shouldAxeRender = window.fuzzyBrain ? window.fuzzyBrain.shouldRenderAxePIP() : true;
-            if (!drewMapMain && window._isAxeCameraCloned && window._axeRect && axeRenderer && typeof axePipCam !== 'undefined' && shouldAxeRender) {
-                if (window._axeRect.width > 0 && window._axeRect.height > 0) {
-                    // Bespoke cinematic Perspective Camera for the Axe UI.
-                    axeRenderer.setViewport(0, 0, window._axeRect.width, window._axeRect.height);
-                    axeRenderer.setScissorTest(false);
-                    axeRenderer.render(scene, axePipCam);
+                // Restore PIP Avatar Scaling
+                if (restorePipAvatar && window._playerAvatar) {
+                  window._playerAvatar.scale.copy(pipScaleBackupA);
+                  window._playerAvatar.updateMatrixWorld(true);
                 }
+                if (restorePipYB && window._yellowButterflyNPC) {
+                  window._yellowButterflyNPC.scale.copy(pipScaleBackupB);
+                  window._yellowButterflyNPC.updateMatrixWorld(true);
+                }
+
+                // if (isPipMap) pipCamToUse.layers.enable(3);
+
+                // Restore Trees and Sky
+                if (window._skyMesh) window._skyMesh.visible = origSkyVisible;
+
+                // Restore
+                let pipNeedsRestore = false;
+                if (pipCamToUse.aspect !== origAspect) {
+                  pipCamToUse.aspect = origAspect;
+                  pipNeedsRestore = true;
+                }
+                if (
+                  pipCamToUse.isPerspectiveCamera &&
+                  pipCamToUse.fov !== origFov
+                ) {
+                  pipCamToUse.fov = origFov;
+                  pipNeedsRestore = true;
+                }
+                if (pipNeedsRestore) pipCamToUse.updateProjectionMatrix();
+              }
+
+              // Hide the legacy top-left-fpv div — no longer needed (pipCanvas overlay used instead)
+              const topLeftDom = document.getElementById("top-left-fpv");
+              if (topLeftDom) topLeftDom.style.display = "none";
+
+              // RESTORE DOM AND ENGINE GLOBALS
+              // (No longer restoring pendingPipCamera here; handled safely inside pipCamToUse block)
+
+              renderer.shadowMap.autoUpdate = oldShadowAutoUpdate;
+              scene.background = oldSceneBackground;
+              if (window._sceneFog) window._sceneFog.density = oldFogDensity;
+              if (window._tipiGodray) window._tipiGodray.visible = true;
+              if (window._tipiGodray2) window._tipiGodray2.visible = true;
+
+              renderer.setScissorTest(false);
+              renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+              renderer.autoClear = origAutoClear;
+
+              if (window._globalFlare) window._globalFlare.visible = true;
+
+              // RESTORE visibility after PIP pass so next frame's Main View isn't blank/whiteout!
+              toggleFX(true);
+            } // End of w > 0 && h > 0 culling check
+          }
+
+          // PIP was natively rendered here AFTER Main View.
+          // --- AXE LOGBOOK OVERLAY RENDER ---
+          const shouldAxeRender = window.fuzzyBrain
+            ? window.fuzzyBrain.shouldRenderAxePIP()
+            : true;
+          if (
+            !drewMapMain &&
+            window._isAxeCameraCloned &&
+            window._axeRect &&
+            axeRenderer &&
+            typeof axePipCam !== "undefined" &&
+            shouldAxeRender
+          ) {
+            if (window._axeRect.width > 0 && window._axeRect.height > 0) {
+              // Bespoke cinematic Perspective Camera for the Axe UI.
+              axeRenderer.setViewport(
+                0,
+                0,
+                window._axeRect.width,
+                window._axeRect.height,
+              );
+              axeRenderer.setScissorTest(false);
+              axeRenderer.render(scene, axePipCam);
             }
+          }
         } // animate()
 
         // --- ERROR TRAPPING & INIT ---
