@@ -53,6 +53,25 @@
     }
   </style>
 
+  <!-- Detect real monitor refresh rate via rAF timing (runs before Three.js) -->
+  <script>
+    (function detectHz() {
+      let frames = 0, start = null;
+      function tick(ts) {
+        if (!start) start = ts;
+        frames++;
+        if (ts - start < 500) { requestAnimationFrame(tick); return; }
+        // Average over 500ms sample
+        const hz = Math.round(frames / ((ts - start) / 1000));
+        // Snap to standard rates: 60, 90, 120, 144, 165, 240
+        const standards = [60, 90, 120, 144, 165, 240];
+        window._detectedHz = standards.reduce((a, b) => Math.abs(b - hz) < Math.abs(a - hz) ? b : a);
+        console.log(`%c[Monitor] Detected refresh rate: ~${hz}fps → snapped to ${window._detectedHz}hz`, 'color:#fbc02d;');
+      }
+      requestAnimationFrame(tick);
+    })();
+  </script>
+
   <!-- Three.js import map (local vendor — offline capable) -->
   <script type="importmap">
     {

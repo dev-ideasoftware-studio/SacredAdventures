@@ -18,7 +18,7 @@ import * as THREE from 'three';
 // ─────────────────────────────────────────────────────────────────────────────
 const BENCH_FRAMES   = 180;   // frames to average for a benchmark
 const SMOOTH_ALPHA   = 0.05;  // EMA smoothing for live FPS
-const TARGET_FPS     = 60;
+const TARGET_FPS = 120;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ORCHESTRATOR CLASS
@@ -31,7 +31,8 @@ export class Orchestrator {
       antialias: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    // Cap at 1.0 so high-DPI screens don't 4x the pixel fill and cap below 120
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -387,7 +388,8 @@ export class Orchestrator {
     }
 
     const r = this.renderer.info.render;
-    if (drawEl) drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles/1000).toFixed(1)}k | frame: ${this._frameCount}`;
+    if (drawEl)
+      drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles / 1000).toFixed(1)}k | monitor: ${window._detectedHz || ".."}hz`;
 
     if (benchEl) {
       if (this._bench) {
