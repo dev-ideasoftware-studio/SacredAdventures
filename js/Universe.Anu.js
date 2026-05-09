@@ -466,9 +466,11 @@ class UniverseAnuEngine {
     for (const [name, sys] of this._systems) {
       const alive =
         typeof sys.validator === "function" ? sys.validator() : false;
+      // A living validator means the system is up — heartbeat() is optional extra signal
       const silentMs = now - sys.lastSeen;
+      const silent = !alive && silentMs > 60000;
 
-      if (!alive || silentMs > 60000) {
+      if (silent) {
         sys.failCount++;
         sys.status = sys.failCount >= 3 ? "DEAD" : "WARN";
         allOk = false;
@@ -480,6 +482,7 @@ class UniverseAnuEngine {
       } else {
         sys.status = "OK";
         sys.failCount = 0;
+        if (alive) sys.lastSeen = now; // auto-refresh lastSeen when validator passes
       }
     }
 

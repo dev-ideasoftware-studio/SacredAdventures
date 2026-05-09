@@ -260,73 +260,84 @@ class FuzzyBrain {
         // issues resulting in silent 5K rendering queues and hard 30 FPS thermal locks.
         const maxPR = 1.0;
         
-        switch(this.qualityLevel) {
-            case 0: // ULTRA (60+ FPS)
-                this.applyShadows(true, 2048);
-                this.shadowCullRadius = 150;
-                this.applyPIP(true, { logbook: 4, compass: 1, avatar: 2, axe: 1 });
-                this.applyFog(0.003);
-                this.applyPostProcessing(true);
-                // Bokeh only in ULTRA when FPS is truly stable — Journal GL kill gives us this headroom
-                if(window.SacredState && window.SacredState.bokehPass) window.SacredState.bokehPass.enabled = (this.smoothFPS >= 58);
-                this.applyResolutionScaling(maxPR);
-                this.maxVisibleTrees = 200;
-                this.aiThrottle = 1;
-                break;
-                
-            case 1: // HIGH (52-60 FPS)
-                this.applyShadows(true, 1024);
-                this.shadowCullRadius = 100;
-                this.applyPIP(true, { logbook: 3, compass: 2, avatar: 2, axe: 2 });
-                this.applyFog(0.004);
-                this.applyPostProcessing(true);
-                if(window.SacredState && window.SacredState.bokehPass) window.SacredState.bokehPass.enabled = false;
-                this.applyResolutionScaling(maxPR);
-                this.maxVisibleTrees = 160;
-                this.aiThrottle = 1;
-                break;
-                
-            case 2: // MEDIUM (45-55 FPS)
-                this.applyShadows(false, 512);
-                this.shadowCullRadius = 40;    // Only local shadows (40ft)
-                this.applyPIP(true, { logbook: 6, compass: 3, avatar: 4, axe: 3 }); // Skip 5 frames
-                this.applyFog(0.006);
-                this.applyPostProcessing(true);
-                if(window.SacredState && window.SacredState.bokehPass) window.SacredState.bokehPass.enabled = false;
-                this.applyResolutionScaling(Math.min(maxPR, 1.0)); // 1x Res
-                this.maxVisibleTrees = 100;
-                this.aiThrottle = 2;           // AI every 2nd frame (30fps)
-                break;
-                
-            case 3: // LOW (<45 FPS)
-                this.applyShadows(false);      // OFF
-                this.shadowCullRadius = 0;
-                this.applyPIP(true, { logbook: 8, compass: 4, avatar: 5, axe: 4 });
-                this.applyFog(0.008); 
-                this.applyPostProcessing(false); // Shaders OFF
-                if(window.SacredState && window.SacredState.bokehPass) window.SacredState.bokehPass.enabled = false;
-                this.applyResolutionScaling(Math.min(maxPR, 1.0)); // 1x Res minimum
-                this.maxVisibleTrees = 50;
-                this.aiThrottle = 2;
-                for(const sys of Object.values(this.creatureSystems)) {
-                    if(sys.setPopulationCap) sys.setPopulationCap(8);
-                }
-                break;
-                
-            case 4: // SURVIVAL (Meltdown)
-                this.applyShadows(false);
-                this.shadowCullRadius = 0;
-                this.applyPIP(true, { logbook: 10, compass: 6, avatar: 10, axe: 6 });       // Ultra throttle for survival
-                this.applyFog(0.015);          // Thick fog to hide culling
-                this.applyPostProcessing(false);
-                if(window.SacredState && window.SacredState.bokehPass) window.SacredState.bokehPass.enabled = false;
-                this.applyResolutionScaling(Math.min(maxPR, 1.0)); // 1x Res minimum
-                this.maxVisibleTrees = 20;     // Bare minimum trees
-                this.aiThrottle = 3;           // AI at 20fps max drop
-                for(const sys of Object.values(this.creatureSystems)) {
-                    if(sys.setPopulationCap) sys.setPopulationCap(4);
-                }
-                break;
+        switch (this.qualityLevel) {
+          case 0: // ULTRA (60+ FPS)
+            this.applyShadows(true, 2048);
+            this.shadowCullRadius = 150;
+            this.applyPIP(true, { logbook: 4, compass: 1, avatar: 2, axe: 1 });
+            this.applyFog(0.003);
+            this.applyPostProcessing(true);
+            // Bokeh only in ULTRA when FPS is truly stable — Journal GL kill gives us this headroom
+            if (window.SacredState && window.SacredState.bokehPass)
+              window.SacredState.bokehPass.enabled = this.smoothFPS >= 58;
+            this.applyResolutionScaling(maxPR);
+            this.maxVisibleTrees = 200;
+            this.aiThrottle = 1;
+            break;
+
+          case 1: // HIGH (52-60 FPS)
+            this.applyShadows(true, 1024);
+            this.shadowCullRadius = 100;
+            this.applyPIP(true, { logbook: 3, compass: 2, avatar: 2, axe: 2 });
+            this.applyFog(0.004);
+            this.applyPostProcessing(true);
+            if (window.SacredState && window.SacredState.bokehPass)
+              window.SacredState.bokehPass.enabled = false;
+            this.applyResolutionScaling(maxPR);
+            this.maxVisibleTrees = 160;
+            this.aiThrottle = 1;
+            break;
+
+          case 2: // MEDIUM (45-55 FPS)
+            this.applyShadows(false, 512);
+            this.shadowCullRadius = 40; // Only local shadows (40ft)
+            this.applyPIP(true, { logbook: 6, compass: 3, avatar: 4, axe: 3 }); // Skip 5 frames
+            this.applyFog(0.006);
+            this.applyPostProcessing(true);
+            if (window.SacredState && window.SacredState.bokehPass)
+              window.SacredState.bokehPass.enabled = false;
+            this.applyResolutionScaling(Math.min(maxPR, 1.0)); // 1x Res
+            this.maxVisibleTrees = 100;
+            this.aiThrottle = 2; // AI every 2nd frame (30fps)
+            break;
+
+          case 3: // LOW (<45 FPS)
+            this.applyShadows(false); // OFF
+            this.shadowCullRadius = 0;
+            this.applyPIP(true, { logbook: 8, compass: 4, avatar: 5, axe: 4 });
+            this.applyFog(0.008);
+            this.applyPostProcessing(false); // Shaders OFF
+            if (window.SacredState && window.SacredState.bokehPass)
+              window.SacredState.bokehPass.enabled = false;
+            this.applyResolutionScaling(Math.min(maxPR, 1.0)); // 1x Res minimum
+            this.maxVisibleTrees = 50;
+            this.aiThrottle = 2;
+            for (const sys of Object.values(this.creatureSystems)) {
+              if (sys.setPopulationCap) sys.setPopulationCap(8);
+            }
+            break;
+
+          case 4: // SURVIVAL (Meltdown) — kill ALL secondary render passes
+            this.applyShadows(false);
+            this.shadowCullRadius = 0;
+            this.applyPIP(false, {
+              logbook: 10,
+              compass: 10,
+              avatar: 10,
+              axe: 10,
+            }); // PIP OFF entirely
+            this.pipEnabled = false; // Hard kill — shouldRender* returns false
+            this.applyFog(0.015); // Thick fog to hide culling
+            this.applyPostProcessing(false);
+            if (window.SacredState && window.SacredState.bokehPass)
+              window.SacredState.bokehPass.enabled = false;
+            this.applyResolutionScaling(Math.min(maxPR, 0.75)); // Drop to 75% res
+            this.maxVisibleTrees = 20;
+            this.aiThrottle = 4; // AI every 4th frame
+            for (const sys of Object.values(this.creatureSystems)) {
+              if (sys.setPopulationCap) sys.setPopulationCap(4);
+            }
+            break;
         }
     }
     

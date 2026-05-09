@@ -4628,72 +4628,83 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             }
             
             // --- AVATAR UI RENDER PASS (MOVED AFTER MAIN RENDER TO PREVENT WIPING) ---
-            if (window._playerAvatar && window.avatarCtx && window.avatarCanvas2D && typeof window.avatarOrthoCam !== 'undefined') {
-                const pFrame = document.getElementById('panel-frame');
-                if (pFrame && pFrame.contentWindow) {
-                    const tgt = pFrame.contentWindow.document.getElementById('avatar-pip-target');
-                    if (tgt) {
-                        if (!window._avatarObserver && window.ResizeObserver) {
-                            window._cachedAvatarRect = tgt.getBoundingClientRect();
-                            window._avatarObserver = new ResizeObserver(() => {
-                                window._cachedAvatarRect = tgt.getBoundingClientRect();
-                            });
-                            window._avatarObserver.observe(tgt);
-                        }
-                        const rect = window._cachedAvatarRect;
-                        if (rect && rect.width > 0) {
-                          window._playerAvatar.getWorldPosition(_pool.v1);
-                          window.avatarOrthoCam.position.set(
-                            _pool.v1.x,
-                            _pool.v1.y + 1.2,
-                            _pool.v1.z + 2.5,
-                          );
-                          window.avatarOrthoCam.lookAt(
-                            _pool.v1.x,
-                            _pool.v1.y + 0.8,
-                            _pool.v1.z,
-                          );
+            const _shouldRenderAvatar =
+              !window.fuzzyBrain || window.fuzzyBrain.shouldRenderAvatarPIP();
+            if (
+              _shouldRenderAvatar &&
+              window._playerAvatar &&
+              window.avatarCtx &&
+              window.avatarCanvas2D &&
+              typeof window.avatarOrthoCam !== "undefined"
+            ) {
+              const pFrame = document.getElementById("panel-frame");
+              if (pFrame && pFrame.contentWindow) {
+                const tgt =
+                  pFrame.contentWindow.document.getElementById(
+                    "avatar-pip-target",
+                  );
+                if (tgt) {
+                  if (!window._avatarObserver && window.ResizeObserver) {
+                    window._cachedAvatarRect = tgt.getBoundingClientRect();
+                    window._avatarObserver = new ResizeObserver(() => {
+                      window._cachedAvatarRect = tgt.getBoundingClientRect();
+                    });
+                    window._avatarObserver.observe(tgt);
+                  }
+                  const rect = window._cachedAvatarRect;
+                  if (rect && rect.width > 0) {
+                    window._playerAvatar.getWorldPosition(_pool.v1);
+                    window.avatarOrthoCam.position.set(
+                      _pool.v1.x,
+                      _pool.v1.y + 1.2,
+                      _pool.v1.z + 2.5,
+                    );
+                    window.avatarOrthoCam.lookAt(
+                      _pool.v1.x,
+                      _pool.v1.y + 0.8,
+                      _pool.v1.z,
+                    );
 
-                          const origAutoClear = renderer.autoClear;
-                          const oldClearAlpha = renderer.getClearAlpha();
-                          renderer.getClearColor(_pool.c1);
-                          renderer.setClearColor(0x000000, 0.0);
+                    const origAutoClear = renderer.autoClear;
+                    const oldClearAlpha = renderer.getClearAlpha();
+                    renderer.getClearColor(_pool.c1);
+                    renderer.setClearColor(0x000000, 0.0);
 
-                          const scX = rect.left;
-                          const scY = window.innerHeight - rect.bottom;
-                          const w = rect.width;
-                          const h = rect.height;
+                    const scX = rect.left;
+                    const scY = window.innerHeight - rect.bottom;
+                    const w = rect.width;
+                    const h = rect.height;
 
-                          renderer.setScissorTest(true);
-                          renderer.setScissor(scX, scY, w, h);
-                          renderer.setViewport(scX, scY, w, h);
-                          renderer.autoClear = false; // DON'T WIPE MAIN SCENE
-                          renderer.clearDepth(); // Only clear depth to layer on top
+                    renderer.setScissorTest(true);
+                    renderer.setScissor(scX, scY, w, h);
+                    renderer.setViewport(scX, scY, w, h);
+                    renderer.autoClear = false; // DON'T WIPE MAIN SCENE
+                    renderer.clearDepth(); // Only clear depth to layer on top
 
-                          renderer.render(scene, window.avatarOrthoCam);
+                    renderer.render(scene, window.avatarOrthoCam);
 
-                          renderer.setClearColor(_pool.c1, oldClearAlpha);
-                          renderer.setScissorTest(false);
-                          renderer.setViewport(
-                            0,
-                            0,
-                            window.innerWidth,
-                            window.innerHeight,
-                          );
-                          renderer.autoClear = origAutoClear;
+                    renderer.setClearColor(_pool.c1, oldClearAlpha);
+                    renderer.setScissorTest(false);
+                    renderer.setViewport(
+                      0,
+                      0,
+                      window.innerWidth,
+                      window.innerHeight,
+                    );
+                    renderer.autoClear = origAutoClear;
 
-                          // Hide static fallback PNG once live WebGL avatar is rendering
-                          if (!window._avatarLiveActive) {
-                            window._avatarLiveActive = true;
-                            const fallback =
-                              pFrame.contentWindow.document.getElementById(
-                                "avatar-static-fallback",
-                              );
-                            if (fallback) fallback.style.display = "none";
-                          }
-                        }
+                    // Hide static fallback PNG once live WebGL avatar is rendering
+                    if (!window._avatarLiveActive) {
+                      window._avatarLiveActive = true;
+                      const fallback =
+                        pFrame.contentWindow.document.getElementById(
+                          "avatar-static-fallback",
+                        );
+                      if (fallback) fallback.style.display = "none";
                     }
+                  }
                 }
+              }
             }
 
             // Universe.Anu Engine Reconfiguration Listener
@@ -4708,133 +4719,158 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
         // --- COMPASS / MAP PIP RENDER ---
             const compassPip = window.pipCanvas2D;
-            // REMOVED THROTTLE: WebGL-direct overlays must render every frame to avoid blinking when main buffer is cleared.
-            if (compassPip && window._pendingPipCamera && window._cachedPipRect) {
-                const rect = window._cachedPipRect;
-                const w = Math.floor(rect.width);
-                const h = Math.floor(rect.height);
-                
-                if (w > 0 && h > 0) {
-                    const scX = rect.left;
-                    const scY = window.innerHeight - rect.bottom;
-                    const origAutoClear = renderer.autoClear;
-                    
-                    renderer.setScissorTest(true);
-                    renderer.setScissor(scX, scY, w, h);
-                    renderer.setViewport(scX, scY, w, h);
-                    renderer.autoClear = false; 
-                    
-                    const origAspect = window._pendingPipCamera.aspect;
-                    if (window._pendingPipCamera.isPerspectiveCamera) {
-                        const targetAspect = w / h;
-                        if (window._pendingPipCamera.aspect !== targetAspect) {
-                            window._pendingPipCamera.aspect = targetAspect;
-                            window._pendingPipCamera.updateProjectionMatrix();
-                        }
-                    }
-                
+            const _shouldRenderCompass =
+              !window.fuzzyBrain || window.fuzzyBrain.shouldRenderCompassPIP();
+            if (
+              _shouldRenderCompass &&
+              compassPip &&
+              window._pendingPipCamera &&
+              window._cachedPipRect
+            ) {
+              const rect = window._cachedPipRect;
+              const w = Math.floor(rect.width);
+              const h = Math.floor(rect.height);
+
+              if (w > 0 && h > 0) {
+                const scX = rect.left;
+                const scY = window.innerHeight - rect.bottom;
+                const origAutoClear = renderer.autoClear;
+
+                renderer.setScissorTest(true);
+                renderer.setScissor(scX, scY, w, h);
+                renderer.setViewport(scX, scY, w, h);
+                renderer.autoClear = false;
+
+                const origAspect = window._pendingPipCamera.aspect;
+                if (window._pendingPipCamera.isPerspectiveCamera) {
+                  const targetAspect = w / h;
+                  if (window._pendingPipCamera.aspect !== targetAspect) {
+                    window._pendingPipCamera.aspect = targetAspect;
+                    window._pendingPipCamera.updateProjectionMatrix();
+                  }
+                }
+
                 // Specific Render Hides/Shows
                 toggleFX(false);
-                const oldFogDensity = window._sceneFog ? window._sceneFog.density : 0;
+                const oldFogDensity = window._sceneFog
+                  ? window._sceneFog.density
+                  : 0;
                 if (window._sceneFog) window._sceneFog.density = 0;
-                
+
                 if (window._tipiGodray) window._tipiGodray.visible = false;
                 if (window._tipiGodray2) window._tipiGodray2.visible = false;
-                if (window.butterflySystem && window.butterflySystem.mesh) window.butterflySystem.mesh.visible = true;
-                if (window.natureSpiritSystem && window.natureSpiritSystem.mesh) window.natureSpiritSystem.mesh.visible = true;
-                
-                const oldShadowAutoUpdate = renderer.shadowMap.autoUpdate;
-                renderer.shadowMap.autoUpdate = false; 
+                if (window.butterflySystem && window.butterflySystem.mesh)
+                  window.butterflySystem.mesh.visible = true;
+                if (window.natureSpiritSystem && window.natureSpiritSystem.mesh)
+                  window.natureSpiritSystem.mesh.visible = true;
 
-                // CRITICAL FPS & MASK FIX: Prevent ThreeJS from implicitly clearing the color buffer 
-                // to scene.background inside the scissor. A partial clear on Apple Silicon TBDR flushes 
+                const oldShadowAutoUpdate = renderer.shadowMap.autoUpdate;
+                renderer.shadowMap.autoUpdate = false;
+
+                // CRITICAL FPS & MASK FIX: Prevent ThreeJS from implicitly clearing the color buffer
+                // to scene.background inside the scissor. A partial clear on Apple Silicon TBDR flushes
                 // the entire GPU tile buffer, tanking FPS to 14-30. It also paints a white square mask!
                 const oldSceneBackground = scene.background;
                 scene.background = null;
 
                 // Execute PIP feed exactly inside scissor layout
-                
+
                 let pipCamToUse = null;
                 if (window._isMapView) {
-                    // In map view: PiP should be a "spirit view" slightly above and behind the Avatar
-                    if (!window._spiritCam) {
-                        window._spiritCam = new THREE.PerspectiveCamera(40, 1, 0.1, 80); // Zoomed in FOV for usable PIP!
-                        window._spiritCam.layers.set(0);
-                        window._spiritCam.layers.enable(1); // Enable Ghost Avatar
-                        window._spiritCam.layers.enable(3); // Enable High-Poly Trees (Branches)
-                        window._spiritCam.layers.disable(2); // CULL FIX: Prevent double-rendering boardgame HexGrid/UIs (Layer 2)
-                    }
-                    
-                    window._spiritCam.position.copy(camera.position);
-                    
-                    // FPV Over-the-shoulder Style: 1 foot directly behind the head
-                    const offset = new THREE.Vector3(0, 0.0, 0.3); // 0 up, 0.3 back (1 foot)
-                    offset.applyQuaternion(camera.quaternion);
-                    window._spiritCam.position.add(offset);
-                    
-                    // Look straight ahead, with a precise 5-degree down angle
-                    const lookPoint = camera.position.clone();
-                    // 10 units forward, -0.87 units down (tan(5 degrees) * 10 = ~0.87)
-                    const forward = new THREE.Vector3(0, -0.87, -10.0); 
-                    forward.applyQuaternion(camera.quaternion);
-                    lookPoint.add(forward);
-                    
-                    window._spiritCam.lookAt(lookPoint);
-                    pipCamToUse = window._spiritCam;
+                  // In map view: PiP should be a "spirit view" slightly above and behind the Avatar
+                  if (!window._spiritCam) {
+                    window._spiritCam = new THREE.PerspectiveCamera(
+                      40,
+                      1,
+                      0.1,
+                      80,
+                    ); // Zoomed in FOV for usable PIP!
+                    window._spiritCam.layers.set(0);
+                    window._spiritCam.layers.enable(1); // Enable Ghost Avatar
+                    window._spiritCam.layers.enable(3); // Enable High-Poly Trees (Branches)
+                    window._spiritCam.layers.disable(2); // CULL FIX: Prevent double-rendering boardgame HexGrid/UIs (Layer 2)
+                  }
+
+                  window._spiritCam.position.copy(camera.position);
+
+                  // FPV Over-the-shoulder Style: 1 foot directly behind the head
+                  const offset = new THREE.Vector3(0, 0.0, 0.3); // 0 up, 0.3 back (1 foot)
+                  offset.applyQuaternion(camera.quaternion);
+                  window._spiritCam.position.add(offset);
+
+                  // Look straight ahead, with a precise 5-degree down angle
+                  const lookPoint = camera.position.clone();
+                  // 10 units forward, -0.87 units down (tan(5 degrees) * 10 = ~0.87)
+                  const forward = new THREE.Vector3(0, -0.87, -10.0);
+                  forward.applyQuaternion(camera.quaternion);
+                  lookPoint.add(forward);
+
+                  window._spiritCam.lookAt(lookPoint);
+                  pipCamToUse = window._spiritCam;
                 } else {
-                    // In FPV view: PiP should be the Top-Down diorama camera
-                    pipCamToUse = window._nativeMapCam || window._pendingPipCamera;
+                  // In FPV view: PiP should be the Top-Down diorama camera
+                  pipCamToUse =
+                    window._nativeMapCam || window._pendingPipCamera;
                 }
 
                 if (pipCamToUse) {
-                    // Inset 8px so the compass ring rim visually frames the PIP feed perfectly
-                    const inset = 8;
-                    const safeX = Math.max(0, scX + inset);
-                    const safeY = Math.max(0, scY + inset);
-                    const safeW = Math.max(1, w - inset * 2);
-                    const safeH = Math.max(1, h - inset * 2);
+                  // Inset 8px so the compass ring rim visually frames the PIP feed perfectly
+                  const inset = 8;
+                  const safeX = Math.max(0, scX + inset);
+                  const safeY = Math.max(0, scY + inset);
+                  const safeW = Math.max(1, w - inset * 2);
+                  const safeH = Math.max(1, h - inset * 2);
 
-                    renderer.setScissor(safeX, safeY, safeW, safeH);
-                    renderer.setViewport(safeX, safeY, safeW, safeH);
-                    // Explicitly clear depth strictly inside the active PiP region to prevent bleed! (Leave color buffer for circular mask)
-                    renderer.clearDepth();
+                  renderer.setScissor(safeX, safeY, safeW, safeH);
+                  renderer.setViewport(safeX, safeY, safeW, safeH);
+                  // Explicitly clear depth strictly inside the active PiP region to prevent bleed! (Leave color buffer for circular mask)
+                  renderer.clearDepth();
 
-                    const origAspect = pipCamToUse.aspect;
-                    const origFov = pipCamToUse.fov;
-                    
-                    const targetPipAspect = safeW / safeH;
-                    let pipNeedsUpdate = false;
-                    
-                    if (pipCamToUse.aspect !== targetPipAspect) {
-                        pipCamToUse.aspect = targetPipAspect;
-                        pipNeedsUpdate = true;
+                  const origAspect = pipCamToUse.aspect;
+                  const origFov = pipCamToUse.fov;
+
+                  const targetPipAspect = safeW / safeH;
+                  let pipNeedsUpdate = false;
+
+                  if (pipCamToUse.aspect !== targetPipAspect) {
+                    pipCamToUse.aspect = targetPipAspect;
+                    pipNeedsUpdate = true;
+                  }
+                  if (pipCamToUse.isPerspectiveCamera) {
+                    // Apply ~25% fisheye effect (widen the FOV slightly)
+                    const targetFov = (origFov || 60) * 1.25;
+                    if (pipCamToUse.fov !== targetFov) {
+                      pipCamToUse.fov = targetFov;
+                      pipNeedsUpdate = true;
                     }
-                    if (pipCamToUse.isPerspectiveCamera) {
-                        // Apply ~25% fisheye effect (widen the FOV slightly)
-                        const targetFov = (origFov || 60) * 1.25;
-                        if (pipCamToUse.fov !== targetFov) {
-                            pipCamToUse.fov = targetFov;
-                            pipNeedsUpdate = true;
-                        }
-                    }
-                    if (pipNeedsUpdate) pipCamToUse.updateProjectionMatrix();
+                  }
+                  if (pipNeedsUpdate) pipCamToUse.updateProjectionMatrix();
 
-                    const origSkyVisible = window._skyMesh ? window._skyMesh.visible : false;
-                    if (window._skyMesh) window._skyMesh.visible = false;
+                  const origSkyVisible = window._skyMesh
+                    ? window._skyMesh.visible
+                    : false;
+                  if (window._skyMesh) window._skyMesh.visible = false;
 
-                    // --- NATIVE WEBGL CIRCULAR DEPTH MASK ---
-                    // By rendering a mathematical circular hole into the depth buffer BEFORE the PiP scene renders,
-                    // any map terrain or trees outside the circle will fail the depth test and be physically discarded by the GPU!
-                    // This leaves the FPV sky completely untouched in the corners, perfectly masking the PiP into a circle.
-                    if (!window._pipMaskScene) {
-                        window._pipMaskScene = new THREE.Scene();
-                        window._pipMaskCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-                        const maskGeom = new THREE.PlaneGeometry(2, 2);
-                        const maskMat = new THREE.ShaderMaterial({
-                            depthWrite: true,
-                            depthTest: true, // CRITICAL: WebGL ignores depthWrite if depthTest is false!
-                            colorWrite: false, // INVISIBLE WALL: only blocks depth!
-                            vertexShader: `
+                  // --- NATIVE WEBGL CIRCULAR DEPTH MASK ---
+                  // By rendering a mathematical circular hole into the depth buffer BEFORE the PiP scene renders,
+                  // any map terrain or trees outside the circle will fail the depth test and be physically discarded by the GPU!
+                  // This leaves the FPV sky completely untouched in the corners, perfectly masking the PiP into a circle.
+                  if (!window._pipMaskScene) {
+                    window._pipMaskScene = new THREE.Scene();
+                    window._pipMaskCam = new THREE.OrthographicCamera(
+                      -1,
+                      1,
+                      1,
+                      -1,
+                      0,
+                      1,
+                    );
+                    const maskGeom = new THREE.PlaneGeometry(2, 2);
+                    const maskMat = new THREE.ShaderMaterial({
+                      depthWrite: true,
+                      depthTest: true, // CRITICAL: WebGL ignores depthWrite if depthTest is false!
+                      colorWrite: false, // INVISIBLE WALL: only blocks depth!
+                      vertexShader: `
                                 varying vec2 vUv;
                                 void main() {
                                     vUv = uv;
@@ -4842,7 +4878,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                                     gl_Position = vec4(position.xy, -0.99, 1.0); 
                                 }
                             `,
-                            fragmentShader: `
+                      fragmentShader: `
                                 varying vec2 vUv;
                                 void main() {
                                     vec2 center = vec2(0.5, 0.5);
@@ -4851,110 +4887,143 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                                     }
                                     gl_FragColor = vec4(1.0);
                                 }
-                            `
-                        });
-                        const maskMesh = new THREE.Mesh(maskGeom, maskMat);
-                        maskMesh.frustumCulled = false;
-                        window._pipMaskScene.add(maskMesh);
+                            `,
+                    });
+                    const maskMesh = new THREE.Mesh(maskGeom, maskMat);
+                    maskMesh.frustumCulled = false;
+                    window._pipMaskScene.add(maskMesh);
+                  }
+
+                  // Render the Depth Mask FIRST to block the corners!
+                  renderer.render(window._pipMaskScene, window._pipMaskCam);
+
+                  // Render a solid sky-colored background plane so the Map ground doesn't show through the transparent FPV view
+                  if (!window._pipBgScene) {
+                    window._pipBgScene = new THREE.Scene();
+                    window._pipBgCam = new THREE.OrthographicCamera(
+                      -1,
+                      1,
+                      1,
+                      -1,
+                      0,
+                      1,
+                    );
+                    // A warm sky-blue color to match the atmosphere
+                    const bgMat = new THREE.MeshBasicMaterial({
+                      color: 0x9fbcd1,
+                      depthTest: true,
+                      depthWrite: false,
+                    });
+                    window._pipBgMesh = new THREE.Mesh(
+                      new THREE.PlaneGeometry(2, 2),
+                      bgMat,
+                    );
+                    window._pipBgMesh.position.z = -0.5; // CRITICAL: Push back so it fails depth test against the depth mask!
+                    window._pipBgScene.add(window._pipBgMesh);
+                  }
+                  renderer.render(window._pipBgScene, window._pipBgCam);
+
+                  // Disable Layer 3 (High-Poly Trees) during PiP Map View to save GPU fill-rate at zero CPU cost!
+                  const isPipMap = pipCamToUse === window._nativeMapCam;
+                  // USER REQUEST: Add branches back to PIP map
+                  // if (isPipMap) pipCamToUse.layers.disable(3);
+
+                  // --- PIP AVATAR VISIBILITY FIX ---
+                  // If rendering the top-down minimap inside the FPV view, the avatar is a 1-pixel dot.
+                  // We must dynamically scale it up by 5x purely for this render pass!
+                  let pipScaleBackupA = null,
+                    pipScaleBackupB = null;
+                  let restorePipAvatar = false,
+                    restorePipYB = false;
+
+                  pipScaleBackupA = _pool.v1;
+                  pipScaleBackupB = _pool.v2;
+
+                  if (isPipMap) {
+                    if (window._playerAvatar) {
+                      pipScaleBackupA.copy(window._playerAvatar.scale);
+                      window._playerAvatar.scale.multiplyScalar(5.0); // "Zoom in avatar by 5 feet"
+                      window._playerAvatar.updateMatrixWorld(true);
+                      restorePipAvatar = true;
                     }
-                    
-                    // Render the Depth Mask FIRST to block the corners!
-                    renderer.render(window._pipMaskScene, window._pipMaskCam);
-
-                    // Render a solid sky-colored background plane so the Map ground doesn't show through the transparent FPV view
-                    if (!window._pipBgScene) {
-                        window._pipBgScene = new THREE.Scene();
-                        window._pipBgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-                        // A warm sky-blue color to match the atmosphere
-                        const bgMat = new THREE.MeshBasicMaterial({ color: 0x9fbcd1, depthTest: true, depthWrite: false });
-                        window._pipBgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
-                        window._pipBgMesh.position.z = -0.5; // CRITICAL: Push back so it fails depth test against the depth mask!
-                        window._pipBgScene.add(window._pipBgMesh);
+                    if (window._yellowButterflyNPC) {
+                      pipScaleBackupB.copy(window._yellowButterflyNPC.scale);
+                      window._yellowButterflyNPC.scale.multiplyScalar(
+                        5.0 * 0.75,
+                      ); // Top down: -25%
+                      window._yellowButterflyNPC.updateMatrixWorld(true);
+                      restorePipYB = true;
                     }
-                    renderer.render(window._pipBgScene, window._pipBgCam);
-
-                    // Disable Layer 3 (High-Poly Trees) during PiP Map View to save GPU fill-rate at zero CPU cost!
-                    const isPipMap = (pipCamToUse === window._nativeMapCam);
-                    // USER REQUEST: Add branches back to PIP map
-                    // if (isPipMap) pipCamToUse.layers.disable(3);
-
-                    // --- PIP AVATAR VISIBILITY FIX ---
-                    // If rendering the top-down minimap inside the FPV view, the avatar is a 1-pixel dot.
-                    // We must dynamically scale it up by 5x purely for this render pass!
-                    let pipScaleBackupA = null, pipScaleBackupB = null;
-                    let restorePipAvatar = false, restorePipYB = false;
-                    
-                    pipScaleBackupA = _pool.v1;
-                    pipScaleBackupB = _pool.v2;
-
-                    if (isPipMap) {
-                        if (window._playerAvatar) { 
-                            pipScaleBackupA.copy(window._playerAvatar.scale); 
-                            window._playerAvatar.scale.multiplyScalar(5.0); // "Zoom in avatar by 5 feet"
-                            window._playerAvatar.updateMatrixWorld(true); 
-                            restorePipAvatar = true;
-                        }
-                        if (window._yellowButterflyNPC) { 
-                            pipScaleBackupB.copy(window._yellowButterflyNPC.scale); 
-                            window._yellowButterflyNPC.scale.multiplyScalar(5.0 * 0.75); // Top down: -25%
-                            window._yellowButterflyNPC.updateMatrixWorld(true); 
-                            restorePipYB = true;
-                        }
-                    } else { // PIP is FPV view
-                        if (window._yellowButterflyNPC) { 
-                            pipScaleBackupB.copy(window._yellowButterflyNPC.scale); 
-                            window._yellowButterflyNPC.scale.multiplyScalar(1.5); // FPV: +50%
-                            window._yellowButterflyNPC.updateMatrixWorld(true); 
-                            restorePipYB = true;
-                        }
+                  } else {
+                    // PIP is FPV view
+                    if (window._yellowButterflyNPC) {
+                      pipScaleBackupB.copy(window._yellowButterflyNPC.scale);
+                      window._yellowButterflyNPC.scale.multiplyScalar(1.5); // FPV: +50%
+                      window._yellowButterflyNPC.updateMatrixWorld(true);
+                      restorePipYB = true;
                     }
+                  }
 
-                    renderer.render(scene, pipCamToUse);
+                  renderer.render(scene, pipCamToUse);
 
-                    // Restore PIP Avatar Scaling
-                    if (restorePipAvatar && window._playerAvatar) { window._playerAvatar.scale.copy(pipScaleBackupA); window._playerAvatar.updateMatrixWorld(true); }
-                    if (restorePipYB && window._yellowButterflyNPC) { window._yellowButterflyNPC.scale.copy(pipScaleBackupB); window._yellowButterflyNPC.updateMatrixWorld(true); }
+                  // Restore PIP Avatar Scaling
+                  if (restorePipAvatar && window._playerAvatar) {
+                    window._playerAvatar.scale.copy(pipScaleBackupA);
+                    window._playerAvatar.updateMatrixWorld(true);
+                  }
+                  if (restorePipYB && window._yellowButterflyNPC) {
+                    window._yellowButterflyNPC.scale.copy(pipScaleBackupB);
+                    window._yellowButterflyNPC.updateMatrixWorld(true);
+                  }
 
-                    // if (isPipMap) pipCamToUse.layers.enable(3);
+                  // if (isPipMap) pipCamToUse.layers.enable(3);
 
-                    // Restore Trees and Sky
-                    if (window._skyMesh) window._skyMesh.visible = origSkyVisible;
+                  // Restore Trees and Sky
+                  if (window._skyMesh) window._skyMesh.visible = origSkyVisible;
 
-                    // Restore
-                    let pipNeedsRestore = false;
-                    if (pipCamToUse.aspect !== origAspect) {
-                        pipCamToUse.aspect = origAspect;
-                        pipNeedsRestore = true;
-                    }
-                    if (pipCamToUse.isPerspectiveCamera && pipCamToUse.fov !== origFov) {
-                        pipCamToUse.fov = origFov;
-                        pipNeedsRestore = true;
-                    }
-                    if (pipNeedsRestore) pipCamToUse.updateProjectionMatrix();
+                  // Restore
+                  let pipNeedsRestore = false;
+                  if (pipCamToUse.aspect !== origAspect) {
+                    pipCamToUse.aspect = origAspect;
+                    pipNeedsRestore = true;
+                  }
+                  if (
+                    pipCamToUse.isPerspectiveCamera &&
+                    pipCamToUse.fov !== origFov
+                  ) {
+                    pipCamToUse.fov = origFov;
+                    pipNeedsRestore = true;
+                  }
+                  if (pipNeedsRestore) pipCamToUse.updateProjectionMatrix();
                 }
-                
+
                 // Hide the legacy top-left-fpv div — no longer needed (pipCanvas overlay used instead)
-                const topLeftDom = document.getElementById('top-left-fpv');
-                if (topLeftDom) topLeftDom.style.display = 'none';
+                const topLeftDom = document.getElementById("top-left-fpv");
+                if (topLeftDom) topLeftDom.style.display = "none";
 
                 // RESTORE DOM AND ENGINE GLOBALS
                 // (No longer restoring pendingPipCamera here; handled safely inside pipCamToUse block)
-                
+
                 renderer.shadowMap.autoUpdate = oldShadowAutoUpdate;
                 scene.background = oldSceneBackground;
                 if (window._sceneFog) window._sceneFog.density = oldFogDensity;
                 if (window._tipiGodray) window._tipiGodray.visible = true;
                 if (window._tipiGodray2) window._tipiGodray2.visible = true;
-                
+
                 renderer.setScissorTest(false);
-                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                renderer.setViewport(
+                  0,
+                  0,
+                  window.innerWidth,
+                  window.innerHeight,
+                );
                 renderer.autoClear = origAutoClear;
-                
+
                 if (window._globalFlare) window._globalFlare.visible = true;
-                
+
                 // RESTORE visibility after PIP pass so next frame's Main View isn't blank/whiteout!
                 toggleFX(true);
-                } // End of w > 0 && h > 0 culling check
+              } // End of w > 0 && h > 0 culling check
             }
 
             // PIP was natively rendered here AFTER Main View.
