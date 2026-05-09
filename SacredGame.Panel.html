@@ -2808,27 +2808,18 @@
                 if (btn) btn.classList.add('lightbloom');
                 if (sideBtn) sideBtn.classList.add('active-glow');
 
-                // Restore journal iframe src if it was killed — reinit happens behind open animation
-                const lbFrame = document.getElementById('logbookFrame');
-                if (lbFrame && (!lbFrame.src || lbFrame.src === 'about:blank')) {
-                    lbFrame.src = 'Component.NewJournal.html?v=9';
-                }
-
                 // Notify Game (for sounds/stats)
                 const rect = sideBtn ? sideBtn.getBoundingClientRect() : null;
                 const rectData = rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
                 try {
                     window.parent.postMessage({ type: 'OPEN_LOGBOOK', rect: rectData }, '*');
 
-                    // Trigger open animation after iframe has a moment to init
-                    setTimeout(() => {
-                        const lbFrameReady = document.getElementById('logbookFrame');
-                        if (lbFrameReady && lbFrameReady.contentWindow) {
-                            lbFrameReady.contentWindow.postMessage({ type: 'DO_OPEN_FLIP' }, '*');
-                            lbFrameReady.contentWindow.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: true }, '*');
-                        }
-                    }, 150);
-
+                    // Trigger the physical page opening animation
+                    const lbFrame = document.getElementById('logbookFrame');
+                    if (lbFrame && lbFrame.contentWindow) {
+                        lbFrame.contentWindow.postMessage({ type: 'DO_OPEN_FLIP' }, '*');
+                        lbFrame.contentWindow.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: true }, '*');
+                    }
                     // Instruct the background game engine to sleep the FPV pass to save framerate for the Logbook feeds
                     window.parent.postMessage({ type: 'LOGBOOK_VISIBILITY', isVisible: true }, '*');
                 } catch (e) { console.error('Postmessage error:', e); }
@@ -2873,14 +2864,6 @@
                 // Instruct the background game engine to resume 3D rendering
                 window.parent.postMessage({ type: 'LOGBOOK_VISIBILITY', isVisible: false }, '*');
                 window.parent.postMessage({ type: 'CLOSE_LOGBOOK' }, '*');
-
-                // Nuclear GL kill — destroy journal iframe after close animation, frees GPU completely
-                setTimeout(() => {
-                    const lbKill = document.getElementById('logbookFrame');
-                    if (lbKill && document.getElementById('book-wrapper').classList.contains('book-hidden')) {
-                        lbKill.src = 'about:blank';
-                    }
-                }, 800);
             }
         };
 
