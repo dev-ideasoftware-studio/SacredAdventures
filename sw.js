@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v7";
+const CACHE_VERSION = "v8";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 
@@ -115,30 +115,63 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin requests
   if (url.origin !== location.origin) return;
 
-  // Skip cache-busted requests (let them hit network)
-  if (url.search.includes('v=') && !url.pathname.endsWith('.css')) {
+  // For HTML files with cache-buster ?v= params, strip the query and serve from cache
+  if (url.search.includes("v=") && url.pathname.endsWith(".html")) {
+    const cleanRequest = new Request(url.origin + url.pathname);
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request).then(res => res || new Response('', { status: 404, statusText: 'Offline' })))
+      caches.match(cleanRequest).then((cached) => {
+        if (cached) return cached;
+        return fetch(cleanRequest).catch(
+          () => new Response("", { status: 404, statusText: "Offline" }),
+        );
+      }),
+    );
+    return;
+  }
+
+  // Skip cache-busted JS/CSS requests (let them hit network for fresh code)
+  if (url.search.includes("v=")) {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches
+          .match(new Request(url.origin + url.pathname))
+          .then(
+            (res) =>
+              res || new Response("", { status: 404, statusText: "Offline" }),
+          ),
+      ),
     );
     return;
   }
 
   // Large assets (GLB, OBJ, textures): runtime cache-first
-  const isAsset = /\.(glb|obj|png|jpg|jpeg|mp3|mp4|woff2|ttf)$/i.test(url.pathname);
+  const isAsset = /\.(glb|obj|png|jpg|jpeg|mp3|mp4|woff2|ttf)$/i.test(
+    url.pathname,
+  );
 
   if (isAsset) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
-        return fetch(event.request).then((response) => {
-           // Only cache full 200 responses — skip 206 partials (video range requests)
-           if (response.status === 200) {
-             const clone = response.clone();
-             caches.open(ASSET_CACHE).then((cache) => cache.put(event.request, clone));
-           }
-           return response;
-         }).catch(() => new Response('', { status: 404, statusText: 'Offline - Asset not cached' }));
-      })
+        return fetch(event.request)
+          .then((response) => {
+            // Only cache full 200 responses — skip 206 partials (video range requests)
+            if (response.status === 200) {
+              const clone = response.clone();
+              caches
+                .open(ASSET_CACHE)
+                .then((cache) => cache.put(event.request, clone));
+            }
+            return response;
+          })
+          .catch(
+            () =>
+              new Response("", {
+                status: 404,
+                statusText: "Offline - Asset not cached",
+              }),
+          );
+      }),
     );
     return;
   }
@@ -147,19 +180,23 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (response.status === 200) {
-          const clone = response.clone();
-          caches.open(SHELL_CACHE).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => {
-        // Fallback: serve index.html for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-        return new Response('', { status: 404, statusText: 'Offline' });
-      });
+      return fetch(event.request)
+        .then((response) => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches
+              .open(SHELL_CACHE)
+              .then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback: serve index.html for navigation requests
+          if (event.request.mode === "navigate") {
+            return caches.match("./index.html");
+          }
+          return new Response("", { status: 404, statusText: "Offline" });
+        });
     })
   );
 });
