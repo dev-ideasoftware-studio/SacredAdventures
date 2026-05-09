@@ -142,7 +142,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                     dracoLoader.setDecoderPath('vendor/three/examples/jsm/libs/draco/gltf/');
                     gltfLoader.setDRACOLoader(dracoLoader);
                     
-                    gltfLoader.load("Assets/Avatar2.glb", (gltf) => {
+                    gltfLoader.load("Assets/Avatar3.glb", (gltf) => {
                       const avatar = gltf.scene;
                       // Move entire avatar asset securely into Layer 1 (Ghost to FPV, Visible to Minimap)
                       avatar.traverse((child) => {
