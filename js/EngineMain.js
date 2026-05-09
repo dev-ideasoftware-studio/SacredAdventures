@@ -581,9 +581,21 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                     window.UniverseAnu.onWorldReady(); // Engage sentient monitoring
                   }
 
+                  // Register one-time listeners here — NOT inside animate() which would duplicate them every frame
+                  window.addEventListener("message", (e) => {
+                    if (e.data && e.data.type === "REQ_WORLD_RECONFIG") {
+                      if (window.envBuilder && window._assetFactory) {
+                        console.log(
+                          "[Universe.Anu] Triggering world reconfiguration...",
+                        );
+                        window.envBuilder.rebuildWorld(window._assetFactory);
+                      }
+                    }
+                  });
+
                   // CRITICAL FIX: Only start the massive 60FPS render loop AFTER all geometries are parsed and loaded!
                   requestAnimationFrame(animate);
-                });
+                };);
             });
 
             // 8. POST PROCESSING
@@ -3875,12 +3887,25 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
               if (isMoving && !window._avIsWalking) {
                 window._avIsWalking = true;
                 window._avWalkAction.reset().play();
-                window._avWalkAction.crossFadeFrom(window._avIdleAction, 0.3, true);
+                window._avWalkAction.crossFadeFrom(
+                  window._avIdleAction,
+                  0.3,
+                  true,
+                );
                 // Mirror onto pip clone
-                if (window._avatarPipMixer && window._avWalkClip && window._avIdleClip) {
-                  const pipWalk = window._avatarPipMixer.clipAction(window._avWalkClip);
-                  const pipIdle = window._avatarPipMixer.clipAction(window._avIdleClip);
-                  pipWalk.reset().play(); pipWalk.crossFadeFrom(pipIdle, 0.3, true);
+                if (
+                  window._avatarPipMixer &&
+                  window._avWalkClip &&
+                  window._avIdleClip
+                ) {
+                  const pipWalk = window._avatarPipMixer.clipAction(
+                    window._avWalkClip,
+                  );
+                  const pipIdle = window._avatarPipMixer.clipAction(
+                    window._avIdleClip,
+                  );
+                  pipWalk.reset().play();
+                  pipWalk.crossFadeFrom(pipIdle, 0.3, true);
                 }
                 const panelFrame = document.getElementById("panel-frame");
                 if (panelFrame && panelFrame.contentWindow)
@@ -3891,12 +3916,25 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
               } else if (!isMoving && window._avIsWalking) {
                 window._avIsWalking = false;
                 window._avIdleAction.reset().play();
-                window._avIdleAction.crossFadeFrom(window._avWalkAction, 0.3, true);
+                window._avIdleAction.crossFadeFrom(
+                  window._avWalkAction,
+                  0.3,
+                  true,
+                );
                 // Mirror onto pip clone
-                if (window._avatarPipMixer && window._avIdleClip && window._avWalkClip) {
-                  const pipIdle = window._avatarPipMixer.clipAction(window._avIdleClip);
-                  const pipWalk = window._avatarPipMixer.clipAction(window._avWalkClip);
-                  pipIdle.reset().play(); pipIdle.crossFadeFrom(pipWalk, 0.3, true);
+                if (
+                  window._avatarPipMixer &&
+                  window._avIdleClip &&
+                  window._avWalkClip
+                ) {
+                  const pipIdle = window._avatarPipMixer.clipAction(
+                    window._avIdleClip,
+                  );
+                  const pipWalk = window._avatarPipMixer.clipAction(
+                    window._avWalkClip,
+                  );
+                  pipIdle.reset().play();
+                  pipIdle.crossFadeFrom(pipWalk, 0.3, true);
                 }
                 const panelFrame = document.getElementById("panel-frame");
                 if (panelFrame && panelFrame.contentWindow)
@@ -5178,17 +5216,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             );
           }
 
-          // Universe.Anu Engine Reconfiguration Listener
-          window.addEventListener("message", (e) => {
-            if (e.data && e.data.type === "REQ_WORLD_RECONFIG") {
-              if (window.envBuilder && window._assetFactory) {
-                console.log(
-                  "[Universe.Anu] Triggering world reconfiguration...",
-                );
-                window.envBuilder.rebuildWorld(window._assetFactory);
-              }
-            }
-          });
+          // Universe.Anu Engine Reconfiguration Listener — registered once at world-ready (see above), NOT here
 
           // --- COMPASS / MAP PIP RENDER ---
           const compassPip = window.pipCanvas2D;
