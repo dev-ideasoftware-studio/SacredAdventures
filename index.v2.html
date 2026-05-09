@@ -105,7 +105,6 @@
   <script type="module">
     import { Orchestrator } from './js/v2/Orchestrator.js';
     import { WorldModule }  from './js/v2/World.js';
-    import { AvatarModule } from './js/v2/AvatarModule.js';
     import { UIModule }     from './js/v2/UIModule.js';
 
     // ── Boot ────────────────────────────────────────────────────────────
@@ -114,7 +113,6 @@
 
     // ── Register all modules (inactive until activated) ──────────────────
     orc.register(WorldModule);
-    orc.register(AvatarModule);
     orc.register(UIModule);
 
     // Future modules will be registered here as they are built:
@@ -129,7 +127,6 @@
 
     // ── Phase 1: Activate World, benchmark it, then stop ────────────────
     await orc.activate('World');
-    await orc.activate('Avatar');
     await orc.activate('PanelsPIP');
 
     // ── Start render loop ────────────────────────────────────────────────
