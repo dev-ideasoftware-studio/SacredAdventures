@@ -2,29 +2,31 @@
 
 // Expose functions globally to maintain legacy compatibility while extracting from monolith
 window.setupLensflare = function(sunLight) {
-    if (typeof THREE === 'undefined' || typeof Lensflare === 'undefined') return;
-    
-    // Procedural Flare Texture (Canvas)
-    const getFlareTexture = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        const grd = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-        grd.addColorStop(0, 'rgba(255, 255, 255, 1)');
-        grd.addColorStop(0.2, 'rgba(255, 255, 200, 0.5)');
-        grd.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = grd;
-        ctx.fillRect(0, 0, 128, 128);
-        return new THREE.CanvasTexture(canvas);
-    };
+  if (typeof THREE === "undefined" || typeof Lensflare === "undefined") return;
 
-    const flare = new Lensflare();
-    flare.addElement(new LensflareElement(getFlareTexture(), 400, 0));
-    sunLight.add(flare);
+  // Procedural Flare Texture (Canvas)
+  const getFlareTexture = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    const grd = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grd.addColorStop(0, "rgba(255, 255, 255, 1)");
+    grd.addColorStop(0.2, "rgba(255, 255, 200, 0.5)");
+    grd.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(canvas);
+  };
 
-    // Expose globally so we can intercept it and physically hide it during Map passes
-    window._globalFlare = flare;
+  const flare = new Lensflare();
+  flare.addElement(new LensflareElement(getFlareTexture(), 60, 0)); // Sun disc — subtle, not a billboard
+  flare.addElement(new LensflareElement(getFlareTexture(), 20, 0.3)); // Small secondary glint
+  flare.addElement(new LensflareElement(getFlareTexture(), 10, 0.6)); // Tiny tertiary
+  sunLight.add(flare);
+
+  // Expose globally so we can intercept it and physically hide it during Map passes
+  window._globalFlare = flare;
 };
 
 window.setupOpticalMask = function() {
