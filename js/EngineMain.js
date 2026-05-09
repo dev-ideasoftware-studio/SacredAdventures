@@ -3553,10 +3553,24 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
         // function updateMovement(delta) {} // Removed
 
+        // --- CACHED DOM REFERENCES (resolved once, reused every frame) ---
+        let _cachedPanelFrame = null;
+        let _cachedCelestialDial = null;
+        let _cachedCSun = null;
+        let _cachedCMoon = null;
+
         function animate() {
           requestAnimationFrame(animate);
           const delta = Math.min(clock.getDelta(), 0.1); // Cap delta to avoid physics explosions on tab switch
           frameCount++;
+
+          // Refresh cached DOM refs every 300 frames (~5s) in case iframes reload
+          if (frameCount % 300 === 1) {
+            _cachedPanelFrame = document.getElementById("panel-frame");
+            _cachedCelestialDial = document.getElementById("celestial-dial");
+            _cachedCSun = document.getElementById("c-sun");
+            _cachedCMoon = document.getElementById("c-moon");
+          }
 
           // --- MASTER NPC INTELLIGENCE ---
           const _aiThrottle =
@@ -4316,41 +4330,35 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             }
           }
 
-          // Update UI
-          const hours = Math.floor(gameTime);
-          const minutes = Math.floor((gameTime - hours) * 60);
-          const ampm = hours >= 12 ? "PM" : "AM";
-          const h12 = hours % 12 || 12;
-
-          const timeStr = `${h12.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} ${ampm} `;
-          if (_timeEl) _timeEl.innerText = timeStr;
-
-          // Update Grandfather Clock Sun Dial Rotation
-          const celestialDial = document.getElementById("celestial-dial");
-          if (celestialDial) {
-            // Use the GAME time to drive the Sun Dial, not local PC time!
-            // 12 (Noon) = 0deg (Sun at top), 0 (Midnight) = 180deg (Moon at top)
-            const dialAngle = ((gameTime - 12) / 24) * 360;
-            celestialDial.style.transform = `rotate(${dialAngle}deg)`;
-
-            // Keep the emoji icons constantly pointing upwards despite the rotation
-            const cSun = document.getElementById("c-sun");
-            const cMoon = document.getElementById("c-moon");
-            if (cSun)
-              cSun.style.transform = `translateX(-50%) rotate(${-dialAngle}deg)`;
-            // Moon started upside-down visually so we offset its reverse rotation by +180
-            if (cMoon)
-              cMoon.style.transform = `translateX(-50%) rotate(${-dialAngle + 180}deg)`;
+          // Update UI clock (throttled — once per second is plenty)
+          if (frameCount % 60 === 0 && _timeEl) {
+            const hours = Math.floor(gameTime);
+            const minutes = Math.floor((gameTime - hours) * 60);
+            const ampm = hours >= 12 ? "PM" : "AM";
+            const h12 = hours % 12 || 12;
+            _timeEl.innerText = `${h12.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} ${ampm} `;
           }
 
-          // Constantly sync Moon Phase widget
-          window.postMessage({ type: "UPDATE_MOON", time: gameTime }, "*");
+          // Update Grandfather Clock Sun Dial Rotation (throttled — visual, no need for 60fps)
+          if (frameCount % 3 === 0 && _cachedCelestialDial) {
+            const dialAngle = ((gameTime - 12) / 24) * 360;
+            _cachedCelestialDial.style.transform = `rotate(${dialAngle}deg)`;
+            if (_cachedCSun)
+              _cachedCSun.style.transform = `translateX(-50%) rotate(${-dialAngle}deg)`;
+            if (_cachedCMoon)
+              _cachedCMoon.style.transform = `translateX(-50%) rotate(${-dialAngle + 180}deg)`;
+          }
 
-          // Sync Compass UI to the player's world camera rotation
-          const compassTurnDeg = THREE.MathUtils.radToDeg(camera.rotation.y);
-          const panelFrame = document.getElementById("panel-frame");
-          if (panelFrame && panelFrame.contentWindow) {
-            panelFrame.contentWindow.postMessage(
+          // UPDATE_MOON already sent via throttled block at frameCount % 60 below — removed duplicate here
+
+          // Sync Compass — throttled to every 6 frames (~10fps), plenty for a compass
+          if (
+            frameCount % 6 === 0 &&
+            _cachedPanelFrame &&
+            _cachedPanelFrame.contentWindow
+          ) {
+            const compassTurnDeg = THREE.MathUtils.radToDeg(camera.rotation.y);
+            _cachedPanelFrame.contentWindow.postMessage(
               { type: "CAMERA_ROTATION", deg: compassTurnDeg },
               "*",
             );
