@@ -358,7 +358,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                       }
 
                       resolve();
-                    };);
+                    });
                 });
             };
 
