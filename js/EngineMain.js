@@ -454,27 +454,100 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 
                 // CRITICAL FIX: Sequence heavy GLTF parsing after world gen
                 loadPlayerAvatar().then(() => {
-                    if (window.logSystem) window.logSystem("Initializing... Avatar Loaded", 100, 100, 100, 20);
-                    window._worldGenerationComplete = true;
-                    window._isGeneratingWorld = false;
-                    fuzzyBrain = new FuzzyBrain(renderer, null, scene);
-                    window.fuzzyBrain = fuzzyBrain; // EXPOSE TO GLOBAL
-                    fuzzyBrain.linkCamera(camera);
-                    fuzzyBrain.linkSun(window.sunLight);
-                    fuzzyBrain.linkPIP(typeof axeRenderer !== 'undefined' ? axeRenderer : null, pipCamera);
-                    if (assetFactory && assetFactory.treeMeshes) {
-                        fuzzyBrain.linkTrees(assetFactory.treeMeshes);
-                    }
+                  if (window.logSystem)
+                    window.logSystem(
+                      "Initializing... Avatar Loaded",
+                      100,
+                      100,
+                      100,
+                      20,
+                    );
+                  window._worldGenerationComplete = true;
+                  window._isGeneratingWorld = false;
+                  fuzzyBrain = new FuzzyBrain(renderer, null, scene);
+                  window.fuzzyBrain = fuzzyBrain; // EXPOSE TO GLOBAL
+                  fuzzyBrain.linkCamera(camera);
+                  fuzzyBrain.linkSun(window.sunLight);
+                  fuzzyBrain.linkPIP(
+                    typeof axeRenderer !== "undefined" ? axeRenderer : null,
+                    pipCamera,
+                  );
+                  if (assetFactory && assetFactory.treeMeshes) {
+                    fuzzyBrain.linkTrees(assetFactory.treeMeshes);
+                  }
 
-                    // Link creature systems to master AI
-                    if (window.rabbitSystem) fuzzyBrain.linkCreatureSystem('rabbits', window.rabbitSystem);
-                    if (window.birdSystem) fuzzyBrain.linkCreatureSystem('birds', window.birdSystem);
-                    
-                    checkReadyToStart();
-                    
-                    // CRITICAL FIX: Only start the massive 60FPS render loop AFTER all geometries are parsed and loaded!
-                    requestAnimationFrame(animate);
-                });
+                  // Link creature systems to master AI
+                  if (window.rabbitSystem)
+                    fuzzyBrain.linkCreatureSystem(
+                      "rabbits",
+                      window.rabbitSystem,
+                    );
+                  if (window.birdSystem)
+                    fuzzyBrain.linkCreatureSystem("birds", window.birdSystem);
+
+                  checkReadyToStart();
+
+                  // Register all core systems with Universe.Anu sentient monitor
+                  if (window.UniverseAnu) {
+                    window.UniverseAnu.registerSystem(
+                      "Renderer",
+                      () => !!renderer && renderer.info.render.frame > 0,
+                      true,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "Scene",
+                      () => !!scene && scene.children.length > 0,
+                      true,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "FuzzyBrain",
+                      () => !!window.fuzzyBrain && window.fuzzyBrain.enabled,
+                      true,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "Avatar",
+                      () => !!window._playerAvatar,
+                      true,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "MasterAI",
+                      () => !!window.masterAI,
+                      false,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "MasterNPCAI",
+                      () => !!window.MasterNPCAI,
+                      false,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "RabbitSystem",
+                      () => !!window.rabbitSystem,
+                      false,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "HerdSystem",
+                      () => !!window.herdSystem,
+                      false,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "Terrain",
+                      () => typeof window._getGroundY === "function",
+                      true,
+                    );
+                    window.UniverseAnu.registerSystem(
+                      "HexGrid",
+                      () => !!window._villageMapGrid,
+                      false,
+                    );
+                    console.log(
+                      "%c[Universe.Anu] All systems registered. World is alive.",
+                      "color: #fbc02d; font-weight: bold;",
+                    );
+                  }
+
+                  // CRITICAL FIX: Only start the massive 60FPS render loop AFTER all geometries are parsed and loaded!
+                  requestAnimationFrame(animate);
+                };);
             });
 
             // 8. POST PROCESSING
