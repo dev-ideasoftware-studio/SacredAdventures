@@ -21,18 +21,16 @@ export const UIModule = {
     this._root.id = "v2-panels-pip";
     this._root.innerHTML = `
       <style>
-        #v2-panels-pip { position: fixed; inset: 0; pointer-events: none; z-index: 9000; font-family: Nunito, system-ui, sans-serif; }
+        #v2-panels-pip { position: fixed; inset: 0; pointer-events: none; z-index: 1000; font-family: Nunito, system-ui, sans-serif; }
         #v2-side-panel {
-          position: absolute; right: 18px; top: 96px; width: 270px; height: min(70vh, 620px);
-          border: 1px solid rgba(251,192,45,0.28); border-radius: 22px;
-          background: linear-gradient(145deg, rgba(38,28,17,0.84), rgba(13,12,10,0.9));
-          box-shadow: 0 18px 55px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
-          overflow: hidden; pointer-events: auto; backdrop-filter: blur(12px);
+          position: fixed; inset: 0; width: 100%; height: 100%;
+          border: none; background: transparent; overflow: hidden;
+          pointer-events: none; z-index: 1000;
         }
-        #panel-frame { width: 100%; height: 100%; border: 0; background: transparent; }
+        #panel-frame { width: 100%; height: 100%; border: 0; background: transparent; pointer-events: none; }
         #moondial-wrapper {
           position: absolute; top: 54px; left: 30px; width: clamp(190px,22vw,280px); height: clamp(190px,22vw,280px);
-          z-index: 100; border-radius: 50%; pointer-events: auto; cursor: pointer; overflow: visible;
+          z-index: 1200; border-radius: 50%; pointer-events: auto; cursor: pointer; overflow: visible;
           background: transparent; border: 6px solid rgba(210,180,140,0.72); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .compass-outer-ring {

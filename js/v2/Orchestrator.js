@@ -319,8 +319,8 @@ export class Orchestrator {
     hud.id = 'v2-orchestrator-hud';
     hud.style.cssText = `
       position: fixed;
-      top: 14px;
-      right: 14px;
+      top: 85px;
+      right: 20px;
       z-index: 9999;
       background: linear-gradient(160deg, #1c1208 0%, #2a1c08 100%);
       border: 2px solid rgba(251,192,45,0.35);
