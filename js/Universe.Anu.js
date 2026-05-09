@@ -141,6 +141,11 @@ class UniverseAnuEngine {
   // TERRAIN — Master ground height function
   // =========================================================
   getGroundY(gx, gz) {
+    // Prefer AssetFactory's authoritative terrainY — single source of truth
+    if (window._terrainHeightCache && window._terrainHeightCache.lookup) {
+      return window._terrainHeightCache.lookup(gx, gz);
+    }
+
     const { noiseScale, noiseIntensity, clearingRadius, flatRadius, anchors } =
       this.firmament.topography;
 

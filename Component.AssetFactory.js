@@ -612,6 +612,10 @@ class AssetFactoryNextGen {
         
         const count = geo.attributes.position.count;
         const colors = [];
+
+        // --- HEIGHT CACHE — compute once, reuse for ground + haze + hex grid ---
+        // Eliminates ~75,000 redundant sin/cos calls across three mesh passes
+        const _hCache = new Float32Array(count);
         
         // Randomize height & apply smooth vertex color variation
         // MATCHES getGroundY in SacredGame.html — tipi-centric terrain
@@ -667,7 +671,9 @@ class AssetFactoryNextGen {
         for (let i = 0; i < count; i++) {
              const x = pos.getX(i);
              const z = pos.getZ(i);
-             pos.setY(i, terrainY(x, z));
+             const h = terrainY(x, z);
+             _hCache[i] = h; // Store in cache — never recalculate this vertex again
+             pos.setY(i, h);
              
              // Terrain-aware vertex colors
              const dist = Math.sqrt(x*x + z*z);
@@ -715,17 +721,17 @@ class AssetFactoryNextGen {
         const hazeGeo = new THREE.PlaneGeometry(60*4, 60*4, 128, 128);
         hazeGeo.rotateX(-Math.PI/2);
         
-        // Match terrain heights + hover slightly above
+        // Match terrain heights from cache — same geometry resolution, index maps 1:1
         const hazePos = hazeGeo.attributes.position;
         for(let i = 0; i < hazePos.count; i++) {
             const hx = hazePos.getX(i);
             const hz = hazePos.getZ(i);
-            let hY = terrainY(hx, hz) + 0.15;
+            let hY = _hCache[i] + 0.15; // Read cache — no sin/cos recalculation
             
             // Push haze down into the ground near the Tipi to prevent it clipping the Tipi's floor
             const dist = Math.sqrt(hx*hx + hz*hz);
             if (dist < 6) {
-                hY -= 0.15; // Flatten haze exactly to ground
+                hY -= 0.15;
             } else if (dist < 10) {
                 const t = (dist - 6) / 4;
                 hY -= 0.15 * (1 - t);
@@ -733,6 +739,9 @@ class AssetFactoryNextGen {
             
             hazePos.setY(i, hY);
         }
+
+        // Expose height lookup for Anu + hex grid — eliminates third redundant pass
+        window._terrainHeightCache = { data: _hCache, geo, lookup: terrainY };
         hazeGeo.computeVertexNormals();
         
         const hazeMat = new THREE.MeshBasicMaterial({
