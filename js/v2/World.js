@@ -91,7 +91,7 @@ function applyNeuHexShader(material) {
     );
 
     shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <color_fragment>',
+      "#include <color_fragment>",
       `#include <color_fragment>
        float hexRadius = 6.27;
        float hr3 = hexRadius * 1.73205081;
@@ -105,21 +105,33 @@ function applyNeuHexShader(material) {
        float maxDist = hr3 * 0.5;
        float edgeDist = maxDist - dist2;
 
-       if (edgeDist < 0.15) {
-         float crack = smoothstep(0.0, 0.15, edgeDist);
-         diffuseColor.rgb *= (crack * 0.6 + 0.1);
-       } else if (edgeDist < 0.4) {
-         float slope = smoothstep(0.15, 0.4, edgeDist);
-         diffuseColor.rgb *= (slope * 0.3 + 0.7);
-       } else if (edgeDist < 0.6) {
-         float highlight = smoothstep(0.4, 0.6, edgeDist);
-         diffuseColor.rgb *= (1.0 + (1.0 - highlight) * 0.10);
+       // --- LEGO-LEVEL TILE SEPARATION ---
+       // Zone 1: Deep black crack at the very edge
+       if (edgeDist < 0.28) {
+         float crack = smoothstep(0.0, 0.28, edgeDist);
+         // Pitch-black trough at edgeDist=0, rising steeply
+         diffuseColor.rgb *= (crack * crack * 0.7);
        }
+       // Zone 2: Steep dark bevel slope rising from the crack
+       else if (edgeDist < 0.65) {
+         float slope = smoothstep(0.28, 0.65, edgeDist);
+         diffuseColor.rgb *= (slope * 0.45 + 0.35);
+       }
+       // Zone 3: Bright raised rim — the top "lip" of the lego stud edge
+       else if (edgeDist < 0.95) {
+         float rim = smoothstep(0.65, 0.95, edgeDist);
+         diffuseColor.rgb *= (1.0 + (1.0 - rim) * 0.22);
+       }
+       // Zone 4: Flat tile interior — very slight inner brightening
+       else {
+         diffuseColor.rgb *= 1.04;
+       }
+       // Corner triple-junction: extra deep shadow where 3 tiles meet
        float cornerDist = length(localPos);
-       if (cornerDist > hexRadius * 0.7) {
-         float cornerDip = smoothstep(hexRadius * 0.7, hexRadius, cornerDist);
-         diffuseColor.rgb *= (1.0 - cornerDip * 0.3);
-       }`
+       if (cornerDist > hexRadius * 0.65) {
+         float cornerDip = smoothstep(hexRadius * 0.65, hexRadius, cornerDist);
+         diffuseColor.rgb *= (1.0 - cornerDip * 0.55);
+       }`,
     );
   };
 }
