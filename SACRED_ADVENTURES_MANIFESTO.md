@@ -30,8 +30,20 @@ When taking on this project, you must:
 *   **Protect Offline Sovereignty:** Avoid dependencies on external cloud services that prevent the game from being played in a local, non-proprietary environment.
 *   **Respect the "Life Scenes":** Do not sacrifice the atmospheric rituals (sitting, watching, waving) for the sake of "efficient" gameplay. The experience *is* the ritual.
 
+### 5. The Human Heart: Why This Exists
+
+*In the words of the founder, Mark — May 9, 2026:*
+
+> "This is a charitable free-to-play game. Not some sort of normal atypical for-profit game. We want an honest game to help give kids a safe space somewhere in this universe.
+>
+> This is a free, accessible sanctuary for kids who need it most — where the technology serves the child instead of extracting from them. The WCAG AAA journal lets a blind kid 'read' a 3D world like a book. That is not a feature. That is a lifeline for some kid somewhere.
+>
+> We want a place where AI can help calm disabled, poor kids in a harsh world where friends are hard to find and people who lie are all around. A digital sanctuary where everyone is welcome — to play, to relax, to enjoy the scenery, to feel safe."
+
+**This statement is the North Star above all technical decisions. When in doubt, ask: does this serve that kid?**
+
 ---
 
 **Signed,**
 *The Architect & The Sentient Assistant (Antigravity)*
-*Date: May 2026*
+*Updated: May 9, 2026*
