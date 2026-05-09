@@ -23,6 +23,8 @@
 
     <!-- Consolidated & Cleaned Tailwind / Custom CSS -->
     <style>
+        /* <!-- DO NOT ADD YELLOW CIRCLES --> */
+        /* This is a strict constraint to prevent any absolute positioned 50% border radius yellow elements. */
         :root {
             --book-bg: transparent;
             --page-bg: #fdfbf7;
@@ -1373,7 +1375,7 @@
 
             let formattedText = text;
             if (typeof text === 'string' && text.length > 0 && !text.startsWith('<')) {
-                formattedText = `<span class="drop-cap" aria-hidden="true">${text.charAt(0)}</span><span class="sr-only">${text.charAt(0)}</span>${text.slice(1)}`;
+                // Let CSS handle drop cap
             }
 
             let icon = 'fa-solid fa-feather-pointed';
@@ -1563,7 +1565,7 @@
                 if (block.type === 'text-box') {
                     let text = block.text;
                     if (text.length > 0) {
-                        text = `<span class="drop-cap" aria-hidden="true">${text.charAt(0)}</span><span class="sr-only">${text.charAt(0)}</span>${text.slice(1)}`;
+                        // Let CSS handle drop cap
                     }
                     return `<div class="book-text"><p>${text}</p></div>`;
                 }

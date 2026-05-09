@@ -1,13 +1,59 @@
 :root {
+    /* ============================================
+       SACRED ONES DESIGN SYSTEM
+       Consolidated from: SacredGame.css, css/main.css, css/style.css
+       ============================================ */
+
+    /* Glass / UI Tokens */
     --glass-dark: rgba(15, 23, 42, 0.85);
     --glass-border: rgba(255, 255, 255, 0.15);
+    --bg-dark: #0f1115;
+
+    /* Accent Colors */
     --accent-gold: #fbc02d;
+    --accent-gold-aaa: #fde047;
     --accent-cyan: #22d3ee;
+    --gold-500: #facc15;
+
+    /* Clay / Earth Tones */
     --clay-600: #7A3500;
     --clay-900: #7c2d12;
+    --clay-100: #fdf2ef;
+    --clay-200: #fce5df;
+    --clay-400: #B85C38;
+    --clay-500: #9C4300;
+
+    /* Sage / Nature Tones */
+    --sage-50: #f4f7f4;
+    --sage-100: #e3ebe3;
+    --sage-500: #8A9A5B;
+    --sage-600: #6e7b49;
+    --sage-700: #465926;
+    --sage-800: #3A4B20;
+    --sage-900: #1e2610;
+
+    /* Leather / Brown Tones */
     --leather-dark: #3e2723;
     --leather-med: #5d4037;
     --leather-light: #8d6e63;
+
+    /* Neutral / Cream */
+    --cream: #FDFBF7;
+    --parchment: #fcf5e5;
+    --text-primary: #e0e0e0;
+    --text-secondary: #d2b48c;
+
+    /* Midnight / Dark */
+    --midnight-800: #1e1b4b;
+    --midnight-900: #0f172a;
+
+    /* Sky */
+    --sky: #E0F2FE;
+
+    /* PIP / Compass Tokens (from main.css) */
+    --pip-border: rgba(255, 255, 255, 0.4);
+    --pip-size: 200px;
+    --journal-width: 350px;
 
     /* DEFAULT DARK (LEATHER) THEME TOKENS */
     --theme-main-bg: rgba(43, 26, 21, 0.95);
@@ -19,6 +65,18 @@
     --theme-ring-glow: inset 0 1px 5px rgba(255, 255, 255, 0.2), inset 0 -2px 8px rgba(0, 0, 0, 0.8), 0 4px 15px rgba(0, 0, 0, 0.8);
     --theme-blur: blur(12px);
     --theme-sidebar-bg: rgba(43, 26, 21, 0.95);
+
+    /* Book / Journal Tokens */
+    --book-cover: #5D4037;
+    --book-page: #fcfbf9;
+    --book-spine: #3e2723;
+    --text-ink: #2c1810;
+    --radius-std: 24px;
+    --font-book: 'Crimson Text', serif;
+
+    /* Container Tokens */
+    --container-bg: rgba(30, 38, 26, 0.95);
+    --edge: rgba(253, 251, 247, 0.15);
 }
 
 body.theme-light {
@@ -1123,21 +1181,8 @@ body.reading-mode #mobile-controls {
     }
 }
 
-/* --- MERGED BOOK & CARD STYLES --- */
-:root {
-    /* Book: Leather/Hide Look */
-    --book-cover: #5D4037;
-    /* Saddle Brown */
-    --book-page: #fcfbf9;
-    /* Off White */
-    --book-spine: #3e2723;
-    /* Dark Leather */
-    --text-ink: #2c1810;
-    /* Dark Brown Ink */
-
-    --radius-std: 24px;
-    --font-book: 'Crimson Text', serif;
-}
+/* --- BOOK & CARD STYLES --- */
+/* Note: Book tokens now consolidated in main :root above */
 
 /* --- 3D BOOK ENGINE --- */
 #book-wrapper {
@@ -1453,13 +1498,13 @@ body.reading-mode #mobile-controls {
     font-family: 'Cinzel', serif;
 }
 
-.drop-cap {
-    float: left;
+.book-text p:first-of-type::first-letter {
     font-size: 3rem;
     line-height: 0.8;
     margin-right: 8px;
     font-family: 'Cinzel', serif;
     color: #5D4037;
+    float: left;
 }
 
 /* NEW ADDITIONS FOR TASK */
