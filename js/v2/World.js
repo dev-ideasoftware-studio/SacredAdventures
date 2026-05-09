@@ -137,107 +137,147 @@ function applyNeuHexShader(material) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PROCEDURAL GRASS TEXTURE — North American plains / forestland floor
-// Generated once on a canvas, uploaded to GPU as a CanvasTexture.
-// No external files needed.
+// WORLD PHYSICS ENGINE
+// Permanent foundation — every module that loads after World can use this.
+// Exposed as window.WorldPhysics so NPCs, animals, projectiles etc. can
+// register bodies and get free gravity + terrain collision.
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildGrassTexture() {
-  const SIZE = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = SIZE;
-  const ctx = canvas.getContext('2d');
+const GRAVITY       = -18.0;  // m/s²  (slightly heavier than Earth 9.8 for game feel)
+const PLAYER_HEIGHT = 1.7;    // eye height above ground in metres
+const JUMP_IMPULSE  = 7.0;    // m/s upward velocity on jump
+const EPSILON       = 0.08;   // surface epsilon — considered "grounded" within this
 
-  // --- Base: dark rich soil ---
-  ctx.fillStyle = '#3b2f1a';
-  ctx.fillRect(0, 0, SIZE, SIZE);
-
-  // --- Soil variation patches ---
-  const rnd = (min, max) => min + Math.random() * (max - min);
-  for (let i = 0; i < 180; i++) {
-    const x = rnd(0, SIZE), y = rnd(0, SIZE);
-    const r = rnd(6, 28);
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, `rgba(${~~rnd(50,80)},${~~rnd(38,55)},${~~rnd(15,28)},0.55)`);
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+/**
+ * PhysicsBody — attach to any entity that needs gravity + terrain collision.
+ * @param {THREE.Vector3} position  — live reference to the entity's position
+ * @param {number}        eyeOffset — height above ground (0 for objects resting on terrain)
+ */
+class PhysicsBody {
+  constructor(position, eyeOffset = 0) {
+    this.position = position; // direct reference — mutated in place
+    this.eyeOffset = eyeOffset;
+    this.velocity = new THREE.Vector3(); // current velocity m/s
+    this.grounded = false;
+    this.mass = 1.0;
+    this._normal = new THREE.Vector3(0, 1, 0); // terrain normal at feet
   }
 
-  // --- Layer 1: dense short grass base (dark forest green) ---
-  for (let i = 0; i < 3200; i++) {
-    const x = rnd(0, SIZE), y = rnd(0, SIZE);
-    const len = rnd(4, 14);
-    const angle = rnd(-0.3, 0.3) - Math.PI / 2;
-    const g = ~~rnd(72, 115), rb = ~~rnd(28, 52);
-    ctx.strokeStyle = `rgba(${rb},${g},${rb - 10},${rnd(0.55, 0.9)})`;
-    ctx.lineWidth = rnd(0.8, 2.0);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
-    ctx.stroke();
+  /** Sample terrain slope normal from 4 neighbour points */
+  _sampleNormal(getY) {
+    const D = 0.4;
+    const x = this.position.x,
+      z = this.position.z;
+    const L = getY(x - D, z),
+      R = getY(x + D, z);
+    const B = getY(x, z - D),
+      F = getY(x, z + D);
+    this._normal.set(L - R, 2 * D, B - F).normalize();
   }
 
-  // --- Layer 2: mid grass blades (medium green, slight lean) ---
-  for (let i = 0; i < 2200; i++) {
-    const x = rnd(0, SIZE), y = rnd(0, SIZE);
-    const len = rnd(8, 22);
-    const lean = rnd(-0.5, 0.5);
-    const angle = -Math.PI / 2 + lean;
-    const g = ~~rnd(100, 145), r2 = ~~rnd(30, 60);
-    ctx.strokeStyle = `rgba(${r2},${g},${~~rnd(18,40)},${rnd(0.5, 0.85)})`;
-    ctx.lineWidth = rnd(0.7, 1.6);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    // Slight curve — quadratic bezier for natural blade shape
-    ctx.quadraticCurveTo(
-      x + Math.cos(angle) * len * 0.5 + lean * 4,
-      y + Math.sin(angle) * len * 0.5,
-      x + Math.cos(angle) * len + lean * 8,
-      y + Math.sin(angle) * len
-    );
-    ctx.stroke();
+  /**
+   * Integrate one physics step.
+   * @param {number}   delta   — frame dt (seconds)
+   * @param {function} getY    — terrainY(x,z) lookup
+   */
+  step(delta, getY) {
+    this._sampleNormal(getY);
+    const groundY = getY(this.position.x, this.position.z) + this.eyeOffset;
+
+    if (this.position.y > groundY + EPSILON) {
+      // Airborne — apply gravity
+      this.velocity.y += GRAVITY * delta;
+      this.grounded = false;
+    } else {
+      // On the ground — project horizontal velocity onto slope, cancel vertical
+      this.grounded = true;
+      if (this.velocity.y < 0) this.velocity.y = 0;
+      // Clamp to surface
+      this.position.y = groundY;
+      // Slope friction — reduce horizontal speed slightly on steep inclines
+      const slopeFactor = Math.max(0.6, this._normal.y); // 1.0 = flat, < 1 = steep
+      this.velocity.x *= Math.pow(slopeFactor, delta * 4);
+      this.velocity.z *= Math.pow(slopeFactor, delta * 4);
+    }
+
+    // Integrate position
+    this.position.x += this.velocity.x * delta;
+    this.position.y += this.velocity.y * delta;
+    this.position.z += this.velocity.z * delta;
+
+    // Hard floor clamp (prevents tunnelling on fast falls)
+    const floor = getY(this.position.x, this.position.z) + this.eyeOffset;
+    if (this.position.y < floor) {
+      this.position.y = floor;
+      if (this.velocity.y < 0) this.velocity.y = 0;
+      this.grounded = true;
+    }
   }
 
-  // --- Layer 3: tall dry straw / dead grass (yellows and ochres) ---
-  for (let i = 0; i < 900; i++) {
-    const x = rnd(0, SIZE), y = rnd(0, SIZE);
-    const len = rnd(14, 34);
-    const lean = rnd(-0.7, 0.7);
-    const angle = -Math.PI / 2 + lean;
-    const r3 = ~~rnd(160, 210), g3 = ~~rnd(140, 185), b3 = ~~rnd(20, 55);
-    ctx.strokeStyle = `rgba(${r3},${g3},${b3},${rnd(0.35, 0.7)})`;
-    ctx.lineWidth = rnd(0.6, 1.3);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(
-      x + Math.cos(angle) * len * 0.5 + lean * 6,
-      y + Math.sin(angle) * len * 0.5,
-      x + Math.cos(angle) * len + lean * 12,
-      y + Math.sin(angle) * len
-    );
-    ctx.stroke();
+  /** Apply an instantaneous impulse (e.g. jump) */
+  applyImpulse(vx, vy, vz) {
+    this.velocity.x += vx;
+    this.velocity.y += vy;
+    this.velocity.z += vz;
   }
-
-  // --- Layer 4: dark moss / shadow clumps ---
-  for (let i = 0; i < 60; i++) {
-    const x = rnd(0, SIZE), y = rnd(0, SIZE);
-    const r4 = rnd(3, 12);
-    ctx.fillStyle = `rgba(${~~rnd(20,42)},${~~rnd(38,62)},${~~rnd(12,28)},${rnd(0.2,0.5)})`;
-    ctx.beginPath(); ctx.arc(x, y, r4, 0, Math.PI * 2); ctx.fill();
-  }
-
-  // --- Layer 5: tiny pebbles / stones ---
-  for (let i = 0; i < 40; i++) {
-    const x = rnd(0, SIZE), y = rnd(0, SIZE);
-    const r5 = rnd(1.5, 4);
-    ctx.fillStyle = `rgba(${~~rnd(110,160)},${~~rnd(100,145)},${~~rnd(80,120)},${rnd(0.3,0.6)})`;
-    ctx.beginPath(); ctx.arc(x, y, r5, 0, Math.PI * 2); ctx.fill();
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
 }
+
+/**
+ * WorldPhysics — singleton registry.
+ * Future modules call: WorldPhysics.createBody(position, eyeOffset)
+ */
+const WorldPhysics = {
+  _bodies: [],
+  _getY: null, // set by World.load()
+
+  /** Called once by World.load() to inject the terrain height function */
+  _init(getY) {
+    this._getY = getY;
+    this._bodies = [];
+  },
+
+  /** Register a new physics body. Returns the body for the caller to hold. */
+  createBody(position, eyeOffset = 0) {
+    const body = new PhysicsBody(position, eyeOffset);
+    this._bodies.push(body);
+    return body;
+  },
+
+  /** Remove a body (call on NPC death / module unload) */
+  removeBody(body) {
+    this._bodies = this._bodies.filter((b) => b !== body);
+  },
+
+  /** Step all registered bodies. Called once per frame by World.update(). */
+  stepAll(delta) {
+    if (!this._getY) return;
+    for (const body of this._bodies) body.step(delta, this._getY);
+  },
+
+  /** Convenience: get ground height + slope normal at world position (x, z) */
+  getGroundY(x, z) {
+    return this._getY ? this._getY(x, z) : 0;
+  },
+
+  /** Sample terrain surface normal at (x, z) */
+  getGroundNormal(x, z, out = new THREE.Vector3()) {
+    if (!this._getY) return out.set(0, 1, 0);
+    const D = 0.5;
+    const L = this._getY(x - D, z),
+      R = this._getY(x + D, z);
+    const B = this._getY(x, z - D),
+      F = this._getY(x, z + D);
+    return out.set(L - R, 2 * D, B - F).normalize();
+  },
+
+  /** True if position is within EPSILON of the terrain surface */
+  isGrounded(position) {
+    if (!this._getY) return true;
+    return position.y <= this._getY(position.x, position.z) + EPSILON + 0.05;
+  },
+};
+
+// Expose globally so future modules (NPCs, animals, etc.) can use it
+window.WorldPhysics = WorldPhysics;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WORLD MODULE
@@ -256,6 +296,7 @@ export const WorldModule = {
   // Pre-allocated vectors — NEVER recreated inside update()
   _moveDir: new THREE.Vector3(),
   _fwd: new THREE.Vector3(),
+  _playerBody: null, // PhysicsBody for the camera/player
 
   // ──────────────────────────────────────────────────────────────────────────
   load(scene, camera) {
@@ -346,15 +387,18 @@ export const WorldModule = {
     geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geo.computeVertexNormals(); // called ONCE here, never in update()
 
-    // ── Procedural plains grass texture ──────────────────────────────────
-    const grassTex = _buildGrassTexture();
+    // ── Real grass texture (seamless, from game assets) ───────────────────
+    const loader = new THREE.TextureLoader();
+    const grassTex = loader.load(
+      "./SacredOnes.1/assets/landscape/grass_seamless.png",
+    );
     grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
     grassTex.repeat.set(24, 24); // tile density across the map
 
     // Neumorphic hex material (MeshStandard so shader hooks work)
     const groundMat = new THREE.MeshStandardMaterial({
       map: grassTex,
-      vertexColors: true,  // vertex colours tint on top of texture
+      vertexColors: true, // vertex colours tint on top of texture
       roughness: 0.92,
       metalness: 0.0,
     });
@@ -406,20 +450,29 @@ export const WorldModule = {
     scene.add(ring);
     this._objects.push(ring);
 
-    // ── Player start ──────────────────────────────────────────────────────
-    camera.position.set(0, terrainY(0, 0) + 1.7, 8);
+    // ── Physics engine ────────────────────────────────────────────────────
+    WorldPhysics._init(terrainY);
+
+    // ── Player physics body ───────────────────────────────────────────────
+    camera.position.set(0, terrainY(0, 0) + PLAYER_HEIGHT, 8);
     camera.rotation.order = "YXZ"; // set ONCE — never reset in update()
+    this._playerBody = WorldPhysics.createBody(camera.position, PLAYER_HEIGHT);
 
     // ── Input ─────────────────────────────────────────────────────────────
     this._setupInput();
 
     console.log(
-      "%c[World] ✅ Phase 1 loaded — terrain + neumorphic hex shader, sky, sun, haze",
+      "%c[World] ✅ Phase 1 loaded — terrain + physics + neumorphic hex shader",
       "color:#a5d6a7;font-weight:bold;",
     );
     console.log(
-      "[World] WASD = move | Left/Right arrows = turn | Up/Down arrows = move forward/back",
+      "[World] WASD/arrows = move | SPACE = jump | window.WorldPhysics = physics API",
     );
+    console.log("[World] Physics:", {
+      gravity: GRAVITY,
+      jumpImpulse: JUMP_IMPULSE,
+      playerHeight: PLAYER_HEIGHT,
+    });
   },
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -428,34 +481,48 @@ export const WorldModule = {
   update(delta, _frameCount, _scene, camera) {
     const k = this._keys;
     const speed = 7.0;
-    const turnRate = 1.8; // radians/sec
+    const turnRate = 1.8;
     const dir = this._moveDir;
+    const body = this._playerBody;
 
-    // Arrow left/right = TURN (yaw), not strafe
+    // ── Turn ──────────────────────────────────────────────────────────────
     if (k["arrowleft"]) this._yaw += turnRate * delta;
     if (k["arrowright"]) this._yaw -= turnRate * delta;
 
+    // ── Horizontal movement intention ─────────────────────────────────────
     dir.set(0, 0, 0);
     if (k["w"] || k["arrowup"]) dir.z -= 1;
     if (k["s"] || k["arrowdown"]) dir.z += 1;
-    if (k["a"]) dir.x -= 1; // A/D still strafe
+    if (k["a"]) dir.x -= 1;
     if (k["d"]) dir.x += 1;
 
     if (dir.lengthSq() > 0) {
       dir.normalize();
+      // Rotate direction by yaw — no allocations
       const cos = Math.cos(this._yaw),
         sin = Math.sin(this._yaw);
       const wx = dir.x * cos + dir.z * sin;
       const wz = -dir.x * sin + dir.z * cos;
-      camera.position.x += wx * speed * delta;
-      camera.position.z += wz * speed * delta;
+      // Feed into physics body velocity (horizontal only)
+      body.velocity.x = wx * speed;
+      body.velocity.z = wz * speed;
+    } else {
+      // No input — friction stop
+      body.velocity.x *= 0.82;
+      body.velocity.z *= 0.82;
     }
 
-    // Ground clamping
-    camera.position.y =
-      this._terrainY(camera.position.x, camera.position.z) + 1.7;
+    // ── Jump (Space) — only if grounded ───────────────────────────────────
+    if (k[" "] && body.grounded) {
+      body.applyImpulse(0, JUMP_IMPULSE, 0);
+      body.grounded = false;
+    }
 
-    // Apply look rotation (rotation.order already 'YXZ' from load)
+    // ── Step all physics bodies (gravity, terrain collision, slope) ────────
+    WorldPhysics.stepAll(delta);
+    // Note: camera.position IS body.position (same reference) — auto-updated
+
+    // ── Apply look rotation ───────────────────────────────────────────────
     camera.rotation.y = this._yaw;
     camera.rotation.x = this._pitch;
   },
