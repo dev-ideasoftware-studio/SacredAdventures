@@ -547,7 +547,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
                   // CRITICAL FIX: Only start the massive 60FPS render loop AFTER all geometries are parsed and loaded!
                   requestAnimationFrame(animate);
-                };);
+                });
             });
 
             // 8. POST PROCESSING
