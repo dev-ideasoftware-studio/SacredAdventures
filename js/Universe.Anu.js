@@ -449,7 +449,8 @@ class UniverseAnuEngine {
       this._runHealthCheck();
       this._updateMood();
     }, 30000);
-    this._runHealthCheck(); // Immediate check on world ready
+    // Delay first check by 5s — renderer needs a few frames to tick its counter
+    setTimeout(() => this._runHealthCheck(), 5000);
   }
 
   _runHealthCheck() {

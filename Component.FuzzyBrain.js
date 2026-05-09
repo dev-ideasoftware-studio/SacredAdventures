@@ -21,14 +21,14 @@ class FuzzyBrain {
       this.currentFPS = 60;
       this.smoothFPS = 60;
       this.frameCount = 0;
-      this.startupImmunity = 180; // Ignore first 3 seconds — world gen causes false critical readings
+      this.startupImmunity = 360; // Ignore first 6 seconds — NPC+herd spawning causes late spikes
 
       // --- QUALITY LEVELS ---
       // 0 = Ultra (everything on), 1 = High, 2 = Medium, 3 = Low, 4 = Survival
       this.qualityLevel = 0;
       this.qualityNames = ["ULTRA", "HIGH", "MEDIUM", "LOW", "SURVIVAL"];
       this.cooldownFrames = 0; // Prevent rapid quality changes
-      this.cooldownDuration = 120; // Wait 2 seconds between quality changes
+      this.cooldownDuration = 180; // Wait 3 seconds between quality changes
 
       // --- CONTROLLED SYSTEMS ---
       this.shadows = true;
