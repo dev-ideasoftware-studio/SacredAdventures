@@ -8,74 +8,80 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v8";
+const CACHE_VERSION = "v9";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 
 // Shell files: small, critical for boot — precached on install
 const SHELL_FILES = [
-  './',
-  './index.html',
-  './SacredGame.Panel.html',
-  './Component.NewJournal.html',
-  './Component.MoonDial.html',
-  './SacredGame.css',
-  './manifest.json',
+  "./",
+  "./index.html",
+  "./SacredGame.Panel.html",
+  "./Component.NewJournal.html",
+  "./Component.MoonDial.html",
+  "./SacredGame.css",
+  "./manifest.json",
 
   // Core JS
-  './js/EngineMain.js',
-  './js/EnvironmentBuilder.js',
-  './js/MasterAI.js',
-  './js/Component.PostProcessing.js',
-  './Component.AssetFactory.js',
-  './Component.FuzzyBrain.js',
-  './Component.ThreeIcons.js',
-  './Component.Assets.js',
+  "./js/EngineMain.js",
+  "./js/EnvironmentBuilder.js",
+  "./js/MasterAI.js",
+  "./js/MasterNPCAI.js",
+  "./js/GameObjectsDatabase.js",
+  "./js/Universe.Anu.js",
+  "./js/Component.PostProcessing.js",
+  "./js/Component.HerdSystem.js",
+  "./js/Component.RabbitSystem.js",
+  "./Component.AssetFactory.js",
+  "./Component.FuzzyBrain.js",
+  "./Component.ThreeIcons.js",
+  "./Component.Assets.js",
+  "./Component.LoadingModal.html",
 
   // Data JS
-  './Assets/AxeData.js',
-  './js/Data.Fish.js',
+  "./Assets/AxeData.js",
+  "./js/Data.Fish.js",
 
   // Small Assets (UI)
-  './Assets/SacredOnes.Avatar.A.png',
+  "./Assets/SacredOnes.Avatar.A.png",
 
   // Vendor: Three.js
-  './vendor/three/three.module.js',
-  './vendor/three/three.r128.min.js',
-  './vendor/three/examples/jsm/loaders/GLTFLoader.js',
-  './vendor/three/examples/jsm/loaders/OBJLoader.js',
-  './vendor/three/examples/jsm/loaders/MTLLoader.js',
-  './vendor/three/examples/jsm/loaders/RGBELoader.js',
-  './vendor/three/examples/jsm/utils/SkeletonUtils.js',
-  './vendor/three/examples/jsm/utils/BufferGeometryUtils.js',
-  './vendor/three/examples/jsm/postprocessing/EffectComposer.js',
-  './vendor/three/examples/jsm/postprocessing/RenderPass.js',
-  './vendor/three/examples/jsm/postprocessing/ShaderPass.js',
-  './vendor/three/examples/jsm/postprocessing/BokehPass.js',
-  './vendor/three/examples/jsm/postprocessing/MaskPass.js',
-  './vendor/three/examples/jsm/postprocessing/Pass.js',
-  './vendor/three/examples/jsm/shaders/BokehShader.js',
-  './vendor/three/examples/jsm/shaders/CopyShader.js',
-  './vendor/three/examples/jsm/objects/Lensflare.js',
+  "./vendor/three/three.module.js",
+  "./vendor/three/three.r128.min.js",
+  "./vendor/three/examples/jsm/loaders/GLTFLoader.js",
+  "./vendor/three/examples/jsm/loaders/OBJLoader.js",
+  "./vendor/three/examples/jsm/loaders/MTLLoader.js",
+  "./vendor/three/examples/jsm/loaders/RGBELoader.js",
+  "./vendor/three/examples/jsm/utils/SkeletonUtils.js",
+  "./vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+  "./vendor/three/examples/jsm/postprocessing/EffectComposer.js",
+  "./vendor/three/examples/jsm/postprocessing/RenderPass.js",
+  "./vendor/three/examples/jsm/postprocessing/ShaderPass.js",
+  "./vendor/three/examples/jsm/postprocessing/BokehPass.js",
+  "./vendor/three/examples/jsm/postprocessing/MaskPass.js",
+  "./vendor/three/examples/jsm/postprocessing/Pass.js",
+  "./vendor/three/examples/jsm/shaders/BokehShader.js",
+  "./vendor/three/examples/jsm/shaders/CopyShader.js",
+  "./vendor/three/examples/jsm/objects/Lensflare.js",
 
   // Vendor: FontAwesome
-  './vendor/fa/all.min.css',
-  './vendor/fa/webfonts/fa-solid-900.woff2',
-  './vendor/fa/webfonts/fa-regular-400.woff2',
-  './vendor/fa/webfonts/fa-brands-400.woff2',
+  "./vendor/fa/all.min.css",
+  "./vendor/fa/webfonts/fa-solid-900.woff2",
+  "./vendor/fa/webfonts/fa-regular-400.woff2",
+  "./vendor/fa/webfonts/fa-brands-400.woff2",
 
   // Vendor: Fonts
-  './vendor/fonts/google-fonts.css',
+  "./vendor/fonts/google-fonts.css",
 
   // Vendor: Other
-  './vendor/lucide/lucide.min.js',
-  './vendor/textures/cream-paper.png',
+  "./vendor/lucide/lucide.min.js",
+  "./vendor/textures/cream-paper.png",
 
   // Small assets
-  './Assets/pwa-icon.png',
-  './Assets/Journal.Cover.png',
-  './Assets/birdsong.mp3',
-  './Assets/AnimatedOpening.mp4',
+  "./Assets/pwa-icon.png",
+  "./Assets/Journal.Cover.png",
+  "./Assets/birdsong.mp3",
+  "./Assets/AnimatedOpening.mp4",
 ];
 
 // Install: precache shell files

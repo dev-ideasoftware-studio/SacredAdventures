@@ -2,7 +2,7 @@
   "name": "Sacred Ones",
   "short_name": "SacredOnes",
   "description": "A sacred journey through an ancient valley — a 3D adventure game.",
-  "start_url": "./SacredGame.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
