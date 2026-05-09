@@ -9,7 +9,7 @@ export const UIModule = {
   _compassTextLayer: null,
   _compassMarkers: [],
   _seasonRing: null,
-  _moonFrame: null,
+  _phaseSlots: [],
   _gameTime: 8,
   _season: "day",
   _onMessage: null,
@@ -31,7 +31,7 @@ export const UIModule = {
         }
         #panel-frame { width: 100%; height: 100%; border: 0; background: transparent; }
         #moondial-wrapper {
-          position: absolute; top: 50px; left: 20px; width: clamp(200px,25vw,300px); height: clamp(200px,25vw,300px);
+          position: absolute; top: 54px; left: 30px; width: clamp(190px,22vw,280px); height: clamp(190px,22vw,280px);
           z-index: 100; border-radius: 50%; pointer-events: auto; cursor: pointer; overflow: visible;
           background: transparent; border: 6px solid rgba(210,180,140,0.72); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
@@ -84,16 +84,26 @@ export const UIModule = {
           position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; z-index: -1; pointer-events: none;
           box-shadow: inset 0 0 30px rgba(0,0,0,0.2), inset 0 0 60px rgba(255,255,255,0.5);
         }
-        #moondial-frame {
-          position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px);
-          border: none; border-radius: 50%; pointer-events: none; z-index: 2; background: transparent;
+        .moon-phase-layer {
+          position: absolute; inset: -2px; border-radius: 50%; pointer-events: none; z-index: 4;
+        }
+        .moon-phase-dot {
+          position: absolute; width: 11%; height: 11%; border-radius: 50%;
+          transform: translate(-50%, -50%);
+          background: radial-gradient(circle at 35% 32%, #f4f4ef 0 38%, #10192f 40% 100%);
+          border: 2px solid rgba(93,64,55,0.95);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.62), inset 0 0 6px rgba(255,255,255,0.28);
+        }
+        .moon-phase-dot.active {
+          border-color: #fbc02d;
+          box-shadow: 0 0 0 3px rgba(251,192,45,0.85), 0 0 14px rgba(251,192,45,0.7), inset 0 0 6px rgba(255,255,255,0.35);
         }
         #pip-click-overlay {
           position: absolute; top: 10%; left: 10%; width: 80%; height: 80%; border-radius: 50%;
           z-index: 50; cursor: pointer; background: transparent; pointer-events: auto;
         }
         #v2-distance-pill {
-          position: absolute; left: 28px; top: calc(50px + clamp(200px,25vw,300px) + 38px); padding: 8px 12px; border-radius: 999px;
+          position: absolute; left: 38px; top: calc(54px + clamp(190px,22vw,280px) + 34px); padding: 8px 12px; border-radius: 999px;
           color: #f7d774; background: rgba(15,12,9,0.72); border: 1px solid rgba(251,192,45,0.24);
           font-size: 12px; letter-spacing: 0.4px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
         }
@@ -111,6 +121,16 @@ export const UIModule = {
         <div class="season-bracket"></div>
         <canvas id="pipCanvas" width="512" height="512"></canvas>
         <div class="pip-vignette"></div>
+        <div class="moon-phase-layer">
+          <div class="moon-phase-dot" data-phase="0" style="top:9%;left:50%;"></div>
+          <div class="moon-phase-dot" data-phase="1" style="top:20%;left:80%;"></div>
+          <div class="moon-phase-dot" data-phase="2" style="top:50%;left:91%;"></div>
+          <div class="moon-phase-dot" data-phase="3" style="top:80%;left:80%;"></div>
+          <div class="moon-phase-dot" data-phase="4" style="top:91%;left:50%;"></div>
+          <div class="moon-phase-dot" data-phase="5" style="top:80%;left:20%;"></div>
+          <div class="moon-phase-dot" data-phase="6" style="top:50%;left:9%;"></div>
+          <div class="moon-phase-dot" data-phase="7" style="top:20%;left:20%;"></div>
+        </div>
         <div class="season-outer-ring" id="season-ring">
           <div class="season-outer-bg"></div>
           <div class="season-anchor" style="transform: rotate(0deg);"><div class="season-btn-wrap" style="transform: rotate(0deg);"><span class="season-btn" data-season="night" title="Starlight Night">🌙</span></div></div>
@@ -119,7 +139,6 @@ export const UIModule = {
           <div class="season-anchor" style="transform: rotate(216deg);"><div class="season-btn-wrap" style="transform: rotate(-216deg);"><span class="season-btn" data-season="dusk" title="Amber Dusk">🔅</span></div></div>
           <div class="season-anchor" style="transform: rotate(288deg);"><div class="season-btn-wrap" style="transform: rotate(-288deg);"><span class="season-btn" data-season="gray" title="Overcast Gray">☁️</span></div></div>
         </div>
-        <iframe id="moondial-frame" src="./Component.MoonDial.html" allowtransparency="true"></iframe>
         <div id="pip-click-overlay"></div>
       </div>
     `;
@@ -131,7 +150,7 @@ export const UIModule = {
     this._compassTextLayer = this._root.querySelector(".compass-text-layer");
     this._compassMarkers = [...this._root.querySelectorAll(".compass-marker")];
     this._seasonRing = this._root.querySelector("#season-ring");
-    this._moonFrame = this._root.querySelector("#moondial-frame");
+    this._phaseSlots = [...this._root.querySelectorAll(".moon-phase-dot")];
     this._root.querySelectorAll(".season-btn").forEach((btn) => {
       btn.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -148,6 +167,11 @@ export const UIModule = {
       if (msg.type === "SET_SEASON") this._setSeason(msg.season);
     };
     window.addEventListener("message", this._onMessage);
+    const hint = document.getElementById("v2-hint");
+    if (hint) hint.style.display = "none";
+    this._panelFrame.addEventListener("load", () =>
+      this._hideEmbeddedPanelPIP(),
+    );
     window.pipCanvas2D = this._pipCanvas;
     window.pipCtx = this._pipCtx;
     console.log(
@@ -183,11 +207,13 @@ export const UIModule = {
     this._compassTextLayer = null;
     this._compassMarkers = [];
     this._seasonRing = null;
-    this._moonFrame = null;
+    this._phaseSlots = [];
     if (this._onMessage) window.removeEventListener("message", this._onMessage);
     this._onMessage = null;
     if (window.pipCanvas2D) window.pipCanvas2D = null;
     if (window.pipCtx) window.pipCtx = null;
+    const hint = document.getElementById("v2-hint");
+    if (hint) hint.style.display = "";
     console.log("[PanelsPIP] ⏹ Unloaded.");
   },
 
@@ -226,27 +252,24 @@ export const UIModule = {
 
   _syncMoonDial() {
     const phase = Math.floor((this._gameTime / 24) * 8) % 8;
-    const label = [
-      "New Moon",
-      "Waxing Crescent",
-      "First Quarter",
-      "Waxing Gibbous",
-      "Full Moon",
-      "Waning Gibbous",
-      "Last Quarter",
-      "Waning Crescent",
-    ][phase];
-    const frameWindow = this._moonFrame && this._moonFrame.contentWindow;
-    if (frameWindow) {
-      frameWindow.postMessage(
-        { type: "UPDATE_MOON", time: this._gameTime, phase, label },
-        "*",
-      );
+    for (const dot of this._phaseSlots) {
+      dot.classList.toggle("active", Number(dot.dataset.phase) === phase);
     }
     if (this._seasonRing && this._season === "day") {
       const dialAngle = ((this._gameTime - 12) / 24) * 360;
       this._seasonRing.style.transform = `rotate(${dialAngle}deg)`;
     }
+  },
+
+  _hideEmbeddedPanelPIP() {
+    try {
+      const doc = this._panelFrame && this._panelFrame.contentDocument;
+      if (!doc || doc.getElementById("v2-hide-embedded-pip")) return;
+      const style = doc.createElement("style");
+      style.id = "v2-hide-embedded-pip";
+      style.textContent = "#moondial-wrapper{display:none!important;}";
+      doc.head.appendChild(style);
+    } catch (_err) {}
   },
 
   _drawPIP(player) {
