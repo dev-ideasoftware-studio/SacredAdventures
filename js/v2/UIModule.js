@@ -9,7 +9,12 @@ export const UIModule = {
   _compassTextLayer: null,
   _compassMarkers: [],
   _seasonRing: null,
+  _moonFrame: null,
+  _gameTime: 8,
+  _season: "day",
+  _onMessage: null,
   _lastPipDraw: 0,
+  _lastMoonUpdate: 0,
 
   load() {
     this._root = document.createElement("div");
@@ -126,13 +131,11 @@ export const UIModule = {
     this._compassTextLayer = this._root.querySelector(".compass-text-layer");
     this._compassMarkers = [...this._root.querySelectorAll(".compass-marker")];
     this._seasonRing = this._root.querySelector("#season-ring");
+    this._moonFrame = this._root.querySelector("#moondial-frame");
     this._root.querySelectorAll(".season-btn").forEach((btn) => {
       btn.addEventListener("click", (event) => {
         event.stopPropagation();
-        window.postMessage(
-          { type: "SET_SEASON", season: btn.dataset.season },
-          "*",
-        );
+        this._setSeason(btn.dataset.season);
       });
     });
     this._root
@@ -140,6 +143,11 @@ export const UIModule = {
       ?.addEventListener("click", () => {
         window.postMessage({ type: "TOGGLE_VIEW_MODE" }, "*");
       });
+    this._onMessage = (event) => {
+      const msg = event.data || {};
+      if (msg.type === "SET_SEASON") this._setSeason(msg.season);
+    };
+    window.addEventListener("message", this._onMessage);
     window.pipCanvas2D = this._pipCanvas;
     window.pipCtx = this._pipCtx;
     console.log(
@@ -151,10 +159,15 @@ export const UIModule = {
   update(_delta, frameCount) {
     const player = window.WorldPlayer;
     if (!player) return;
+    this._gameTime = (this._gameTime + _delta * 0.035) % 24;
     const pill = this._root && this._root.querySelector("#v2-distance-pill");
     if (pill && frameCount % 10 === 0)
       pill.textContent = `${Math.round(player.distanceFeet)} ft travelled`;
     if (frameCount % 3 === 0) this._syncCompass(player.yaw);
+    if (frameCount - this._lastMoonUpdate >= 30) {
+      this._lastMoonUpdate = frameCount;
+      this._syncMoonDial();
+    }
     if (frameCount - this._lastPipDraw < 4) return;
     this._lastPipDraw = frameCount;
     this._drawPIP(player);
@@ -166,6 +179,13 @@ export const UIModule = {
     this._panelFrame = null;
     this._pipCanvas = null;
     this._pipCtx = null;
+    this._compassRing = null;
+    this._compassTextLayer = null;
+    this._compassMarkers = [];
+    this._seasonRing = null;
+    this._moonFrame = null;
+    if (this._onMessage) window.removeEventListener("message", this._onMessage);
+    this._onMessage = null;
     if (window.pipCanvas2D) window.pipCanvas2D = null;
     if (window.pipCtx) window.pipCtx = null;
     console.log("[PanelsPIP] ⏹ Unloaded.");
@@ -183,6 +203,49 @@ export const UIModule = {
       } else {
         marker.style.transform = `translateX(-50%) rotate(${-deg}deg)`;
       }
+    }
+  },
+
+  _setSeason(season) {
+    const times = { night: 0, dawn: 6, day: 12, dusk: 18, gray: 15 };
+    if (!Object.prototype.hasOwnProperty.call(times, season)) return;
+    this._season = season;
+    this._gameTime = times[season];
+    const rotation = { night: 0, dawn: -72, day: -144, dusk: -216, gray: -288 }[
+      season
+    ];
+    if (this._seasonRing)
+      this._seasonRing.style.transform = `rotate(${rotation}deg)`;
+    window.dispatchEvent(
+      new CustomEvent("v2-season-change", {
+        detail: { season, time: this._gameTime },
+      }),
+    );
+    this._syncMoonDial();
+  },
+
+  _syncMoonDial() {
+    const phase = Math.floor((this._gameTime / 24) * 8) % 8;
+    const label = [
+      "New Moon",
+      "Waxing Crescent",
+      "First Quarter",
+      "Waxing Gibbous",
+      "Full Moon",
+      "Waning Gibbous",
+      "Last Quarter",
+      "Waning Crescent",
+    ][phase];
+    const frameWindow = this._moonFrame && this._moonFrame.contentWindow;
+    if (frameWindow) {
+      frameWindow.postMessage(
+        { type: "UPDATE_MOON", time: this._gameTime, phase, label },
+        "*",
+      );
+    }
+    if (this._seasonRing && this._season === "day") {
+      const dialAngle = ((this._gameTime - 12) / 24) * 360;
+      this._seasonRing.style.transform = `rotate(${dialAngle}deg)`;
     }
   },
 
