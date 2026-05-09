@@ -11,13 +11,13 @@ class FuzzyBrain {
       this.scene = scene;
 
       // --- TARGETS ---
-      this.targetFPS = config.targetFPS || 55;
-      this.criticalFPS = config.criticalFPS || 20;
-      this.recoveryFPS = config.recoveryFPS || 45;
+      this.targetFPS = config.targetFPS || 60;
+      this.criticalFPS = config.criticalFPS || 22;
+      this.recoveryFPS = config.recoveryFPS || 52;
 
       // --- FPS TRACKING ---
       this.frameTimes = []; // Rolling window of frame deltas
-      this.windowSize = 90; // Average over 1.5 seconds to smooth world-gen spikes
+      this.windowSize = 60; // Average over 1 second — tighter window reacts faster to freed Journal headroom
       this.currentFPS = 60;
       this.smoothFPS = 60;
       this.frameCount = 0;
@@ -28,7 +28,7 @@ class FuzzyBrain {
       this.qualityLevel = 0;
       this.qualityNames = ["ULTRA", "HIGH", "MEDIUM", "LOW", "SURVIVAL"];
       this.cooldownFrames = 0; // Prevent rapid quality changes
-      this.cooldownDuration = 180; // Wait 3 seconds between quality changes
+      this.cooldownDuration = 120; // Wait 2 seconds between quality changes — Journal GL freed, can climb faster
 
       // --- CONTROLLED SYSTEMS ---
       this.shadows = true;
@@ -266,25 +266,24 @@ class FuzzyBrain {
                 this.shadowCullRadius = 150;
                 this.applyPIP(true, { logbook: 4, compass: 1, avatar: 2, axe: 1 });
                 this.applyFog(0.003);
-                this.applyPostProcessing(true); // Full shaders
-                if(window.SacredState && window.SacredState.bokehPass) window.SacredState.bokehPass.enabled = true;
-                // SUPERSAMPLING IN ULTRA REMOVED: Capped at 1.0 to prevent 30fps lock.
-                this.applyResolutionScaling(maxPR); 
+                this.applyPostProcessing(true);
+                // Bokeh only in ULTRA when FPS is truly stable — Journal GL kill gives us this headroom
+                if(window.SacredState && window.SacredState.bokehPass) window.SacredState.bokehPass.enabled = (this.smoothFPS >= 58);
+                this.applyResolutionScaling(maxPR);
                 this.maxVisibleTrees = 200;
                 this.aiThrottle = 1;
                 break;
                 
-            case 1: // HIGH (55-60 FPS)
+            case 1: // HIGH (52-60 FPS)
                 this.applyShadows(true, 1024);
-                this.shadowCullRadius = 80;    // Pull in shadows slightly
-                this.applyPIP(true, { logbook: 4, compass: 2, avatar: 3, axe: 2 });        // Throttled to prevent GPU/CPU drawImage stall
-                this.applyFog(0.004); // subtle increase
-                this.applyPostProcessing(true); // Full shaders
-                // Disabling BokehPass in HIGH mode drastically rescues FPS while maintaining other shaders
+                this.shadowCullRadius = 100;
+                this.applyPIP(true, { logbook: 3, compass: 2, avatar: 2, axe: 2 });
+                this.applyFog(0.004);
+                this.applyPostProcessing(true);
                 if(window.SacredState && window.SacredState.bokehPass) window.SacredState.bokehPass.enabled = false;
-                this.applyResolutionScaling(maxPR); // Full Res
-                this.maxVisibleTrees = 150;
-                this.aiThrottle = 1;           // Never throttle AI below 60fps visually
+                this.applyResolutionScaling(maxPR);
+                this.maxVisibleTrees = 160;
+                this.aiThrottle = 1;
                 break;
                 
             case 2: // MEDIUM (45-55 FPS)

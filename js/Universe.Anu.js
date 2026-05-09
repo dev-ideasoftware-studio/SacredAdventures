@@ -532,26 +532,32 @@ class UniverseAnuEngine {
         );
         break;
       case "TREES":
-        if (window.fuzzyBrain) window.fuzzyBrain.maxVisibleTrees = 0;
-        if (window.fuzzyBrain)
-          window.fuzzyBrain.updateTreeLOD && window.fuzzyBrain.updateTreeLOD();
+        if (window.fuzzyBrain) {
+          window.fuzzyBrain.maxVisibleTrees = 0;
+          if (window.fuzzyBrain.treeMeshes) {
+            window.fuzzyBrain.treeMeshes.forEach((t) => {
+              if (t.isMesh || t.isGroup || t.isObject3D) t.visible = false;
+            });
+          }
+        }
         console.warn(
           `%c[Universe.Anu] 🔴 Trees disabled`,
           "color:#ff9800;font-weight:bold;",
         );
         break;
       case "SHADOWS":
+        if (window.sunLight) window.sunLight.castShadow = false;
         if (window.fuzzyBrain) {
           window.fuzzyBrain.shadows = false;
-          window.fuzzyBrain._applyShadows && window.fuzzyBrain._applyShadows();
+          window.fuzzyBrain.applyShadows(false);
         }
-        if (window.sunLight) window.sunLight.castShadow = false;
         console.warn(
           `%c[Universe.Anu] 🔴 Shadows disabled`,
           "color:#ff9800;font-weight:bold;",
         );
         break;
       case "NPCS":
+        if (window.npcMaster) window.npcMaster._paused = true;
         if (window.MasterNPCAI) window.MasterNPCAI._paused = true;
         console.warn(
           `%c[Universe.Anu] 🔴 NPCs disabled`,
@@ -559,7 +565,10 @@ class UniverseAnuEngine {
         );
         break;
       case "ANIMALS":
-        if (window.masterAI) window.masterAI.state = "PAUSED";
+        window._anuAnimalsDisabled = true;
+        if (window.masterAI) window.masterAI._anuPaused = true;
+        if (window.herdSystem) window.herdSystem._anuPaused = true;
+        if (window.rabbitSystem) window.rabbitSystem._anuPaused = true;
         console.warn(
           `%c[Universe.Anu] 🔴 Animals disabled`,
           "color:#ff9800;font-weight:bold;",
@@ -632,6 +641,7 @@ class UniverseAnuEngine {
         );
         break;
       case "NPCS":
+        if (window.npcMaster) window.npcMaster._paused = false;
         if (window.MasterNPCAI) window.MasterNPCAI._paused = false;
         console.log(
           `%c[Universe.Anu] ✅ NPCs enabled`,
@@ -639,7 +649,10 @@ class UniverseAnuEngine {
         );
         break;
       case "ANIMALS":
-        if (window.masterAI) window.masterAI.state = "ACTIVE";
+        window._anuAnimalsDisabled = false;
+        if (window.masterAI) window.masterAI._anuPaused = false;
+        if (window.herdSystem) window.herdSystem._anuPaused = false;
+        if (window.rabbitSystem) window.rabbitSystem._anuPaused = false;
         console.log(
           `%c[Universe.Anu] ✅ Animals enabled`,
           "color:#4caf50;font-weight:bold;",

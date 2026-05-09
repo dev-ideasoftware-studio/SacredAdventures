@@ -925,54 +925,6 @@
             animation: btnClickBloom 0.4s ease-out;
         }
 
-        /* --- LOGBOOK WRAPPER --- */
-        #book-wrapper {
-            position: fixed !important;
-            top: auto !important;
-            bottom: 25px !important; /* Calibrated 10px buffer from screen considering flex scale */
-            left: 50% !important;
-            transform: translateX(-50%) scale(var(--book-scale, 1)) !important;
-            transform-origin: 50% 100%;
-            /* Fix backend rendering bounds to a vast high-res constraint immune to CSS clamps */
-            width: var(--book-w, 1400px) !important;
-            max-width: none !important;
-            height: var(--book-h, 900px) !important;
-            max-height: none !important;
-            z-index: var(--z-book);
-            perspective: 1500px;
-            pointer-events: none;
-            /* Sub-elements handle events */
-            visibility: visible;
-            opacity: 1;
-            transition: opacity 0.1s ease, transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), visibility 0.1s !important;
-        }
-
-        #book-wrapper iframe {
-            pointer-events: auto;
-            border-radius: 12px;
-            position: absolute;
-            top: -50px;
-            left: -50px;
-            width: calc(100% + 100px);
-            height: calc(100% + 100px);
-        }
-
-        #book-wrapper.book-hidden {
-            opacity: 0 !important;
-            visibility: hidden !important;
-            pointer-events: none !important;
-            transform: translateX(-50%) scale(0.9) translateY(40px) !important;
-        }
-
-        #book-wrapper.closing {
-            opacity: 0 !important;
-            visibility: hidden !important;
-            pointer-events: none !important;
-            /* Scale down drastically and suck straight down into the UI dock */
-            transform: scale(0.1) translateY(80vh) !important;
-            transition: opacity 0.4s ease-in, transform 0.5s ease-in, visibility 0.5s !important;
-        }
-
         /* --- UI REMAINS VISIBLE WHEN LOGBOOK OPEN --- */
         body.logbook-active #left-panel,
         body.logbook-active #right-panel,
@@ -984,7 +936,6 @@
         /* --- PIN INPUT BAR WHEN LOGBOOK OPEN --- */
         body.logbook-active #center-stack {
             z-index: 10005 !important;
-            /* Above logbook's 10000 */
         }
 
         @keyframes inputPulse {
@@ -1026,6 +977,21 @@
             animation: inputPulse 2s infinite ease-in-out;
         }
 
+        /* Mobile: hide controls when logbook active (journal frame is fullscreen) */
+        @media (max-width: 860px) {
+            body.logbook-active #left-panel,
+            body.logbook-active #right-panel,
+            body.logbook-active .panel-toggle-btn,
+            body.logbook-active .mobile-only-btn,
+            body.logbook-active .thumb-btn,
+            body.logbook-active #mobile-thumb-zone {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+            }
+        }
+
         #left-panel,
         #right-panel,
         #adventure-row-top,
@@ -1034,51 +1000,6 @@
             transition: opacity 0.5s ease, transform 0.5s ease, bottom 0.5s ease;
         }
 
-        .drag-handle {
-            position: absolute;
-            top: -20px;
-            left: 0;
-            right: 0;
-            height: 20px;
-            background: transparent;
-            cursor: grab;
-            z-index: 10;
-            pointer-events: auto;
-            display: flex;
-            justify-content: center;
-        }
-
-        .drag-handle:hover::after {
-            content: '';
-            width: 60px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            margin-top: 8px;
-        }
-
-        .resize-handle {
-            position: absolute;
-            bottom: -10px;
-            right: -10px;
-            width: 30px;
-            height: 30px;
-            background: transparent;
-            cursor: nwse-resize;
-            z-index: 20;
-            pointer-events: auto;
-        }
-
-        .resize-handle::after {
-            content: '';
-            position: absolute;
-            bottom: 12px;
-            right: 12px;
-            width: 10px;
-            height: 10px;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-            border-right: 2px solid rgba(255, 255, 255, 0.3);
-        }
 
         /* --- RESPONSIVE / MOBILE --- */
 
@@ -1133,23 +1054,6 @@
 
             /* Side Panel Artifacts & Resources adjustments removed to maintain desktop scale */
 
-            #book-wrapper {
-                /* Tablet: journal fills viewport - iframe handles its own buffers */
-                top: 0 !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                transform: none !important;
-            }
-
-            #book-wrapper iframe {
-                top: 0;
-                left: 0;
-                width: 100% !important;
-                height: 100% !important;
-            }
         }
 
         /* ============================================
@@ -1191,26 +1095,6 @@
                 display: none !important; /* HIDE MOVEMENT BUTTONS ON MOBILE */
             }
 
-            #book-wrapper {
-                /* On mobile, journal fills viewport - iframe manages its own 10px buffers */
-                top: 0 !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                transform: none !important;
-                transform-origin: center center;
-            }
-
-            #book-wrapper iframe {
-                top: 0;
-                left: 0;
-                width: 100% !important;
-                height: 100% !important;
-                border-radius: 0;
-            }
-
             /* --- SIDE PANEL MOBILE TOGGLE --- */
             #left-panel {
                 transition: transform 0.3s ease-in-out !important;
@@ -1232,19 +1116,6 @@
             
             .mobile-only-btn {
                 display: flex !important;
-            }
-            
-            /* --- HIDE MOBILE CONTROLS WHEN LOGBOOK IS OPEN --- */
-            body.logbook-active #left-panel,
-            body.logbook-active #right-panel,
-            body.logbook-active .panel-toggle-btn,
-            body.logbook-active .mobile-only-btn,
-            body.logbook-active .thumb-btn,
-            body.logbook-active #mobile-thumb-zone {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-                pointer-events: none !important;
             }
             
             .thumb-btn {
@@ -1696,7 +1567,7 @@
                     <!-- Inner Thumb Button Style Frame -->
                     <div id="avatar-pip-target" style="width: 46px; height: 46px; border-radius: 50%; overflow: hidden; box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; background: transparent;">
                         <!-- Static fallback — hidden once WebGL avatar render is active -->
-                        <img id="avatar-static-fallback" src="Assets/SacredOnes.Avatar.A.png" alt="Yellow Butterfly Girl" class="avatar-img" style="opacity:0.3;">
+                        <img id="avatar-static-fallback" src="Assets/SacredOnes.Avatar.A.png" alt="Yellow Butterfly Girl" class="avatar-img" style="opacity:1;width:100%;height:100%;object-fit:cover;border-radius:50%;">
                     </div>
                     <div class="role-label" aria-hidden="true">Gatherer</div>
                 </div>
@@ -1899,13 +1770,6 @@
         </div>
 
 
-        <!-- LOGBOOK WRAPPER -->
-        <div id="book-wrapper" class="book-hidden">
-            <div class="drag-handle" id="book-drag-handle" title="Drag to move"></div>
-            <div class="resize-handle" id="book-resize-handle" title="Drag to resize"></div>
-            <iframe id="logbookFrame" src="Component.NewJournal.html?v=9" allowtransparency="true" title="Logbook"
-                style="border:none;"></iframe>
-        </div>
 
         <!-- LOG -->
         <div id="event-log" style="position: fixed; top: 10px; left: 10px; z-index: 10000; color: white;"></div>
@@ -1921,8 +1785,6 @@
         </div>
     </div> <!-- END UI-LAYER -->
 
-    <!-- PROXY 3D OVERLAYS FOR IFRAMES -->
-    <div id="icon-logbook-axe" style="position: fixed; pointer-events: none; z-index: 6010; display: none;"></div>
 
     <script>
         window.uiIcons = {};
@@ -1957,9 +1819,6 @@
         window.addEventListener('DOMContentLoaded', () => {
             window.documentReady = true;
 
-            // Logbook Drag/Resize Logic
-            initLogbookInteraction();
-
             // Action Layout
             updateActionLayout();
 
@@ -1985,67 +1844,12 @@
     </script>
 
     <script>
-        // --- MASTER AI HARDWARE SCALING ---
-        // Prevents the Logbook from awkwardly squashing its interior flex elements by
-        // instead rendering at a magnificent 1400x900 aspect-ratio and GPU-scaling the whole 
-        // iframe element down to fit exactly into any browser window size.
-        function applyMasterScaling() {
-            const h = window.innerHeight;
-            const w = window.innerWidth;
-            
-            // Viewport Tracker
-            const vpDisp = document.getElementById('panel-viewport-display');
-            if (vpDisp) vpDisp.innerText = `Viewport: ${w}x${h}`;
-
-            const docEl = document.documentElement;
-            let scale = 1;
-
-            // Treat iPad (w <= 1100) or Portrait displays explicitly as Single-Page mode
-            const isPortrait = h > w || w <= 1100;
-
-            // The iframe bleeds ±50px beyond the book-wrapper, so the effective rendered width 
-            // is --book-w + 100px. We must account for this when computing scale.
-            const iframeBleed = 100;
-
-            if (isPortrait) {
-                // Portrait Device Bounds (Reduced height by 30% to fit squarer displays)
-                const bookW = 900;
-                const bookH = 910;
-                docEl.style.setProperty('--book-w', bookW + 'px');
-                docEl.style.setProperty('--book-h', bookH + 'px');
-                
-                // Ensure effective width (bookW + iframeBleed) * scale fits within viewport - margins
-                const marginW = 40; // 20px clearance on each side
-                const marginH = 100;
-                scale = Math.min((w - marginW) / (bookW + iframeBleed), (h - marginH) / bookH);
-                scale = Math.min(1.0, Math.max(0.15, scale));
-
-                const lbFrame = document.getElementById("logbookFrame");
-                if (lbFrame && lbFrame.contentWindow) lbFrame.contentWindow.postMessage({ type: "LOGBOOK_ASPECT", aspect: "portrait" }, "*");
-            } else {
-                // Landscape Wide Device Bounds
-                const bookW = 2412;
-                const bookH = 900;
-                docEl.style.setProperty('--book-w', bookW + 'px');
-                docEl.style.setProperty('--book-h', bookH + 'px');
-                
-                // Ensure effective width (bookW + iframeBleed) * scale fits within viewport - panel margins
-                // 120px total clearance (60px each side) ensures no overlap with side panels
-                const marginW = 120;
-                const marginH = 120;
-                scale = Math.min((w - marginW) / (bookW + iframeBleed), (h - marginH) / bookH);
-                scale = Math.min(1.0, Math.max(0.15, scale)); // Never exceed 1.0x — no artificial boost
-
-                const lbFrame = document.getElementById("logbookFrame");
-                if (lbFrame && lbFrame.contentWindow) lbFrame.contentWindow.postMessage({ type: "LOGBOOK_ASPECT", aspect: "landscape" }, "*");
-            }
-
-            docEl.style.setProperty('--book-scale', scale);
-        }
-        window.addEventListener('resize', applyMasterScaling);
-        applyMasterScaling();
-
         lucide.createIcons();
+
+        // journal-frame lives in index.html (parent), not in this Panel document
+        function getJournalFrame() {
+            try { return window.parent.document.getElementById('journal-frame'); } catch(e) { return null; }
+        }
 
         // --- STATE MANAGMENT ---
         const inventory = {
@@ -2150,11 +1954,8 @@
             if (!msg) return;
 
             if (msg.type === 'CLOSE_LOGBOOK') {
-                const book = document.getElementById('book-wrapper');
-                // Prevent toggle if it's already hidden or in the process of closing
-                if (book && !book.classList.contains('book-hidden') && !book.classList.contains('closing')) {
-                    window.toggleLogbook();
-                }
+                const jf = getJournalFrame();
+                if (jf && jf.contentWindow) jf.contentWindow.postMessage({ type: 'CLOSE_LOGBOOK' }, '*');
             }
 
             if (msg.type === 'CAMERA_ROTATION') {
@@ -2172,11 +1973,7 @@
             }
 
             if (msg.type === 'START_AUTO_WALK') {
-                const book = document.getElementById('book-wrapper');
-                if (book && !book.classList.contains('book-hidden') && !book.classList.contains('closing')) {
-                    window.toggleLogbook();
-                }
-                // Tell the engine to begin the walk to the Tipi using the Cinematic logic
+                window.toggleLogbook();
                 window.parent.postMessage({ type: 'REQ_START_AUTO_WALK' }, '*');
             }
 
@@ -2185,12 +1982,40 @@
                 window.parent.postMessage(msg, '*');
             }
 
-            if (msg.type === 'HIDE_QUEST_BTN') {
+            if (msg.type === 'JOURNAL_OPENED') {
+                document.body.classList.add('logbook-active');
+                const guides = document.getElementById('guides-container');
+                if (guides) guides.style.display = 'none';
+                const btn = document.getElementById('card-log-btn');
+                const sideBtn = document.getElementById('btn-journal');
+                if (btn) btn.classList.add('lightbloom');
+                if (sideBtn) sideBtn.classList.add('active-glow');
+                window.parent.postMessage({ type: 'OPEN_LOGBOOK' }, '*');
+            }
+            if (msg.type === 'JOURNAL_CLOSED') {
+                document.body.classList.remove('logbook-active');
+                document.body.classList.remove('hud-hidden');
+                const guides = document.getElementById('guides-container');
+                if (guides) guides.style.display = '';
+                const btn = document.getElementById('card-log-btn');
+                const sideBtn = document.getElementById('btn-journal');
+                if (btn) btn.classList.remove('lightbloom');
+                if (sideBtn) sideBtn.classList.remove('active-glow');
+                toggleUiFocus(false);
+                const leftP = document.getElementById('left-panel');
+                const rightP = document.getElementById('right-panel');
+                const topP = document.getElementById('adventure-row-top');
+                if (leftP) { leftP.style.opacity = ''; leftP.style.pointerEvents = ''; leftP.style.display = ''; leftP.style.visibility = ''; }
+                if (rightP) { rightP.style.opacity = ''; rightP.style.pointerEvents = ''; rightP.style.display = ''; rightP.style.visibility = ''; }
+                if (topP) { topP.style.opacity = ''; topP.style.pointerEvents = ''; topP.style.display = ''; topP.style.visibility = ''; }
+                window.parent.focus();
+            }
+
+            if (msg.type === 'GLOW_ITEMS_BUTTON') {
                 const btn = document.getElementById('card-quest-btn');
                 if (btn) btn.style.display = 'none';
             }
 
-            // 1. RESOURCE UPDATES
             if (msg.type === 'ADD_RESOURCE') {
                 const item = msg.item;
                 const amt = msg.amount || 1;
@@ -2253,27 +2078,16 @@
             }
 
             if (msg.type === 'TAKE_AXE') {
-                log("Wow! You got an Axe!"); // Triggers central log text and aria-reader
-
-                // Immediately close the logbook so the cinematic plays unhindered
-                const bookWrapper = document.getElementById('book-wrapper');
-                if (bookWrapper && !bookWrapper.classList.contains('book-hidden')) {
-                    window.toggleLogbook();
-                }
-
-                // Forward TAKE_AXE to the main game engine (SacredGame.html) to trigger the cinematic camera sequence
+                log('Wow! You got an Axe!');
+                window.toggleLogbook();
                 window.parent.postMessage(msg, '*');
-
-                // Add base Wood to bag to demonstrate functionality + activate HUD flash
                 if (inventory.hasOwnProperty('wood')) {
                     inventory['wood'] += 1;
                     updateResourceDisplay();
                     triggerResFlash('wood');
                 }
-
-                // Ensure floating quest button is hidden as quest finishes
                 const questBtn = document.getElementById('card-quest-btn');
-                window._questBtnHidden = true; // Set flag so proximity doesn't re-show it
+                window._questBtnHidden = true;
                 if (questBtn) questBtn.style.setProperty('display', 'none', 'important');
             }
             
@@ -2298,65 +2112,10 @@
                 document.body.classList.remove('hud-hidden');
             }
 
-            if (msg.type === 'FORCE_OPEN_JOURNAL') {
-                const book = document.getElementById('book-wrapper');
-                if (book && book.classList.contains('book-hidden')) {
-                    window.toggleLogbook();
-                }
-                setTimeout(() => {
-                    const bookFrame = document.querySelector('#book-wrapper iframe');
-                    if (bookFrame && bookFrame.contentWindow) {
-                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: msg.pageIdx || 2 }, '*');
-                    }
-                }, 300);
-            }
-
-            if (msg.type === 'FORCE_OPEN_FIND_HER') {
-                const book = document.getElementById('book-wrapper');
-                if (book && book.classList.contains('book-hidden')) {
-                    window.toggleLogbook();
-                }
-                setTimeout(() => {
-                    const bookFrame = document.querySelector('#book-wrapper iframe');
-                    if (bookFrame && bookFrame.contentWindow) {
-                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: 2 }, '*');
-                    }
-                }, 300);
-            }
-
-            if (msg.type === 'FORCE_OPEN_FOUND_HER') {
-                const book = document.getElementById('book-wrapper');
-                if (book && book.classList.contains('book-hidden')) {
-                    window.toggleLogbook();
-                }
-                setTimeout(() => {
-                    const bookFrame = document.querySelector('#book-wrapper iframe');
-                    if (bookFrame && bookFrame.contentWindow) {
-                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: 4 }, '*');
-                    }
-                }, 300);
-            }
-
-            if (msg.type === 'OPEN_LOGBOOK_TO_INVENTORY') {
-                const book = document.getElementById('book-wrapper');
-                if (book && book.classList.contains('book-hidden')) {
-                    window.toggleLogbook();
-                }
-                setTimeout(() => {
-                    const bookFrame = document.querySelector('#book-wrapper iframe');
-                    if (bookFrame && bookFrame.contentWindow) {
-                        bookFrame.contentWindow.postMessage({ type: 'SWITCH_TAB', tab: 'inventory', latest: false }, '*');
-                    }
-                }, 400); // Wait slightly longer for flip anim to resolve
-            }
-
-            if (msg.type === 'SYNC_LOGBOOK_PAGE') {
-                setTimeout(() => {
-                    const bookFrame = document.querySelector('#book-wrapper iframe');
-                    if (bookFrame && bookFrame.contentWindow) {
-                        bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: msg.pageIdx }, '*');
-                    }
-                }, 300); // Wait for the Logbook frame to receive 'DO_OPEN_FLIP' and render the UI first
+            if (['FORCE_OPEN_JOURNAL','FORCE_OPEN_FIND_HER','FORCE_OPEN_FOUND_HER',
+                 'OPEN_LOGBOOK_TO_INVENTORY','SYNC_LOGBOOK_PAGE'].includes(msg.type)) {
+                const jf = getJournalFrame();
+                if (jf && jf.contentWindow) jf.contentWindow.postMessage(msg, '*');
             }
 
             if (msg.type === 'TOGGLE_MAP_VIEW') {
@@ -2394,26 +2153,18 @@
                 toggleLogbook();
             }
             if (msg.type === 'START_LOGBOOK_ANIMATION') {
-                // Only open if currently closed AND the user hasn't already manually closed it
-                const book = document.getElementById('book-wrapper');
-                if (book && book.classList.contains('book-hidden') && !window._hasUserToggledLogbook) {
-                    toggleLogbook();
-                }
+                if (!window._hasUserToggledLogbook) toggleLogbook();
             }
             if (msg.type === 'REQ_CHOP_NEAREST_TREE' || msg.type === 'REQ_AUTOWALK_TO_ENTITY') {
                 window.parent.postMessage(msg, '*');
             }
             if (msg.type === 'COMPLETE_AXE_GATHER') {
-                const bookFrame = document.getElementById('book-frame');
-                if (bookFrame && bookFrame.contentWindow) {
-                    bookFrame.contentWindow.postMessage(msg, '*');
-                }
+                const jf = getJournalFrame();
+                if (jf && jf.contentWindow) jf.contentWindow.postMessage(msg, '*');
             }
-            if (msg.type === 'NLP_RESPONSE' || msg.type === 'SHOW_BUILDING_INFO' || msg.type === 'YB_GREETING_ARRIVED' || msg.type === 'BHG_GREETING_ARRIVED') {
-                const journalFrame = document.getElementById('logbookFrame');
-                if (journalFrame && journalFrame.contentWindow) {
-                    journalFrame.contentWindow.postMessage(msg, '*');
-                }
+            if (['NLP_RESPONSE','SHOW_BUILDING_INFO','YB_GREETING_ARRIVED','BHG_GREETING_ARRIVED'].includes(msg.type)) {
+                const jf = getJournalFrame();
+                if (jf && jf.contentWindow) jf.contentWindow.postMessage(msg, '*');
             }
         });
 
@@ -2471,11 +2222,10 @@
         const GameEngine = {
             processInput: (text) => {
                 const lower = text.toLowerCase().trim();
-                const bookFrame = document.querySelector('#book-wrapper iframe');
+                const bookFrame = getJournalFrame();
 
                 if (lower === '?' || lower === 'help') {
-                    const wrapper = document.getElementById('book-wrapper');
-                    if (wrapper && wrapper.classList.contains('book-hidden')) toggleLogbook();
+                    toggleLogbook();
                     if (bookFrame && bookFrame.contentWindow) {
                         bookFrame.contentWindow.postMessage({ type: 'SWITCH_TAB', tab: 'log' }, '*');
                         setTimeout(() => bookFrame.contentWindow.postMessage({ type: 'GO_TO_PAGE', pageIdx: 0 }, '*'), 50);
@@ -2487,14 +2237,12 @@
                 const intentStr = lower.replace(/[^a-z ]/g, "").trim();
                 if (['start game', 'begin', 'start', 'play'].includes(intentStr)) {
                     window.parent.postMessage({ type: 'REQ_START_AUTO_WALK' }, '*');
-                    const wrapper = document.getElementById('book-wrapper');
-                    if (wrapper && !wrapper.classList.contains('book-hidden')) toggleLogbook();
+                    toggleLogbook();
                     return;
                 }
 
                 if (lower === 'inventory' || lower === 'items') {
-                    const wrapper = document.getElementById('book-wrapper');
-                    if (wrapper && wrapper.classList.contains('book-hidden')) toggleLogbook();
+                    toggleLogbook();
                     if (bookFrame && bookFrame.contentWindow) {
                         bookFrame.contentWindow.postMessage({ type: 'SWITCH_TAB', tab: 'inventory' }, '*');
                     }
@@ -2582,10 +2330,7 @@
                 }
 
                 // Ensure Book is Open
-                const wrapper = document.getElementById('book-wrapper');
-                if (wrapper && wrapper.classList.contains('book-hidden')) {
-                    toggleLogbook();
-                }
+                toggleLogbook();
             }
         };
         // Expose to child iframes (Component.Logbook.html)
@@ -2602,112 +2347,27 @@
             if (e.data && e.data.type === 'VOLUME_CHANGE') {
                 sendVolume(e.data.volume / 100);
             }
+            if (e.data && e.data.type === 'KEY_FORWARD') {
+                window.parent.postMessage(e.data, '*');
+            }
             if (e.data && e.data.type === 'WORLD_CMD') {
                 window.parent.postMessage(e.data, '*');
             }
             if (e.data && e.data.type === 'ADJUST_JOURNAL_HEIGHT') {
-                const book = document.getElementById('book-wrapper');
-                if (book) {
-                    // Min 68vh, max 90vh
-                    const baseHeightVmin = window.innerWidth <= 860 ? '61.8%' : '68vh'; 
-                    if (e.data.reset) {
-                        book.style.height = baseHeightVmin;
-                    } else {
-                        // Let's assume e.data.height is the exact pixel height needed.
-                        // But we don't want to overflow the window.
-                        const maxH = window.innerHeight * 0.85;
-                        const finalH = Math.min(e.data.height + 40, maxH); // +40px padding
-                        book.style.height = finalH + 'px';
-                    }
-                }
+                const jf = getJournalFrame();
+                if (jf && jf.contentWindow) jf.contentWindow.postMessage(e.data, '*');
             }
-            if (e.data && (e.data.type === 'REQ_ALIGN_TIPI')) {
-                const book = document.getElementById('book-wrapper');
-                if (book && (book.classList.contains('closing') || book.classList.contains('book-hidden'))) {
-                    // console.log("[PIP_TRACE_PANEL] BLOCKED REQ_ALIGN_TIPI: Book is hidden or closing.");
-                    e.data.type = 'REQ_HIDE_TIPI';
-                    window.parent.postMessage(e.data, '*');
-                    return;
-                }
-                // console.log("[PIP_TRACE_PANEL] FORWARDING REQ_ALIGN_TIPI", JSON.stringify(e.data.rect));
-
-                const logbookIframe = document.getElementById('logbookFrame');
-                if (logbookIframe && e.data.rect) {
-                    const lbRect = logbookIframe.getBoundingClientRect();
-                    const scaleStr = getComputedStyle(document.documentElement).getPropertyValue('--book-scale');
-                    const actualScale = parseFloat(scaleStr) || 1.0;
-                    
-                    e.data.rect.x = lbRect.left + (e.data.rect.x * actualScale);
-                    e.data.rect.y = lbRect.top + (e.data.rect.y * actualScale);
-                    e.data.rect.width = e.data.rect.width * actualScale;
-                    e.data.rect.height = e.data.rect.height * actualScale;
-                }
-                window.parent.postMessage(e.data, '*');
-            }
-
-            if (e.data && (e.data.type === 'REQ_ALIGN_AXE')) {
-                const axeOverlay = document.getElementById('icon-logbook-axe');
-                const logbookIframe = document.getElementById('logbookFrame');
-                const bookWrapper = document.getElementById('book-wrapper');
-                
-                if (bookWrapper && bookWrapper.classList.contains('closing')) {
-                    if (axeOverlay) axeOverlay.style.display = 'none';
-                    e.data.type = 'REQ_HIDE_AXE';
-                    window.parent.postMessage(e.data, '*');
-                    return;
-                }
-
-                if (logbookIframe && e.data.rect) {
-                    const lbRect = logbookIframe.getBoundingClientRect();
-                    const scaleStr = getComputedStyle(document.documentElement).getPropertyValue('--book-scale');
-                    const actualScale = parseFloat(scaleStr) || 1.0;
-                    
-                    const screenX = lbRect.left + (e.data.rect.x * actualScale);
-                    const screenY = lbRect.top + (e.data.rect.y * actualScale);
-                    const screenW = e.data.rect.width * actualScale;
-                    const screenH = e.data.rect.height * actualScale;
-
-                    if (axeOverlay) {
-                        axeOverlay.style.display = 'block';
-                        axeOverlay.style.left = screenX + 'px';
-                        axeOverlay.style.top = screenY + 'px';
-                        axeOverlay.style.width = screenW + 'px';
-                        axeOverlay.style.height = screenH + 'px';
-                    }
-
-                    // Forward the transformed viewport coordinates to the master 3D Engine Frame
-                    e.data.rect.x = screenX;
-                    e.data.rect.y = screenY;
-                    e.data.rect.width = screenW;
-                    e.data.rect.height = screenH;
-                }
-                window.parent.postMessage(e.data, '*');
-            }
-
-            if (e.data && (e.data.type === 'REQ_HIDE_AXE')) {
-                const axeOverlay = document.getElementById('icon-logbook-axe');
-                if (axeOverlay) axeOverlay.style.display = 'none';
-                window.parent.postMessage(e.data, '*');
-            }
-
-            if (e.data && e.data.type === 'REQ_HIDE_TIPI') {
-                window.parent.postMessage(e.data, '*');
-            }
-            if (e.data && e.data.type === 'REQ_ANIMATE_THEN_GATHER_AXE') {
-                window.parent.postMessage(e.data, '*');
+            if (e.data && ['REQ_ALIGN_TIPI','REQ_ALIGN_AXE','REQ_HIDE_AXE',
+                           'REQ_HIDE_TIPI','REQ_ANIMATE_THEN_GATHER_AXE'].includes(e.data.type)) {
+                const jf = getJournalFrame();
+                if (jf && jf.contentWindow) jf.contentWindow.postMessage(e.data, '*');
             }
             if (e.data && e.data.type === 'REQ_BEGIN_QUEST_AUTOWALK') {
-                const book = document.getElementById('book-wrapper');
-                if (book && !book.classList.contains('book-hidden')) {
-                    window.toggleLogbook();
-                }
+                window.toggleLogbook();
                 window.parent.postMessage({ type: 'QUEST_AUTOWALK' }, '*');
             }
             if (e.data && e.data.type === 'REQ_FIND_HER_AUTOWALK') {
-                const book = document.getElementById('book-wrapper');
-                if (book && !book.classList.contains('book-hidden')) {
-                    window.toggleLogbook();
-                }
+                window.toggleLogbook();
                 window.parent.postMessage({ type: 'FIND_HER_AUTOWALK' }, '*');
             }
             if (e.data && e.data.type === 'QUEST_DISTANCE_UPDATE') {
@@ -2792,78 +2452,12 @@
             if (btn) { btn.classList.add('lightbloom'); setTimeout(() => btn.classList.remove('lightbloom'), 500); }
         };
 
-        // Unified Toggle Logbook
+        // Unified Toggle Logbook — delegates to journal iframe
         window.toggleLogbook = () => {
             window._hasUserToggledLogbook = true;
-            const book = document.getElementById('book-wrapper');
-            const btn = document.getElementById('card-log-btn');
-            const sideBtn = document.getElementById('btn-journal');
-            const guides = document.getElementById('guides-container');
-
-            if (book.classList.contains('book-hidden')) {
-                book.classList.remove('book-hidden');
-                document.body.classList.add('logbook-active');
-                if (guides) guides.style.display = 'none';
-
-                if (btn) btn.classList.add('lightbloom');
-                if (sideBtn) sideBtn.classList.add('active-glow');
-
-                // Notify Game (for sounds/stats)
-                const rect = sideBtn ? sideBtn.getBoundingClientRect() : null;
-                const rectData = rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
-                try {
-                    window.parent.postMessage({ type: 'OPEN_LOGBOOK', rect: rectData }, '*');
-
-                    // Trigger the physical page opening animation
-                    const lbFrame = document.getElementById('logbookFrame');
-                    if (lbFrame && lbFrame.contentWindow) {
-                        lbFrame.contentWindow.postMessage({ type: 'DO_OPEN_FLIP' }, '*');
-                        lbFrame.contentWindow.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: true }, '*');
-                    }
-                    // Instruct the background game engine to sleep the FPV pass to save framerate for the Logbook feeds
-                    window.parent.postMessage({ type: 'LOGBOOK_VISIBILITY', isVisible: true }, '*');
-                } catch (e) { console.error('Postmessage error:', e); }
-            } else {
-                book.classList.add('book-hidden');
-                document.body.classList.remove('logbook-active');
-                document.body.classList.remove('hud-hidden'); // Reveal main UI
-                if (guides) guides.style.display = ''; // Clear inline style so CSS default (flex) takes over
-                
-                // Tell the logbook iframe it is hidden so it stops its alignment loop
-                const lbFrameEl = document.getElementById('logbookFrame');
-                if (lbFrameEl && lbFrameEl.contentWindow) {
-                    lbFrameEl.contentWindow.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: false }, '*');
-                }
-                
-                // FORCE: Manually dissolve lingering opacity/interaction overrides
-                toggleUiFocus(false);
-                const leftP = document.getElementById('left-panel');
-                const rightP = document.getElementById('right-panel');
-                const topP = document.getElementById('adventure-row-top');
-                // Nullify overrides so CSS base styles natively resurrect them
-                if (leftP) { leftP.style.opacity = ''; leftP.style.pointerEvents = ''; leftP.style.display = ''; leftP.style.visibility = ''; }
-                if (rightP) { rightP.style.opacity = ''; rightP.style.pointerEvents = ''; rightP.style.display = ''; rightP.style.visibility = ''; }
-                if (topP) { topP.style.opacity = ''; topP.style.pointerEvents = ''; topP.style.display = ''; topP.style.visibility = ''; }
-
-                // Automatically bounce Native browser Focus back to the main game canvas so WASD inputs work immediately
-                window.parent.focus();
-
-                // Ensure the camera feed closes when the journal closes
-                try {
-                    window.parent.postMessage({ type: 'REQ_HIDE_TIPI' }, '*');
-                } catch (e) { console.error('Postmessage error hiding tipi:', e); }
-
-                if (btn) btn.classList.remove('lightbloom');
-                if (sideBtn) sideBtn.classList.remove('active-glow');
-
-                const lbFrame = document.getElementById('logbookFrame');
-                if (lbFrame && lbFrame.contentWindow) {
-                    lbFrame.contentWindow.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: false }, '*');
-                }
-
-                // Instruct the background game engine to resume 3D rendering
-                window.parent.postMessage({ type: 'LOGBOOK_VISIBILITY', isVisible: false }, '*');
-                window.parent.postMessage({ type: 'CLOSE_LOGBOOK' }, '*');
+            const jf = getJournalFrame();
+            if (jf && jf.contentWindow) {
+                jf.contentWindow.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');
             }
         };
 
@@ -2933,56 +2527,6 @@
             });
         }
 
-        // --- BOOK DRAGGING ---
-        function initLogbookInteraction() {
-            const bookWrapper = document.getElementById('book-wrapper');
-            const dragHandle = document.getElementById('book-drag-handle');
-            const resizeHandle = document.getElementById('book-resize-handle');
-
-            if (!bookWrapper || !dragHandle) return;
-
-            let isDragging = false;
-            let startX, startY, initialLeft, initialTop;
-
-            dragHandle.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                const rect = bookWrapper.getBoundingClientRect();
-                // Fix position to pixels
-                bookWrapper.style.transform = 'none';
-                bookWrapper.style.bottom = 'auto';
-                bookWrapper.style.left = rect.left + 'px';
-                bookWrapper.style.top = rect.top + 'px';
-
-                startX = e.clientX; startY = e.clientY;
-                initialLeft = rect.left; initialTop = rect.top;
-            });
-
-            window.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                bookWrapper.style.left = (initialLeft + (e.clientX - startX)) + 'px';
-                bookWrapper.style.top = (initialTop + (e.clientY - startY)) + 'px';
-            });
-            window.addEventListener('mouseup', () => { isDragging = false; });
-
-            // Resize (Simple)
-            if (resizeHandle) {
-                let isResizing = false;
-                let startW, startH;
-                resizeHandle.addEventListener('mousedown', (e) => {
-                    isResizing = true;
-                    const rect = bookWrapper.getBoundingClientRect();
-                    startW = rect.width; startH = rect.height;
-                    startX = e.clientX; startY = e.clientY;
-                    e.preventDefault(); // Stop text selection
-                });
-                window.addEventListener('mousemove', (e) => {
-                    if (!isResizing) return;
-                    bookWrapper.style.width = Math.max(300, startW + (e.clientX - startX)) + 'px';
-                    bookWrapper.style.height = Math.max(200, startH + (e.clientY - startY)) + 'px';
-                });
-                window.addEventListener('mouseup', () => isResizing = false);
-            }
-        }
 
         // Global Dismiss
         document.addEventListener('click', (e) => {
@@ -3244,39 +2788,6 @@
                 button: e.button
             }, '*');
         });
-    </script>
-    <script>
-        // PHASE 6: Ensure Journal Input is always exactly +50px below the Logbook to prevent clipping
-        (function () {
-            const bookWrapper = document.getElementById('book-wrapper');
-            const inputContainer = document.getElementById('input-container');
-
-            if (bookWrapper && inputContainer) {
-                const updateInputPosition = () => {
-                    // Only apply dynamic positioning when Logbook is actively shown
-                    if (document.body.classList.contains('logbook-active')) {
-                        const rect = bookWrapper.getBoundingClientRect();
-                        // Anchor 50px strictly below the drawn bounds of the Journal
-                        inputContainer.style.top = `${rect.bottom + 50}px`;
-                        inputContainer.style.bottom = 'auto'; // release any static bottom anchors
-                    } else {
-                        // Reset when logbook closes (reverts to standard gameplay UI CSS)
-                        inputContainer.style.top = '';
-                        inputContainer.style.bottom = '';
-                    }
-                };
-
-                // Track size and positional mutations
-                const observer = new ResizeObserver(updateInputPosition);
-                observer.observe(bookWrapper);
-
-                // Track class toggles on body (logbook-active)
-                const mutationObserver = new MutationObserver(updateInputPosition);
-                mutationObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-
-                window.addEventListener('resize', updateInputPosition);
-            }
-        })();
     </script>
 
     

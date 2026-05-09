@@ -478,6 +478,11 @@
         style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:1000;pointer-events:auto;background:transparent;"
         allowtransparency="true"></iframe>
 
+    <!-- JOURNAL WRAPPER — self-contained, sits above Panel, pointer-events off until logbook-active -->
+    <iframe id="journal-frame" src="SacredGame.Journal.html"
+        tabindex="-1" allowtransparency="true" title="Journal"
+        style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:9500;pointer-events:none;background:transparent;"></iframe>
+
     <!-- HUD ELEMENTS -->
     <div id="time-display">08:00 AM</div>
 

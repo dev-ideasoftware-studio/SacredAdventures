@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v9";
+const CACHE_VERSION = "v11";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 
@@ -17,6 +17,7 @@ const SHELL_FILES = [
   "./",
   "./index.html",
   "./SacredGame.Panel.html",
+  "./SacredGame.Journal.html",
   "./Component.NewJournal.html",
   "./Component.MoonDial.html",
   "./SacredGame.css",

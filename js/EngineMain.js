@@ -3280,8 +3280,8 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             frameCount++;
 
             // --- MASTER NPC INTELLIGENCE ---
-            if (window.npcMaster) {
-                window.npcMaster.update(delta);
+            if (window.npcMaster && !window.npcMaster._paused) {
+              window.npcMaster.update(delta);
             }
 
             // --- MOVEMENT LOGIC ---
@@ -4299,8 +4299,8 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 }
                 
                 // Delegate wildlife logic to the new Fixed-Time-Step MasterAI Director
-                if (window.masterAI) {
-                    window.masterAI.update(delta);
+                if (window.masterAI && !window.masterAI._anuPaused) {
+                  window.masterAI.update(delta);
                 }
                 
                 // --- UNIVERSAL NPC PROXIMITY AI REMOVED ---
