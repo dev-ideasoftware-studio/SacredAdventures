@@ -4642,32 +4642,55 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                         }
                         const rect = window._cachedAvatarRect;
                         if (rect && rect.width > 0) {
-                            window._playerAvatar.getWorldPosition(_pool.v1);
-                            window.avatarOrthoCam.position.set(_pool.v1.x, _pool.v1.y + 1.2, _pool.v1.z + 2.5);
-                            window.avatarOrthoCam.lookAt(_pool.v1.x, _pool.v1.y + 0.8, _pool.v1.z);
+                          window._playerAvatar.getWorldPosition(_pool.v1);
+                          window.avatarOrthoCam.position.set(
+                            _pool.v1.x,
+                            _pool.v1.y + 1.2,
+                            _pool.v1.z + 2.5,
+                          );
+                          window.avatarOrthoCam.lookAt(
+                            _pool.v1.x,
+                            _pool.v1.y + 0.8,
+                            _pool.v1.z,
+                          );
 
-                            const origAutoClear = renderer.autoClear;
-                            const oldClearAlpha = renderer.getClearAlpha();
-                            renderer.getClearColor(_pool.c1);
-                            renderer.setClearColor(0x000000, 0.0);
+                          const origAutoClear = renderer.autoClear;
+                          const oldClearAlpha = renderer.getClearAlpha();
+                          renderer.getClearColor(_pool.c1);
+                          renderer.setClearColor(0x000000, 0.0);
 
-                            const scX = rect.left;
-                            const scY = window.innerHeight - rect.bottom;
-                            const w = rect.width;
-                            const h = rect.height;
+                          const scX = rect.left;
+                          const scY = window.innerHeight - rect.bottom;
+                          const w = rect.width;
+                          const h = rect.height;
 
-                            renderer.setScissorTest(true);
-                            renderer.setScissor(scX, scY, w, h);
-                            renderer.setViewport(scX, scY, w, h);
-                            renderer.autoClear = false; // DON'T WIPE MAIN SCENE
-                            renderer.clearDepth(); // Only clear depth to layer on top
+                          renderer.setScissorTest(true);
+                          renderer.setScissor(scX, scY, w, h);
+                          renderer.setViewport(scX, scY, w, h);
+                          renderer.autoClear = false; // DON'T WIPE MAIN SCENE
+                          renderer.clearDepth(); // Only clear depth to layer on top
 
-                            renderer.render(scene, window.avatarOrthoCam);
+                          renderer.render(scene, window.avatarOrthoCam);
 
-                            renderer.setClearColor(_pool.c1, oldClearAlpha);
-                            renderer.setScissorTest(false);
-                            renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                            renderer.autoClear = origAutoClear;
+                          renderer.setClearColor(_pool.c1, oldClearAlpha);
+                          renderer.setScissorTest(false);
+                          renderer.setViewport(
+                            0,
+                            0,
+                            window.innerWidth,
+                            window.innerHeight,
+                          );
+                          renderer.autoClear = origAutoClear;
+
+                          // Hide static fallback PNG once live WebGL avatar is rendering
+                          if (!window._avatarLiveActive) {
+                            window._avatarLiveActive = true;
+                            const fallback =
+                              pFrame.contentWindow.document.getElementById(
+                                "avatar-static-fallback",
+                              );
+                            if (fallback) fallback.style.display = "none";
+                          }
                         }
                     }
                 }
