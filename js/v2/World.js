@@ -297,6 +297,10 @@ export const WorldModule = {
   _moveDir: new THREE.Vector3(),
   _fwd: new THREE.Vector3(),
   _playerBody: null, // PhysicsBody for the camera/player
+  _playerPos: new THREE.Vector3(),
+  _walkDistance: 0,
+  _lastWalkX: 0,
+  _lastWalkZ: 0,
 
   // ──────────────────────────────────────────────────────────────────────────
   load(scene, camera) {
@@ -454,9 +458,13 @@ export const WorldModule = {
     WorldPhysics._init(terrainY);
 
     // ── Player physics body ───────────────────────────────────────────────
-    camera.position.set(0, terrainY(0, 0) + PLAYER_HEIGHT, 8);
+    this._playerPos.set(0, terrainY(0, 0) + PLAYER_HEIGHT, 8);
+    camera.position.copy(this._playerPos);
     camera.rotation.order = "YXZ"; // set ONCE — never reset in update()
-    this._playerBody = WorldPhysics.createBody(camera.position, PLAYER_HEIGHT);
+    this._playerBody = WorldPhysics.createBody(this._playerPos, PLAYER_HEIGHT);
+    this._walkDistance = 0;
+    this._lastWalkX = this._playerPos.x;
+    this._lastWalkZ = this._playerPos.z;
 
     // ── Input ─────────────────────────────────────────────────────────────
     this._setupInput();
@@ -520,7 +528,32 @@ export const WorldModule = {
 
     // ── Step all physics bodies (gravity, terrain collision, slope) ────────
     WorldPhysics.stepAll(delta);
-    // Note: camera.position IS body.position (same reference) — auto-updated
+
+    const dx = body.position.x - this._lastWalkX;
+    const dz = body.position.z - this._lastWalkZ;
+    const stepDistance = Math.sqrt(dx * dx + dz * dz);
+    this._lastWalkX = body.position.x;
+    this._lastWalkZ = body.position.z;
+    if (body.grounded && dir.lengthSq() > 0) this._walkDistance += stepDistance;
+
+    const bob =
+      body.grounded && stepDistance > 0.0001
+        ? Math.sin(this._walkDistance * 5.2) * 0.055 +
+          Math.sin(this._walkDistance * 10.4) * 0.018
+        : 0;
+    camera.position.set(
+      body.position.x,
+      body.position.y + bob,
+      body.position.z,
+    );
+
+    window.WorldPlayer = {
+      position: camera.position,
+      yaw: this._yaw,
+      grounded: body.grounded,
+      distanceMeters: this._walkDistance,
+      distanceFeet: this._walkDistance * 3.28084,
+    };
 
     // ── Apply look rotation ───────────────────────────────────────────────
     camera.rotation.y = this._yaw;
