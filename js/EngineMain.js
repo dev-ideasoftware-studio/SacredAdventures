@@ -443,7 +443,14 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             window._isGeneratingWorld = true;
             window.envBuilder.generateWorld(assetFactory).then(() => {
                 console.log('World generated — linking FuzzyBrain');
-                if (window.logSystem) window.logSystem("Processing... Avatar (78MB)", 100, 100, 50, 0);
+                if (window.logSystem)
+                  window.logSystem(
+                    "Processing... Avatar (22MB)",
+                    100,
+                    100,
+                    50,
+                    0,
+                  );
                 
                 // CRITICAL FIX: Sequence heavy GLTF parsing after world gen
                 loadPlayerAvatar().then(() => {
