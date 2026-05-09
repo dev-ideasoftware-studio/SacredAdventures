@@ -11,9 +11,9 @@ class FuzzyBrain {
         this.scene = scene;
         
         // --- TARGETS ---
-        this.targetFPS = config.targetFPS || 40;
-        this.criticalFPS = config.criticalFPS || 15;
-        this.recoveryFPS = config.recoveryFPS || 50;
+        this.targetFPS = config.targetFPS || 55;
+        this.criticalFPS = config.criticalFPS || 20;
+        this.recoveryFPS = config.recoveryFPS || 45;
         
         // --- FPS TRACKING ---
         this.frameTimes = [];          // Rolling window of frame deltas
@@ -215,8 +215,8 @@ class FuzzyBrain {
         } else if(fps > this.recoveryFPS && this.qualityLevel > 0) {
             // ABOVE RECOVERY — restore quality one step, but ONLY after stable 10s
             // Prevents the infinite lighting flash loop (downgrade -> fps rises -> upgrade -> fps drops -> downgrade)
-            if (this.frameCount - (this.lastDowngradeFrame || 0) > 600) {
-                this.setQuality(this.qualityLevel - 1);
+            if (this.frameCount - (this.lastDowngradeFrame || 0) > 180) {
+              this.setQuality(this.qualityLevel - 1);
             }
         }
     }
