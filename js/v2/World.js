@@ -137,6 +137,109 @@ function applyNeuHexShader(material) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PROCEDURAL GRASS TEXTURE — North American plains / forestland floor
+// Generated once on a canvas, uploaded to GPU as a CanvasTexture.
+// No external files needed.
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildGrassTexture() {
+  const SIZE = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+
+  // --- Base: dark rich soil ---
+  ctx.fillStyle = '#3b2f1a';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  // --- Soil variation patches ---
+  const rnd = (min, max) => min + Math.random() * (max - min);
+  for (let i = 0; i < 180; i++) {
+    const x = rnd(0, SIZE), y = rnd(0, SIZE);
+    const r = rnd(6, 28);
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, `rgba(${~~rnd(50,80)},${~~rnd(38,55)},${~~rnd(15,28)},0.55)`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // --- Layer 1: dense short grass base (dark forest green) ---
+  for (let i = 0; i < 3200; i++) {
+    const x = rnd(0, SIZE), y = rnd(0, SIZE);
+    const len = rnd(4, 14);
+    const angle = rnd(-0.3, 0.3) - Math.PI / 2;
+    const g = ~~rnd(72, 115), rb = ~~rnd(28, 52);
+    ctx.strokeStyle = `rgba(${rb},${g},${rb - 10},${rnd(0.55, 0.9)})`;
+    ctx.lineWidth = rnd(0.8, 2.0);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
+    ctx.stroke();
+  }
+
+  // --- Layer 2: mid grass blades (medium green, slight lean) ---
+  for (let i = 0; i < 2200; i++) {
+    const x = rnd(0, SIZE), y = rnd(0, SIZE);
+    const len = rnd(8, 22);
+    const lean = rnd(-0.5, 0.5);
+    const angle = -Math.PI / 2 + lean;
+    const g = ~~rnd(100, 145), r2 = ~~rnd(30, 60);
+    ctx.strokeStyle = `rgba(${r2},${g},${~~rnd(18,40)},${rnd(0.5, 0.85)})`;
+    ctx.lineWidth = rnd(0.7, 1.6);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    // Slight curve — quadratic bezier for natural blade shape
+    ctx.quadraticCurveTo(
+      x + Math.cos(angle) * len * 0.5 + lean * 4,
+      y + Math.sin(angle) * len * 0.5,
+      x + Math.cos(angle) * len + lean * 8,
+      y + Math.sin(angle) * len
+    );
+    ctx.stroke();
+  }
+
+  // --- Layer 3: tall dry straw / dead grass (yellows and ochres) ---
+  for (let i = 0; i < 900; i++) {
+    const x = rnd(0, SIZE), y = rnd(0, SIZE);
+    const len = rnd(14, 34);
+    const lean = rnd(-0.7, 0.7);
+    const angle = -Math.PI / 2 + lean;
+    const r3 = ~~rnd(160, 210), g3 = ~~rnd(140, 185), b3 = ~~rnd(20, 55);
+    ctx.strokeStyle = `rgba(${r3},${g3},${b3},${rnd(0.35, 0.7)})`;
+    ctx.lineWidth = rnd(0.6, 1.3);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(
+      x + Math.cos(angle) * len * 0.5 + lean * 6,
+      y + Math.sin(angle) * len * 0.5,
+      x + Math.cos(angle) * len + lean * 12,
+      y + Math.sin(angle) * len
+    );
+    ctx.stroke();
+  }
+
+  // --- Layer 4: dark moss / shadow clumps ---
+  for (let i = 0; i < 60; i++) {
+    const x = rnd(0, SIZE), y = rnd(0, SIZE);
+    const r4 = rnd(3, 12);
+    ctx.fillStyle = `rgba(${~~rnd(20,42)},${~~rnd(38,62)},${~~rnd(12,28)},${rnd(0.2,0.5)})`;
+    ctx.beginPath(); ctx.arc(x, y, r4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // --- Layer 5: tiny pebbles / stones ---
+  for (let i = 0; i < 40; i++) {
+    const x = rnd(0, SIZE), y = rnd(0, SIZE);
+    const r5 = rnd(1.5, 4);
+    ctx.fillStyle = `rgba(${~~rnd(110,160)},${~~rnd(100,145)},${~~rnd(80,120)},${rnd(0.3,0.6)})`;
+    ctx.beginPath(); ctx.arc(x, y, r5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // WORLD MODULE
 // ─────────────────────────────────────────────────────────────────────────────
 export const WorldModule = {
@@ -243,10 +346,16 @@ export const WorldModule = {
     geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geo.computeVertexNormals(); // called ONCE here, never in update()
 
+    // ── Procedural plains grass texture ──────────────────────────────────
+    const grassTex = _buildGrassTexture();
+    grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
+    grassTex.repeat.set(24, 24); // tile density across the map
+
     // Neumorphic hex material (MeshStandard so shader hooks work)
     const groundMat = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.9,
+      map: grassTex,
+      vertexColors: true,  // vertex colours tint on top of texture
+      roughness: 0.92,
       metalness: 0.0,
     });
     applyNeuHexShader(groundMat);

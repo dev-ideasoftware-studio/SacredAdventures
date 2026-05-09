@@ -59,6 +59,7 @@ export class Orchestrator {
     // ── FPS tracking ──────────────────────────────────────────────────────
     this.smoothFPS = 0;
     this.rawFPS = 0;
+    this._peakFPS = 0; // highest smoothed FPS seen — theoretical max
     this._fpsReady = false; // wait for EMA to warm up before benchmarking
     this._frameCount = 0;
 
@@ -200,6 +201,10 @@ export class Orchestrator {
     }
     // Mark FPS ready after 60 frames of warmup
     if (!this._fpsReady && this._frameCount >= 60) this._fpsReady = true;
+    // Track peak (theoretical max) — only after warmup, cap at monitor refresh
+    if (this._fpsReady && this.smoothFPS > this._peakFPS) {
+      this._peakFPS = this.smoothFPS;
+    }
 
     // ── Update active modules ─────────────────────────────────────────────
     for (const name of this._activeModules) {
@@ -368,9 +373,18 @@ export class Orchestrator {
     if (!fpsEl) return;
 
     const fps = this._fpsReady ? this.smoothFPS : this.rawFPS;
-    const col = fps >= 55 ? '#a5d6a7' : fps >= 30 ? '#fbc02d' : '#ef5350';
-    fpsEl.style.color   = col;
-    fpsEl.textContent = fps > 0 ? `${Math.round(fps)} FPS` : "Starting…";
+    const peak = this._peakFPS;
+    const col = fps >= 55 ? "#a5d6a7" : fps >= 30 ? "#fbc02d" : "#ef5350";
+    fpsEl.style.color = col;
+    if (fps > 0) {
+      const peakStr =
+        peak > 0
+          ? ` <span style="font-size:14px;color:rgba(255,255,255,0.3);font-weight:400;">(max ${Math.round(peak)})</span>`
+          : "";
+      fpsEl.innerHTML = `${Math.round(fps)} FPS${peakStr}`;
+    } else {
+      fpsEl.textContent = "Starting…";
+    }
 
     const r = this.renderer.info.render;
     if (drawEl) drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles/1000).toFixed(1)}k | frame: ${this._frameCount}`;
