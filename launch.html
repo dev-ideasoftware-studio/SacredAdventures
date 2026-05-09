@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sacred Adventures — Dev Launcher</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a0a0a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .launcher {
+      text-align: center;
+      max-width: 640px;
+      width: 90%;
+    }
+
+    .launcher h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fbc02d;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .launcher .subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 40px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 24px 20px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, transform 0.15s, background 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .card:hover {
+      border-color: #fbc02d;
+      background: #1a1a1a;
+      transform: translateY(-2px);
+    }
+
+    .card:active { transform: translateY(0); }
+
+    .card .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      width: fit-content;
+    }
+
+    .badge-stable  { background: rgba(165,214,167,0.15); color: #a5d6a7; border: 1px solid rgba(165,214,167,0.3); }
+    .badge-rebuild { background: rgba(251,192,45,0.15);  color: #fbc02d; border: 1px solid rgba(251,192,45,0.3); }
+
+    .card .icon   { font-size: 32px; margin-bottom: 4px; }
+    .card .title  { font-size: 17px; font-weight: 700; color: #fff; }
+    .card .desc   { font-size: 12px; color: #777; line-height: 1.6; }
+
+    .card.v2 .title { color: #fbc02d; }
+
+    .fps-row {
+      margin-top: 32px;
+      font-size: 11px;
+      color: #444;
+    }
+
+    .fps-row code {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      padding: 2px 6px;
+      color: #81d4fa;
+      font-size: 11px;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #a5d6a7;
+      margin-right: 5px;
+      box-shadow: 0 0 6px #a5d6a7;
+    }
+  </style>
+</head>
+<body>
+
+<div class="launcher">
+  <h1>⚡ Sacred Adventures</h1>
+  <p class="subtitle"><span class="status-dot"></span>Dev server running on localhost:8080</p>
+
+  <div class="cards">
+
+    <!-- v1 — current live game -->
+    <a class="card v1" href="./index.html">
+      <div class="badge badge-stable">STABLE v1</div>
+      <div class="icon">🏕️</div>
+      <div class="title">Live Game</div>
+      <div class="desc">
+        Full game — NPCs, Journal, PIP, Village Map, FuzzyBrain, Anu.
+        Current production build.
+      </div>
+    </a>
+
+    <!-- v2 — engine rebuild -->
+    <a class="card v2" href="./index.v2.html">
+      <div class="badge badge-rebuild">REBUILD v2</div>
+      <div class="icon">🔬</div>
+      <div class="title">Engine Rebuild</div>
+      <div class="desc">
+        Clean 60fps world. Orchestrator AI benchmarks each module as it's
+        added. Start here, build up.
+      </div>
+    </a>
+
+  </div>
+
+  <p class="fps-row">
+    After loading v2 → open devtools → type <code>Orchestrator.report()</code> for FPS baseline
+  </p>
+</div>
+
+</body>
+</html>
