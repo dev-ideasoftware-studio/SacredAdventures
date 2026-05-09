@@ -543,6 +543,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                       "%c[Universe.Anu] All systems registered. World is alive.",
                       "color: #fbc02d; font-weight: bold;",
                     );
+                    window.UniverseAnu.onWorldReady(); // Engage sentient monitoring
                   }
 
                   // CRITICAL FIX: Only start the massive 60FPS render loop AFTER all geometries are parsed and loaded!
@@ -4347,6 +4348,8 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             // --- FUZZYBRAIN AI UPDATE ---
             if (fuzzyBrain) {
                 fuzzyBrain.update(delta);
+                if (window.UniverseAnu)
+                  window.UniverseAnu.senseFPS(fuzzyBrain.smoothFPS || 60);
             }
 
             // --- STATS HUD (throttled) ---

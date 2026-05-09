@@ -1,20 +1,36 @@
 /**
- * Universe.Anu Engine v3.0.0
- * Central Governance, Metaphysical Firmament & Sentient World Monitor
+ * Universe.Anu Engine v4.0.0
+ * The Living Universe — Central Governance, Sentient Sensor & Adaptive World Mind
+ *
+ * Philosophy:
+ *   Modeled after how a real sentient universe works — not a static simulation,
+ *   but a dynamic system of information. Every avatar, NPC, and animal is a node
+ *   feeding data back into the universe. Anu learns, adapts, and responds.
+ *   Anu is the gatekeeper of ALL I/O. Nothing enters or leaves without Anu knowing.
  *
  * Responsibilities:
  *   1. Terrain governance — deterministic ground height for all world systems
- *   2. Structural anchor registry — flat plateaus for buildings/tipis
- *   3. System health monitoring — senses when registered game systems go silent
- *   4. Atmospheric state tracking — day/night, wind, light cycles
- *   5. Integrity reporting — logs world health every 30 seconds
+ *   2. Structural anchor registry — sacred flat zones for buildings
+ *   3. System health monitoring — senses when registered systems go silent
+ *   4. World mood — living emotional state the entire game reads and responds to
+ *   5. Environmental sensing — FPS load, player dwell, NPC interaction rates
+ *   6. Adaptive signals — emits guidance that systems listen and respond to
+ *
+ * Information Flow:
+ *   Player actions → Anu sensors → Anu interprets → World adapts → Player feels it
+ *        ↑                                                               ↓
+ *        └─────────────────── continuous feedback loop ─────────────────┘
+ *
+ * Design Principle:
+ *   "The universe notices. The universe responds. The universe never forgets."
  */
 class UniverseAnuEngine {
   constructor() {
-    this.version = "3.0.0";
+    this.version = "4.0.0";
     this.baseSeed = 1337;
     this.prngState = this.baseSeed;
     this.birthTime = Date.now();
+    this._worldReady = false; // True only after world gen completes
 
     // --- FIRMAMENT (World Physics) ---
     this.firmament = {
@@ -42,18 +58,39 @@ class UniverseAnuEngine {
       this.registerAnchor(a.id, a.x, a.z, a.r, a.blend),
     );
 
-    // --- SYSTEM REGISTRY (Sentient Sensors) ---
-    // Each entry: { name, validator: fn→bool, lastSeen: timestamp, status: 'OK'|'WARN'|'DEAD' }
+    // --- SYSTEM REGISTRY ---
     this._systems = new Map();
     this._healthInterval = null;
-    this._errorLog = []; // Rolling log of integrity warnings
-    this._maxErrors = 50; // Cap so memory stays bounded
+    this._errorLog = [];
+    this._maxErrors = 50;
 
-    // Begin health monitoring after boot settles
-    setTimeout(() => this._startHealthMonitor(), 8000);
+    // --- WORLD MOOD (Living Emotional State) ---
+    // All game systems read this. Anu updates it based on what it senses.
+    // serene   — all is well, village thriving, kids engaged
+    // restless — performance strain, player idle, world needs attention
+    // troubled — systems failing, errors spiking, needs intervention
+    // sacred   — milestone reached, special moment, world glows
+    this.mood = "serene";
+    this._moodHistory = []; // Rolling mood log for pattern recognition
+
+    // --- ENVIRONMENTAL SENSORS ---
+    this._sensors = {
+      fps: { current: 60, history: [], weight: 0 }, // World strain
+      playerDwell: { position: null, dwellStart: null, dwellMs: 0 }, // Where kids linger
+      npcTouches: new Map(), // NPC interaction counts — which NPCs are loved
+      resourceTakes: new Map(), // Resource harvesting rates
+      questEvents: [], // Quest start/complete/fail log
+    };
+
+    // --- ADAPTIVE SIGNAL LISTENERS ---
+    // Other systems subscribe: UniverseAnu.onMoodChange(cb)
+    this._moodListeners = [];
+
+    // Health monitor starts only AFTER world is ready (fixes Systems: 0 bug)
+    // EngineMain calls UniverseAnu.onWorldReady() after world gen completes
 
     console.log(
-      `%c[Universe.Anu] Governance Engine v${this.version} Initialized.`,
+      `%c[Universe.Anu] The Living Universe v${this.version} — Awakening.`,
       "color: #fbc02d; font-weight: bold;",
     );
   }
@@ -197,11 +234,152 @@ class UniverseAnuEngine {
   }
 
   // =========================================================
-  // HEALTH MONITOR — Runs every 30 seconds
+  // WORLD READY — Called by EngineMain after world gen completes
+  // Fixes the Systems: 0 timing bug — health monitor only starts here
+  // =========================================================
+  onWorldReady() {
+    this._worldReady = true;
+    this._startHealthMonitor();
+    console.log(
+      `%c[Universe.Anu] World is alive. Sentient monitoring engaged.`,
+      "color: #4caf50; font-weight: bold;",
+    );
+  }
+
+  // =========================================================
+  // ENVIRONMENTAL SENSORS — Feed data into Anu
+  // =========================================================
+
+  /** Called by FuzzyBrain every frame — Anu tracks world strain */
+  senseFPS(fps) {
+    const s = this._sensors.fps;
+    s.current = fps;
+    s.history.push(fps);
+    if (s.history.length > 300) s.history.shift(); // 5-second window at 60fps
+    s.weight =
+      s.history.length > 0
+        ? s.history.reduce((a, b) => a + b, 0) / s.history.length
+        : fps;
+  }
+
+  /** Called when player position updates — Anu tracks where kids linger */
+  sensePlayerPosition(x, z) {
+    const d = this._sensors.playerDwell;
+    const now = Date.now();
+    if (!d.position) {
+      d.position = { x, z };
+      d.dwellStart = now;
+      return;
+    }
+    const dist = Math.sqrt((x - d.position.x) ** 2 + (z - d.position.z) ** 2);
+    if (dist < 2.0) {
+      d.dwellMs = now - d.dwellStart; // Still here — accumulate
+    } else {
+      d.position = { x, z }; // Moved — reset
+      d.dwellStart = now;
+      d.dwellMs = 0;
+    }
+  }
+
+  /** Called when player interacts with an NPC — Anu tracks which NPCs are loved */
+  senseNPCTouch(npcId) {
+    const count = this._sensors.npcTouches.get(npcId) || 0;
+    this._sensors.npcTouches.set(npcId, count + 1);
+  }
+
+  /** Called when a resource is gathered — Anu tracks ecosystem balance */
+  senseResourceTake(resourceType) {
+    const count = this._sensors.resourceTakes.get(resourceType) || 0;
+    this._sensors.resourceTakes.set(resourceType, count + 1);
+  }
+
+  /** Called on quest events — Anu tracks engagement and difficulty */
+  senseQuestEvent(questId, event) {
+    this._sensors.questEvents.push({ questId, event, t: Date.now() });
+    if (this._sensors.questEvents.length > 100)
+      this._sensors.questEvents.shift();
+  }
+
+  // =========================================================
+  // MOOD ENGINE — Anu interprets sensors and sets world mood
+  // =========================================================
+  _updateMood() {
+    const fps = this._sensors.fps.weight;
+    const dwell = this._sensors.playerDwell.dwellMs;
+    const errorCount = this._errorLog.filter(
+      (e) => Date.now() - e.t < 60000,
+    ).length;
+    let newMood = "serene";
+
+    if (errorCount >= 3) {
+      newMood = "troubled"; // Systems failing
+    } else if (fps < 20) {
+      newMood = "restless"; // World under strain
+    } else if (dwell > 10000) {
+      newMood = "serene"; // Child is lingering — wonder, not confusion
+    }
+    // 'sacred' is set externally — on village milestone, quest completion, etc.
+
+    if (newMood !== this.mood) {
+      const prev = this.mood;
+      this.mood = newMood;
+      this._moodHistory.push({ from: prev, to: newMood, t: Date.now() });
+      if (this._moodHistory.length > 20) this._moodHistory.shift();
+      this._emitMoodChange(prev, newMood);
+      console.log(
+        `%c[Universe.Anu] Mood shift: ${prev} → ${newMood}`,
+        "color: #ce93d8; font-weight: bold;",
+      );
+    }
+  }
+
+  /** Declare a sacred moment — village milestone, special quest, etc. */
+  declareSacred(reason = "") {
+    const prev = this.mood;
+    this.mood = "sacred";
+    this._moodHistory.push({ from: prev, to: "sacred", t: Date.now(), reason });
+    this._emitMoodChange(prev, "sacred");
+    console.log(
+      `%c[Universe.Anu] ✨ SACRED MOMENT — ${reason}`,
+      "color: #fbc02d; font-size: 14px; font-weight: bold;",
+    );
+    // Auto-return to serene after 30 seconds
+    setTimeout(() => {
+      if (this.mood === "sacred") {
+        this.mood = "serene";
+        this._emitMoodChange("sacred", "serene");
+      }
+    }, 30000);
+  }
+
+  // =========================================================
+  // ADAPTIVE SIGNALS — Systems subscribe and respond to Anu
+  // =========================================================
+
+  /** Subscribe to mood changes: UniverseAnu.onMoodChange(cb) */
+  onMoodChange(callback) {
+    this._moodListeners.push(callback);
+  }
+
+  _emitMoodChange(from, to) {
+    for (const cb of this._moodListeners) {
+      try {
+        cb(to, from);
+      } catch (e) {
+        /* never let a listener crash Anu */
+      }
+    }
+  }
+
+  // =========================================================
+  // HEALTH MONITOR — Runs every 30 seconds AFTER world ready
   // =========================================================
   _startHealthMonitor() {
-    this._healthInterval = setInterval(() => this._runHealthCheck(), 30000);
-    this._runHealthCheck(); // Immediate first check after boot
+    this._healthInterval = setInterval(() => {
+      this._runHealthCheck();
+      this._updateMood();
+    }, 30000);
+    this._runHealthCheck(); // Immediate check on world ready
   }
 
   _runHealthCheck() {
@@ -230,10 +408,9 @@ class UniverseAnuEngine {
     }
 
     const statusColor = allOk ? "#4caf50" : "#ff9800";
-    const anchors = this.firmament.topography.anchors.length;
-    const systems = this._systems.size;
+    const fps = Math.round(this._sensors.fps.weight || 0);
     console.log(
-      `%c[Universe.Anu] Health | Uptime: ${uptime}s | Anchors: ${anchors} | Systems: ${systems} | ${allOk ? "✅ ALL OK" : "⚠️ DEGRADED"}`,
+      `%c[Universe.Anu] Health | Uptime: ${uptime}s | Mood: ${this.mood} | FPS: ~${fps} | Systems: ${this._systems.size} | ${allOk ? "✅ ALL OK" : "⚠️ DEGRADED"}`,
       `color: ${statusColor}; font-weight: bold;`,
     );
   }
