@@ -300,6 +300,76 @@ class UniverseAnuEngine {
       this._sensors.questEvents.shift();
   }
 
+  /**
+   * Called when player performs a violent act (future: hunting, hitting).
+   * Anu tracks this — night forest creatures (Sasquatch) read it.
+   * Peaceful player with clean hands = Sasquatch befriends them.
+   * Violent player = Sasquatch hunts them.
+   */
+  senseViolence(actorId, targetId) {
+    // PLACEHOLDER — wire in when night cycle + Sasquatch system is built
+    if (!this._sensors.violenceLog) this._sensors.violenceLog = [];
+    this._sensors.violenceLog.push({ actorId, targetId, t: Date.now() });
+    if (this._sensors.violenceLog.length > 50)
+      this._sensors.violenceLog.shift();
+  }
+
+  /** Returns true if player has "blood on hands" — used by Sasquatch AI */
+  isViolent(windowMs = 300000) {
+    // PLACEHOLDER — checks last 5 minutes of violence log
+    if (!this._sensors.violenceLog) return false;
+    const cutoff = Date.now() - windowMs;
+    return this._sensors.violenceLog.some((v) => v.t > cutoff);
+  }
+
+  // =========================================================
+  // FUTURE SYSTEMS — PLACEHOLDER REGISTRY
+  // These are architecturally planned but NOT yet built.
+  // Build only after core pillars are stable.
+  // =========================================================
+
+  /*
+   * [PLACEHOLDER] WHITE TUNNEL / DEATH & REBIRTH SCENE
+   * --------------------------------------------------
+   * Triggered when player dies (night forest creature attack).
+   * A beautiful white light tunnel — serene, not scary.
+   * Presents three choices:
+   *   1. Continue in same role (respawn at village center)
+   *   2. Choose a new role (character selector)
+   *   3. Begin from death point in a new role
+   * This IS the character generation / selection screen.
+   * Must feel like a sacred passage, not a punishment.
+   * Kids learn: endings are beginnings.
+   *
+   * Build after: night cycle, forest biome, character system.
+   * Hook: window.UniverseAnu.triggerDeath(playerId, position)
+   */
+
+  /*
+   * [PLACEHOLDER] SASQUATCH MORAL AI
+   * ---------------------------------
+   * Night-only forest guardian / threat.
+   * Reads isViolent() from Anu to determine behavior:
+   *   - Violent player: hunts them
+   *   - Peaceful player: ignores, then befriends if:
+   *       • Player stays calm (no running)
+   *       • Player throws an apple (senseGesture('apple'))
+   *   - Befriended: becomes guardian, protects from other night demons
+   * declareSacred('Sasquatch befriended') fires on friendship.
+   *
+   * Build after: night cycle, FPV inventory system (apples).
+   */
+
+  /*
+   * [PLACEHOLDER] NIGHT FOREST DEMONS (spooky-cute)
+   * -------------------------------------------------
+   * Appear only after dark. Scary but not traumatizing — "spooky cute."
+   * Sasquatch guards against them if befriended.
+   * Severity scales with player violence history (Anu-driven).
+   *
+   * Build after: night cycle, Sasquatch system.
+   */
+
   // =========================================================
   // MOOD ENGINE — Anu interprets sensors and sets world mood
   // =========================================================
