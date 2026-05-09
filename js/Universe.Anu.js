@@ -36,7 +36,7 @@ class UniverseAnuEngine {
     this.firmament = {
       topography: {
         clearingRadius: 30,
-        flatRadius: 12.0,
+        flatRadius: 8.0,
         noiseScale: 0.08,
         noiseIntensity: 1.5,
         anchors: [],
@@ -172,11 +172,14 @@ class UniverseAnuEngine {
         dz = gz - p.z;
       const pdist = Math.sqrt(dx * dx + dz * dz);
       if (pdist < p.r + p.blend) {
+        // Use authoritative cache if available — keeps pY consistent with actual mesh
         const pY =
-          Math.sin(p.x * noiseScale) *
-            Math.cos(p.z * (noiseScale * 1.15)) *
-            noiseIntensity +
-          Math.sin(p.x * 0.25 + p.z * 0.18) * 0.35;
+          window._terrainHeightCache && window._terrainHeightCache.lookup
+            ? window._terrainHeightCache.lookup(p.x, p.z)
+            : Math.sin(p.x * noiseScale) *
+                Math.cos(p.z * (noiseScale * 1.15)) *
+                noiseIntensity +
+              Math.sin(p.x * 0.25 + p.z * 0.18) * 0.35;
         if (pdist < p.r) {
           y = pY;
         } else {

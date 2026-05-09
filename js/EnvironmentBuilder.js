@@ -351,8 +351,10 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             ground.position.set(0, 0, 0);
             scene.add(ground);
 
-            window._sacredGroundMesh = ground.children.find(c => c.isMesh && c.geometry.type === 'PlaneGeometry') || ground.children[0];
-            window._sacredHazeMesh = ground.children[1];
+            // ground is a Group: children[0]=grass mesh, children[1]=haze overlay
+            const _groundMeshes = ground.children.filter(c => c.isMesh);
+            window._sacredGroundMesh = _groundMeshes[0] || null;
+            window._sacredHazeMesh   = _groundMeshes[1] || null;
             
             window.flattenTerrainAt = async function(targetX, targetZ, radius, forceY) {
                 const targetY = (forceY !== undefined) ? forceY : (window._getGroundY ? window._getGroundY(targetX, targetZ) : 0);
@@ -420,12 +422,18 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             const HILL_HEIGHT = 4.0; // Halved height to lower the angle of the surrounding valley
 
             const getGroundY = (gx, gz) => {
-                if (window.UniverseAnu) {
-                    return window.UniverseAnu.getGroundY(gx, gz);
-                }
-                // Fallback baseline
-                return 0;
-            };
+              // Prefer the authoritative cache set by buildGroundChunk — single source of truth
+              if (
+                window._terrainHeightCache &&
+                window._terrainHeightCache.lookup
+              ) {
+                return window._terrainHeightCache.lookup(gx, gz);
+              }
+              if (window.UniverseAnu) {
+                return window.UniverseAnu.getGroundY(gx, gz);
+              }
+              return 0;
+            };;
             window._getGroundY = getGroundY;
 
 
