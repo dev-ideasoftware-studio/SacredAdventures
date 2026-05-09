@@ -521,6 +521,74 @@
 
     <!-- MODULES -->
     <!-- MODULES LOADED DYNAMICALLY ABOVE AFTER VIDEO START -->
+
+    <!-- ANU DEV TOOLBAR — only on localhost, invisible in production -->
+    <div id="anu-dev-toolbar" style="
+        position:fixed; top:0; left:0; right:0; z-index:99999;
+        background:rgba(0,0,0,0.85); color:#fff;
+        font:11px/1 monospace; padding:4px 8px;
+        display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    ">
+        <span style="color:#fbc02d;font-weight:bold;">⚡ ANU</span>
+        <span id="anu-fps-badge" style="color:#4caf50;min-width:60px;">FPS: --</span>
+        <span id="anu-mood-badge" style="color:#ce93d8;">mood: --</span>
+        <span style="color:#666;">|</span>
+    </div>
+    <script>
+    (function() {
+        // Only activate on localhost
+        if (!location.hostname.includes('localhost') && !location.hostname.includes('127.0.0.1')) return;
+
+        const MODULES = ['SHADOWS','PIP','POSTFX','TREES','ANIMALS','NPCS','JOURNAL','TERRAIN'];
+        const toolbar = document.getElementById('anu-dev-toolbar');
+        const fpsBadge = document.getElementById('anu-fps-badge');
+        const moodBadge = document.getElementById('anu-mood-badge');
+        const states = {}; // true = enabled
+        MODULES.forEach(m => states[m] = true);
+
+        function makeBtn(label) {
+            const btn = document.createElement('button');
+            btn.textContent = label;
+            btn.dataset.mod = label;
+            btn.style.cssText = `
+                padding:2px 7px; font:10px monospace; border-radius:3px; cursor:pointer;
+                border:1px solid #4caf50; background:#1a3a1a; color:#4caf50;
+            `;
+            btn.onclick = () => {
+                if (!window.UniverseAnu) return;
+                if (states[label]) {
+                    window.UniverseAnu.disable(label);
+                    states[label] = false;
+                    btn.style.borderColor = '#ff5252';
+                    btn.style.background = '#3a1a1a';
+                    btn.style.color = '#ff5252';
+                } else {
+                    window.UniverseAnu.enable(label);
+                    states[label] = true;
+                    btn.style.borderColor = '#4caf50';
+                    btn.style.background = '#1a3a1a';
+                    btn.style.color = '#4caf50';
+                }
+            };
+            toolbar.appendChild(btn);
+        }
+
+        MODULES.forEach(makeBtn);
+
+        // Live FPS + mood ticker
+        setInterval(() => {
+            if (window.UniverseAnu) {
+                const fps = Math.round(window.UniverseAnu._sensors.fps.weight || 0);
+                const mood = window.UniverseAnu.mood || '--';
+                fpsBadge.textContent = `FPS: ${fps}`;
+                fpsBadge.style.color = fps > 40 ? '#4caf50' : fps > 20 ? '#ff9800' : '#ff5252';
+                moodBadge.textContent = `mood: ${mood}`;
+                const moodColors = {serene:'#4caf50', restless:'#ff9800', troubled:'#ff5252', sacred:'#fbc02d'};
+                moodBadge.style.color = moodColors[mood] || '#ce93d8';
+            }
+        }, 500);
+    })();
+    </script>
 </body>
 
 </html>
