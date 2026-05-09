@@ -5139,20 +5139,43 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
           }
 
           // --- AVATAR PIP RENDER (dedicated renderer — no scissor, no framebuffer fights) ---
-          if (window._avatarPipRenderer && window._avatarPipScene && window._avatarPipClone) {
-            // Sync animation: mirror main avatar mixer state onto clone
-            if (window._playerAvatarMixer && window._avatarPipClone) {
-              // Clone shares geometry but needs its own mixer
-              if (!window._avatarPipMixer) {
-                window._avatarPipMixer = new THREE.AnimationMixer(window._avatarPipClone);
-                if (window._avIdleClip) {
-                  window._avatarPipIdleAction = window._avatarPipMixer.clipAction(window._avIdleClip);
-                  window._avatarPipIdleAction.play();
-                }
-              }
-              window._avatarPipMixer.update(delta);
+          if (
+            window._avatarPipRenderer &&
+            window._avatarPipScene &&
+            window._avatarPipClone
+          ) {
+            // Init pip mixer once idle clip is available
+            if (!window._avatarPipMixer && window._avIdleClip) {
+              window._avatarPipMixer = new THREE.AnimationMixer(
+                window._avatarPipClone,
+              );
+              window._avatarPipIdleAction = window._avatarPipMixer.clipAction(
+                window._avIdleClip,
+              );
+              window._avatarPipIdleAction.play();
             }
-            window._avatarPipRenderer.render(window._avatarPipScene, window.avatarOrthoCam);
+            if (window._avatarPipMixer) window._avatarPipMixer.update(delta);
+
+            // Self-healing: re-inject canvas if it got detached (every 120 frames)
+            if (frameCount % 120 === 0) {
+              const _pf = document.getElementById("panel-frame");
+              const _pd = _pf && _pf.contentDocument;
+              const _tgt = _pd && _pd.getElementById("avatar-pip-target");
+              if (
+                _tgt &&
+                !_tgt.contains(window._avatarPipRenderer.domElement)
+              ) {
+                window._avatarPipRenderer.domElement.style.cssText =
+                  "width:100%;height:100%;border-radius:50%;display:block;";
+                _tgt.innerHTML = "";
+                _tgt.appendChild(window._avatarPipRenderer.domElement);
+              }
+            }
+
+            window._avatarPipRenderer.render(
+              window._avatarPipScene,
+              window.avatarOrthoCam,
+            );
           }
 
           // Universe.Anu Engine Reconfiguration Listener
