@@ -6,6 +6,7 @@ export const UIModule = {
   _pipCanvas: null,
   _pipCtx: null,
   _compassRing: null,
+  _compassTextLayer: null,
   _compassMarkers: [],
   _seasonRing: null,
   _lastPipDraw: 0,
@@ -122,6 +123,7 @@ export const UIModule = {
     this._pipCanvas = this._root.querySelector("#pipCanvas");
     this._pipCtx = this._pipCanvas.getContext("2d", { alpha: true });
     this._compassRing = this._root.querySelector(".compass-outer-ring");
+    this._compassTextLayer = this._root.querySelector(".compass-text-layer");
     this._compassMarkers = [...this._root.querySelectorAll(".compass-marker")];
     this._seasonRing = this._root.querySelector("#season-ring");
     this._root.querySelectorAll(".season-btn").forEach((btn) => {
@@ -152,6 +154,7 @@ export const UIModule = {
     const pill = this._root && this._root.querySelector("#v2-distance-pill");
     if (pill && frameCount % 10 === 0)
       pill.textContent = `${Math.round(player.distanceFeet)} ft travelled`;
+    if (frameCount % 3 === 0) this._syncCompass(player.yaw);
     if (frameCount - this._lastPipDraw < 4) return;
     this._lastPipDraw = frameCount;
     this._drawPIP(player);
@@ -168,6 +171,21 @@ export const UIModule = {
     console.log("[PanelsPIP] ⏹ Unloaded.");
   },
 
+  _syncCompass(yaw) {
+    const deg = (yaw * 180) / Math.PI;
+    if (this._compassRing)
+      this._compassRing.style.transform = `rotate(${deg}deg)`;
+    if (this._compassTextLayer)
+      this._compassTextLayer.style.transform = `rotate(${deg}deg)`;
+    for (const marker of this._compassMarkers) {
+      if (marker.classList.contains("e") || marker.classList.contains("w")) {
+        marker.style.transform = `translateY(-50%) rotate(${-deg}deg)`;
+      } else {
+        marker.style.transform = `translateX(-50%) rotate(${-deg}deg)`;
+      }
+    }
+  },
+
   _drawPIP(player) {
     const ctx = this._pipCtx;
     if (!ctx) return;
@@ -178,20 +196,41 @@ export const UIModule = {
     ctx.clearRect(0, 0, w, h);
     const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, cx);
     grad.addColorStop(0, "#7dad58");
-    grad.addColorStop(0.65, "#355b28");
+    grad.addColorStop(0.58, "#3d6f31");
     grad.addColorStop(1, "#14220f");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    ctx.strokeStyle = "rgba(255,236,160,0.12)";
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(player.yaw);
+    ctx.translate(-cx, -cy);
+
+    ctx.strokeStyle = "rgba(255,236,160,0.09)";
     ctx.lineWidth = 1;
-    for (let i = -4; i <= 4; i++) {
-      const off = ((player.position.x + player.position.z) * 2 + i * 30) % 30;
+    for (let i = -10; i <= 10; i++) {
+      const offX = cx + ((player.position.x * 8 + i * 28) % 28) - 14;
+      const offZ = cy + ((player.position.z * 8 + i * 28) % 28) - 14;
       ctx.beginPath();
-      ctx.moveTo(off, 0);
-      ctx.lineTo(off + w, h);
+      ctx.moveTo(offX, 0);
+      ctx.lineTo(offX, h);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, offZ);
+      ctx.lineTo(w, offZ);
       ctx.stroke();
     }
+
+    ctx.strokeStyle = "rgba(20,55,16,0.32)";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(cx - 110, cy + 44);
+    ctx.bezierCurveTo(cx - 52, cy + 20, cx + 18, cy - 15, cx + 108, cy - 38);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(126,181,92,0.38)";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
 
     ctx.save();
     ctx.translate(cx, cy);
