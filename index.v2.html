@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sacred Adventures v2 — Engine Rebuild</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Courier New', monospace;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+    }
+
+    /* ── Phase intro banner ─────────────────────────────────────── */
+    #v2-banner {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75);
+      border: 1px solid rgba(251,192,45,0.5);
+      border-radius: 8px;
+      padding: 10px 20px;
+      color: #fbc02d;
+      font-size: 13px;
+      text-align: center;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+      z-index: 9998;
+      transition: opacity 0.5s;
+    }
+    #v2-banner b { color: #a5d6a7; }
+    #v2-banner small { display: block; color: #aaa; font-size: 10px; margin-top: 3px; }
+
+    /* ── Dev console shortcut hint ──────────────────────────────── */
+    #v2-hint {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      color: rgba(255,255,255,0.35);
+      font-size: 10px;
+      pointer-events: none;
+      z-index: 9998;
+      line-height: 1.8;
+    }
+  </style>
+
+  <!-- Three.js import map (local vendor — offline capable) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <canvas id="v2-canvas"></canvas>
+
+  <div id="v2-banner">
+    <b>Sacred Adventures v2</b> — Phase 1: Clean World
+    <small>Click canvas to lock mouse · WASD to move · ESC to release</small>
+  </div>
+
+  <div id="v2-hint">
+    Orchestrator.report() — full status<br>
+    Orchestrator.activate('ModuleName') — add module<br>
+    Orchestrator.toggle('ModuleName') — on/off<br>
+    Orchestrator.deactivate('ModuleName') — remove
+  </div>
+
+  <script type="module">
+    import { Orchestrator } from './js/v2/Orchestrator.js';
+    import { WorldModule }  from './js/v2/World.js';
+
+    // ── Boot ────────────────────────────────────────────────────────────
+    const canvas = document.getElementById('v2-canvas');
+    const orc    = new Orchestrator(canvas);
+
+    // ── Register all modules (inactive until activated) ──────────────────
+    orc.register(WorldModule);
+
+    // Future modules will be registered here as they are built:
+    // orc.register(TreesModule);
+    // orc.register(NPCModule);
+    // orc.register(AnimalsModule);
+    // orc.register(JournalModule);
+    // orc.register(PIPModule);
+    // orc.register(VillageMapModule);
+    // orc.register(FuzzyBrainModule);
+    // orc.register(AnuModule);
+    // orc.register(UIHUDModule);
+
+    // ── Phase 1: Activate World, benchmark it, then stop ────────────────
+    await orc.activate('World');
+
+    // ── Start render loop ────────────────────────────────────────────────
+    orc.start();
+
+    // ── Hide banner after 6 seconds ──────────────────────────────────────
+    setTimeout(() => {
+      const banner = document.getElementById('v2-banner');
+      if (banner) banner.style.opacity = '0';
+    }, 6000);
+
+    // ── Console welcome ──────────────────────────────────────────────────
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
+    console.log('%c  Sacred Adventures v2 — Phase 1: Clean World  ', 'color:#fbc02d;font-weight:bold;font-size:13px;background:#111;padding:4px 8px;');
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
+    console.log('');
+    console.log('%cThis is the BASELINE. Only the World module is loaded.', 'color:#a5d6a7;');
+    console.log('%cWait ~3s for the FPS benchmark to complete, then call:', 'color:#aaa;');
+    console.log('%c  Orchestrator.report()', 'color:#ce93d8;font-weight:bold;');
+    console.log('');
+    console.log('%cTo add the next module (once registered):', 'color:#aaa;');
+    console.log('%c  Orchestrator.activate("Trees")', 'color:#81d4fa;');
+    console.log('');
+  </script>
+</body>
+</html>
