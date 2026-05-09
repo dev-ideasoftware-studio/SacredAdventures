@@ -408,6 +408,14 @@ class UniverseAnuEngine {
         `%c[Universe.Anu] Mood shift: ${prev} → ${newMood}`,
         "color: #ce93d8; font-weight: bold;",
       );
+      // Ask FuzzyBrain why when world is struggling
+      if (
+        (newMood === "restless" || newMood === "troubled") &&
+        window.fuzzyBrain &&
+        window.fuzzyBrain.diagnose
+      ) {
+        window.fuzzyBrain.diagnose();
+      }
     }
   }
 
