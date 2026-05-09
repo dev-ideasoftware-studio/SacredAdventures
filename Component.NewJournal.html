@@ -698,7 +698,7 @@
             const container = document.getElementById('webgl-container');
             const scene = new THREE.Scene();
             const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Cap at 1x — journal is a book, not a game
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
@@ -1149,10 +1149,20 @@
                 if (announcer) announcer.textContent = "Logbook closing. Returning to game.";
             }
 
-            function animate() {
+            // Throttle — journal renders at 15fps max to free GPU budget for the main 3D world
+            let _journalLastFrame = 0;
+            const _journalFPS = 15;
+            const _journalInterval = 1000 / _journalFPS;
+
+            function animate(timestamp) {
                 requestAnimationFrame(animate);
 
+                // Skip entirely if journal is hidden and book is closed
                 if (window._isBookVisibleOverride === false && journal3D.currentAngle < 0.05) { return; }
+
+                // Throttle to 15fps
+                if (timestamp - _journalLastFrame < _journalInterval) { return; }
+                _journalLastFrame = timestamp;
 
                 journal3D.update();
                 renderer.render(scene, camera);
