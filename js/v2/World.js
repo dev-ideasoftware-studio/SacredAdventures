@@ -301,6 +301,8 @@ export const WorldModule = {
   _walkDistance: 0,
   _lastWalkX: 0,
   _lastWalkZ: 0,
+  _bobAmount: 0,
+  _bobOffset: 0,
 
   // ──────────────────────────────────────────────────────────────────────────
   load(scene, camera) {
@@ -465,6 +467,8 @@ export const WorldModule = {
     this._walkDistance = 0;
     this._lastWalkX = this._playerPos.x;
     this._lastWalkZ = this._playerPos.z;
+    this._bobAmount = 0;
+    this._bobOffset = 0;
 
     // ── Input ─────────────────────────────────────────────────────────────
     this._setupInput();
@@ -534,16 +538,27 @@ export const WorldModule = {
     const stepDistance = Math.sqrt(dx * dx + dz * dz);
     this._lastWalkX = body.position.x;
     this._lastWalkZ = body.position.z;
-    if (body.grounded && dir.lengthSq() > 0) this._walkDistance += stepDistance;
+    const horizontalSpeed = Math.sqrt(
+      body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z,
+    );
+    const moving =
+      body.grounded && horizontalSpeed > 0.18 && dir.lengthSq() > 0;
+    if (moving) this._walkDistance += stepDistance;
 
-    const bob =
-      body.grounded && stepDistance > 0.0001
-        ? Math.sin(this._walkDistance * 5.2) * 0.055 +
-          Math.sin(this._walkDistance * 10.4) * 0.018
-        : 0;
+    const targetBobAmount = moving ? Math.min(1, horizontalSpeed / speed) : 0;
+    const bobBlend = 1 - Math.pow(0.001, delta);
+    this._bobAmount += (targetBobAmount - this._bobAmount) * bobBlend;
+
+    const phase = this._walkDistance * 3.45;
+    const gaitWave = Math.sin(phase) * 0.028 + Math.sin(phase * 2) * 0.006;
+    const targetBob = gaitWave * this._bobAmount;
+    const bobReturn = moving ? 0.18 : 0.11;
+    this._bobOffset +=
+      (targetBob - this._bobOffset) * (1 - Math.pow(bobReturn, delta * 60));
+
     camera.position.set(
       body.position.x,
-      body.position.y + bob,
+      body.position.y + this._bobOffset,
       body.position.z,
     );
 

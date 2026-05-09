@@ -10,6 +10,8 @@ export const UIModule = {
   _compassMarkers: [],
   _seasonRing: null,
   _phaseSlots: [],
+  _grassImg: null,
+  _grassPattern: null,
   _gameTime: 8,
   _season: "day",
   _onMessage: null,
@@ -82,11 +84,16 @@ export const UIModule = {
           position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; z-index: -1; pointer-events: none;
           box-shadow: inset 0 0 30px rgba(0,0,0,0.2), inset 0 0 60px rgba(255,255,255,0.5);
         }
+        .moon-phase-backing {
+          position: absolute; inset: -4px; border-radius: 50%; z-index: 3; pointer-events: none;
+          background: radial-gradient(circle closest-side, transparent calc(100% - 42px), rgba(48,31,18,0.92) calc(100% - 41px), rgba(18,12,8,0.96) 100%);
+          box-shadow: inset 0 0 14px rgba(0,0,0,0.58), 0 0 10px rgba(251,192,45,0.12);
+        }
         .moon-phase-layer {
-          position: absolute; inset: -2px; border-radius: 50%; pointer-events: none; z-index: 4;
+          position: absolute; inset: -2px; border-radius: 50%; pointer-events: none; z-index: 5;
         }
         .moon-phase-dot {
-          position: absolute; width: 11%; height: 11%; border-radius: 50%;
+          position: absolute; width: 9.5%; height: 9.5%; border-radius: 50%;
           transform: translate(-50%, -50%);
           background: radial-gradient(circle at 35% 32%, #f4f4ef 0 38%, #10192f 40% 100%);
           border: 2px solid rgba(93,64,55,0.95);
@@ -119,14 +126,15 @@ export const UIModule = {
         <div class="season-bracket"></div>
         <canvas id="pipCanvas" width="512" height="512"></canvas>
         <div class="pip-vignette"></div>
+        <div class="moon-phase-backing"></div>
         <div class="moon-phase-layer">
-          <div class="moon-phase-dot" data-phase="0" style="top:9%;left:50%;"></div>
+          <div class="moon-phase-dot" data-phase="0" style="top:8.5%;left:50%;"></div>
           <div class="moon-phase-dot" data-phase="1" style="top:20%;left:80%;"></div>
-          <div class="moon-phase-dot" data-phase="2" style="top:50%;left:91%;"></div>
+          <div class="moon-phase-dot" data-phase="2" style="top:50%;left:91.5%;"></div>
           <div class="moon-phase-dot" data-phase="3" style="top:80%;left:80%;"></div>
-          <div class="moon-phase-dot" data-phase="4" style="top:91%;left:50%;"></div>
+          <div class="moon-phase-dot" data-phase="4" style="top:91.5%;left:50%;"></div>
           <div class="moon-phase-dot" data-phase="5" style="top:80%;left:20%;"></div>
-          <div class="moon-phase-dot" data-phase="6" style="top:50%;left:9%;"></div>
+          <div class="moon-phase-dot" data-phase="6" style="top:50%;left:8.5%;"></div>
           <div class="moon-phase-dot" data-phase="7" style="top:20%;left:20%;"></div>
         </div>
         <div class="season-outer-ring" id="season-ring">
@@ -149,6 +157,15 @@ export const UIModule = {
     this._compassMarkers = [...this._root.querySelectorAll(".compass-marker")];
     this._seasonRing = this._root.querySelector("#season-ring");
     this._phaseSlots = [...this._root.querySelectorAll(".moon-phase-dot")];
+    this._grassImg = new Image();
+    this._grassImg.src = "./SacredOnes.1/assets/landscape/grass_seamless.png";
+    this._grassImg.onload = () => {
+      if (this._pipCtx)
+        this._grassPattern = this._pipCtx.createPattern(
+          this._grassImg,
+          "repeat",
+        );
+    };
     this._root.querySelectorAll(".season-btn").forEach((btn) => {
       btn.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -206,6 +223,8 @@ export const UIModule = {
     this._compassMarkers = [];
     this._seasonRing = null;
     this._phaseSlots = [];
+    this._grassImg = null;
+    this._grassPattern = null;
     if (this._onMessage) window.removeEventListener("message", this._onMessage);
     this._onMessage = null;
     if (window.pipCanvas2D) window.pipCanvas2D = null;
@@ -278,11 +297,33 @@ export const UIModule = {
     const cx = w / 2;
     const cy = h / 2;
     ctx.clearRect(0, 0, w, h);
-    const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, cx);
-    grad.addColorStop(0, "#7dad58");
-    grad.addColorStop(0.58, "#3d6f31");
-    grad.addColorStop(1, "#14220f");
-    ctx.fillStyle = grad;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, cx - 4, 0, Math.PI * 2);
+    ctx.clip();
+
+    if (this._grassPattern) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(player.yaw);
+      ctx.scale(0.42, 0.42);
+      ctx.translate(
+        -cx / 0.42 - player.position.x * 42,
+        -cy / 0.42 - player.position.z * 42,
+      );
+      ctx.fillStyle = this._grassPattern;
+      ctx.fillRect(-w * 3, -h * 3, w * 7, h * 7);
+      ctx.restore();
+    } else {
+      const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, cx);
+      grad.addColorStop(0, "#7dad58");
+      grad.addColorStop(0.58, "#3d6f31");
+      grad.addColorStop(1, "#14220f");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    ctx.fillStyle = "rgba(34,80,24,0.22)";
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
@@ -314,6 +355,7 @@ export const UIModule = {
     ctx.strokeStyle = "rgba(126,181,92,0.38)";
     ctx.lineWidth = 4;
     ctx.stroke();
+    ctx.restore();
     ctx.restore();
 
     ctx.save();
