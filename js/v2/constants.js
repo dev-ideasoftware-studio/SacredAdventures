@@ -41,6 +41,13 @@ export const V2_FRAME_MS_BUDGET = 1000 / V2_TARGET_FPS;
 /** Adaptive PiP: upper bound on “every N frames” stride under stress (≥ baseline). */
 export const V2_ADAPTIVE_PIP_MAX_STRIDE = 8;
 
+/**
+ * Moondial `#pipOverlay` yellow dashed minimap cue: radius as a fraction of `min(canvasW,canvasH)`
+ * (`UIModule._pipOverlayRing`). `Trees` PiP ortho shader discards non-foliage fragments inside the
+ * same circle (screen-space `gl_FragCoord`).
+ */
+export const V2_PIP_OVERLAY_BRANCH_CLIP_RADIUS_FACTOR = 0.32;
+
 // ── Canonical mesh heights / structures (legacy EnvironmentBuilder 1:1) ────────
 
 /** `Assets/tree.glb` template scaled so upright mesh height matches this (m). Trees.js `scaleFix`. */

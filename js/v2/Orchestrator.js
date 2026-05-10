@@ -705,7 +705,23 @@ export class SacredOrchestrator {
       this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
       this._pipOrtho.up.set(0, 1, 0);
       this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
+      const pipClip = getRuntimeService("PipOrthoBranchClip");
+      let clipArmed = false;
+      if (
+        pipClip &&
+        typeof pipClip.armOrthoClip === "function" &&
+        typeof pipClip.clearOrthoClip === "function"
+      ) {
+        clipArmed = pipClip.armOrthoClip(this._pipW, this._pipH) === true;
+      }
       this._pipRenderer.render(this.scene, this._pipOrtho);
+      if (
+        clipArmed &&
+        pipClip &&
+        typeof pipClip.clearOrthoClip === "function"
+      ) {
+        pipClip.clearOrthoClip();
+      }
     } else {
       const yaw = wp.yaw || 0;
       const sin = Math.sin(yaw);
