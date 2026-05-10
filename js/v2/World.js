@@ -18,9 +18,22 @@ import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 
 const CHASE_CAMERA_DIST = 1.42 * V2_TILE_WORLD;
+/**
+ * ←/→ only (no WASD): short boom — full CHASE_CAMERA_DIST makes the eye orbit a huge
+ * horizontal arc; user wants pivot-in-place (mostly rotate view, minimal XZ swing).
+ */
+const CHASE_CAMERA_DIST_TURN = 2.05;
 const CHASE_LOOK_AHEAD_MOVE = 4.2;
-const CHASE_LOOK_AHEAD_TURN = 0.42;
+/** Small forward focus when ←/→ only — keeps pivot tight so view doesn’t “orbit-slide”. */
+const CHASE_LOOK_AHEAD_TURN = 0.12;
 const CHASE_CAMERA_HEIGHT = 2.5;
+/** lookAt height above feet when walking — long chase + look-ahead keeps sight line shallow. */
+const CHASE_LOOK_HEIGHT_MOVE = 1.28;
+/**
+ * lookAt height above feet when pivoting (←/→ only). Short boom + tiny look-ahead puts the
+ * aim point very close in XZ; if we kept CHASE_LOOK_HEIGHT_MOVE the camera would stare at the ground.
+ */
+const CHASE_LOOK_HEIGHT_TURN = 2.38;
 
 /** Set true to load Avatar3.glb (Draco). Off while profiling — see forensic notes in PR/chat. */
 const ENABLE_AVATAR3 = false;
@@ -322,6 +335,8 @@ export const WorldModule = {
   _feetScratch: new THREE.Vector3(),
   _back: new THREE.Vector3(),
   _lookTarget: new THREE.Vector3(),
+  /** Smoothed chase arm — avoids snap when releasing ←/→ after pivot. */
+  _chaseDistSmooth: CHASE_CAMERA_DIST,
 
   // ──────────────────────────────────────────────────────────────────────────
   async load(scene, camera) {
@@ -432,6 +447,8 @@ export const WorldModule = {
     const terrain = new THREE.Mesh(geo, groundMat);
     terrain.receiveShadow = false;
     terrain.name = "terrain";
+    terrain.userData.anuSimulationDomain = "environment";
+    terrain.userData.anuKind = "terrain_hex_mesh";
     scene.add(terrain);
     this._objects.push(terrain);
 
@@ -457,6 +474,9 @@ export const WorldModule = {
       side: THREE.FrontSide,
     });
     const hazeMesh = new THREE.Mesh(hazeGeo, hazeMat);
+    hazeMesh.name = "atmospheric_haze";
+    hazeMesh.userData.anuSimulationDomain = "environment";
+    hazeMesh.userData.anuKind = "haze_overlay";
     scene.add(hazeMesh);
     this._objects.push(hazeMesh);
 
@@ -535,6 +555,9 @@ export const WorldModule = {
       }
       scene.add(this._avatar);
       this._objects.push(this._avatar);
+      this._avatar.name = this._avatar.name || "player_avatar_rig";
+      this._avatar.userData.anuSimulationDomain = "player";
+      this._avatar.userData.anuKind = "avatar_gltf";
       console.log("%c[World] Avatar3.glb ready (chase cam)", "color:#90caf9;");
     } catch (err) {
       console.warn("[World] Avatar3.glb load failed:", err);
@@ -558,15 +581,9 @@ export const WorldModule = {
     if (k["d"]) dir.x += 1;
 
     const movingKeys =
-      k["w"] ||
-      k["s"] ||
-      k["arrowup"] ||
-      k["arrowdown"] ||
-      k["a"] ||
-      k["d"];
+      k["w"] || k["s"] || k["arrowup"] || k["arrowdown"] || k["a"] || k["d"];
 
-    const turnOnly =
-      (k["arrowleft"] || k["arrowright"]) && !movingKeys;
+    const turnOnly = (k["arrowleft"] || k["arrowright"]) && !movingKeys;
     const turnRate = turnOnly ? 2.85 : 1.72;
 
     // ── Turn (after movement keys known — faster when rotating in place) ───
@@ -583,16 +600,14 @@ export const WorldModule = {
       // Feed into physics body velocity (horizontal only)
       body.velocity.x = wx * speed;
       body.velocity.z = wz * speed;
-    } else {
-      // No input — friction stop
-      body.velocity.x *= 0.82;
-      body.velocity.z *= 0.82;
-    }
-
-    // Turn in place: ← / → without WASD — kill lateral drift immediately
-    if (!movingKeys && (k["arrowleft"] || k["arrowright"])) {
+    } else if (turnOnly) {
+      // ←/→ only: no horizontal motion — do not blend with friction (avoids drift before zero)
       body.velocity.x = 0;
       body.velocity.z = 0;
+    } else {
+      // No movement keys — friction stop
+      body.velocity.x *= 0.82;
+      body.velocity.z *= 0.82;
     }
 
     // ── Jump (Space) — only if grounded ───────────────────────────────────
@@ -606,6 +621,12 @@ export const WorldModule = {
 
     // ── Step all physics bodies (gravity, terrain collision, slope) ────────
     WorldPhysics.stepAll(delta);
+
+    // Belt-and-suspenders: slope integration must not leave horizontal drift during pivot
+    if (turnOnly) {
+      body.velocity.x = 0;
+      body.velocity.z = 0;
+    }
 
     const dx = body.position.x - this._lastWalkX;
     const dz = body.position.z - this._lastWalkZ;
@@ -641,17 +662,45 @@ export const WorldModule = {
     this._fwd.set(-Math.sin(this._yaw), 0, -Math.cos(this._yaw));
     this._back.copy(this._fwd).multiplyScalar(-1);
 
+    const targetChaseDist = turnOnly
+      ? CHASE_CAMERA_DIST_TURN
+      : CHASE_CAMERA_DIST;
+    const chaseLerp = turnOnly ? 18 : 11;
+    this._chaseDistSmooth +=
+      (targetChaseDist - this._chaseDistSmooth) *
+      Math.min(1, delta * chaseLerp);
+
     camera.position.set(
-      body.position.x + this._back.x * CHASE_CAMERA_DIST,
+      body.position.x + this._back.x * this._chaseDistSmooth,
       feetY + CHASE_CAMERA_HEIGHT + this._bobOffset,
-      body.position.z + this._back.z * CHASE_CAMERA_DIST,
+      body.position.z + this._back.z * this._chaseDistSmooth,
     );
 
     const lookAhead = turnOnly ? CHASE_LOOK_AHEAD_TURN : CHASE_LOOK_AHEAD_MOVE;
-    this._lookTarget.copy(this._feetScratch).addScaledVector(this._fwd, lookAhead);
-    this._lookTarget.y += 1.28;
+    this._lookTarget
+      .copy(this._feetScratch)
+      .addScaledVector(this._fwd, lookAhead);
+    this._lookTarget.y += turnOnly
+      ? CHASE_LOOK_HEIGHT_TURN
+      : CHASE_LOOK_HEIGHT_MOVE;
     camera.up.set(0, 1, 0);
     camera.lookAt(this._lookTarget);
+
+    if (_frameCount % 24 === 0) {
+      dispatchInteraction(ANU_EVENTS.PLAYER_STATE_SAMPLE, {
+        t: typeof performance !== "undefined" ? performance.now() : 0,
+        frame: _frameCount,
+        x: body.position.x,
+        y: body.position.y,
+        z: body.position.z,
+        yaw: this._yaw,
+        grounded: body.grounded,
+        walkDistance: this._walkDistance,
+        velocityXZ: Math.sqrt(
+          body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z,
+        ),
+      });
+    }
 
     window.WorldPlayer = {
       feet: this._feetScratch,
@@ -679,7 +728,30 @@ export const WorldModule = {
   _setupInput() {
     this._keys = {};
     this._onKey = (e) => {
-      this._keys[e.key.toLowerCase()] = e.type === "keydown";
+      const down = e.type === "keydown";
+      const raw = e.key;
+      const key = typeof raw === "string" ? raw.toLowerCase() : "";
+      this._keys[key] = down;
+      if (
+        [
+          "w",
+          "a",
+          "s",
+          "d",
+          " ",
+          "arrowup",
+          "arrowdown",
+          "arrowleft",
+          "arrowright",
+        ].includes(key)
+      ) {
+        dispatchInteraction(ANU_EVENTS.PLAYER_KEY_EDGE, {
+          key,
+          down,
+          code: e.code,
+          t: typeof performance !== "undefined" ? performance.now() : 0,
+        });
+      }
     };
     window.addEventListener("keydown", this._onKey);
     window.addEventListener("keyup", this._onKey);

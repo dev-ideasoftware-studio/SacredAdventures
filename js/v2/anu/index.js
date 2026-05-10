@@ -23,3 +23,24 @@ export {
   tickAdaptiveRenderPolicy,
   getAdaptivePolicyDebug,
 } from "./AdaptiveRenderPolicy.js";
+export {
+  captureSceneRenderInventory,
+  getSceneInventorySnapshot,
+  exportSceneInventoryJson,
+  SCENE_INVENTORY_INTERVAL_FRAMES,
+} from "./SceneModelInventory.js";
+export {
+  ANU_SIMULATION_DOMAIN,
+  buildSimulationOverview,
+  exportSimulationOverviewJson,
+} from "./SimulationController.js";
+export {
+  recordSacredLoopError,
+  recordModuleLoadError,
+  tickPipelineStressLedger,
+  buildAiCodingBrief,
+  exportLedgerJsonPretty,
+  getLedgerSnapshot,
+  clearStressLedger,
+  STRESS_LEDGER_SAMPLE_INTERVAL_FRAMES,
+} from "./AnuErrorAndStressLedger.js";

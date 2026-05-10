@@ -6,7 +6,7 @@ alwaysApply: false
 
 # v2 render pipeline (do not regress)
 
-When editing `js/v2/Orchestrator.js`, `js/v2/constants.js`, `js/v2/Trees.js`, `js/v2/V2Panel.js`, or boot order in `index.v2.html`:
+When editing `js/v2/Orchestrator.js` (class **SacredOrchestrator**, globals **`window.anuOrchestrator`** canonical / **`window.Orchestrator`** legacy alias), `js/v2/constants.js`, `js/v2/Trees.js`, `js/v2/V2Panel.js`, or boot order in `index.v2.html`:
 
 1. **PiP is a second full-scene WebGL pass** — `_renderPip()` renders `this.scene` again into `#pipCanvas`. That duplicates most world GPU cost; it is **not** included in the main HUD `renderer.info` triangle line.
 
@@ -18,6 +18,6 @@ When editing `js/v2/Orchestrator.js`, `js/v2/constants.js`, `js/v2/Trees.js`, `j
 
 5. **Legacy ThreeIcons** — never assign onto `import * as THREE` namespace; use Proxy/pattern in `V2Panel.js`.
 
-6. **Anu bridge** — rendering cadence: `anu/RenderingGovernor.js` + **`AdaptiveRenderPolicy`** (stress → wider PiP stride); typed interactions: `anu/InteractionBus.js` + `anu/anuEvents.js`.
+6. **Anu bridge** — rendering cadence: `anu/RenderingGovernor.js` + **`AdaptiveRenderPolicy`** (stress → wider PiP stride); typed interactions: `anu/InteractionBus.js` + `anu/anuEvents.js`. Errors + stress samples: **`anu/AnuErrorAndStressLedger.js`** (`AnuUniverse.exportStressJson()` / `exportAiStressBrief()`).
 
-Runtime **memory + warnings**: `js/v2/AnuModule.js` (`window.AnuUniverse.report()`). Extend `ANU_PIPELINE_MEMORY` when a new incident is understood.
+Runtime **memory + warnings**: `js/v2/AnuModule.js` (`window.AnuUniverse.report()`). Extend `ANU_PIPELINE_MEMORY` when a new incident is understood. **Scene drawables**: `anu/SceneModelInventory.js` (interval traverse; `summary.bySimulationDomain`). **Simulation overview**: `anu/SimulationController.js` (`AnuUniverse.exportSimulationJson()`).

@@ -1,5 +1,5 @@
 /**
- * Sacred Adventures v2 — Constructor Orchestrator AI
+ * Sacred Adventures v2 — SacredOrchestrator (Anu engine shell)
  *
  * Responsibilities:
  *  1. Own the Three.js renderer, scene, camera, and clock
@@ -8,7 +8,9 @@
  *  3. Benchmark FPS cost of every module in isolation
  *  4. Drive the requestAnimationFrame loop and call active module updates
  *  5. Render an on-screen HUD showing live FPS and active module list
- *  6. Expose window.Orchestrator so devtools / Hi Anu can query it
+ *  6. Expose the live shell as window.anuOrchestrator (canonical). window.Orchestrator is a
+ *     legacy alias for the same instance. Class SacredOrchestrator ≠ global: import the class,
+ *     use window.anuOrchestrator for the singleton engine at runtime.
  */
 
 import * as THREE from 'three';
@@ -22,6 +24,16 @@ import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { recordFrameDuration } from "./anu/FrameBudget.js";
 import { tickAdaptiveRenderPolicy } from "./anu/AdaptiveRenderPolicy.js";
+import {
+  recordSacredLoopError,
+  recordModuleLoadError,
+  tickPipelineStressLedger,
+  STRESS_LEDGER_SAMPLE_INTERVAL_FRAMES,
+} from "./anu/AnuErrorAndStressLedger.js";
+import {
+  captureSceneRenderInventory,
+  SCENE_INVENTORY_INTERVAL_FRAMES,
+} from "./anu/SceneModelInventory.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -30,9 +42,9 @@ const BENCH_FRAMES   = 180;   // frames to average for a benchmark
 const SMOOTH_ALPHA   = 0.05;  // EMA smoothing for live FPS
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ORCHESTRATOR CLASS
+// SACRED ORCHESTRATOR (engine shell — Anu runtime host)
 // ─────────────────────────────────────────────────────────────────────────────
-export class Orchestrator {
+export class SacredOrchestrator {
   constructor(canvas) {
     // ── Renderer ──────────────────────────────────────────────────────────
     this.renderer = new THREE.WebGLRenderer({
@@ -91,16 +103,21 @@ export class Orchestrator {
     // ── Resize ────────────────────────────────────────────────────────────
     window.addEventListener("resize", () => this._onResize());
 
+    /** Runtime discriminator — only the constructed engine shell sets this (not random globals). */
+    this.isSacredOrchestratorShell = true;
+
     // ── Expose globally ───────────────────────────────────────────────────
+    window.anuOrchestrator = this;
+    /** Legacy alias — must stay identical to anuOrchestrator (singleton engine shell). */
     window.Orchestrator = this;
 
     console.log(
-      "%c[Orchestrator] 🚀 Sacred Adventures v2 — Engine Online",
+      "%c[SacredOrchestrator] 🚀 Sacred Adventures v2 — Engine Online",
       "color:#fbc02d;font-weight:bold;font-size:14px;",
     );
-    console.log("[Orchestrator] Renderer:", this.renderer.info.render);
+    console.log("[SacredOrchestrator] Renderer:", this.renderer.info.render);
     console.log(
-      "[Orchestrator] Call Orchestrator.report() for full status at any time.",
+      "[SacredOrchestrator] Call anuOrchestrator.report() for full status (canonical global).",
     );
   }
 
@@ -114,7 +131,7 @@ export class Orchestrator {
    */
   register(mod) {
     if (!mod.name || typeof mod.load !== 'function') {
-      console.error('[Orchestrator] Invalid module — must have name + load()', mod);
+      console.error('[SacredOrchestrator] Invalid module — must have name + load()', mod);
       return;
     }
     this._registry.set(mod.name, {
@@ -124,31 +141,37 @@ export class Orchestrator {
       benchFrames: 0,
       benchTotal:  0,
     });
-    console.log(`%c[Orchestrator] 📦 Registered: ${mod.name}`, 'color:#81d4fa;');
+    console.log(`%c[SacredOrchestrator] 📦 Registered: ${mod.name}`, 'color:#81d4fa;');
   }
 
   /**
-   * Activate a module by name. Calls load(), adds to update loop, then
-   * auto-benchmarks FPS cost over BENCH_FRAMES frames.
+   * Activate a module by name. Calls load(scene, camera, renderer, orchestrator),
+   * adds to update loop, then auto-benchmarks FPS cost over BENCH_FRAMES frames.
+   * Extra load() args are ignored by modules that do not use them.
    */
   async activate(name) {
     const entry = this._registry.get(name);
     if (!entry) {
-      console.error(`[Orchestrator] Unknown module: ${name}`);
+      console.error(`[SacredOrchestrator] Unknown module: ${name}`);
       return;
     }
     if (entry.active) {
-      console.warn(`[Orchestrator] Already active: ${name}`);
+      console.warn(`[SacredOrchestrator] Already active: ${name}`);
       return;
     }
 
     const baselineFPS = this.smoothFPS;
     console.log(
-      `%c[Orchestrator] ▶ Activating: ${name} (baseline FPS: ${baselineFPS.toFixed(1)})`,
+      `%c[SacredOrchestrator] ▶ Activating: ${name} (baseline FPS: ${baselineFPS.toFixed(1)})`,
       "color:#a5d6a7;",
     );
 
-    await entry.module.load(this.scene, this.camera, this.renderer);
+    try {
+      await entry.module.load(this.scene, this.camera, this.renderer, this);
+    } catch (err) {
+      recordModuleLoadError(name, err);
+      throw err;
+    }
     entry.active = true;
     this._activeModules.push(name);
     this._updateHUD();
@@ -172,7 +195,7 @@ export class Orchestrator {
       this._benchQueue.push(name);
       if (!this._warmupPoll) {
         console.log(
-          "%c[Orchestrator] FPS warmup — benchmarks queued until EMA stabilizes (smoothFPS ≥ 8).",
+          "%c[SacredOrchestrator] FPS warmup — benchmarks queued until EMA stabilizes (smoothFPS ≥ 8).",
           "color:#81d4fa;",
         );
         this._warmupPoll = setInterval(() => {
@@ -205,7 +228,7 @@ export class Orchestrator {
       baselineFPS,
     };
     console.log(
-      `%c[Orchestrator] ⏱ Benchmarking ${name} (baseline ${baselineFPS.toFixed(1)} FPS)`,
+      `%c[SacredOrchestrator] ⏱ Benchmarking ${name} (baseline ${baselineFPS.toFixed(1)} FPS)`,
       "color:#fbc02d;font-weight:bold;",
     );
   }
@@ -213,12 +236,12 @@ export class Orchestrator {
   /** Deactivate a module — calls unload(), removes from loop */
   deactivate(name) {
     const entry = this._registry.get(name);
-    if (!entry || !entry.active) { console.warn(`[Orchestrator] Not active: ${name}`); return; }
+    if (!entry || !entry.active) { console.warn(`[SacredOrchestrator] Not active: ${name}`); return; }
     entry.module.unload(this.scene);
     entry.active = false;
     this._activeModules = this._activeModules.filter(n => n !== name);
     dispatchInteraction(ANU_EVENTS.MODULE_DEACTIVATED, { name });
-    console.log(`%c[Orchestrator] ⏹ Deactivated: ${name}`, 'color:#ef9a9a;');
+    console.log(`%c[SacredOrchestrator] ⏹ Deactivated: ${name}`, 'color:#ef9a9a;');
     this._updateHUD();
   }
 
@@ -245,55 +268,89 @@ export class Orchestrator {
   _loop() {
     requestAnimationFrame(() => this._loop());
 
-    const frameT0 = performance.now();
+    try {
+      const frameT0 = performance.now();
 
-    const delta = Math.min(this.clock.getDelta(), 0.1);
-    this._frameCount++;
+      const delta = Math.min(this.clock.getDelta(), 0.1);
+      this._frameCount++;
 
-    // ── FPS smoothing (EMA) ───────────────────────────────────────────────
-    if (delta > 0) {
-      this.rawFPS = 1 / delta;
-      this.smoothFPS =
-        this._frameCount < 10
-          ? this.rawFPS // seed with raw until EMA stabilises
-          : this.smoothFPS * (1 - SMOOTH_ALPHA) + this.rawFPS * SMOOTH_ALPHA;
-    }
-    // Mark FPS ready after 60 frames of warmup
-    if (!this._fpsReady && this._frameCount >= 60) this._fpsReady = true;
-    // Track peak (theoretical max) — only after warmup, cap at monitor refresh
-    if (this._fpsReady && this.smoothFPS > this._peakFPS) {
-      this._peakFPS = this.smoothFPS;
-    }
-
-    // ── Update active modules ─────────────────────────────────────────────
-    for (const name of this._activeModules) {
-      const entry = this._registry.get(name);
-      if (entry && entry.active && typeof entry.module.update === 'function') {
-        entry.module.update(delta, this._frameCount, this.scene, this.camera);
+      // ── FPS smoothing (EMA) ───────────────────────────────────────────────
+      if (delta > 0) {
+        this.rawFPS = 1 / delta;
+        this.smoothFPS =
+          this._frameCount < 10
+            ? this.rawFPS // seed with raw until EMA stabilises
+            : this.smoothFPS * (1 - SMOOTH_ALPHA) + this.rawFPS * SMOOTH_ALPHA;
       }
-    }
-
-    // ── Benchmark tick ────────────────────────────────────────────────────
-    if (this._bench) {
-      this._bench.frames++;
-      this._bench.totalDelta += delta;
-      if (this._bench.frames >= BENCH_FRAMES) {
-        this._finalizeBench();
+      // Mark FPS ready after 60 frames of warmup
+      if (!this._fpsReady && this._frameCount >= 60) this._fpsReady = true;
+      // Track peak (theoretical max) — only after warmup, cap at monitor refresh
+      if (this._fpsReady && this.smoothFPS > this._peakFPS) {
+        this._peakFPS = this.smoothFPS;
       }
+
+      // ── Update active modules ─────────────────────────────────────────────
+      for (const name of this._activeModules) {
+        const entry = this._registry.get(name);
+        if (entry && entry.active && typeof entry.module.update === "function") {
+          try {
+            entry.module.update(delta, this._frameCount, this.scene, this.camera);
+          } catch (err) {
+            recordSacredLoopError(err, {
+              phase: "module_update",
+              moduleName: name,
+              frameCount: this._frameCount,
+            });
+          }
+        }
+      }
+
+      // ── Benchmark tick ────────────────────────────────────────────────────
+      if (this._bench) {
+        this._bench.frames++;
+        this._bench.totalDelta += delta;
+        if (this._bench.frames >= BENCH_FRAMES) {
+          this._finalizeBench();
+        }
+      }
+
+      // ── Render ────────────────────────────────────────────────────────────
+      this.renderer.render(this.scene, this.camera);
+      this._renderPip();
+
+      // ── HUD update (every 20 frames) ──────────────────────────────────────
+      if (this._frameCount % 20 === 0) {
+        this._updateHUDValues();
+      }
+
+      const frameMs = performance.now() - frameT0;
+      recordFrameDuration(frameMs);
+      tickAdaptiveRenderPolicy(frameMs);
+
+      if (this._frameCount % STRESS_LEDGER_SAMPLE_INTERVAL_FRAMES === 0) {
+        try {
+          tickPipelineStressLedger(() => this.renderer.info);
+        } catch (ledgerErr) {
+          recordSacredLoopError(ledgerErr, {
+            phase: "stress_ledger",
+            frameCount: this._frameCount,
+          });
+        }
+      }
+
+      if (this._frameCount % SCENE_INVENTORY_INTERVAL_FRAMES === 0) {
+        try {
+          captureSceneRenderInventory(this.scene);
+        } catch (invErr) {
+          recordSacredLoopError(invErr, {
+            phase: "scene_inventory",
+            frameCount: this._frameCount,
+          });
+        }
+      }
+    } catch (err) {
+      recordSacredLoopError(err, { frameCount: this._frameCount });
     }
-
-    // ── Render ────────────────────────────────────────────────────────────
-    this.renderer.render(this.scene, this.camera);
-    this._renderPip();
-
-    // ── HUD update (every 20 frames) ──────────────────────────────────────
-    if (this._frameCount % 20 === 0) {
-      this._updateHUDValues();
-    }
-
-    const frameMs = performance.now() - frameT0;
-    recordFrameDuration(frameMs);
-    tickAdaptiveRenderPolicy(frameMs);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -309,7 +366,7 @@ export class Orchestrator {
 
     const costStr = cost < 1 ? '✅ <1 FPS cost' : cost < 5 ? `🟡 ${cost.toFixed(1)} FPS cost` : `🔴 ${cost.toFixed(1)} FPS cost`;
     console.log(
-      `%c[Orchestrator] 📊 Bench complete: ${b.name} | avg ${avgFPS.toFixed(1)} FPS | ${costStr} | baseline was ${b.baselineFPS.toFixed(1)}`,
+      `%c[SacredOrchestrator] 📊 Bench complete: ${b.name} | avg ${avgFPS.toFixed(1)} FPS | ${costStr} | baseline was ${b.baselineFPS.toFixed(1)}`,
       'color:#fbc02d;font-weight:bold;'
     );
 
@@ -333,7 +390,7 @@ export class Orchestrator {
       .map(([name, e]) => ({ name, cost: e.fpsCost }));
 
     if (unloaded.length === 0) {
-      console.log('%c[Orchestrator] 🏁 All registered modules active!', 'color:#a5d6a7;font-weight:bold;');
+      console.log('%c[SacredOrchestrator] 🏁 All registered modules active!', 'color:#a5d6a7;font-weight:bold;');
       return;
     }
 
@@ -348,7 +405,7 @@ export class Orchestrator {
     const next = unloaded[0];
     const costHint = next.cost !== null ? `(estimated ${next.cost.toFixed(1)} FPS cost)` : '(not yet benchmarked)';
     console.log(
-      `%c[Orchestrator] 💡 Recommended next: Orchestrator.activate('${next.name}') ${costHint}`,
+      `%c[SacredOrchestrator] 💡 Recommended next: anuOrchestrator.activate('${next.name}') ${costHint}`,
       'color:#ce93d8;font-weight:bold;'
     );
   }
@@ -359,7 +416,7 @@ export class Orchestrator {
 
   report() {
     const r = this.renderer.info.render;
-    console.group('%c[Orchestrator] 📋 Full Status Report', 'color:#fbc02d;font-weight:bold;font-size:13px;');
+    console.group('%c[SacredOrchestrator] 📋 Full Status Report', 'color:#fbc02d;font-weight:bold;font-size:13px;');
     console.log(`FPS: ${this.smoothFPS.toFixed(1)} smooth | ${this.rawFPS.toFixed(1)} raw | Target: ${V2_TARGET_FPS}`);
     console.log(`Draw calls: ${r.calls} | Triangles: ${r.triangles} | Frame: ${this._frameCount}`);
     console.log(`Active modules (${this._activeModules.length}):`, this._activeModules.join(', ') || 'none');
@@ -518,7 +575,7 @@ export class Orchestrator {
     this._pipOrtho = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.5, 520);
 
     console.log(
-      `%c[Orchestrator] PiP ortho active — ${span.toFixed(2)} world units wide (base × ${V2_PIP_ORTHO_ZOOM} zoom-out)`,
+      `%c[SacredOrchestrator] PiP ortho active — ${span.toFixed(2)} world units wide (base × ${V2_PIP_ORTHO_ZOOM} zoom-out)`,
       'color:#81d4fa;font-weight:bold;',
     );
   }

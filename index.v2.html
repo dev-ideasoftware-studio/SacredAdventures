@@ -96,44 +96,48 @@
   </div>
 
   <div id="v2-hint">
-    Orchestrator.report() — full status<br>
-    Orchestrator.activate('ModuleName') — add module<br>
-    Orchestrator.toggle('ModuleName') — on/off<br>
-    Orchestrator.deactivate('ModuleName') — remove
+    AnuUniverse.report() — pipeline memory · anuOrchestrator.report() — engine HUD<br>
+    Canonical: window.anuOrchestrator (SacredOrchestrator shell). Legacy alias: window.Orchestrator<br>
+    AnuUniverse.anuOrchestrator === window.anuOrchestrator · AnuUniverse.isLiveSacredOrchestratorBound()<br>
+    anuOrchestrator.activate('ModuleName') — add module<br>
+    anuOrchestrator.toggle('ModuleName') — on/off<br>
+    anuOrchestrator.deactivate('ModuleName') — remove
   </div>
 
   <script type="module">
-    import { Orchestrator } from './js/v2/Orchestrator.js';
+    import { SacredOrchestrator } from './js/v2/Orchestrator.js';
+    import { AnuModule }    from './js/v2/AnuModule.js';
     import { WorldModule }  from './js/v2/World.js';
     import { TreesModule }  from './js/v2/Trees.js';
     import { UIModule }     from './js/v2/UIModule.js';
     import { V2PanelModule } from './js/v2/V2Panel.js';
-    import { AnuModule }    from './js/v2/AnuModule.js';
 
     // ── Boot ────────────────────────────────────────────────────────────
     const canvas = document.getElementById('v2-canvas');
-    const orc    = new Orchestrator(canvas);
+    const orc    = new SacredOrchestrator(canvas);
 
     // ── Register all modules (inactive until activated) ──────────────────
+    // Anu first — AnuModule is the orchestrator module (AnuUniverse + engine shell).
+    orc.register(AnuModule);
     orc.register(WorldModule);
     orc.register(TreesModule);
     orc.register(UIModule);
     orc.register(V2PanelModule);
-    orc.register(AnuModule);
 
-    // Future modules will be registered here as they are built:
-    // orc.register(NPCModule);
-    // orc.register(AnimalsModule);
+    // Simulation domains (register & activate when built — AnuUniverse.exportSimulationJson()):
+    // orc.register(WildlifeModule);   // fauna — meshes + AI; dispatch FAUNA_TICK
+    // orc.register(NPCModule);        // population — NPC behaviour / dialogue; dispatch NPC_ENTITY
+    // orc.register(BuildingsModule);  // structures — buildings / sockets; dispatch STRUCTURE_EVENT
     // orc.register(JournalModule);
     // orc.register(VillageMapModule);
     // orc.register(FuzzyBrainModule);
     // orc.register(UIHUDModule);
 
-    // ── Phase 2: World + forest + panels (benchmarks each add-on in order) ─
+    // ── Phase 2: Anu (primary coordinator) → world + forest + panels (benchmark order) ─
+    await orc.activate('Anu');
     await orc.activate('World');
     await orc.activate('Trees');
     await orc.activate('PanelsPIP');
-    await orc.activate('Anu');
     // Guides / neumorphic control deck + ThreeIcons (heavy second WebGL pass) — off for perf.
     // await orc.activate('V2Panel');
     // To re-enable:  await orc.activate('V2Panel');
@@ -152,12 +156,12 @@
     console.log('%c  Sacred Adventures v2 — Phase 2: World + forest  ', 'color:#fbc02d;font-weight:bold;font-size:13px;background:#111;padding:4px 8px;');
     console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
     console.log('');
-    console.log('%cWorld + Trees + PanelsPIP + Anu (pipeline memory). V2Panel off — Orchestrator.activate("V2Panel") to restore.', 'color:#a5d6a7;');
+    console.log('%cAnu (orchestrator module) → World + Trees + PanelsPIP. V2Panel off — anuOrchestrator.activate("V2Panel") to restore.', 'color:#a5d6a7;');
     console.log('%cWait ~3s for the FPS benchmark to complete, then call:', 'color:#aaa;');
-    console.log('%c  Orchestrator.report()', 'color:#ce93d8;font-weight:bold;');
+    console.log('%c  anuOrchestrator.report()', 'color:#ce93d8;font-weight:bold;');
     console.log('');
     console.log('%cTo toggle forest:', 'color:#aaa;');
-    console.log('%c  Orchestrator.toggle("Trees")', 'color:#81d4fa;');
+    console.log('%c  anuOrchestrator.toggle("Trees")', 'color:#81d4fa;');
     console.log('');
   </script>
 </body>

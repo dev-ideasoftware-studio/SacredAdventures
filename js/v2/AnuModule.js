@@ -1,6 +1,13 @@
 /**
- * Anu Universe — pipeline memory, rendering governor bridge, interaction bus,
- * and orchestrator attachment (central coordination surface for the living world).
+ * Anu Universe — AnuModule IS the orchestrator module: the SacredOrchestrator instance
+ * (renderer, scene, loop, registry) is Anu's engine shell. window.AnuUniverse exposes
+ * governance (pipeline memory, rendering governor, interaction bus).
+ *
+ * Naming (bulletproof):
+ * - Class: SacredOrchestrator (import from Orchestrator.js)
+ * - Canonical live singleton: window.anuOrchestrator (same object as AnuUniverse.anuOrchestrator)
+ * - Legacy alias: window.Orchestrator (same object — prefer anuOrchestrator)
+ * - Discriminator on the live shell: instance.isSacredOrchestratorShell === true
  */
 
 import { V2_PIP_RENDER_EVERY_N_FRAMES } from "./constants.js";
@@ -13,6 +20,15 @@ import {
   dispatchInteraction,
   getFrameBudgetSnapshot,
   getAdaptivePolicyDebug,
+  buildAiCodingBrief,
+  exportLedgerJsonPretty,
+  getLedgerSnapshot,
+  clearStressLedger,
+  exportSceneInventoryJson as serializeSceneInventoryJson,
+  getSceneInventorySnapshot,
+  ANU_SIMULATION_DOMAIN,
+  buildSimulationOverview,
+  exportSimulationOverviewJson,
 } from "./anu/index.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 
@@ -23,7 +39,7 @@ export const ANU_PIPELINE_MEMORY = [
     learnedAt: "2026-05",
     title: "PiP duplicates full-scene 3D pass",
     summary:
-      "Orchestrator._renderPip() uses a second WebGLRenderer (#pipCanvas) and renders the same THREE.Scene with an orthographic camera.",
+      "SacredOrchestrator._renderPip() uses a second WebGLRenderer (#pipCanvas) and renders the same THREE.Scene with an orthographic camera.",
     impact:
       "Triangle/transform cost is largely duplicated vs the main view; HUD renderer.info only reflects the main canvas.",
     mitigations: [
@@ -38,7 +54,7 @@ export const ANU_PIPELINE_MEMORY = [
     learnedAt: "2026-05",
     title: "Triangle / draw counts are main renderer only",
     summary:
-      "Orchestrator HUD reads this.renderer.info — PiP and other WebGL contexts are not included in that line.",
+      "SacredOrchestrator HUD reads this.renderer.info — PiP and other WebGL contexts are not included in that line.",
     mitigations: ["When profiling GPU, assume PiP + overlay renderers add uncredited cost."],
     files: ["js/v2/Orchestrator.js"],
   },
@@ -69,9 +85,46 @@ export const ANU_PIPELINE_MEMORY = [
     mitigations: ["Activate V2Panel only when needed; pixel ratio caps in Component.ThreeIcons.js"],
     files: ["js/v2/V2Panel.js", "Component.ThreeIcons.js"],
   },
+  {
+    id: "anu-stress-ledger",
+    learnedAt: "2026-05",
+    title: "Anu stress ledger + loop errors export as JSON for tuning",
+    summary:
+      "SacredOrchestrator wraps the frame loop in try/catch; module updates isolated; AnuErrorAndStressLedger samples pipeline stress on an interval and buildAiCodingBrief() suggests constants edits when stress persists.",
+    mitigations: [
+      "AnuUniverse.exportStressJson() — paste into LLM/issue",
+      "Subscribe ANU_EVENTS.PIPELINE_STRESS_LEVEL / ORCHESTRATOR_LOOP_ERROR",
+    ],
+    files: ["js/v2/anu/AnuErrorAndStressLedger.js", "js/v2/Orchestrator.js", "js/v2/AnuModule.js"],
+  },
+  {
+    id: "anu-scene-player-bus",
+    learnedAt: "2026-05",
+    title: "Scene inventory + player/UI interactions on Anu InteractionBus",
+    summary:
+      "SacredOrchestrator samples full scene drawable inventory on an interval (SceneModelInventory). World dispatches PLAYER_KEY_EDGE and PLAYER_STATE_SAMPLE; UIModule dispatches UI_PIP_VIEW_TOGGLE and existing SEASON_CHANGE — subscribe via AnuUniverse.interactions.subscribe.",
+    mitigations: [
+      "AnuUniverse.exportSceneInventoryJson() — full mesh list (may truncate rows)",
+      "Events: PLAYER_STATE_SAMPLE (~24f), PLAYER_KEY_EDGE (edges), SCENE_INVENTORY_TICK (~90f)",
+    ],
+    files: ["js/v2/anu/SceneModelInventory.js", "js/v2/World.js", "js/v2/UIModule.js", "js/v2/Orchestrator.js"],
+  },
+  {
+    id: "anu-simulation-controller",
+    learnedAt: "2026-05",
+    title: "Anu as universe simulation controller (player / flora / fauna / structures / population)",
+    summary:
+      "SimulationController merges SacredOrchestrator module roster + scene inventory domain rollups (bySimulationDomain). Meshes should set userData.anuSimulationDomain + anuKind. Planned fauna/NPC/buildings dispatch FAUNA_TICK, NPC_ENTITY, STRUCTURE_EVENT.",
+    mitigations: [
+      "AnuUniverse.exportSimulationJson() — full simulation overview",
+      "Trees / World tag meshes — SacredFlora_* flora, terrain/haze environment",
+    ],
+    files: ["js/v2/anu/SimulationController.js", "js/v2/Trees.js", "js/v2/World.js", "js/v2/anu/SceneModelInventory.js"],
+  },
 ];
 
-let _attachedOrchestrator = null;
+/** Bound SacredOrchestrator shell (window.anuOrchestrator). Cleared on unload. */
+let _anuOrchestratorRef = null;
 
 function evaluateLivePipelineRisk() {
   const alerts = [];
@@ -112,10 +165,13 @@ function buildPublicApi(moduleRef) {
       console.log("Rendering snapshot:", getRenderingSnapshot());
       console.log("Frame budget:", getFrameBudgetSnapshot());
       console.log("Adaptive PiP policy:", getAdaptivePolicyDebug());
+      console.log(
+        "Exports: exportStressJson() · exportAiStressBrief() · exportSceneInventoryJson() · exportSimulationJson()",
+      );
       console.groupEnd();
     },
 
-    /** PiP / main WebGL policy (same functions Orchestrator uses). */
+    /** PiP / main WebGL policy (same functions SacredOrchestrator uses). */
     rendering: Object.freeze({
       shouldRenderPipSceneThisFrame,
       resetPipRenderPhase,
@@ -129,11 +185,7 @@ function buildPublicApi(moduleRef) {
       dispatch: dispatchInteraction,
     }),
 
-    attachOrchestrator(orc) {
-      _attachedOrchestrator = orc ?? null;
-    },
-
-    /** Live telemetry — wall-clock frame duration (Orchestrator loop). */
+    /** Live telemetry — wall-clock frame duration (SacredOrchestrator loop). */
     budget: Object.freeze({
       snapshot: getFrameBudgetSnapshot,
     }),
@@ -142,13 +194,65 @@ function buildPublicApi(moduleRef) {
     adaptive: Object.freeze({
       debug: getAdaptivePolicyDebug,
     }),
+
+    /** SacredOrchestrator loop errors + pipeline stress history — paste JSON into issues / LLMs. */
+    exportStressJson() {
+      return exportLedgerJsonPretty();
+    },
+
+    exportAiStressBrief() {
+      return JSON.stringify(buildAiCodingBrief(), null, 2);
+    },
+
+    getStressSnapshot() {
+      return getLedgerSnapshot();
+    },
+
+    clearStressHistory() {
+      clearStressLedger();
+    },
+
+    /** Latest scene drawable inventory (Meshes, InstancedMesh, etc.) — refreshed on interval. */
+    getSceneInventory() {
+      return getSceneInventorySnapshot();
+    },
+
+    exportSceneInventoryJson() {
+      return serializeSceneInventoryJson();
+    },
+
+    SIMULATION_DOMAINS: ANU_SIMULATION_DOMAIN,
+
+    getSimulationSnapshot() {
+      return buildSimulationOverview(_anuOrchestratorRef);
+    },
+
+    exportSimulationJson() {
+      return exportSimulationOverviewJson(_anuOrchestratorRef);
+    },
+
+    /**
+     * True when Anu is bound to the canonical live engine singleton (SacredOrchestrator shell).
+     */
+    isLiveSacredOrchestratorBound() {
+      const ref = _anuOrchestratorRef;
+      if (ref == null || ref.isSacredOrchestratorShell !== true) return false;
+      if (typeof window === "undefined") return false;
+      if (window.anuOrchestrator !== ref) return false;
+      if (
+        typeof window.Orchestrator !== "undefined" &&
+        window.Orchestrator !== ref
+      )
+        return false;
+      return true;
+    },
   };
 
-  Object.defineProperty(api, "orchestrator", {
+  Object.defineProperty(api, "anuOrchestrator", {
     configurable: true,
     enumerable: true,
     get() {
-      return _attachedOrchestrator;
+      return _anuOrchestratorRef;
     },
   });
 
@@ -156,19 +260,40 @@ function buildPublicApi(moduleRef) {
 }
 
 export const AnuModule = {
+  /** Registry key; conceptually this module IS the orchestrator (see file header). */
   name: "Anu",
 
   _alertedIds: new Set(),
 
-  load(_scene, _camera, _renderer) {
-    window.AnuUniverse = buildPublicApi(this);
+  load(_scene, _camera, _renderer, orchestrator) {
+    const shell =
+      orchestrator ??
+      (typeof window !== "undefined" ? window.anuOrchestrator : null) ??
+      (typeof window !== "undefined" ? window.Orchestrator : null);
 
-    if (typeof window.Orchestrator !== "undefined") {
-      window.AnuUniverse.attachOrchestrator(window.Orchestrator);
+    if (shell && shell.isSacredOrchestratorShell !== true) {
+      console.warn(
+        "%c[Anu Universe] Bound ref is not a SacredOrchestrator shell (expected isSacredOrchestratorShell === true).",
+        "color:#ffab91;font-weight:bold;",
+      );
     }
 
+    _anuOrchestratorRef = shell;
+
+    window.AnuUniverse = buildPublicApi(this);
+
+    const ok =
+      shell &&
+      shell.isSacredOrchestratorShell === true &&
+      typeof window !== "undefined" &&
+      window.anuOrchestrator === shell;
+
     console.log(
-      "%c[Anu Universe] Governance online — rendering.interactions.orchestrator · report: AnuUniverse.report()",
+      "%c[Anu / SacredOrchestrator] Online — " +
+        (ok
+          ? "AnuUniverse.anuOrchestrator === window.anuOrchestrator (verified shell)"
+          : "AnuUniverse.anuOrchestrator bound — verify isLiveSacredOrchestratorBound()") +
+        " · AnuUniverse.report()",
       "color:#fbc02d;font-weight:bold;",
     );
 
@@ -193,11 +318,10 @@ export const AnuModule = {
   },
 
   unload() {
-    if (window.AnuUniverse && typeof window.AnuUniverse.attachOrchestrator === "function") {
-      window.AnuUniverse.attachOrchestrator(null);
-    }
+    clearStressLedger();
+    _anuOrchestratorRef = null;
     delete window.AnuUniverse;
     this._alertedIds.clear();
-    console.log("%c[Anu Universe] Module unloaded.", "color:#ef9a9a;");
+    console.log("%c[Anu / SacredOrchestrator] Module unloaded.", "color:#ef9a9a;");
   },
 };

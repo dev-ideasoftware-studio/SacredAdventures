@@ -3,6 +3,9 @@
  *
  * Instanced placement on terrain (requires World + WorldPhysics).
  * Geometry: merged mesh(es) from GLB → InstancedMesh for low draw calls.
+ *
+ * (Assets/PineTree/branch2.png and similar are 2D billboards — not wired here;
+ *  use a future sprite pass if you need cheaper distant trees at 120fps.)
  */
 
 import * as THREE from "three";
@@ -126,6 +129,10 @@ export const TreesModule = {
     const mesh = new THREE.InstancedMesh(geom, mat, TREE_TARGET);
     mesh.castShadow = false;
     mesh.receiveShadow = false;
+    mesh.name = "SacredFlora_TreesInstanced";
+    mesh.userData.anuSimulationDomain = "flora";
+    mesh.userData.anuKind = "tree_instances";
+    mesh.userData.anuTargetInstances = TREE_TARGET;
 
     this._tx = new Float32Array(TREE_TARGET);
     this._ty = new Float32Array(TREE_TARGET);
@@ -166,6 +173,7 @@ export const TreesModule = {
 
     mesh.count = placed;
     mesh.instanceMatrix.needsUpdate = true;
+    mesh.userData.anuPlacedInstances = placed;
 
     scene.add(mesh);
     this._objects.push(mesh);

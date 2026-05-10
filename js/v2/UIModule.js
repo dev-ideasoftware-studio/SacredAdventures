@@ -274,6 +274,9 @@ export const UIModule = {
     this._root
       .querySelector("#pip-click-overlay")
       ?.addEventListener("click", () => {
+        dispatchInteraction(ANU_EVENTS.UI_PIP_VIEW_TOGGLE, {
+          t: typeof performance !== "undefined" ? performance.now() : 0,
+        });
         window.postMessage({ type: "TOGGLE_VIEW_MODE" }, "*");
       });
     this._onMessage = (event) => {
