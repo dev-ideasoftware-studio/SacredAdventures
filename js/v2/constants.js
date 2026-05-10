@@ -44,8 +44,8 @@ export const V2_ADAPTIVE_PIP_MAX_STRIDE = 8;
 
 /**
  * Moondial `#pipOverlay` yellow dashed minimap cue: radius as a fraction of `min(canvasW,canvasH)`
- * (`UIModule._pipOverlayRing`). `Trees` PiP ortho shader discards non-foliage fragments inside the
- * same circle (screen-space `gl_FragCoord`).
+ * (`UIModule._pipOverlayRing`). `anu/PipOrthoRingDiskClip.js` arms PiP ortho discard inside this disk for
+ * **forest meshes + airborne tipi particles** — tipi meshes, decks, and seated NPC remain visible.
  */
 export const V2_PIP_OVERLAY_BRANCH_CLIP_RADIUS_FACTOR = 0.32;
 
@@ -90,10 +90,9 @@ export const V2_NPC_YB_TIPI1_TARGET_HEIGHT_M = 1.52;
 /** Additional uniform scale vs target (e.g. `0.5` → half previous on-screen height). */
 export const V2_NPC_YB_TIPI1_SIZE_MULTIPLIER = 0.5;
 /**
- * Rig Y rotation (rad) after glTF load — tuned so NPC **front** faces world **+Z** (“South”),
- * matching travel-arrow convention (approach from +Z sees her face-on).
+ * Rig Y rotation (rad) after glTF load — tuned so NPC.YB faces **world +Z** (figurine convention).
  */
-export const V2_NPC_YB_TIPI1_MODEL_YAW_RAD = Math.PI / 2;
+export const V2_NPC_YB_TIPI1_MODEL_YAW_RAD = -Math.PI / 2;
 
 /** Fine vertical nudge after sole alignment (negative = sink slightly into seat cushion). */
 export const V2_NPC_YB_TIPI1_VERTICAL_TRIM_M = -0.035;

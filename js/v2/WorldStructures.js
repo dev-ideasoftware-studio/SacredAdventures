@@ -108,14 +108,12 @@ function addSouthFacingGoldTravelMarker(group, radius, liftY) {
  * Loads `NPC.YB.glb` seated on the tipi 1 cylinder deck (inside / centre area).
  * Animation: sit clip by name (`sit`, `003`, …) or legacy index **3** fallback (`EnvironmentBuilder.js`).
  *
- * Orientation: **`V2_NPC_YB_TIPI1_MODEL_YAW_RAD`** aligns rig **front** toward world **+Z** (players
- * spawning / approaching from **`z > 0`** see face-on — “South” travel arrow follows same +Z rule as Avatar).
+ * Orientation: **`V2_NPC_YB_TIPI1_MODEL_YAW_RAD`** — matches v2 Avatar/NPC figurine forward (+Z gameplay).
  */
 async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) {
   try {
     const gltf = await new GLTFLoaderWithDraco().loadAsync(NPC_YB_URL);
     const model = gltf.scene;
-    /** glTF-local → figurine-facing world +Z (+Z South; greet players from south of tipi). */
     model.rotation.y = V2_NPC_YB_TIPI1_MODEL_YAW_RAD;
 
     model.traverse((ch) => {
@@ -151,8 +149,6 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
     root.userData.anuInteractable = true;
     root.userData.anuInteractionVerbs = [ANU_INTERACTION_VERB.INSPECT];
     root.userData.anuCollision = "passable";
-    /** Seated hub host — authored facing (+Z stage); skip World NPC greet spin (see `_turnNpcToward`). */
-    root.userData.anuPreservePlacementYaw = true;
     root.userData.anuLegacyReference =
       "EnvironmentBuilder.js NPC.YB — seated only (fresh v2 attachment)";
 
@@ -188,7 +184,6 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
       act.setLoop(THREE.LoopRepeat, Infinity);
       act.clampWhenFinished = false;
       act.play();
-      mixer.update(0);
       root.userData.anuActiveAnimation = { kind: "sit", clip: sitClip.name };
     }
 
