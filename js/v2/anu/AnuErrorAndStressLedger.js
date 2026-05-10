@@ -159,15 +159,15 @@ export function buildAiCodingBrief() {
       reason: "Adaptive PiP stride is pegged at configured maximum.",
     });
     recommendedCodePaths.push({
-      path: "js/v2/Trees.js",
+      path: "js/v2/Flora.js",
       hint: "Instanced forest dominates triangles — see ANU_PIPELINE_MEMORY trees-instancing-tri-count.",
     });
   }
 
   if (latest?.mainTriangles != null && latest.mainTriangles > 2_500_000) {
     recommendedCodePaths.push({
-      path: "js/v2/Trees.js",
-      hint: `Main renderer reports ~${(latest.mainTriangles / 1e6).toFixed(2)}M tris — reduce TREE_TARGET or mesh LOD.`,
+      path: "js/v2/FloraLegacyTreeLayout.js",
+      hint: `Main renderer reports ~${(latest.mainTriangles / 1e6).toFixed(2)}M tris — reduce legacy ring iterations or mesh LOD.`,
     });
   }
 

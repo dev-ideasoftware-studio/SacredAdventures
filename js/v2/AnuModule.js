@@ -76,8 +76,10 @@ export const ANU_PIPELINE_MEMORY = [
     title: "Forest dominates triangle stats",
     summary:
       "Instanced tree.glb × TREE_TARGET can push millions of reported tris; avatar/guide layers were smaller factors.",
-    mitigations: ["Trees.js TREE_TARGET / decimate template mesh when FPS drops."],
-    files: ["js/v2/Trees.js"],
+    mitigations: [
+      "Flora.js / Trees module — instance count from FloraLegacyTreeLayout; decimate template mesh or lower ring counts when FPS drops.",
+    ],
+    files: ["js/v2/Flora.js", "js/v2/FloraLegacyTreeLayout.js", "js/v2/Trees.js"],
   },
   {
     id: "v2panel-three-namespace",

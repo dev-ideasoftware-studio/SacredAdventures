@@ -13,7 +13,11 @@ import {
   ANU_INTERACTION_VERB,
   ANU_SIMULATION_DOMAIN,
 } from "./anu/SimulationController.js";
-import { getRuntimeService } from "./RuntimeServices.js";
+import {
+  getRuntimeService,
+  registerRuntimeService,
+  clearRuntimeService,
+} from "./RuntimeServices.js";
 import { SEASON_SURFACE_TINTS, V2_FLORA_TREE_HORIZONTAL_SPREAD } from "./constants.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { subscribeInteraction } from "./anu/InteractionBus.js";
@@ -66,8 +70,8 @@ if (uPipRingClip > 0.5 && dot(_pipRingDf, _pipRingDf) < uPipRingRad2) discard;
   };
 }
 
-export const FloraModule = {
-  name: "Flora",
+const TreesForestModule = {
+  name: "Trees",
 
   _objects: [],
   /** @type {{ value: number } | null} */
@@ -83,6 +87,8 @@ export const FloraModule = {
   _colliders: [],
   /** PiP minimap: discard branch fragments inside yellow dash circle (ortho pass only). */
   _pipRingUniforms: null,
+  /** Bridges Orchestrator PipOrthoBranchClip → armPipOrthoBranchRing / clear */
+  _pipOrthoAdapter: null,
   /** Shared template geometries (dispose once on unload). */
   _sharedTreeGeometries: new Set(),
   matrix: new THREE.Matrix4(),
@@ -103,7 +109,7 @@ export const FloraModule = {
 
     if (!getY) {
       console.error(
-        "[Flora] WorldPhysics.getGroundY missing — activate World before Flora.",
+        "[Trees] WorldPhysics.getGroundY missing — activate World before Trees.",
       );
       return;
     }
@@ -115,7 +121,7 @@ export const FloraModule = {
 
     const N = treeSlots.length;
     if (N === 0) {
-      console.warn("[Flora] Legacy layout produced zero tree slots.");
+      console.warn("[Trees] Legacy layout produced zero tree slots.");
       return;
     }
 
@@ -139,7 +145,7 @@ export const FloraModule = {
     });
 
     if (meshesToInstance.length === 0) {
-      console.error("[Flora] tree.glb had no mesh geometry.");
+      console.error("[Trees] tree.glb had no mesh geometry.");
       return;
     }
 
@@ -206,20 +212,28 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
       instancedMesh.name =
         isLeaf ? "SacredFlora_Trees_leaf" : `SacredFlora_Trees_part_${partIndex}`;
 
+      instancedMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FLORA;
+      instancedMesh.userData.anuTargetInstances = N;
+      instancedMesh.userData.anuPlacedInstances = N;
+      instancedMesh.userData.anuLegacyLayout =
+        "EnvironmentBuilder ANIME FOREST · v2 Flora pipeline (multipart + tints)";
+      if (isLeaf) {
+        instancedMesh.userData.anuKind = "tree_canopy_mass";
+        instancedMesh.userData.anuId = "flora.tree_instances.leaves";
+      } else {
+        instancedMesh.userData.anuKind = `tree_mesh_part_${partIndex}`;
+        instancedMesh.userData.anuId =
+          partIndex === 0
+            ? "flora.tree_instances.primary"
+            : `flora.tree_instances.part_${partIndex}`;
+      }
       if (partIndex === 0) {
-        instancedMesh.userData.anuId = "flora.tree_instances.primary";
-        instancedMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FLORA;
-        instancedMesh.userData.anuKind = "tree_instances";
         instancedMesh.userData.anuInteractable = true;
         instancedMesh.userData.anuInteractionVerbs = [
           ANU_INTERACTION_VERB.INSPECT,
           ANU_INTERACTION_VERB.HARVEST,
         ];
       }
-
-      instancedMesh.userData.anuTargetInstances = N;
-      instancedMesh.userData.anuPlacedInstances = N;
-      instancedMesh.userData.anuLegacyLayout = "EnvironmentBuilder ANIME FOREST";
 
       scene.add(instancedMesh);
       this._objects.push(instancedMesh);
@@ -230,7 +244,7 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
 
     if (this._leafMeshes.length === 0) {
       console.warn(
-        "[Flora] No leaf/foliage materials detected by name — instance foliage tints skipped.",
+        "[Trees] No leaf/foliage materials detected by name — instance foliage tints skipped.",
       );
     }
 
@@ -307,6 +321,9 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
       const dirtMesh = new THREE.Mesh(dirtGeo, dirtMat);
       dirtMesh.renderOrder = 1;
       dirtMesh.name = "SacredFlora_TreeDirtPatch";
+      dirtMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FLORA;
+      dirtMesh.userData.anuKind = "tree_base_dirt";
+      dirtMesh.userData.anuId = `flora.tree_dirt.${idx}`;
       dirtGroup.add(dirtMesh);
       scene.add(dirtGroup);
       this._objects.push(dirtGroup);
@@ -337,8 +354,21 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
       this._applySeasonSurfaceTint(detail?.season);
     });
 
+    const modSelf = this;
+    this._pipOrthoAdapter = {
+      armOrthoClip(w, h) {
+        return modSelf.armPipOrthoBranchRing(w, h);
+      },
+      clearOrthoClip() {
+        modSelf.clearPipOrthoBranchRing();
+      },
+    };
+    registerRuntimeService("PipOrthoBranchClip", this._pipOrthoAdapter, {
+      owner: "Trees",
+    });
+
     console.log(
-      `%c[Flora] ✅ ${N} × Assets/tree.glb — legacy EnvironmentBuilder rings; target heights ${minTargetH.toFixed(2)}…${maxTargetH.toFixed(2)} m`,
+      `%c[Trees] ✅ ${N} × Assets/tree.glb — legacy-quality multipart forest; heights ${minTargetH.toFixed(2)}…${maxTargetH.toFixed(2)} m — ANU tracks ${N} instances per drawable`,
       "color:#81c784;font-weight:bold;",
     );
   },
@@ -394,6 +424,10 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
   unload(scene) {
     this._unsubSeason?.();
     this._unsubSeason = null;
+    if (this._pipOrthoAdapter) {
+      clearRuntimeService("PipOrthoBranchClip", this._pipOrthoAdapter);
+      this._pipOrthoAdapter = null;
+    }
     const worldPhysics = getRuntimeService("WorldPhysics") ?? window.WorldPhysics;
     if (worldPhysics && typeof worldPhysics.removeCollider === "function") {
       for (const collider of this._colliders) worldPhysics.removeCollider(collider);
@@ -435,6 +469,11 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
     this._windUniform = null;
     this._pipRingUniforms = null;
     this._sharedTreeGeometries = new Set();
-    console.log("[Flora] ⏹ Unloaded.");
+    console.log("[Trees] ⏹ Unloaded.");
   },
 };
+
+/** @deprecated Alias — orchestrator activates this module as `Trees`. */
+export const FloraModule = TreesForestModule;
+
+export { TreesForestModule as TreesModule };

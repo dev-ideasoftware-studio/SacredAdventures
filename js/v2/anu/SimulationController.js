@@ -63,7 +63,7 @@ export function buildSimulationOverview(orchestrator) {
         status: activeModules.includes("Trees") ? "active" : "inactive",
         orchestratorModule: "Trees",
         responsibilities:
-          "instanced tree.glb forest — SacredFlora_* mesh tags; wind update in Trees.update",
+          "legacy multipart tree.glb forest (Flora.js, module name Trees) — SacredFlora_* tags; shader wind via Trees.update delta",
       }),
       fauna: Object.freeze({
         status: "planned",
