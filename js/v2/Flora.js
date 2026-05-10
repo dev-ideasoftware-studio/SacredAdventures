@@ -18,12 +18,24 @@ import {
   registerRuntimeService,
   clearRuntimeService,
 } from "./RuntimeServices.js";
-import { SEASON_SURFACE_TINTS, V2_FLORA_TREE_HORIZONTAL_SPREAD } from "./constants.js";
+import {
+  SEASON_SURFACE_TINTS,
+  V2_FLORA_TREE_HORIZONTAL_SPREAD,
+  V2_FLORA_MAX_TREE_INSTANCES,
+} from "./constants.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { subscribeInteraction } from "./anu/InteractionBus.js";
 import { buildLegacyEnvironmentBuilderTreeSlots } from "./FloraLegacyTreeLayout.js";
 
 const TREE_URL = "./Assets/tree.glb";
+
+/** Drop farthest rings first — keeps grove around origin when over ANU flora cap. */
+function capFloraSlotsByNearestOrigin(slots, maxN) {
+  if (!maxN || maxN <= 0 || slots.length <= maxN) return slots;
+  const scored = slots.map((s) => ({ s, d2: s.x * s.x + s.z * s.z }));
+  scored.sort((a, b) => a.d2 - b.d2);
+  return scored.slice(0, maxN).map((x) => x.s);
+}
 
 const FOLIAGE_HEXES = [
   0xffb7c5, 0x7cfc00, 0x98fb98, 0x87cefa, 0x32cd32, 0xff8c00, 0xdaa520, 0xff69b4,
@@ -114,10 +126,20 @@ const TreesForestModule = {
       return;
     }
 
-    const treeSlots = buildLegacyEnvironmentBuilderTreeSlots({
+    let treeSlots = buildLegacyEnvironmentBuilderTreeSlots({
       tipiX: 0,
       tipiZ: 0,
     });
+
+    const beforeCap = treeSlots.length;
+    treeSlots = capFloraSlotsByNearestOrigin(treeSlots, V2_FLORA_MAX_TREE_INSTANCES);
+    if (treeSlots.length < beforeCap) {
+      console.log(
+        "%c[Trees / ANU] Flora instance cap applied",
+        "color:#fbc02d;font-weight:bold;",
+        `— ${beforeCap} layouts → ${treeSlots.length} (nearest-origin priority; tweak constants.js V2_FLORA_MAX_TREE_INSTANCES).`,
+      );
+    }
 
     const N = treeSlots.length;
     if (N === 0) {

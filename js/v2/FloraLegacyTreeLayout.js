@@ -1,8 +1,9 @@
 /**
- * Forest slot list — reproduced from `js/EnvironmentBuilder.js` (ANIME FOREST block):
- * same `minDistanceSq`, hex snap hook, ring radii/jitter, and `tryAddPosition(scale, widthOverride?)` keys.
+ * Forest slot list — literal reproduction of `js/EnvironmentBuilder.js` (ANIME FOREST block):
+ * same `minDistanceSq`, hex snap hook, ring counts, radii, and `tryAddPosition(scale, widthOverride?)` keys.
  *
- * Ring *iteration counts* are doubled vs legacy (~2× forest headcount — overlap filter still caps final N).
+ * Final headcount depends on overlap rejection — `Flora.js` applies `V2_FLORA_MAX_TREE_INSTANCES`
+ * when FPS / triangle budget bites (see ANU_PIPELINE_MEMORY trees-instancing).
  *
  * Uses `Math.random()` like legacy (non-deterministic per page load). When `window.getNearestHexCenter`
  * exists (legacy board), positions snap to hex centers; otherwise raw XZ is kept.
@@ -57,7 +58,7 @@ export function buildLegacyEnvironmentBuilderTreeSlots(opts = {}) {
     return true;
   };
 
-  const numTipiTrees = 2 + Math.floor(Math.random() * 4);
+  const numTipiTrees = 1 + Math.floor(Math.random() * 3);
   for (let i = 0; i < numTipiTrees; i++) {
     const angle = Math.PI * 0.8 + Math.random() * Math.PI * 1.4;
     const r = 7.0 + Math.random() * 3.0;
@@ -68,8 +69,8 @@ export function buildLegacyEnvironmentBuilderTreeSlots(opts = {}) {
     );
   }
 
-  for (let i = 0; i < 120; i++) {
-    const angle = (i / 120) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+  for (let i = 0; i < 60; i++) {
+    const angle = (i / 60) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
     const r = 31 + Math.random() * 5;
     tryAddPosition(
       Math.cos(angle) * r + (Math.random() - 0.5) * 1.5,
@@ -78,8 +79,8 @@ export function buildLegacyEnvironmentBuilderTreeSlots(opts = {}) {
     );
   }
 
-  for (let i = 0; i < 100; i++) {
-    const angle = (i / 100) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+  for (let i = 0; i < 50; i++) {
+    const angle = (i / 50) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
     const r = 36 + Math.random() * 9;
     tryAddPosition(
       Math.cos(angle) * r + (Math.random() - 0.5) * 2,
@@ -88,19 +89,7 @@ export function buildLegacyEnvironmentBuilderTreeSlots(opts = {}) {
     );
   }
 
-  const sentinelAngles = [
-    0.3,
-    1.2,
-    2.5,
-    3.8,
-    5.0,
-    0.95,
-    2.08,
-    3.55,
-    4.71,
-    5.71,
-    6.03,
-  ];
+  const sentinelAngles = [0.3, 1.2, 2.5, 3.8, 5.0];
   sentinelAngles.forEach((a) => {
     tryAddPosition(
       Math.cos(a) * 28 + (Math.random() - 0.5),
@@ -110,20 +99,20 @@ export function buildLegacyEnvironmentBuilderTreeSlots(opts = {}) {
     );
   });
 
-  for (let i = 0; i < 120; i++) {
-    const angle = (i / 120) * Math.PI * 2 + (Math.random() - 0.4) * 0.2;
+  for (let i = 0; i < 60; i++) {
+    const angle = (i / 60) * Math.PI * 2 + (Math.random() - 0.4) * 0.2;
     const r = 45 + Math.random() * 20;
     tryAddPosition(Math.cos(angle) * r, Math.sin(angle) * r, 0.7 + Math.random() * 0.6);
   }
 
-  for (let i = 0; i < 100; i++) {
-    const angle = (i / 100) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+  for (let i = 0; i < 50; i++) {
+    const angle = (i / 50) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
     const r = 40 + Math.random() * 25;
     tryAddPosition(Math.cos(angle) * r, Math.sin(angle) * r, 0.5 + Math.random() * 0.7);
   }
 
-  for (let i = 0; i < 80; i++) {
-    const angle = (i / 80) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+  for (let i = 0; i < 40; i++) {
+    const angle = (i / 40) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
     const r = 65 + Math.random() * 25;
     tryAddPosition(Math.cos(angle) * r, Math.sin(angle) * r, 0.4 + Math.random() * 0.5);
   }

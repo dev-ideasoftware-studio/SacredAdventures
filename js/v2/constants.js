@@ -28,9 +28,10 @@ export const V2_PIP_ORTHO_ZOOM = 1.2;
  *
  * - `0` = skip PiP 3D entirely (minimap stays stale/blank — use for FPS isolation).
  * - `1` = every frame (highest quality / highest GPU cost).
- * - `2` = half rate (typical sweet spot).
+ * - `2` = half rate.
+ * - `3` = lighter PiP (recommended when Flora multipart forest + dual WebGL passes stress GPU).
  */
-export const V2_PIP_RENDER_EVERY_N_FRAMES = 2;
+export const V2_PIP_RENDER_EVERY_N_FRAMES = 3;
 
 /** Target frame rate for budgeting / UX copy (physics step is still rAF-driven). */
 export const V2_TARGET_FPS = 120;
@@ -155,3 +156,10 @@ export const SEASON_SURFACE_TINTS = Object.freeze({
  * Horizontal spread vs legacy width mult `(0.88 + rnd*0.58) * sf`; `1` matches EnvironmentBuilder feel.
  */
 export const V2_FLORA_TREE_HORIZONTAL_SPREAD = 1.0;
+
+/**
+ * Hard cap on live `tree.glb` instances (multipart draws × slices still multiply GPU cost).
+ * Slots are prioritized **nearest-origin first** — distant rings thin first under cap.
+ * Tune alongside `exportFuzzyPipelineJson()` / stress brief when flora or PiP dominates.
+ */
+export const V2_FLORA_MAX_TREE_INSTANCES = 155;

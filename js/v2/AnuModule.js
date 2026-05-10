@@ -77,7 +77,9 @@ export const ANU_PIPELINE_MEMORY = [
     summary:
       "Instanced tree.glb × TREE_TARGET can push millions of reported tris; avatar/guide layers were smaller factors.",
     mitigations: [
-      "Flora.js / Trees module — instance count from FloraLegacyTreeLayout; decimate template mesh or lower ring counts when FPS drops.",
+      "constants.js — V2_FLORA_MAX_TREE_INSTANCES (nearest-origin cap) and V2_PIP_RENDER_EVERY_N_FRAMES (PiP baseline stride).",
+      "Flora.js multipart tree.glb × N — each mesh part is its own InstancedMesh; trim N before adding domains.",
+      "AdaptiveRenderPolicy still widens PiP stride under sustained frame stress.",
     ],
     files: ["js/v2/Flora.js", "js/v2/FloraLegacyTreeLayout.js", "js/v2/Trees.js"],
   },
