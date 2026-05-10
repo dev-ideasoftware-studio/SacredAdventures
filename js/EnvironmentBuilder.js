@@ -3,34 +3,13 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
         this.scene = scene;
     }
 
-    /**
-     * Professional Recursion-Safe Object Disposal
-     * Ensures all WebGL buffers are released back to the GPU to prevent memory leaks during world resets.
-     */
-    disposeObject(obj) {
-        if (!obj) return;
-
-        obj.traverse(child => {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(m => m.dispose());
-                } else {
-                    child.material.dispose();
-                }
-            }
-        });
-    }
-
     setupLighting() {
         // Hemisphere Light — warm sky, cool shadow
         const hemiLight = new THREE.HemisphereLight(0xfff4e6, 0x3a5f3a, 0.8);
-        hemiLight.layers.enableAll();
         this.scene.add(hemiLight);
 
         // Directional Light (Sun) — warm golden hour
         const sunLight = new THREE.DirectionalLight(0xffe0a0, 2.0);
-        sunLight.layers.enableAll();
         sunLight.position.set(40, 35, -20);
         sunLight.castShadow = false;
         sunLight.shadow.mapSize.width = 1024;
@@ -51,7 +30,6 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
 
         // Subtle fill light from opposite side
         const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.4);
-        fillLight.layers.enableAll();
         fillLight.position.set(-30, 20, 30);
         this.scene.add(fillLight);
     }
@@ -150,7 +128,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
 
         // SCENE EDITOR: 25-Meter Boardgame Hex Tiles
         window.createVillageHexGrid = (getHeightFunc) => {
-            if (window._hexGridMeshes && window._hexGridMeshes.length > 0) return window._hexGridMeshes;
+            if (window._hexGridMesh) return window._hexGridMesh;
             
             const RADIUS = 25; // 25 meter hexagons
             const GAP = 0.5;
@@ -179,40 +157,24 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                 }
             }
             
-            const chunkSize = 40; // 40 units per chunk
-            const chunks = {};
-            positions.forEach(pos => {
-                const cx = Math.floor(pos.x / chunkSize);
-                const cz = Math.floor(pos.z / chunkSize);
-                const key = cx + '_' + cz;
-                if (!chunks[key]) chunks[key] = [];
-                chunks[key].push(pos);
-            });
-
-            window._hexGridMeshes = []; // Array to hold chunked meshes
-            const dummy = new THREE.Object3D();
-
-            for (const key in chunks) {
-                const chunkPositions = chunks[key];
-                const instancedMesh = new THREE.InstancedMesh(hexGeo, hexMat, chunkPositions.length);
-                instancedMesh.visible = !!window._isMapView;
-                instancedMesh.frustumCulled = true;
-                
-                chunkPositions.forEach((pos, i) => {
-                    const groundY = getHeightFunc(pos.x, pos.z);
-                    dummy.position.set(pos.x, groundY - 0.1, pos.z);
-                    dummy.updateMatrix();
-                    instancedMesh.setMatrixAt(i, dummy.matrix);
-                });
-                
-                instancedMesh.instanceMatrix.needsUpdate = true;
-                instancedMesh.computeBoundingSphere();
-                window._hexGridMeshes.push(instancedMesh);
-                this.scene.add(instancedMesh);
-            }
+            const instancedMesh = new THREE.InstancedMesh(hexGeo, hexMat, positions.length);
+            instancedMesh.visible = !!window._isMapView; // Hide immediately if not Map View
             
-            // To maintain compatibility, return the array wrapper (though most logic will now iterate _hexGridMeshes)
-            return window._hexGridMeshes;
+            const dummy = new THREE.Object3D();
+            positions.forEach((pos, i) => {
+                const groundY = getHeightFunc(pos.x, pos.z);
+                // Contour exactly to the ground, minus half-height to sink it
+                dummy.position.set(pos.x, groundY - 0.1, pos.z);
+                // Random slightly offset rotation purely for tiny imperfect dirt feel? 
+                // No, hex edges must align perfectly in a board!
+                dummy.updateMatrix();
+                instancedMesh.setMatrixAt(i, dummy.matrix);
+            });
+            
+            instancedMesh.instanceMatrix.needsUpdate = true;
+            window._hexGridMesh = instancedMesh;
+            this.scene.add(instancedMesh);
+            return instancedMesh;
         };
     }
     highlightTree(tree) {
@@ -256,14 +218,12 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             }
 
             // 2. Hide Tree Components
-            if (tree.isInstanced) {
+            if (tree.isInstanced && window._treeInstancedMeshes) {
                 const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
-                if (tree.chunkSiblings) {
-                    tree.chunkSiblings.forEach(({ instancedMesh }) => {
-                        instancedMesh.setMatrixAt(tree.index, zeroMatrix);
-                        instancedMesh.instanceMatrix.needsUpdate = true;
-                    });
-                }
+                window._treeInstancedMeshes.forEach(({ instancedMesh }) => {
+                    instancedMesh.setMatrixAt(tree.index, zeroMatrix);
+                    instancedMesh.instanceMatrix.needsUpdate = true;
+                });
             } else {
                 tree.visible = false;
             }
@@ -291,22 +251,17 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
         }
 
         updateLoadingScreen(text) {
-            if (window.logSystem) {
-                window.logSystem(text);
-            } else {
-                const textEl = document.querySelector('.loading-text');
-                if (textEl) {
-                    textEl.innerText = text;
-                    textEl.style.animation = 'none'; // Stop pulsing during final steps
-                }
+            const textEl = document.querySelector('.loading-text');
+            if (textEl) {
+                textEl.innerText = text;
+                textEl.style.animation = 'none'; // Stop pulsing during final steps
             }
         }
 
         
 
     async generateWorld(assetFactory) {
-        // Yield to allow MP4 frames to paint and GC to run (15ms forces a physical frame gap to prevent browser crash heuristics)
-        const waitFrame = () => new Promise(r => setTimeout(r, 15));
+        const waitFrame = () => new Promise(r => setTimeout(r, 80));
         const scene = this.scene;
         const camera = window.camera;
         const allTrees = window.allTrees;
@@ -343,73 +298,13 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
         };
 
         
-        this.updateLoadingScreen("Processing...");
+        this.updateLoadingScreen("Shaping Ancient Terrain...");
         await waitFrame();
 
             // Ground — large terrain
             const ground = assetFactory.create('ground_chunk');
             ground.position.set(0, 0, 0);
             scene.add(ground);
-
-            // ground is a Group: children[0]=grass mesh, children[1]=haze overlay
-            const _groundMeshes = ground.children.filter(c => c.isMesh);
-            window._sacredGroundMesh = _groundMeshes[0] || null;
-            window._sacredHazeMesh   = _groundMeshes[1] || null;
-            
-            window.flattenTerrainAt = async function(targetX, targetZ, radius, forceY) {
-                const targetY = (forceY !== undefined) ? forceY : (window._getGroundY ? window._getGroundY(targetX, targetZ) : 0);
-                
-                window._flattenedZones = window._flattenedZones || [];
-                window._flattenedZones.push({ x: targetX, z: targetZ, radius: radius, y: targetY });
-
-                const flattenMesh = async (mesh, offset) => {
-                    if (!mesh) return;
-                    const geo = mesh.geometry;
-                    if (!geo.attributes || !geo.attributes.position) return;
-                    const pos = geo.attributes.position;
-                    let modified = false;
-                    
-                    const CHUNK_SIZE = 5000;
-                    for (let i = 0; i < pos.count; i++) {
-                        if (i > 0 && i % CHUNK_SIZE === 0) {
-                            await waitFrame();
-                        }
-                        const vx = pos.getX(i);
-                        const vz = pos.getZ(i);
-                        const dist = Math.sqrt((vx - targetX)**2 + (vz - targetZ)**2);
-                        if (dist < radius) {
-                            let blend = 1.0;
-                            // Make the perfectly flat zone larger (80% of radius instead of 60%)
-                            if (dist > radius * 0.8) {
-                                const t = (dist - radius * 0.8) / (radius * 0.2);
-                                blend = 0.5 + 0.5 * Math.cos(t * Math.PI); 
-                            }
-                            const currentY = pos.getY(i);
-                            pos.setY(i, currentY * (1 - blend) + (targetY + offset) * blend);
-                            modified = true;
-                        }
-                    }
-                    if (modified) {
-                        pos.needsUpdate = true;
-                        if (geo.attributes.normal) geo.computeVertexNormals();
-                    }
-                };
-
-                await flattenMesh(window._sacredGroundMesh, 0);
-                await flattenMesh(window._villageMapGrid, 0.01);
-                await flattenMesh(window._sacredHazeMesh, 0.02); // Sink haze below the 0.1 height building platforms
-            };
-
-            window.getGroundNormal = function(x, z) {
-                const delta = 0.5;
-                const hL = window._getGroundY ? window._getGroundY(x - delta, z) : 0;
-                const hR = window._getGroundY ? window._getGroundY(x + delta, z) : 0;
-                const hD = window._getGroundY ? window._getGroundY(x, z - delta) : 0;
-                const hU = window._getGroundY ? window._getGroundY(x, z + delta) : 0;
-                const normal = new THREE.Vector3(hL - hR, delta * 2, hD - hU).normalize();
-                return normal;
-            };
-
 
             // ============================================
             // TERRAIN — tipi-centric sacred landscape
@@ -422,111 +317,198 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             const HILL_HEIGHT = 4.0; // Halved height to lower the angle of the surrounding valley
 
             const getGroundY = (gx, gz) => {
-              // Prefer the authoritative cache set by buildGroundChunk — single source of truth
-              if (
-                window._terrainHeightCache &&
-                window._terrainHeightCache.lookup
-              ) {
-                return window._terrainHeightCache.lookup(gx, gz);
-              }
-              if (window.UniverseAnu) {
-                return window.UniverseAnu.getGroundY(gx, gz);
-              }
-              return 0;
-            };;
+                // 1. BASE — gentle undulation everywhere
+                let baseNoise = Math.sin(gx * 0.08) * Math.cos(gz * 0.1) * 1.5
+                    + Math.sin(gx * 0.2 + gz * 0.15) * 0.4;
+
+                let y = baseNoise;
+
+                const dx = gx - TIPI_X, dz = gz - TIPI_Z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+
+                // 2. SACRED CLEARING — 100-foot flat valley floor
+                if (dist < CLEARING_R) { // Apply to the entire grass clearing
+                    if (dist < 12.0) { // Extended flat radius to completely contain Tipi + front entrance
+                        y = 0; // Completely flat ground for the Tipi interior and girl
+                    } else {
+                        // Smooth blend from 0 to full undulation
+                        const t = (dist - 12.0) / (CLEARING_R - 12.0);
+                        const flatten = 0.5 + 0.5 * Math.cos(t * Math.PI); // 1.0 at dist=12, 0.0 at dist=30
+                        y = baseNoise * (1.0 - flatten);
+                    }
+                }
+
+                // 2b. BRINGS HAPPINESS GIRL TIPI PLATEAU (Quest Tipi)
+                const plateauX = 12;
+                const plateauZ = 12;
+                const dx2 = gx - plateauX, dz2 = gz - plateauZ;
+                const dist2 = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+                
+                if (dist2 < 12.0) {
+                    const plateauY = Math.sin(plateauX * 0.08) * Math.cos(plateauZ * 0.1) * 1.5 + Math.sin(plateauX * 0.2 + plateauZ * 0.15) * 0.4;
+                    if (dist2 < 6.0) {
+                        y = plateauY; // Flat ground for the Tipi interior and girl
+                    } else {
+                        // Smooth blend from plateau to full undulation
+                        const t2 = (dist2 - 6.0) / 6.0;
+                        const flatten2 = 0.5 + 0.5 * Math.cos(t2 * Math.PI); // 1.0 at center, 0.0 at edge
+                        y = y * (1.0 - flatten2) + plateauY * flatten2;
+                    }
+                }
+
+                // 3. PROTECTIVE HILLS — steep ring around the valley
+                if (dist >= HILL_INNER && dist < HILL_OUTER) {
+                    const t = (dist - HILL_INNER) / (HILL_OUTER - HILL_INNER);
+                    const hillShape = Math.sin(t * Math.PI); // Peak at midpoint
+                    const angle = Math.atan2(dz, dx);
+                    // Natural variation — 3 lobes
+                    const noise = 0.65 + 0.35 * Math.sin(angle * 3 + 0.8) * Math.sin(angle * 5 + 2.1) * 0.3;
+                    const lobe = 0.7 + 0.3 * Math.sin(angle * 2.3 + 1.2);
+                    y += HILL_HEIGHT * hillShape * (noise + 0.5) * lobe;
+                }
+
+                // 4. ROLLING HILLS — outer terrain
+                if (dist > HILL_OUTER) {
+                    const outerBlend = Math.min(1.0, (dist - HILL_OUTER) / 10);
+                    const rollingH = Math.sin(gx * 0.06 + 1.0) * Math.cos(gz * 0.05 + 0.7) * 2.5
+                        + Math.sin(gx * 0.12 + gz * 0.1) * 1.0;
+                    y += rollingH * outerBlend;
+                }
+
+                // Edge flattening for modular tile maps (+/- 120)
+                const edgeDistX = Math.max(0, Math.abs(gx) - 100); 
+                const edgeDistZ = Math.max(0, Math.abs(gz) - 100); 
+                const maxEdge = Math.max(edgeDistX, edgeDistZ); 
+                if (maxEdge > 0) {
+                    // Smoothly fade height to perfectly 0 over the last 20 units
+                    const flattenT = Math.min(1.0, maxEdge / 20.0);
+                    y = y * (1.0 - flattenT);
+                }
+
+                return y;
+            };
             window._getGroundY = getGroundY;
 
 
             // Board Game Tile Grid Setup (Village View ONLY)
             // 25-foot hexes (1 unit approx 3.29ft => ~7.6 units wide)
-            // Increased by 10% per USER request (was 5.7)
-            const hexRadius = 6.27;
+            const hexRadius = 4.38;
             const hexThickness = 0.4;
             const sides = 6; // Standard Hexagon
-            // ============================================
-            // 2D CANVAS NEUMORPHIC HEX GRID
-            // ============================================
-            // We draw the grid mathematically to a high-res canvas, then drape it
-            // across a single PlaneGeometry that perfectly hugs the terrain.
-            window._hexCenters = [];
             
-            const canvasSize = 2048;
-            const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = canvasSize;
-            ctxCanvas.height = canvasSize;
-            const ctx = ctxCanvas.getContext('2d');
-            
-            const mapSize = 240;
-            const ppu = canvasSize / mapSize;
-            const hr = hexRadius * ppu;
-            
-            ctx.clearRect(0, 0, canvasSize, canvasSize);
-            ctx.lineWidth = 0.3 * ppu; 
-            ctx.strokeStyle = 'rgba(15, 20, 10, 0.5)'; // Soft, organic shadow
-            ctx.lineJoin = 'round';
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-            ctx.shadowBlur = 5;
-            ctx.beginPath();
-            
-            // Iterate radially using Axial Coordinates to guarantee a perfect grid centered at 0,0
-            const maxRings = Math.ceil((mapSize / 2) / (hexRadius * 1.5)) + 2;
-            
-            for (let q = -maxRings; q <= maxRings; q++) {
-                for (let r = -maxRings; r <= maxRings; r++) {
-                    const cx = Math.sqrt(3) * hexRadius * (q + r/2);
-                    const cz = 1.5 * hexRadius * r;
-                    
-                    if (Math.sqrt(cx*cx + cz*cz) > mapSize/2 + hexRadius*2) continue;
-                    
-                    window._hexCenters.push(new THREE.Vector2(cx, cz));
-                    
-                    // Map world XZ to canvas XY
-                    const canvasX = (cx + mapSize/2) * ppu;
-                    const canvasY = (cz + mapSize/2) * ppu;
-                    
-                    for (let i = 0; i <= 6; i++) {
-                        const a = i * Math.PI * 2 / 6 + Math.PI / 6; // Flat top orientation (+30deg)
-                        const px = canvasX + Math.cos(a) * hr;
-                        const py = canvasY + Math.sin(a) * hr;
-                        if (i === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    }
-                }
+            const hexShape = new THREE.Shape();
+            for (let i = 0; i < sides; i++) {
+                const a = i * Math.PI * 2 / sides;
+                if (i === 0) hexShape.moveTo(Math.cos(a) * hexRadius, Math.sin(a) * hexRadius);
+                else hexShape.lineTo(Math.cos(a) * hexRadius, Math.sin(a) * hexRadius);
             }
-            ctx.stroke();
-            
-            const gridTexture = new THREE.CanvasTexture(ctxCanvas);
-            gridTexture.anisotropy = 4; // Keeps it crisp at low angles
-            
-            // ============================================
-            // TERRAIN-HUGGING GEOMETRY
-            // ============================================
-            const hexGridGeo = new THREE.PlaneGeometry(mapSize, mapSize, 160, 160);
-            hexGridGeo.rotateX(-Math.PI / 2);
-            
-            const pos = hexGridGeo.attributes.position;
-            const CHUNK_SIZE = 5000;
-            for (let i = 0; i < pos.count; i++) {
-                if (i > 0 && i % CHUNK_SIZE === 0) {
-                    await waitFrame();
-                }
-                const vx = pos.getX(i);
-                const vz = pos.getZ(i);
-                // The geometry physically deforms to match getGroundY perfectly!
-                pos.setY(i, getGroundY(vx, vz) + 0.01); // Float 0.01 units above grass
+            hexShape.closePath();
+
+            // Re-cut the hollow center so the hex looks exactly like a board game border edge 
+            // with beautiful physical shadows along the bevel overlay.
+            const holePath = new THREE.Path();
+            for (let i = 0; i < sides; i++) {
+                const a = i * Math.PI * 2 / sides;
+                const innerR = hexRadius * 0.98; // Razor thin 2% boundary shadow line instead of thick 10% wall
+                if (i === 0) holePath.moveTo(Math.cos(a) * innerR, Math.sin(a) * innerR);
+                else holePath.lineTo(Math.cos(a) * innerR, Math.sin(a) * innerR);
             }
-            hexGridGeo.computeVertexNormals();
-            
-            const hexGridMat = new THREE.MeshBasicMaterial({
-                map: gridTexture,
-                transparent: true,
-                depthWrite: false // Guarantees 60 FPS
+            holePath.closePath();
+            hexShape.holes.push(holePath);
+
+            const hexGeo = new THREE.ExtrudeGeometry(hexShape, {
+                depth: 0.1, // Thinner, perfectly flat shadow line
+                bevelEnabled: false // Pure sharp overlay, no double-bevel W-shaped grooves
             });
+            // Extrude physically pushes geometry up through Z, lay it flat!
+            hexGeo.rotateX(Math.PI / 2);
             
-            const hexGrid = new THREE.Mesh(hexGridGeo, hexGridMat);
+            // Physical Topological Terrain Overlay Mesh
+            const hexMat = new THREE.MeshStandardMaterial({
+                color: 0x1a2e1a, // Very dark rich shadow base for neumorphism
+                transparent: true,
+                opacity: 0.85, // Highly visible so the rings pop out
+                roughness: 0.9, 
+                metalness: 0.2,
+                depthWrite: false, 
+                depthTest: true, // MUST physically intersect and act as ground
+                flatShading: true
+            });
+
+            
+            const mapSize = 240; // Substantial footprint to cover bounds
+            const xOffset = Math.sqrt(3) * hexRadius;
+            const zOffset = 1.5 * hexRadius;
+            const cols = Math.ceil(mapSize / xOffset) + 1;
+            const rows = Math.ceil(mapSize / zOffset) + 1;
+            const totalHexes = cols * rows;
+            
+            const hexGrid = new THREE.InstancedMesh(hexGeo, hexMat, totalHexes);
+            hexGrid.castShadow = true; 
+            hexGrid.receiveShadow = true; // Act as a real surface
             hexGrid.layers.set(1); // Explicitly lock to Village View layer ONLY
+            window._villageMapGrid = hexGrid; // Expose global to allow PiP overlays to scrub it out
+            window._hexCenters = []; // Cache to allow snapping
+            
+            const dummy = new THREE.Object3D();
+            const color = new THREE.Color();
+            let hexIndex = 0;
+            
+            const startX = -mapSize / 2;
+            const startZ = -mapSize / 2;
+            
+            for (let z = 0; z < rows; z++) {
+                for (let x = 0; x < cols; x++) {
+                    const isOddRow = z % 2 !== 0;
+                    const px = startX + x * xOffset + (isOddRow ? xOffset / 2 : 0);
+                    const pz = startZ + z * zOffset;
+                    
+                    window._hexCenters.push(new THREE.Vector2(px, pz));
+                    
+                    // Calculate terrain height exactly at this spot
+                    const gy = getGroundY(px, pz);
+                    
+                    // Sample nearby points to construct a smooth terrain normal
+                    const offset = 0.5;
+                    const hL = getGroundY(px - offset, pz);
+                    const hR = getGroundY(px + offset, pz);
+                    const hU = getGroundY(px, pz - offset);
+                    const hD = getGroundY(px, pz + offset);
+                    
+                    const normal = new THREE.Vector3(
+                        hL - hR,
+                        offset * 2,
+                        hU - hD
+                    ).normalize();
+
+                    // Hover precisely flush against the grass to prevent severe Z-fighting
+                    dummy.position.set(px, gy + 0.1, pz);
+                    
+                    // 1. Rotate 30 degrees to interlock flat edges
+                    const euY = new THREE.Euler(0, Math.PI / 6, 0);
+                    const qY = new THREE.Quaternion().setFromEuler(euY);
+                    
+                    // 2. Tilt the entire massive tile to physically match the terrain slant
+                    const qTilt = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+                    
+                    dummy.quaternion.copy(qTilt).multiply(qY);
+                    dummy.scale.set(1.0, 1.0, 1.0); // 100% scale lets tiles touch flush, allowing pure bevel curvature to create 3D shadow boundaries
+                    dummy.updateMatrix();
+                    
+                    hexGrid.setMatrixAt(hexIndex, dummy.matrix);
+                    
+                    // Dark shadowy overlay line color
+                    color.setHex(0x111111);
+                    color.offsetHSL(0.0, 0.0, (Math.random() - 0.5) * 0.05); 
+                    hexGrid.setColorAt(hexIndex, color);
+                    
+                    hexIndex++;
+                }
+            }
+            hexGrid.instanceMatrix.needsUpdate = true;
+            if (hexGrid.instanceColor) hexGrid.instanceColor.needsUpdate = true;
+            
             scene.add(hexGrid);
-            window._villageMapGrid = hexGrid;
             
             window.getNearestHexCenter = (tx, tz) => {
                 if (!window._hexCenters || window._hexCenters.length === 0) return {x: tx, z: tz};
@@ -543,44 +525,9 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             };
 
 
-            // Create standard NPC Base Marker identical to Avatar base
-            // applyScale allows us to reverse the massive NPC model scale so the base remains perfectly uniform with the Avatar.
-            function createNPCHalo(modelRef, applyScale = 1.0, baseColor = 0x2e7d32) {
-                const markerGroup = new THREE.Group();
-                markerGroup.position.y = 0.02;
-                
-                // User requested EXACT same size as avatar circle, so ignore applyScale
-                const pRadius = 0.375;
-                
-                // Raised platform (Base)
-                const pMarkerGeo = new THREE.CylinderGeometry(pRadius, pRadius, 0.02, 32);
-                const pMarkerMat = new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.2, metalness: 0.1 });
-                const baseMesh = new THREE.Mesh(pMarkerGeo, pMarkerMat);
-                baseMesh.position.y = 0.01;
-                markerGroup.add(baseMesh);
-
-                // Brilliant white border
-                const borderGeo = new THREE.TorusGeometry(pRadius, 0.02, 16, 48);
-                const borderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
-                const borderMesh = new THREE.Mesh(borderGeo, borderMat);
-                borderMesh.rotation.x = Math.PI / 2;
-                borderMesh.position.y = 0.01;
-                markerGroup.add(borderMesh);
-                
-                // Directional wedge (Arrow)
-                const arrowGeo = new THREE.ConeGeometry(0.08, 0.2, 32);
-                const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
-                const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
-                arrowMesh.rotation.set(Math.PI / 2, 0, 0); // Tip points forward (+Z)
-                arrowMesh.scale.set(1.0, 1.0, 0.25);
-                arrowMesh.position.set(0, 0.01, pRadius + 0.1); 
-                markerGroup.add(arrowMesh);
-                
-                // Allow Map View interaction
-                baseMesh.userData = { isEditorBase: true, type: 'TRANSLATE', modelRef: modelRef };
-                if (window._editorBases) window._editorBases.push(markerGroup);
-
-                return markerGroup;
+            function createNPCHalo(modelRef) {
+                // Return our standard interactive 3D miniature base (size 1.2 for NPCs, nice deep mahogany color)
+                return window.createEditorBase(1.2, modelRef, 0x4a2a1a);
             }
 
             function createQuestBalloon(markerText, questId) {
@@ -662,8 +609,9 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             // Establish the new baseline Y where the Tipi and Fire will rest
             window._tipiPlatformY = getGroundY(TIPI_X, TIPI_Z);
 
-            this.updateLoadingScreen("Processing...");
+            this.updateLoadingScreen("Raising the Tipi...");
             await waitFrame();
+
             // =============================================
             // TIPI — yellowbutterfly tipi at world center
             // =============================================
@@ -671,58 +619,30 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                 console.log("[generateWorld] Starting GLTFLoader for Tipi...");
                 const gltfLoaderTipi = new GLTFLoader();
                 gltfLoaderTipi.setPath('Assets/Tipi.yellowbutterfly/');
-                gltfLoaderTipi.load('tipi.yellowbutterfly.glb', async (gltf) => {
+                gltfLoaderTipi.load('tipi.yellowbutterfly.glb', (gltf) => {
                     const obj = gltf.scene;
                     console.log("[generateWorld] GLTFLoader finished for Tipi glb.");
-                        // Scale to reasonable game size
+                        // Scale to reasonable game size (~4 units tall)
                         const box = new THREE.Box3().setFromObject(obj);
                         const size = box.getSize(new THREE.Vector3());
-                        const targetH = 7.2; // 20% larger
+                        const targetH = 4.0;
                         const sf = targetH / Math.max(size.y, 0.1);
                         obj.scale.set(sf, sf, sf);
 
-                        // Face entrance fully towards camera +Z (Player spawn is Z=20)
-                        obj.rotation.y = -Math.PI / 2;
-                        obj.updateMatrixWorld(true);
-
-                        // Recompute after scale and rotation
+                        // Recompute after scale
                         box.setFromObject(obj);
                         const center = box.getCenter(new THREE.Vector3());
-                        
-                        // User request: "building circles will be 75% size of hex tile" (6.27 * 0.75 = 4.7)
-                        const platRadius = 4.7; 
 
-                        // Place at clearing center
-                        const hexPos = window.getNearestHexCenter ? window.getNearestHexCenter(TIPI_X, TIPI_Z) : {x: TIPI_X, z: TIPI_Z};
+                        // Place at clearing center, resting on top of the Dirt Mound!
                         const platformY = window._tipiPlatformY;
-                        
                         obj.position.set(
-                            hexPos.x - center.x + obj.position.x,
-                            platformY - box.min.y - 0.05, 
-                            hexPos.z - center.z + obj.position.z
+                            TIPI_X - center.x,
+                            platformY - box.min.y - 0.05, // Sunk just barely so no floating cracks
+                            TIPI_Z - center.z
                         );
 
-                        // Make interactive for clicking
-                        obj.userData.isBuilding = true;
-                        window._interactiveBuildings = window._interactiveBuildings || [];
-                        window._interactiveBuildings.push(obj);
-
-                        // NEW: Sacred Circle Platform directly under the Tipi
-                        const platGeo = new THREE.CylinderGeometry(platRadius, platRadius + 0.15, 0.22, 32);
-                        const platMat = new THREE.MeshStandardMaterial({ color: 0x1a2e1a, roughness: 0.9, metalness: 0.1 });
-                        const platMesh = new THREE.Mesh(platGeo, platMat);
-                        platMesh.position.set(hexPos.x, platformY + 0.05, hexPos.z); 
-                        platMesh.castShadow = false;
-                        platMesh.receiveShadow = true;
-                        platMesh.layers.enable(1); // Renders in Village Map layer
-                        platMesh.userData.isBuilding = true;
-                        platMesh.userData.buildingRoot = obj;
-                        window._interactiveBuildings.push(platMesh);
-                        scene.add(platMesh);
-                        // Increased radius to 10.0 to ensure wide plateau covers building footprint on hills
-                        if (window.flattenTerrainAt) {
-                            await window.flattenTerrainAt(hexPos.x, hexPos.z, 14.0, platformY);
-                        }
+                        // Face entrance fully towards camera +Z (Player spawn is Z=20)
+                        obj.rotation.y = -Math.PI / 2;
 
                         // Matte materials — no shine, clean texture
                         obj.traverse(child => {
@@ -793,9 +713,8 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         glowSprite.scale.set(6, 6, 1);
                         bObj.add(glowSprite);
 
-                        // FPS FIX: Disabled localized point light on high-poly meshes
-                        // const bLight = new THREE.PointLight(0xffdd66, 1.0, 15);
-                        // bObj.add(bLight);
+                        const bLight = new THREE.PointLight(0xffdd66, 1.0, 15);
+                        bObj.add(bLight);
 
                         // Place on the ground in front of Tipi 1
                         const bx = TIPI_X;
@@ -808,147 +727,209 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         
                         scene.add(bObj);
                         
-                            // === YELLOW BUTTERFLY NPC ===
-                            const ybGltfLoader = new GLTFLoader();
-                            ybGltfLoader.load('Assets/NPC.YB.glb', (gltf) => {
-                                const ybModel = gltf.scene;
-                                // User Request: Increase size by 30% + 1 foot (Approx 2.6, 2.1, 2.6)
-                                ybModel.scale.set(2.6, 2.1, 2.6); 
-                                
-                                // Rigid wrapper to permanently correct the mesh orientation.
-                                // Yellow Butterfly natively points -X locally. Rotate -90 degrees (CW) so her face aligns to -Z.
-                                // NEW COORDS FOR YB = X0.3 Y1.7 Z-0.5 FACING SOUTH
-                                const startX = 0.3;
-                                const startZ = -0.5;
-                                // Snap to platform height to prevent floating
-                                const startY = (typeof platformY !== 'undefined') ? platformY + 0.05 : 1.7; 
-                                
-                                const finalX = -2.0;
-                                const finalZ = 2.4;
-                                
-                                const ybGroup = new THREE.Group();
-                                ybGroup.position.set(startX, startY, startZ);
-                                // Facing South (+Z)
-                                ybGroup.rotation.y = 0;
-                                
-                                // --- Procedural Sitting Chair for YB ---
-                                const chairGroup = new THREE.Group();
-                                const seatGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.15, 8);
-                                const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a3122, roughness: 0.9 });
-                                const seat = new THREE.Mesh(seatGeo, woodMat);
-                                seat.position.y = 0.15; // Lowered to avoid floating on seat
-                                chairGroup.add(seat);
-                                ybGroup.add(chairGroup);
-
-                                // Position YB on the chair
-                                ybModel.position.set(0, 0.2, 0.1); 
-                                // Face East relative to group (aligns with -Z forward mapping)
-                                ybModel.rotation.y = -Math.PI / 2; 
-                                ybGroup.add(ybModel);
-                                ybGroup.updateMatrixWorld(true);
-    
-                                ybModel.traverse(child => {
-                                    if (child.isMesh) {
-                                        child.castShadow = false; // FPS FIX
-                                        child.receiveShadow = false; // FPS FIX
-                                        child.frustumCulled = false; // User Request: Disable culling
-                                        child.layers.set(3); // Hide from Minimap PiP
-                                    }
-                                });
-                                
-                                // --- FLOATING QUEST MARKER ---
-                                const questGroup = createQuestBalloon('1', 'quest_1_start_game');
-                                // Move balloon to sit more intimately over her directly in FPV
-                                questGroup.position.set(0, 6.2, 0);
-                                questGroup.userData.baseY = 6.2; 
-                                
-                                // Drop string straight down to the top of the NPC's head
-                                // USER REQUEST: 70% thinner (0.006 -> 0.0018) and 70% more transparent (0.8 -> 0.24)
-                                const stringGeo = new THREE.CylinderGeometry(0.0018, 0.0018, 3.8, 4);
-                                stringGeo.translate(0, -1.9, 0);
-                                const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.24 });
-                                const stringMesh = new THREE.Mesh(stringGeo, stringMat);
-                                stringMesh.position.set(0, -0.6, 0); 
-                                stringMesh.rotation.set(0, 0, 0);
-                                
-                                questGroup.add(stringMesh);
-    
-                                ybGroup.add(questGroup);
-                                window._questMarker = questGroup; 
-                                
-                                // Attach PIP marker (NPC: 6ft diameter = ~0.9m radius), with facing arrow = true
-                                const ybMarker = window.createPIPMarker(0x2e8b57, 0.8, 0.9, true);
-                                ybGroup.add(ybMarker);
-                                
-                                // YB = Gray Circle. Attach to ybGroup so it sits on the platform.
-                                const halo = createNPCHalo(ybGroup, 0.969, 0x2e7d32);
-                                halo.position.y += 0.11; // Lift above Tipi platform thickness
-                                ybGroup.add(halo);
-                                
-                                // Save actual model mesh to scale during rendering
-                                window._ybCharacterMesh = ybModel;
-    
-                                scene.add(ybGroup);
-                                // Save to global for EngineMain
-                                window._yellowButterflyNPC = ybGroup;
-    
-                                if (gltf.animations && gltf.animations.length > 0) {
-                                    window.ybMixer = new THREE.AnimationMixer(ybModel);
-                                    
-                                    // Robust track mapping based on User request:
-                                    // 003 = Sit (Index 3), 004 = Walk (Index 4), 002 = Idle (Index 2)
-                                    const actions = {};
-                                    gltf.animations.forEach((clip, idx) => {
-                                        const name = clip.name.toLowerCase();
-                                        // Robust NLA search
-                                        if (name.includes('sit') || name.includes('sitting') || name.includes('003')) actions.sit = window.ybMixer.clipAction(clip);
-                                        else if (name.includes('walk') || name.includes('004')) actions.walk = window.ybMixer.clipAction(clip);
-                                        else if (name.includes('idle') || name.includes('002')) actions.idle = window.ybMixer.clipAction(clip);
-                                        else if (name.includes('wave') || name.includes('001')) actions.wave = window.ybMixer.clipAction(clip);
-                                    });
-
-                                    // Direct Index Fallbacks (NLA order standard)
-                                    if (!actions.sit && gltf.animations.length > 3) actions.sit = window.ybMixer.clipAction(gltf.animations[3]);
-                                    if (!actions.walk && gltf.animations.length > 4) actions.walk = window.ybMixer.clipAction(gltf.animations[4]);
-                                    if (!actions.idle && gltf.animations.length > 2) actions.idle = window.ybMixer.clipAction(gltf.animations[2]);
-                                    if (!actions.wave && gltf.animations.length > 1) actions.wave = window.ybMixer.clipAction(gltf.animations[1]);
-
-                                    if (actions.sit) {
-                                        console.log("[NPC.YB] Forcing Sit Animation (NLA Track Identified)");
-                                        actions.sit.reset().setEffectiveWeight(1.0).play();
-                                        window.ybMixer.update(0); // Snap to frame 0
-                                    } else {
-                                        console.warn("[NPC.YB] Sit track missing, using first available.");
-                                        if (gltf.animations[0]) window.ybMixer.clipAction(gltf.animations[0]).play();
-                                    }
-
-                                    if (actions.wave) {
-                                        actions.wave.setLoop(THREE.LoopOnce, 1);
-                                        actions.wave.clampWhenFinished = true;
-                                    }
-    
-                                    const system = {
-                                        mesh: ybGroup,
-                                        mixer: window.ybMixer,
-                                        actions: actions,
-                                        isAware: false,
-                                        baseRotation: -Math.PI / 4,
-                                        startupState: 'sitting',
-                                        nsGreetingState: 'none'
-                                    };
-                                    if (window.npcMaster) window.npcMaster.register('NPC_YB', system);
-                                    window.ybSystem = system;
-                                    
-                                    if (actions.sit) {
-                                        actions.sit.play();
-                                    } else {
-                                        actions.idle.play();
-                                    }
-                                }
+                        // === YELLOW BUTTERFLY NPC ===
+                        const ybGltfLoader = new GLTFLoader();
+                        ybGltfLoader.load('Assets/animated.yellowbutterfly.glb', (gltf) => {
+                            const ybModel = gltf.scene;
+                            // The base mesh for yellow butterfly is incredibly small, so we use 1.728x scale.
+                            // User Request: Make 25% thicker -> X/Z scaled up to 2.16
+                            ybModel.scale.set(2.16, 1.728, 2.16); 
                             
-                            console.log(`[NPC] Spawned YellowButterfly NPC at (${startX}, ${startZ})`);
+                            // Rigid wrapper to permanently correct the mesh orientation.
+                            // Yellow Butterfly natively points -X locally. Rotate -90 degrees (CW) so her face aligns to -Z.
+                            const meshRig = new THREE.Group();
+                            meshRig.rotation.y = -Math.PI / 2; 
+                            meshRig.add(ybModel);
+                            
+                            const ybX = -2.0;
+                            const ybZ = 2.4;
+                            const ybY = getGroundY(ybX, ybZ); // snap to ground to stop floating
+                            
+                            const ybGroup = new THREE.Group();
+                            ybGroup.position.set(ybX, ybY, ybZ);
+                            ybGroup.rotation.y = -Math.PI / 4;
+                            ybGroup.add(meshRig);
+
+                            ybModel.traverse(child => {
+                                if (child.isMesh) {
+                                    child.castShadow = true;
+                                    child.receiveShadow = true;
+                                    
+                                    // Make faces and hands smooth
+                                    if (child.material) {
+                                        child.material.flatShading = false;
+                                        child.material.needsUpdate = true;
+                                    }
+                                    // Remove destructive computeVertexNormals block that was overwriting rigged geometry smooth shading
+                                }
+                            });
+                            
+                            // Attach local lighting to prevent Ortho camera pitch black
+                            const ybLight = new THREE.PointLight(0xffeedd, 1.2, 8);
+                            // Light should always be strictly behind head (-1.0 in local Z)
+                            ybLight.position.set(0, 3.5, -3.0);
+                            ybGroup.add(ybLight);
+                            
+                            // Attach aesthetic Halo proxy
+                            const halo = createNPCHalo(ybGroup);
+                            ybGroup.add(halo);
+                            
+                            // --- FLOATING QUEST MARKER ---
+                            const questGroup = createQuestBalloon('1', 'quest_1_start_game');
+                            // Move balloon to sit more intimately over her directly in FPV
+                            questGroup.position.set(0, 4.4, 0);
+                            questGroup.userData.baseY = 4.4; 
+                            
+                            // Slant the tether string to visually attach directly into her LEFT hand!
+                            const stringGeo = new THREE.CylinderGeometry(0.006, 0.006, 3.2, 4);
+                            // By translating the geometry downwards by half its height, its active pivot locks exactly at its Top Point
+                            stringGeo.translate(0, -1.6, 0);
+                            const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+                            const stringMesh = new THREE.Mesh(stringGeo, stringMat);
+                            // Position the string precisely inside the bottom knot of the balloon so it stays attached under all circumstances
+                            stringMesh.position.set(0, -0.69, 0); 
+                            // Slant the string like a pendulum to terminate neatly at her left hand node
+                            stringMesh.rotation.set(0.15, 0, 0.12);
+                            
+                            questGroup.add(stringMesh);
+
+                            ybGroup.add(questGroup);
+                            window._questMarker = questGroup; 
+                            
+                            // Attach PIP marker (NPC: 6ft diameter = ~0.9m radius), with facing arrow = true
+                            const ybMarker = window.createPIPMarker(0x2e8b57, 0.8, 0.9, true);
+                            ybGroup.add(ybMarker);
+                            
+                            // Attach FPV diagnostic visual arrow (Restored per User request 19x)
+                            if (window.createFPVFacingArrow) {
+                                // 25% transparent (0.75 opacity), perfectly referencing her forward -Z vector natively
+                                const ybFpvArrow = window.createFPVFacingArrow(0x2e8b57, 1.2, new THREE.Vector3(0, 0, 1), 0.75);
+                                ybGroup.add(ybFpvArrow);
+                            }
 
 
+                            scene.add(ybGroup);
+                            // Save to global for EngineMain
+                            window._yellowButterflyNPC = ybGroup;
+
+                            if (gltf.animations && gltf.animations.length > 0) {
+                                window.ybMixer = new THREE.AnimationMixer(ybModel);
+                                
+                                // gltf.animations mapping:
+                                // [0] Rest/Tpose, [1] Walk, [2] Idle, [3] Wait, [4] Heart, [5] Wave
+                                const idleClip = gltf.animations.length > 2 ? gltf.animations[2] : null;
+                                const waitClip = gltf.animations.length > 3 ? gltf.animations[3] : null;
+                                const heartClip = gltf.animations.length > 4 ? gltf.animations[4] : null;
+                                const waveClip = gltf.animations.length > 5 ? gltf.animations[5] : null;
+
+                                const system = {
+                                    mixer: window.ybMixer,
+                                    clips: { idle: idleClip, wait: waitClip, heart: heartClip, wave: waveClip },
+                                    actions: {},
+                                    hasGreeted: false,
+                                    hasWaved: false,
+                                    currentBaseAction: null,
+                                    proximityTimeout: null,
+                                    petTimer: 3.0,
+                                    hasGreetedPlayer: false,
+                                    update(delta) {
+                                        if (this.mixer) this.mixer.update(delta);
+                                        
+                                        // Priority 1: Horse Gaze Anchoring 
+                                        // Ensures she locks onto the horse without being hijacked by the Nature Spirit cinematic.
+                                        
+                                        // Player Proximity Greeting Interlayer
+                                        const playerPos = window.player ? window.player.position : null;
+                                        
+                                        // Priority 1: HARD STARE LOCK TO HORSE
+                                        // User specifically demanded they stare at each other. No player interruptions. No Stag interruptions.
+                                        let isHorseNear = false;
+                                        
+                                        if (window.horseSystem && window.horseSystem.actions && window.horseSystem.horse) {
+                                            const currentQuat = window._yellowButterflyNPC.quaternion.clone();
+                                            const targetPosition = window.horseSystem.horse.position.clone();
+                                            targetPosition.y = window._yellowButterflyNPC.position.y;
+                                            window._yellowButterflyNPC.lookAt(targetPosition);
+                                            const targetQuat = window._yellowButterflyNPC.quaternion.clone();
+                                            window._yellowButterflyNPC.quaternion.copy(currentQuat);
+                                            window._yellowButterflyNPC.quaternion.slerp(targetQuat, 2.5 * delta); 
+                                            
+                                            if (window._yellowButterflyNPC.position.distanceTo(window.horseSystem.horse.position) < 5.0) {
+                                                isHorseNear = true;
+                                            }
+                                        }
+                                            
+                                            if (isHorseNear) {
+                                                if (!this.pettingActive) {
+                                                    this.pettingActive = true;
+                                                    if (this.actions.wave) {
+                                                        this.actions.wave.paused = false;
+                                                        this.actions.wave.reset().play();
+                                                        if (this.currentBaseAction) this.actions.wave.crossFadeFrom(this.currentBaseAction, 0.5, false);
+                                                    }
+                                                } else if (this.actions.wave) {
+                                                    // Freeze the animation at peak reach when hand is outstretched
+                                                    const reachPeak = this.actions.wave.getClip().duration * 0.45;
+                                                    if (this.actions.wave.time >= reachPeak && !this.actions.wave.paused) {
+                                                        this.actions.wave.paused = true; // Hold out hand to touch horse
+                                                    }
+                                                }
+                                            } else {
+                                                if (this.pettingActive) {
+                                                    this.pettingActive = false;
+                                                    if (this.actions.wave) {
+                                                        this.actions.wave.paused = false;
+                                                        if (this.currentBaseAction) {
+                                                            this.currentBaseAction.reset().play();
+                                                            this.currentBaseAction.crossFadeFrom(this.actions.wave, 0.5, false);
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                this.petTimer -= delta;
+                                                if (this.petTimer <= 0) {
+                                                    this.petTimer = 8.0 + Math.random() * 6.0;
+                                                    if (this.actions.heart) {
+                                                        this.actions.heart.reset().play();
+                                                        if (this.currentBaseAction) this.actions.heart.crossFadeFrom(this.currentBaseAction, 0.5, false);
+                                                        
+                                                        setTimeout(() => {
+                                                            if (this.currentBaseAction) {
+                                                                this.currentBaseAction.reset().play();
+                                                                this.currentBaseAction.crossFadeFrom(this.actions.heart, 0.5, false);
+                                                            }
+                                                        }, 3000);
+                                                    }
+                                            }
+                                        }
+                                    }
+                                };
+
+                                // Cache Actions
+                                if (idleClip) system.actions.idle = window.ybMixer.clipAction(idleClip);
+                                if (waitClip) system.actions.wait = window.ybMixer.clipAction(waitClip);
+                                if (heartClip) system.actions.heart = window.ybMixer.clipAction(heartClip);
+                                if (waveClip) system.actions.wave = window.ybMixer.clipAction(waveClip);
+                                
+                                // Default settings
+                                if (system.actions.heart) {
+                                    system.actions.heart.setLoop(THREE.LoopOnce);
+                                    system.actions.heart.clampWhenFinished = true;
+                                }
+                                if (system.actions.wave) {
+                                    system.actions.wave.setLoop(THREE.LoopOnce);
+                                    system.actions.wave.clampWhenFinished = true;
+                                }
+
+                                if (system.actions.idle) {
+                                    system.currentBaseAction = system.actions.idle;
+                                    system.actions.idle.play();
+                                }
+                                
+                                window.ybSystem = system;
+                            }
+                            
+                            console.log(`[NPC] Spawned YellowButterfly NPC at (${ybX}, ${ybZ})`);
                         });
 
                         // === NATURE SPIRIT (21 FEET TALL STAG) ===
@@ -962,14 +943,14 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                             // 21 feet = ~6.4 meters tall
                             nsGroup.scale.set(6.4, 6.4, 6.4);
                             
-                            // Start from left side of view (-20 X, -10 Z)
-                            const startX = -20;
+                            // Start behind the tipi (-15 X, -10 Z roughly)
+                            const startX = -15;
                             const startZ = -10;
                             nsGroup.position.set(startX, getGroundY(startX, startZ) + 3.2, startZ);
                             
-                            // CRITICAL RIG FIX: The Native Stag head points towards -X. 
-                            // This -90deg rotation aligns the geometric face to the -Z mathematically,
-                            // matching the lookAt direction so it walks forward!
+                            // CRITICAL RIG FIX: The Native Stag head points towards +X. 
+                            // This -90deg (CW) rotation aligns the geometric face to the +Z mathematically.
+                            // We MUST WRAP it so AnimationMixer doesn't aggressively overwrite the fix!
                             const nsRig = new THREE.Group();
                             nsRig.rotation.y = -Math.PI / 2;
                             nsRig.add(nsAsset);
@@ -986,14 +967,13 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                                 if (c.isMesh) {
                                     c.castShadow = false;
                                     c.receiveShadow = false;
-                                    c.layers.set(3); // Hide from Minimap PiP
                                     const origMat = c.material;
                                     if (origMat) {
                                         c.material = origMat.clone();
                                         c.material.transparent = true;
                                         c.material.opacity = 0.50; // Calibrated ethereal density
                                         c.material.depthWrite = false; // Ethereal ghosting
-                                        c.material.depthTest = true;  // FIXED: Respect physical depth so it's hidden properly behind closer objects!
+                                        c.material.depthTest = false;  // FULL X-RAY: Spirit has zero visual collision against ANY trees or landscape
                                         c.material.emissive = new THREE.Color(0x33aaaa);
                                         c.material.emissiveIntensity = 0.5;
                                         myMaterials.push(c.material);
@@ -1001,10 +981,10 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                                 }
                             });
                             
-                            // FPS FIX: Disabled localized point light on high-poly meshes
-                            // const spiritLight = new THREE.PointLight(0x77ffff, 1.5, 20);
-                            // spiritLight.position.set(0, 0.5, 0); // Near the core
-                            // nsGroup.add(spiritLight);
+                            // Attach a soft cyan light to physically project the Patronus effect onto trees
+                            const spiritLight = new THREE.PointLight(0x77ffff, 1.5, 20);
+                            spiritLight.position.set(0, 0.5, 0); // Near the core
+                            nsGroup.add(spiritLight);
                             
                             // Attach PIP Marker (Giant Stag Animal: ~2m radius), with facing arrow = true
                             const nsMarker = window.createPIPMarker(0x4488ff, 1.8, 2.0, true, 0x4488ff, 0.4);
@@ -1024,39 +1004,120 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                                 // Majestic slow motion
                                 walkAction.setEffectiveTimeScale(0.35); 
                                 bowAction.setEffectiveTimeScale(0.5); // Bowing happens gently
-                                idleAction.play();
-                                
-                                // LOGBOOK OPENING REMOVED FROM HERE: Previously opened the logbook during asset loading,
-                                // which caused it to bleed through the loading screen. Now handled exclusively
-                                // by checkReadyToStart() in EngineMain.js AFTER loading screen has fully faded.
-
+                                walkAction.play();
                                 
                                 window.natureSpiritSystem = {
                                     mixer: window.nsMixer,
                                     mesh: nsGroup,
                                     asset: nsAsset,
                                     materials: myMaterials,
-                                    light: null, 
-                                    actions: {
-                                        walk: walkAction,
-                                        idle: idleAction,
-                                        wave: bowAction
-                                    },
-                                    ignoreProximity: true, // Never interrupt cinematic with player proximity
-                                    state: 'walking_in',
-                                    speed: 0.8, // Calibrated for 0.35 timescale footprints over 6.4m scale
-                                    timer: 0,
-                                    opacityTarget: 0.0,
-                                    currentOpacity: 0.0,
-                                    startX: -20,
-                                    startZ: -10
-                                    // Note: Inline update() removed. 
-                                    // Logic is now formally governed by MasterNPCAI.js FSM.
+                                    light: spiritLight,
+                                    state: 'walking_in', // Start walking immediately
+                                    speed: 0.8, // Calibrated exactly to match 0.35 timescale footprints over 6.4m scale
+                                    update(delta) {
+                                        if (this.mixer) this.mixer.update(delta);
+                                        
+                                        // Dynamically re-anchor baseline to terrain while walking
+                                        this.mesh.position.y = getGroundY(this.mesh.position.x, this.mesh.position.z) + 3.2;
+                                        
+                                            if (this.state === 'walking_in') {
+                                                this.mesh.position.x += this.speed * delta;
+                                                
+                                                // Smoothly ensure it stays looking forward strictly along the movement path
+                                                const marchTarget = this.mesh.position.clone();
+                                                marchTarget.x += 10.0;
+                                                const currentQuat = this.mesh.quaternion.clone();
+                                                this.mesh.lookAt(marchTarget);
+                                                const targetQuat = this.mesh.quaternion.clone();
+                                                this.mesh.quaternion.copy(currentQuat);
+                                                this.mesh.quaternion.slerp(targetQuat, 2.5 * delta);
+
+                                            // Stop behind Tipi when aligned with Yellow Butterfly (-2 X)
+                                            if (this.mesh.position.x >= -2) {
+                                                this.state = 'bowing';
+                                                
+                                                this.mixer.stopAllAction();
+                                                bowAction.play();
+                                                
+                                        if (this.state === 'bowing' && window._yellowButterflyNPC) {
+                                            const currentQuat = this.mesh.quaternion.clone();
+                                            this.mesh.lookAt(window._yellowButterflyNPC.position);
+                                            const targetQuat = this.mesh.quaternion.clone();
+                                            this.mesh.quaternion.copy(currentQuat);
+                                            this.mesh.quaternion.slerp(targetQuat, 3.0 * delta); // Turn to face butterfly cleanly
+                                        }
+                                                if (window._yellowButterflyNPC && window.ybSystem) {
+                                                    // YB runs Greeting Animation Followed by Wave
+                                                    if (window.ybSystem.actions.wait) {
+                                                        window.ybSystem.actions.wait.reset().play();
+                                                        window.ybSystem.actions.wait.crossFadeFrom(window.ybSystem.currentBaseAction, 0.5, false);
+                                                        
+                                                        setTimeout(() => {
+                                                            if (window.ybSystem.actions.wave) {
+                                                                window.ybSystem.actions.wave.reset().play();
+                                                                window.ybSystem.actions.wave.crossFadeFrom(window.ybSystem.actions.wait, 0.5, false);
+                                                            }
+                                                        }, 2000); // Wait 2s for greet, then wave
+                                                    }
+                                                }
+                                                
+                                                setTimeout(() => {
+                                                    if (window.triggerYellowButterflyHeart) window.triggerYellowButterflyHeart();
+                                                }, 4500); // Wait 2.5s after wave for heart
+                                                
+                                                // Pause 5 seconds (Wait for entire greeting to finish) then turn slowly and continue walking away
+                                                setTimeout(() => {
+                                                    this.state = 'walking_out';
+                                                    this.mixer.stopAllAction();
+                                                    walkAction.play(); // Feet move during turn
+                                                    
+                                                    // YB gently returns her rig to baseline Idle when the Stag turns
+                                                    if (window.ybSystem && window.ybSystem.actions.idle) {
+                                                         window.ybSystem.actions.idle.reset().play();
+                                                    }
+                                                }, 5000); // 5s total interaction time allows heart to trigger securely
+                                            }
+                                        }
+                                        
+                                        if (this.state === 'walking_out') {
+                                            this.mesh.position.x += this.speed * delta;
+                                            
+                                            // Smoothly face walking direction (East) to prevent sudden snapping
+                                            const marchTarget = this.mesh.position.clone();
+                                            marchTarget.x += 10.0;
+                                            const currentQuat = this.mesh.quaternion.clone();
+                                            this.mesh.lookAt(marchTarget);
+                                            const targetQuat = this.mesh.quaternion.clone();
+                                            this.mesh.quaternion.copy(currentQuat);
+                                            this.mesh.quaternion.slerp(targetQuat, 2.5 * delta);
+                                            
+                                            // Glow intensely after heart interaction
+                                            this.materials.forEach(mat => {
+                                                if (mat.emissiveIntensity < 1.8) {
+                                                    mat.emissiveIntensity += 0.5 * delta;
+                                                }
+                                            });
+                                            if (this.light.intensity < 3.0) this.light.intensity += 1.0 * delta;
+                                            
+                                            // Fade out as it passes deep into trees (X > 20)
+                                            if (this.mesh.position.x > 20) {
+                                                let finished = false;
+                                                this.materials.forEach(mat => {
+                                                    mat.opacity -= 0.15 * delta;
+                                                    if (mat.opacity <= 0) finished = true;
+                                                });
+                                                this.light.intensity -= 1.0 * delta;
+                                                
+                                                if (finished) {
+                                                    this.state = 'finished';
+                                                    scene.remove(this.mesh);
+                                                    this.asset.traverse(c => { if(c.geometry) c.geometry.dispose(); });
+                                                    console.log("[NPC] Nature Spirit departed.");
+                                                }
+                                            }
+                                        }
+                                    }
                                 };
-                                if (window.npcMaster) window.npcMaster.register('NatureSpirit', window.natureSpiritSystem);
-                                if (window.fuzzyBrain) {
-                                    window.fuzzyBrain.linkNPC('naturespirit', window.natureSpiritSystem.mesh, window.natureSpiritSystem);
-                                }
                             }
                         });
 
@@ -1064,7 +1125,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         resolveTipi();
                 });
             });
-            this.updateLoadingScreen("Processing...");
+            this.updateLoadingScreen("Planting Sacred Forest...");
             await waitFrame();
 
             // =============================================
@@ -1193,11 +1254,6 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                     new THREE.Color(0xFF69B4), // Spring: Deep Blossom Pink
                 ];
 
-                // CENTER THE TEMPLATE SO ROTATION REVOLVES AROUND ITS TRUE CENTER
-                const treeCenter = origBox.getCenter(new THREE.Vector3());
-                template.position.set(-treeCenter.x, 0, -treeCenter.z);
-                template.updateMatrixWorld(true);
-
                 // FIND MESHES FOR INSTANCING
                 const meshesToInstance = [];
                 template.traverse(child => {
@@ -1207,172 +1263,153 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                 });
 
                 if (meshesToInstance.length > 0) {
-                    const chunkSize = 40;
-                    const chunks = {};
-                    treePositions.forEach((pos, globalIdx) => {
-                        const cx = Math.floor(pos.x / chunkSize);
-                        const cz = Math.floor(pos.z / chunkSize);
-                        const key = cx + '_' + cz;
-                        if (!chunks[key]) chunks[key] = { positions: [] };
-                        chunks[key].positions.push({ ...pos, globalIdx });
-                    });
-
-                    const allInstancedMeshes = [];
-
-                    for (const key in chunks) {
-                        const chunk = chunks[key];
-                        chunk.instancedMeshes = [];
-
-                        meshesToInstance.forEach((mesh) => {
-                            let material = Array.isArray(mesh.material) ? mesh.material[0].clone() : mesh.material.clone();
-                            material.roughness = 1.0;
-                            material.metalness = 0.0;
-                            if (material.shininess !== undefined) material.shininess = 0;
-                            
-                            const matName = material.name ? material.name.toLowerCase() : '';
-                            const isLeaf = matName.includes('leaf') || matName.includes('leaves') || matName.includes('foliage');
-                            
-                            if (isLeaf) {
-                                material.color.setHex(0xffffff); 
-                                material.alphaTest = 0.5;
-                                material.transparent = false;
-                                material.depthWrite = true;
-                                
-                                if (!window._globalTime) window._globalTime = { value: 0 };
-                                if (!window._entityTrackerUniform) {
-                                    window._entityTrackerUniform = { value: [
-                                        new THREE.Vector3(0,-1000,0), new THREE.Vector3(0,-1000,0), 
-                                        new THREE.Vector3(0,-1000,0), new THREE.Vector3(0,-1000,0)
-                                    ] };
-                                }
-                                material.onBeforeCompile = (shader) => {
-                                    shader.uniforms.uTime = window._globalTime;
-                                    shader.uniforms.uEntities = window._entityTrackerUniform;
-                                    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;');
-                                    let vertMods = `
-                                    #include <begin_vertex>
-                                    `;
-                                    if (isLeaf) {
-                                        vertMods += `
-                                        float heightFactor = smoothstep(2.0, 6.0, position.y);
-                                        float worldX = instanceMatrix[3][0];
-                                        float worldZ = instanceMatrix[3][2];
-                                        float phase = (worldX * 0.1) + (worldZ * 0.1);
-                                        float windStr = 0.16;
-                                        transformed.x += sin(uTime * 1.5 + phase) * windStr * heightFactor;
-                                        transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
-                                        `;
-                                    }
-                                    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', vertMods);
-                                };
-                            }
-
-                            const instancedMesh = new THREE.InstancedMesh(mesh.geometry, material, chunk.positions.length);
-                            instancedMesh.castShadow = false;
-                            instancedMesh.receiveShadow = false;
-                            instancedMesh.frustumCulled = true;
-                            instancedMesh.layers.set(3); // Hide from minimap PiP
-                            
-                            chunk.instancedMeshes.push({ instancedMesh, isLeaf });
-                            allInstancedMeshes.push({ instancedMesh, isLeaf });
-                            scene.add(instancedMesh);
-                        });
-                        
-                        // Link the siblings together so raycasting can hide both trunk and leaves safely
-                        chunk.instancedMeshes.forEach(m => {
-                            m.instancedMesh.userData.chunkSiblings = chunk.instancedMeshes;
-                        });
-                    }
-
+                    const instancedMeshes = [];
                     const matrix = new THREE.Matrix4();
                     const position = new THREE.Vector3();
                     const rotation = new THREE.Euler();
                     const quaternion = new THREE.Quaternion();
                     const sc = new THREE.Vector3();
 
-                    let globalProcessedCount = 0;
-                    
-                    for (const key in chunks) {
-                        const chunk = chunks[key];
-                        for (let idx = 0; idx < chunk.positions.length; idx++) {
-                            const pos = chunk.positions[idx];
+                    // Create InstancedMesh for each constituent mesh
+                    meshesToInstance.forEach((mesh) => {
+                        // Clone material to allow tinting and wind
+                        let material = Array.isArray(mesh.material) ? mesh.material[0].clone() : mesh.material.clone();
+                        
+                        // Force basic optimizations
+                        material.roughness = 1.0;
+                        material.metalness = 0.0;
+                        if (material.shininess !== undefined) material.shininess = 0;
+                        
+                        const matName = material.name ? material.name.toLowerCase() : '';
+                        const isLeaf = matName.includes('leaf') || matName.includes('leaves') || matName.includes('foliage');
+                        
+                        if (isLeaf) {
+                            material.color.setHex(0xffffff); // White base for setColorAt
+                            material.alphaTest = 0.5;
+                            material.transparent = false;
+                            material.depthWrite = true;
                             
-                            globalProcessedCount++;
-                            if (globalProcessedCount % 50 === 0) {
-                                this.updateLoadingScreen(`Processing... (${globalProcessedCount}/${treePositions.length})`);
-                                await waitFrame();
+                            // Apply wind sway to leaves
+                            if (!window._globalTime) window._globalTime = { value: 0 };
+                            if (!window._entityTrackerUniform) {
+                                window._entityTrackerUniform = { value: [
+                                    new THREE.Vector3(0,-1000,0), new THREE.Vector3(0,-1000,0), 
+                                    new THREE.Vector3(0,-1000,0), new THREE.Vector3(0,-1000,0)
+                                ] };
                             }
-                            
-                            const baseScale = pos.scale;
-                            const targetH = (8 + Math.random() * 8) * baseScale;
-                            const sf = targetH / Math.max(origSize.y, 0.1);
-                            const widthMult = pos.widthOverride || (0.8 + Math.random() * 0.5);
 
-                            sc.set(sf * widthMult, sf, sf * widthMult);
-                            const groundY = getGroundY(pos.x, pos.z);
-                            position.set(pos.x, groundY, pos.z);
-                            rotation.set(0, Math.random() * Math.PI * 2, 0);
-                            quaternion.setFromEuler(rotation);
-
-                            matrix.compose(position, quaternion, sc);
-
-                            const tintColor = foliageColors[Math.floor(Math.random() * foliageColors.length)];
-
-                            chunk.instancedMeshes.forEach(({ instancedMesh, isLeaf }) => {
-                                instancedMesh.setMatrixAt(idx, matrix);
-                                if (isLeaf) instancedMesh.setColorAt(idx, tintColor);
-                            });
-
-                            const dirtGroup = new THREE.Group();
-                            const sd = 0.5;
-                            const hC = groundY;
-                            const hL = getGroundY(pos.x - sd, pos.z);
-                            const hR = getGroundY(pos.x + sd, pos.z);
-                            const hF = getGroundY(pos.x, pos.z - sd);
-                            const hB = getGroundY(pos.x, pos.z + sd);
-                            const avgY = (hC + hL + hR + hF + hB) / 5;
-                            dirtGroup.position.set(pos.x, avgY + 0.03, pos.z);
-
-                            const tangentX = new THREE.Vector3(sd * 2, hR - hL, 0);
-                            const tangentZ = new THREE.Vector3(0, hB - hF, sd * 2);
-                            const normal = new THREE.Vector3().crossVectors(tangentX, tangentZ).normalize();
-                            dirtGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-
-                            const dirtRadius = baseScale * 0.8;
-                            const dirtGeo = new THREE.CircleGeometry(dirtRadius, 16);
-                            dirtGeo.rotateX(-Math.PI / 2);
-                            const dirtMat = new THREE.MeshBasicMaterial({
-                                color: 0x180b02,
-                                side: THREE.DoubleSide,
-                                depthWrite: false,
-                                polygonOffset: true,
-                                polygonOffsetFactor: -2,
-                                polygonOffsetUnits: -2
-                            });
-                            const dirtMesh = new THREE.Mesh(dirtGeo, dirtMat);
-                            dirtMesh.renderOrder = 1;
-                            dirtGroup.add(dirtMesh);
-                            scene.add(dirtGroup);
-
-                            allTrees.push({
-                                position: new THREE.Vector3(pos.x, groundY, pos.z),
-                                isInstanced: true,
-                                index: idx,
-                                chunkSiblings: chunk.instancedMeshes
-                            });
-                            vegData.trees.push({ x: pos.x, z: pos.z });
+                            material.onBeforeCompile = (shader) => {
+                                shader.uniforms.uTime = window._globalTime;
+                                shader.uniforms.uEntities = window._entityTrackerUniform;
+                                
+                                shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;');
+                                
+                                let vertMods = `
+                                #include <begin_vertex>
+                                `;
+                                
+                                if (isLeaf) {
+                                    vertMods += `
+                                    float heightFactor = smoothstep(2.0, 6.0, position.y);
+                                    float worldX = instanceMatrix[3][0];
+                                    float worldZ = instanceMatrix[3][2];
+                                    float phase = (worldX * 0.1) + (worldZ * 0.1);
+                                    float windStr = 0.16;
+                                    transformed.x += sin(uTime * 1.5 + phase) * windStr * heightFactor;
+                                    transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
+                                    `;
+                                }
+                                shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', vertMods);
+                                
+                                // Removed fragment shader mods to restore Early-Z and fix 40 FPS drop
+                            };
                         }
+
+                        const instancedMesh = new THREE.InstancedMesh(mesh.geometry, material, treePositions.length);
+                        instancedMesh.castShadow = false;
+                        instancedMesh.receiveShadow = false;
+                        instancedMesh.frustumCulled = false;
+                        
+                        instancedMeshes.push({ instancedMesh, isLeaf });
+                        scene.add(instancedMesh);
+                    });
+
+                    for (let idx = 0; idx < treePositions.length; idx++) {
+                        if (idx > 0 && idx % 20 === 0) {
+                            this.updateLoadingScreen(`Growing Sacred Pines... (${idx}/${treePositions.length})`);
+                            await waitFrame();
+                        }
+                        
+                        const pos = treePositions[idx];
+                        const baseScale = pos.scale;
+                        const targetH = (8 + Math.random() * 8) * baseScale;
+                        const sf = targetH / Math.max(origSize.y, 0.1);
+                        const widthMult = pos.widthOverride || (0.8 + Math.random() * 0.5);
+
+                        sc.set(sf * widthMult, sf, sf * widthMult);
+                        const groundY = getGroundY(pos.x, pos.z);
+                        position.set(pos.x, groundY, pos.z);
+                        rotation.set(0, Math.random() * Math.PI * 2, 0);
+                        quaternion.setFromEuler(rotation);
+
+                        matrix.compose(position, quaternion, sc);
+
+                        const tintColor = foliageColors[Math.floor(Math.random() * foliageColors.length)];
+
+                        instancedMeshes.forEach(({ instancedMesh, isLeaf }) => {
+                            instancedMesh.setMatrixAt(idx, matrix);
+                            if (isLeaf) {
+                                instancedMesh.setColorAt(idx, tintColor);
+                            }
+                        });
+
+                        // Dirt group logic
+                        const dirtGroup = new THREE.Group();
+                        const sd = 0.5;
+                        const hC = groundY;
+                        const hL = getGroundY(pos.x - sd, pos.z);
+                        const hR = getGroundY(pos.x + sd, pos.z);
+                        const hF = getGroundY(pos.x, pos.z - sd);
+                        const hB = getGroundY(pos.x, pos.z + sd);
+                        const avgY = (hC + hL + hR + hF + hB) / 5;
+                        dirtGroup.position.set(pos.x, avgY + 0.03, pos.z);
+
+                        const tangentX = new THREE.Vector3(sd * 2, hR - hL, 0);
+                        const tangentZ = new THREE.Vector3(0, hB - hF, sd * 2);
+                        const normal = new THREE.Vector3().crossVectors(tangentX, tangentZ).normalize();
+                        dirtGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+
+                        const dirtRadius = baseScale * 0.8;
+                        const dirtGeo = new THREE.CircleGeometry(dirtRadius, 16);
+                        dirtGeo.rotateX(-Math.PI / 2);
+                        const dirtMat = new THREE.MeshBasicMaterial({
+                            color: 0x180b02,
+                            side: THREE.DoubleSide,
+                            depthWrite: false,
+                            polygonOffset: true,
+                            polygonOffsetFactor: -2,
+                            polygonOffsetUnits: -2
+                        });
+                        const dirtMesh = new THREE.Mesh(dirtGeo, dirtMat);
+                        dirtMesh.renderOrder = 1;
+                        dirtGroup.add(dirtMesh);
+                        scene.add(dirtGroup);
+
+                        allTrees.push({
+                            position: new THREE.Vector3(pos.x, groundY, pos.z),
+                            isInstanced: true,
+                            index: idx
+                        });
+                        vegData.trees.push({ x: pos.x, z: pos.z });
                     }
 
-                    allInstancedMeshes.forEach(({ instancedMesh, isLeaf }) => {
+                    instancedMeshes.forEach(({ instancedMesh, isLeaf }) => {
                         instancedMesh.instanceMatrix.needsUpdate = true;
                         if (isLeaf) instancedMesh.instanceColor.needsUpdate = true;
-                        instancedMesh.computeBoundingSphere();
                     });
-                    
-                    window._treeInstancedMeshes = allInstancedMeshes;
+                    window._treeInstancedMeshes = instancedMeshes;
 
-                    console.log(`[Forest] Planted ${treePositions.length} INSTANCED trees in ${Object.keys(chunks).length} spatial chunks.`);
+                    console.log(`[Forest] Planted ${treePositions.length} INSTANCED trees (Multi-Mesh)`);
                 }
 
 
@@ -1407,9 +1444,6 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         mat.color.set(color);
                         mat.roughness = 1.0;
                         mat.metalness = 0.0;
-                        // FIX: Prevent alpha overdraw on bushes
-                        mat.transparent = false;
-                        mat.alphaTest = 0.5;
                         return mat;
                     });
 
@@ -1421,7 +1455,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
 
                     for (let cIdx = 0; cIdx < clusterSpots.length; cIdx++) {
                         if (cIdx > 0 && cIdx % 8 === 0) {
-                            this.updateLoadingScreen(`Processing... (${cIdx}/${clusterSpots.length})`);
+                            this.updateLoadingScreen(`Growing Bushes... (${cIdx}/${clusterSpots.length})`);
                             await waitFrame();
                         }
                         
@@ -1467,9 +1501,6 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                             bush.userData.windAmp = 0.015 + Math.random() * 0.012;
                             swayTrees.push(bush);
                             allTrees.push(bush);
-                            
-                            // PIP RENDER ARCHITECTURE FIX: Assign dynamic trees to Layer 3 for zero-cost GPU culling
-                            bush.traverse(child => { child.layers.set(3); });
 
                             scene.add(bush);
                             totalBushes++;
@@ -1478,16 +1509,28 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
 
                     console.log(`[Forest] Planted ${totalBushes} bushes in ${clusterCount} clusters at densest tree areas`);
                     
-                    // Removed wildlife
-                    resolve();
+                    // Squirrels will mount trunks later since vegData is now awaited.
+                    if (window.squirrelSystem) {
+                        window.squirrelSystem.feedTrees(vegData.trees);
+                    }
                 });
+                resolve();
             }, undefined, reject);
         });
 
-        this.updateLoadingScreen("Processing...");
+        this.updateLoadingScreen("Awakening Wildlife...");
             await waitFrame();
 
-            // Removed wildlife instantiations
+            if (window.NextGenRabbitSystem) {
+                window.rabbitSystem = new window.NextGenRabbitSystem(scene, getGroundY);
+            }
+            if (window.InteractiveHorseSystem) {
+                // Horse initializes instantly and probes for Yellow Butterfly asynchronously during runtime ticks
+                window.horseSystem = new window.InteractiveHorseSystem(scene, getGroundY);
+            }
+            if (window.BirdSystem) {
+                window.birdSystem = new window.BirdSystem(scene, camera, getGroundY, window._treeInstancedMeshes || window._treePositions || []);
+            }
 
 
 
@@ -1510,7 +1553,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             const emberMat = new THREE.MeshStandardMaterial({
                 color: 0xff2200,
                 emissive: 0xff1100,
-                emissiveIntensity: 0.3, // Reduced from 0.8 to remove excess glow
+                emissiveIntensity: 0.8,
                 roughness: 0.8
             });
             const emberMesh = new THREE.Mesh(emberGeo, emberMat);
@@ -1560,24 +1603,18 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             const flameMesh = new THREE.Points(fireGeo, fireMat);
             scene.add(flameMesh);
 
-            // Pretty wispy smoke texture with cloud-like puffs
+            // ==========================================
+            // VAPOROUS SMOKE OUT THE TOP (Y ~ 4.0)
+            // ==========================================
             const sCanvas = document.createElement('canvas');
-            sCanvas.width = 128; sCanvas.height = 128;
+            sCanvas.width = 64; sCanvas.height = 64;
             const sCtx = sCanvas.getContext('2d');
-            const sGrad = sCtx.createRadialGradient(64, 64, 0, 64, 64, 64);
-            sGrad.addColorStop(0, 'rgba(210, 215, 225, 0.6)');
-            sGrad.addColorStop(0.5, 'rgba(190, 190, 200, 0.3)');
-            sGrad.addColorStop(1, 'rgba(150, 150, 160, 0)');
+            const sGrad = sCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            sGrad.addColorStop(0, 'rgba(230, 230, 230, 0.4)');
+            sGrad.addColorStop(0.5, 'rgba(180, 180, 180, 0.15)');
+            sGrad.addColorStop(1, 'rgba(100, 100, 100, 0)');
             sCtx.fillStyle = sGrad;
-            sCtx.fillRect(0, 0, 128, 128);
-
-            // Add puffy overlapping shapes to break the perfect sphere
-            sCtx.fillStyle = 'rgba(220, 220, 230, 0.4)';
-            sCtx.beginPath(); sCtx.arc(45, 55, 30, 0, Math.PI*2); sCtx.fill();
-            sCtx.beginPath(); sCtx.arc(75, 45, 25, 0, Math.PI*2); sCtx.fill();
-            sCtx.beginPath(); sCtx.arc(55, 75, 35, 0, Math.PI*2); sCtx.fill();
-            sCtx.beginPath(); sCtx.arc(85, 75, 20, 0, Math.PI*2); sCtx.fill();
-
+            sCtx.fillRect(0, 0, 64, 64);
             const smokeTex = new THREE.CanvasTexture(sCanvas);
 
             const smokeCount = 120; // Vastly increased count as requested
@@ -1594,52 +1631,29 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             smokeGeo.setAttribute('position', new THREE.BufferAttribute(smokePos, 3));
             smokeGeo.setAttribute('phase', new THREE.BufferAttribute(smokePhases, 1));
 
-            // GPU Accelerated Volumetric Smoke Shader
-            // Handles size expansion and opacity fading natively on the GPU based on altitude
-            const smokeMat = new THREE.ShaderMaterial({
-                uniforms: {
-                    map: { value: smokeTex },
-                    baseY: { value: fireY + 3.8 } // starting height out of the chimney
-                },
-                vertexShader: [
-                    "attribute float phase;",
-                    "varying float vAlpha;",
-                    "uniform float baseY;",
-                    "void main() {",
-                    "    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);",
-                    "    float h = clamp((position.y - baseY) / 6.0, 0.0, 1.0);",
-                    "    gl_PointSize = (40.0 + h * 260.0) * (1.0 / -mvPosition.z);",
-                    "    gl_Position = projectionMatrix * mvPosition;",
-                    "    vAlpha = 1.0 - pow(h, 1.5);",
-                    "}"
-                ].join('\n'),
-                fragmentShader: [
-                    "uniform sampler2D map;",
-                    "varying float vAlpha;",
-                    "void main() {",
-                    "    vec4 texColor = texture2D(map, gl_PointCoord);",
-                    "    gl_FragColor = vec4(texColor.rgb, texColor.a * vAlpha * 0.85);",
-                    "}"
-                ].join('\n'),
+            const smokeMat = new THREE.PointsMaterial({
+                map: smokeTex,
+                size: 1.5,
                 transparent: true,
+                blending: THREE.NormalBlending, // Normal for smoke, not additive
                 depthWrite: false,
-                blending: THREE.NormalBlending
+                opacity: 0.5
             });
             const smokeMesh = new THREE.Points(smokeGeo, smokeMat);
             scene.add(smokeMesh);
 
-            // FPS FIX: Disabled fire point lights to prevent GPU gridlock on 8M vertices
-            // const fireLight = new THREE.PointLight(0xff3300, 2.5, 9, 2);
-            // fireLight.position.set(TIPI_X, fireY + 0.5, TIPI_Z);
-            // scene.add(fireLight);
+            // Fire light — lower intensity and distance
+            const fireLight = new THREE.PointLight(0xff3300, 2.5, 9, 2);
+            fireLight.position.set(TIPI_X, fireY + 0.5, TIPI_Z);
+            scene.add(fireLight);
 
             // Secondary warm fill
-            // const fireFill = new THREE.PointLight(0xff8844, 0.8, 6, 2);
-            // fireFill.position.set(TIPI_X, fireY + 0.3, TIPI_Z);
-            // scene.add(fireFill);
+            const fireFill = new THREE.PointLight(0xff8844, 0.8, 6, 2);
+            fireFill.position.set(TIPI_X, fireY + 0.3, TIPI_Z);
+            scene.add(fireFill);
 
             // Store fire refs for animation
-            window._fireData = { flameMesh, smokeMesh, fireLight: null, fireFill: null, emberMesh, baseY: fireY, tipiX: TIPI_X, tipiZ: TIPI_Z };
+            window._fireData = { flameMesh, smokeMesh, fireLight, fireFill, emberMesh, baseY: fireY };
 
             console.log('[Tipi] Campfire and smoke placed inside tipi');
 
@@ -1647,7 +1661,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             // BRINGS HAPPINESS GIRL (Quest Target)
             // ==========================================
             const bhgLoader = new OBJLoader();
-            bhgLoader.load('Assets/tipi.bringshappiness.obj', async (obj) => {
+            bhgLoader.load('Assets/tipi.bringshappiness.obj', (obj) => {
                 const bhgModel = obj;
 
                 // Scale to tipi height
@@ -1685,73 +1699,12 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                 const bhgX = 12;
                 const bhgZ = 12;
                 const bhgY = getGroundY(bhgX, bhgZ);
-                const bhgHex = window.getNearestHexCenter ? window.getNearestHexCenter(bhgX, bhgZ) : {x: bhgX, z: bhgZ};
 
-                scaledBox.setFromObject(bhgModel);
-                const bhgCenter = scaledBox.getCenter(new THREE.Vector3());
-                bhgModel.position.set(-bhgCenter.x, -scaledBox.min.y, -bhgCenter.z); // Center model in local space
-                
                 const bhgGroup = new THREE.Group();
                 bhgGroup.add(bhgModel);
-                bhgGroup.position.set(bhgHex.x, bhgY, bhgHex.z); 
+                bhgGroup.position.set(bhgX, bhgY, bhgZ); // Restored to 35, 45 worldwide
                 bhgGroup.rotation.y = Math.PI; // Rotated 180 degrees to face the player approach (-X / West)
                 
-                // Add smaller heavenly glow inside Tipi
-                const tipiGlow = new THREE.PointLight(0xffe0a0, 1.5, 12);
-                tipiGlow.position.set(0, 1.5, 0); // Inside center
-                bhgGroup.add(tipiGlow);
-                
-                // Make interactive for clicking
-                bhgGroup.userData.isBuilding = true;
-                window._interactiveBuildings = window._interactiveBuildings || [];
-                window._interactiveBuildings.push(bhgGroup);
-
-                // --- NEW: Sacred Circle Platform directly under the BHG Tipi ---
-                const platRadius2 = 4.7; // 75% of hexRadius 6.27
-                
-                const platGeo2 = new THREE.CylinderGeometry(platRadius2, platRadius2 + 0.15, 0.22, 32);
-                const platMat2 = new THREE.MeshStandardMaterial({ color: 0x1a2e1a, roughness: 0.95, metalness: 0.05 });
-                const platMesh2 = new THREE.Mesh(platGeo2, platMat2);
-                platMesh2.position.set(bhgHex.x, bhgY + 0.05, bhgHex.z); 
-                platMesh2.castShadow = false;
-                platMesh2.receiveShadow = true;
-                platMesh2.layers.enable(1); 
-                platMesh2.userData.isBuilding = true;
-                platMesh2.userData.buildingRoot = bhgGroup;
-                window._interactiveBuildings.push(platMesh2);
-                scene.add(platMesh2);
-
-                // --- NEW: Third Tipi ---
-                const tipi3X = -12;
-                const tipi3Z = 12;
-                const tipi3Y = getGroundY(tipi3X, tipi3Z);
-                const tipi3Hex = window.getNearestHexCenter ? window.getNearestHexCenter(tipi3X, tipi3Z) : {x: tipi3X, z: tipi3Z};
-
-                const tipi3Group = bhgGroup.clone();
-                tipi3Group.position.set(tipi3Hex.x, tipi3Y, tipi3Hex.z);
-                tipi3Group.rotation.y = Math.PI; // Face towards player start
-                
-                tipi3Group.userData.isBuilding = true;
-                window._interactiveBuildings.push(tipi3Group);
-
-                const platMesh3 = new THREE.Mesh(platGeo2, platMat2);
-                platMesh3.position.set(tipi3Hex.x, tipi3Y + 0.05, tipi3Hex.z);
-                platMesh3.castShadow = false;
-                platMesh3.receiveShadow = true;
-                platMesh3.layers.enable(1); 
-                platMesh3.userData.isBuilding = true;
-                platMesh3.userData.buildingRoot = tipi3Group;
-                window._interactiveBuildings.push(platMesh3);
-
-                scene.add(tipi3Group);
-                scene.add(platMesh3);
-                console.log(`[Tipi] Placed Tipi 3 at (${tipi3X}, ${tipi3Z})`);
-                
-                if (window.flattenTerrainAt) {
-                    await window.flattenTerrainAt(bhgHex.x, bhgHex.z, 14.0, bhgY);
-                    await window.flattenTerrainAt(tipi3Hex.x, tipi3Hex.z, 14.0, tipi3Y);
-                }
-
                 // --- CINEMATIC GODRAY 2 ---
                 const haloGeo2 = new THREE.CylinderGeometry(0.5, 4.0, 20.0, 16, 1, true);
                 const haloMat2 = new THREE.MeshBasicMaterial({
@@ -1768,27 +1721,23 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                 const bhgTipiMarker = window.createPIPMarker(0x2e8b57, 1.6, 2.0);
                 bhgGroup.add(bhgTipiMarker);
 
-                // Redundant platform logic removed per USER request to fix "brown small circle error"
-
-
                 // --- FLOATING QUEST MARKER 2 ---
                 const questGroup2 = createQuestBalloon('2', 'quest_2_find_her');
-                const markerY2 = bhgY + 5.3; // Raised by 6ft per user request
+                const markerY2 = bhgY + 3.5; // Lowered from 7.5 to float directly above the entrance
                 // Offset quest marker to be squarely in front of the tipi entrance
                 // bhgGroup rotated Math.PI (180deg). Thus +Z local is -Z global.
-                const markerZ2 = bhgZ; // Position directly over her head
+                const markerZ2 = bhgZ - 4.0;
                 questGroup2.position.set(bhgX, markerY2, markerZ2);
                 questGroup2.userData.baseY = markerY2;
                 
-                // Construct Tether string dropping straight down to her head
-                // USER REQUEST: 70% thinner (0.006 -> 0.0018) and 70% more transparent (0.8 -> 0.24)
-                const stringGeo2 = new THREE.CylinderGeometry(0.0018, 0.0018, 2.9, 4);
-                stringGeo2.translate(0, -1.45, 0); 
-                const stringMat2 = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.24 });
+                // Construct Tether string safely locked onto the balloon knot swinging down to her hand
+                const stringGeo2 = new THREE.CylinderGeometry(0.006, 0.006, 3.2, 4);
+                stringGeo2.translate(0, -1.6, 0); 
+                const stringMat2 = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
                 const stringMesh2 = new THREE.Mesh(stringGeo2, stringMat2);
-                stringMesh2.position.set(0, -0.6, 0); 
-                // Straight down
-                stringMesh2.rotation.set(0, 0, 0);
+                stringMesh2.position.set(0, -0.69, 0); 
+                // Pitch it backwards along the Z-axis to cleanly span the 1.5m gap to her hand!
+                stringMesh2.rotation.set(0.40, 0, 0);
                 questGroup2.add(stringMesh2);
                 
                 questGroup2.visible = false; // Hidden until Quest 1 Pops!
@@ -1799,99 +1748,71 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                 // Axe will be built and placed dynamically below, directly into the bhgGroup
                 // so it can effortlessly lean against the tipi structure next to the girl.an effortlessly lean against the tipi structure next to the girl.
 
-                // Load the actual upgraded girl model and place her inside the Tipi
+                // Load the actual girl model and place her at the Tipi entrance
                 const gltfLoader = new GLTFLoader();
-                gltfLoader.load('Assets/NPC.BHG.glb', (gltf) => {
+                gltfLoader.load('Assets/animated.bringshappiness.glb', (gltf) => {
                     const girlModel = gltf.scene;
 
                     // --- Avatar Scale Fix ---
                     // Hardcode scale instead of using Box3, as rigged armature bounds
                     // create massive invisible footprints that cause microscopic shrinkage.
                     window.targetGirlH = 1.3;
-                    // User Request: Reduce by 30% from the previous size
-                    girlModel.scale.set(1.277, 1.602, 1.277); 
+                    // User Request: Make 'less thick' -> Reduced X/Z width.
+                    girlModel.scale.set(1.14, 1.43, 1.14); // Y keeps height increased by 30%
                     
-                    // Apply inverse scale so halo matches player's 0.969 scale perfectly
-                    // BHG = White Circle (Structure/Rules)
-                    const halo = createNPCHalo(bhgGroup, 0.969, 0x2e7d32);
-                    halo.position.y += 0.11; // Lift above Tipi platform thickness
-                    bhgGroup.add(halo);
+                    const halo = createNPCHalo(girlModel);
+                    girlModel.add(halo);
                     
                     if (gltf.animations && gltf.animations.length > 0) {
                         window.bhgMixer = new THREE.AnimationMixer(girlModel);
                         
-                        // Robust NLA search for BHG
-                        gltf.animations.forEach(clip => {
-                            const name = clip.name.toLowerCase();
-                            // User request: NlaTrack.004 is the greeting/wave for BHG
-                            if (name === 'nlatrack.004') window._bhgWaveAction = window.bhgMixer.clipAction(clip);
-                            else if (name.includes('sit') || name.includes('sitting') || name.includes('003')) window._bhgSitAction = window.bhgMixer.clipAction(clip);
-                            else if (name.includes('idle') || name.includes('002')) window._bhgIdleAction = window.bhgMixer.clipAction(clip);
-                            else if (name.includes('wave') || name.includes('001')) window._bhgWaveAction = window.bhgMixer.clipAction(clip);
-                            else if (name.includes('walk')) window._bhgWalkAction = window.bhgMixer.clipAction(clip);
-                        });
-
-                        // Fallbacks
-                        if (!window._bhgSitAction && gltf.animations[3]) window._bhgSitAction = window.bhgMixer.clipAction(gltf.animations[3]);
-                        if (!window._bhgIdleAction && gltf.animations[2]) window._bhgIdleAction = window.bhgMixer.clipAction(gltf.animations[2]);
+                        // Default Blender Export places static Rest Pose at [0] inside NlaTrack strips.
+                        window._bhgIdleClip = gltf.animations.find(a => a.name.toLowerCase().includes('idle')) || (gltf.animations.length > 1 ? gltf.animations[1] : gltf.animations[0]);
+                        window._bhgWaveClip = gltf.animations.find(a => a.name.toLowerCase().includes('wave')) || (gltf.animations.length > 2 ? gltf.animations[2] : null);
                         
-                        // Force Sit Animation for BHG
-                        if (window._bhgSitAction) {
-                            window._bhgSitAction.reset().setEffectiveWeight(1.0).play();
-                            window.bhgMixer.update(0);
-                        } else if (window._bhgIdleAction) {
-                            window._bhgIdleAction.play();
-                        }
-
-                        if (window._bhgWaveAction) {
+                        window._bhgIdleAction = window.bhgMixer.clipAction(window._bhgIdleClip);
+                        window._bhgIdleAction.play();
+                        
+                        if (window._bhgWaveClip) {
+                            window._bhgWaveAction = window.bhgMixer.clipAction(window._bhgWaveClip);
                             window._bhgWaveAction.setLoop(THREE.LoopOnce, 1);
                             window._bhgWaveAction.clampWhenFinished = true;
                         }
                     }
 
-                    // --- Position Calculation for Tipi Interior ---
-                    // Query the actual ground height at the center of the Tipi
-                    const trueGroundY = typeof getGroundY !== 'undefined' ? getGroundY(bhgX, bhgZ) : bhgY;
+                    // Position her exactly at the Tipi entrance (Local coords relative to bhgGroup)
+                    // CRITICAL FIX: Because bhgGroup is rotated Math.PI, local +Z means global -Z
+                    // This terrain slopes heavily. We MUST query the actual ground height at her specific foot-placement!
+                    const globalZ = bhgZ - 5.5; // (since local +Z faces global -Z due to Math.PI rotation on bhgGroup)
+                    const trueGroundY = typeof getGroundY !== 'undefined' ? getGroundY(bhgX, globalZ) : bhgY;
                     const localYOffset = trueGroundY - bhgY; // Difference from the Tipi's base zero-plane
 
-                    // --- Procedural Elder Chair ---
-                    const chairGroup = new THREE.Group();
-                    const seatGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.15, 8);
-                    const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a3122, roughness: 0.9, metalness: 0.05 });
-                    const seat = new THREE.Mesh(seatGeo, woodMat);
-                    seat.position.y = 0.4;
-                    chairGroup.add(seat);
-                    
-                    const legGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.4, 4);
-                    for (let i = 0; i < 4; i++) {
-                        const leg = new THREE.Mesh(legGeo, woodMat);
-                        const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
-                        leg.position.set(Math.cos(angle) * 0.25, 0.2, Math.sin(angle) * 0.25);
-                        chairGroup.add(leg);
-                    }
-                    chairGroup.position.set(0, localYOffset, 0); // Center of Tipi
-                    bhgGroup.add(chairGroup);
+                    // Fix: Set offset exactly to 0.0 so the animated girl's feet are perfectly anchored to the ground
+                    girlModel.position.set(0, localYOffset + 0.0, 5.5);
 
-                    // Position her inside Tipi 2, seated on the chair
-                    girlModel.position.set(0, localYOffset + 0.45, 0.1); 
-
-                    // Face the entrance (Relative to group rotation Math.PI)
-                    // If group is Math.PI, girlModel rotation 0 faces South.
-                    girlModel.rotation.y = 0; 
+                    // Rotate her slightly outward
+                    girlModel.rotation.y = Math.PI * 0.1;
 
                     girlModel.traverse(child => {
                         if (child.isMesh) {
                             child.castShadow = true;
                             child.receiveShadow = true;
-                            child.frustumCulled = false; // User Request: Disable culling
-                            child.layers.set(3); // Hide from Minimap PiP
+                            
+                            if (child.material) {
+                                child.material.flatShading = false;
+                                child.material.needsUpdate = true;
+                            }
+                            // Delete forced computeVertexNormals to preserve native smooth geometry topology
                         }
                     });
 
                     // Attach PIP Marker (NPC: 6ft diameter = ~0.9m radius), with facing arrow = true
                     const bhgSelfMarker = window.createPIPMarker(0x2e8b57, 0.8 / 1.14, 0.9 / 1.14, true);
                     
-                    // Removed counter-rotation since avatar model is now facing the correct direction
+                    // The animated avatar natively surfaces looking 90 degrees to the Left instead of True Forward (+Z).
+                    // Counter-rotate the UI marker to mathematically compensate for the rigged armature!
+                    bhgSelfMarker.rotation.y = -Math.PI / 2; 
+
                     girlModel.add(bhgSelfMarker);
 
                     bhgGroup.add(girlModel);
@@ -1949,186 +1870,202 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         window._worldAxeMesh = axeGrp;
                     });
                     
-                    const system = {
-                        mesh: bhgGroup,
-                        npcModel: girlModel,
+                    // Nature Spirit Proximity State Machine
+                    window.bhgSystem = {
+                        mesh: girlModel,
                         mixer: window.bhgMixer,
-                        actions: {
-                            sit: window._bhgSitAction,
-                            idle: window._bhgIdleAction,
-                            wave: window._bhgWaveAction,
-                            walk: window._bhgWalkAction
-                        },
-                        isAware: false,
-                        baseRotation: Math.PI,
-                        startupState: 'sitting',
-                        startupTimer: 10.0
+                        hasWaved: false,
+                        
+                        update(delta) {
+                            if (this.mixer) this.mixer.update(delta);
+                            
+                            // Distance wave check based on global camera
+                            if (window.camera && window._bhgWaveAction && window._bhgIdleAction) {
+                                const bhgPos = new THREE.Vector3();
+                                this.mesh.getWorldPosition(bhgPos);
+                                const distToPlayer = window.camera.position.distanceTo(bhgPos);
+                                
+                                // Approach proximity trigger
+                                if (distToPlayer < 12.0 && !this.hasWaved) {
+                                    this.hasWaved = true; // Lockstate
+                                    
+                                    // Execute Wave override
+                                    window._bhgWaveAction.reset();
+                                    window._bhgWaveAction.play();
+                                    window._bhgWaveAction.crossFadeFrom(window._bhgIdleAction, 0.5, false);
+                                    
+                                    // Decay back into Idle state upon wave sequence resolution
+                                    const restoreIdle = (e) => {
+                                        if (e.action === window._bhgWaveAction) {
+                                            window._bhgIdleAction.reset();
+                                            window._bhgIdleAction.play();
+                                            window._bhgIdleAction.crossFadeFrom(window._bhgWaveAction, 0.5, false);
+                                            this.mixer.removeEventListener('finished', restoreIdle);
+                                        }
+                                    };
+                                    this.mixer.addEventListener('finished', restoreIdle);
+                                    
+                                } else if (distToPlayer > 18.0 && this.hasWaved) {
+                                    // Release memory lock when player leaves the zone
+                                    this.hasWaved = false; 
+                                }
+                            }
+                        }
                     };
-                    if (window.npcMaster) window.npcMaster.register('NPC_BHG', system);
-                    window.bhgSystem = system;
                 });
                 
                 scene.add(bhgGroup);
                 window._bhgGroup = bhgGroup;
                 window._bhgBalloon = questGroup2;
-                
-                // === NPC REG (Tipi 3) ===
-                const regLoader = new GLTFLoader();
-                regLoader.load('Assets/NPC.REG.glb', (gltf) => {
-                    const regModel = gltf.scene;
-                    regModel.scale.set(1.824, 2.288, 1.824); // Parity with BHG scale
-                    
-                    // REG = Black Circle (Quests/Feelings)
-                    const halo = createNPCHalo(tipi3Group, 0.969, 0x2e7d32);
-                    halo.position.y += 0.11; // Lift above Tipi platform thickness
-                    tipi3Group.add(halo);
-
-                    const regMixer = new THREE.AnimationMixer(regModel);
-                    const actions = {};
-                    gltf.animations.forEach(clip => {
-                        const name = clip.name.toLowerCase();
-                        if (name.includes('sit') || name.includes('sitting') || name.includes('003')) actions.sit = regMixer.clipAction(clip);
-                        else if (name.includes('walk') || name.includes('004')) actions.walk = regMixer.clipAction(clip);
-                        else if (name.includes('idle') || name.includes('002')) actions.idle = regMixer.clipAction(clip);
-                        else if (name.includes('wave') || name.includes('001')) actions.wave = regMixer.clipAction(clip);
-                    });
-                    
-                    // Fallbacks
-                    if (!actions.sit && gltf.animations[3]) actions.sit = regMixer.clipAction(gltf.animations[3]);
-                    if (!actions.idle && gltf.animations[2]) actions.idle = regMixer.clipAction(gltf.animations[2]);
-
-                    // Positioning inside Tipi 3
-                    const trueGroundY = typeof getGroundY !== 'undefined' ? getGroundY(tipi3X, tipi3Z) : tipi3Y;
-                    const localYOffset = trueGroundY - tipi3Y;
-
-                    // Add Chair
-                    const chairGroup = new THREE.Group();
-                    const seatGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.15, 8);
-                    const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a3122, roughness: 0.9 });
-                    const seat = new THREE.Mesh(seatGeo, woodMat);
-                    seat.position.y = 0.4;
-                    chairGroup.add(seat);
-                    chairGroup.position.set(0, localYOffset, 0);
-                    tipi3Group.add(chairGroup);
-
-                    regModel.position.set(0, localYOffset + 0.45, 0.1);
-                    regModel.rotation.y = 0; // Face entrance relative to tipi3Group.rotation.y = Math.PI
-                    
-                    regModel.traverse(child => {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                            child.frustumCulled = false; // User Request: Disable culling
-                            child.layers.set(3); // Hide from Minimap PiP
-                        }
-                    });
-
-                    tipi3Group.add(regModel);
-
-                    if (actions.sit) {
-                        actions.sit.reset().setEffectiveWeight(1.0).play();
-                        regMixer.update(0);
-                    }
-
-                    const system = {
-                        mesh: tipi3Group,
-                        npcModel: regModel,
-                        mixer: regMixer,
-                        actions: actions,
-                        isAware: false,
-                        baseRotation: 0,
-                        startupState: 'sitting'
-                    };
-                    if (window.npcMaster) window.npcMaster.register('NPC_Reg', system);
-                });
-                
-                // === RABBIT SYSTEM ===
-                if (typeof RabbitSystem !== 'undefined') {
-                    window.rabbitSystem = new RabbitSystem(scene, camera, window._getGroundY);
-                    if (window.masterAI) {
-                        window.masterAI.registerSystem('rabbits', window.rabbitSystem);
-                    }
-                    if (window.fuzzyBrain) {
-                        window.fuzzyBrain.linkCreatureSystem('rabbits', window.rabbitSystem); // Still need for culling
-                    }
-                }
-                
-                // === BIRD SYSTEM ===
-                if (typeof BirdSystem !== 'undefined') {
-                    window.birdSystem = new BirdSystem(scene);
-                    if (window.masterAI) window.masterAI.registerSystem('birds', window.birdSystem);
-                }
-
-                // === HERD SYSTEM (Buffalo & Horse) ===
-                if (typeof HerdSystem !== 'undefined') {
-                    window.herdSystem = new HerdSystem(scene, window._getGroundY);
-                    if (window.masterAI) window.masterAI.registerSystem('herds', window.herdSystem);
-                }
 
                 console.log(`[Quest] Placed Brings Happiness Girl at (${bhgX}, ${bhgZ})`);
                 
                 // Avatar loading removed. EngineMain.js exclusively handles it to prevent duplication.
             });
 
+            // ==========================================
+            // WATERFALL & ECOSYSTEM POND
+            // ==========================================
+            const pondLoader = new GLTFLoader();
+            pondLoader.load('Assets/pond_with_waterfalls/scene.gltf', (gltf) => {
+                const pond = gltf.scene;
 
-    }
+                // Scale and Positioning
+                const pondScale = 4.0; // Scaled down to fit comfortably as a local camp landmark
+                pond.scale.set(pondScale, pondScale, pondScale);
+                
+                const pondX = 30;
+                const pondZ = 15;
+                const truePondY = typeof getGroundY !== 'undefined' ? getGroundY(pondX, pondZ) : 0;
+                
+                // Set initial position to compute accurate world bounding box
+                pond.position.set(pondX, truePondY, pondZ);
+                pond.updateMatrixWorld(true);
+                
+                // Offset by exact bounding box minimum to place it perfectly on the ground
+                const pondBox = new THREE.Box3().setFromObject(pond);
+                pond.position.y += (truePondY - pondBox.min.y) - 0.2; // -0.2 to sink banks slightly
 
-    /**
-     * Universe.Anu: Professional World Reconfiguration
-     * Safely clears the current firmament and regenerates a fresh topographical simulation.
-     */
-    async rebuildWorld(assetFactory) {
-        console.log("%c[Universe.Anu] Commencing world reconfiguration sequence...", "color: #fbc02d; font-weight: bold;");
-        
-        // 1. SIGNAL TRANSITION
-        this.updateLoadingScreen("Reconfiguring Firmament...");
-        
-        // 2. CLEAR EXISTING WORLD (With Disposal)
-        const toRemove = [];
-        this.scene.children.forEach(child => {
-            if (child.isLight) return;
-            // Keep the Sky and Fog baseline
-            if (child.isMesh && child.geometry && child.geometry.type === 'SphereGeometry' && child.scale.x > 300) return; 
-            toRemove.push(child);
-        });
-        
-        toRemove.forEach(obj => {
-            this.disposeObject(obj); // Release GPU Resources
-            this.scene.remove(obj);
-        });
-        
-        // 3. RESET REGISTRIES & STATE
-        if (window.npcMaster && window.npcMaster.npcs) {
-            window.npcMaster.npcs.clear();
+                // Analyze parts: Separate water meshes for custom ShaderMaterial
+                const waterMeshes = [];
+                window._waterMeshesTelemetry = []; // Global telemetry for diagnostic scraping
+                pond.traverse(child => {
+                    if (child.isMesh) {
+                        // SURGICAL CULL: The telemetry proved that 'Plane136_riples' and 'Plane137_riples' 
+                        // expand over 2100+ world units. This violates the 1000-unit Far Clipping Plane native 
+                        // to the FPV camera, guaranteeing depth-buffer Z-fighting and pitch-black occlusion 
+                        // failure against the logarithmic fragment renderer.
+                        if (child.name.includes('Plane136') || child.name.includes('Plane137')) {
+                            child.visible = false;
+                            return; // Vaporize the macro-ocean planes
+                        }
+
+                        child.castShadow = false; // TEMPORARILY DISABLED
+                        child.receiveShadow = false; // TEMPORARILY DISABLED
+                        const defaultMat = child.material;
+                        const matName = (defaultMat && defaultMat.name) ? defaultMat.name.toLowerCase() : '';
+                        
+                        // "water" and "riples" as seen in the GLTF dump
+                        if (matName.includes('water') || matName.includes('riple') || matName.includes('fall')) {
+                            waterMeshes.push(child);
+                            const wp = new THREE.Vector3();
+                            child.getWorldPosition(wp);
+                            window._waterMeshesTelemetry.push({
+                                name: child.name,
+                                matName: matName,
+                                worldPos: { x: wp.x, y: wp.y, z: wp.z }
+                            });
+                        } else if (defaultMat) {
+                            // Give rocks/banks a more solid earth shader
+                            defaultMat.roughness = 0.85;
+                            defaultMat.metalness = 0.05;
+                            if (defaultMat.color) {
+                                // Subtly tint towards the forest's warm lighting
+                                defaultMat.color.multiplyScalar(0.9);
+                            }
+                        }
+                    }
+                });
+
+                // Apply Flowing Procedural Water Shader
+                if (window._globalTime === undefined) {
+                    window._globalTime = { value: 0 };
+                }
+
+                if (waterMeshes.length > 0) {
+                    const waterMat = new THREE.MeshBasicMaterial({
+                        color: 0x44aaff,
+                        transparent: true,
+                        opacity: 0.6,
+                        side: THREE.DoubleSide,
+                        depthWrite: false
+                    });
+
+                    // We successfully removed the procedural UV scrolling shader because the standard 
+                    // material compilation was failing to evaluate the missing texture map's UV definitions,
+                    // which violently collapsed the entire mesh group's fragment lighting into pure pitch black shapes.
+
+                    waterMeshes.forEach(mesh => {
+                        mesh.material = waterMat;
+                    });
+                }
+                
+                // Procedural River/Waterfall Noise Audio Node
+                if (window.camera) {
+                    const listener = new THREE.AudioListener();
+                    // Don't add multiple listeners if the camera already has one
+                    let hasListener = false;
+                    window.camera.children.forEach(c => { if (c.type === 'AudioListener') hasListener = true; });
+                    if (!hasListener) window.camera.add(listener);
+
+                    // Create Positional Audio object attached to the Pond
+                    const waterfallAudio = new THREE.PositionalAudio(listener);
+                    
+                    // Synthesize continuous pink noise buffer for water crash
+                    const sampleRate = 44100;
+                    const bufferSize = sampleRate * 2; // 2 seconds loop
+                    const noiseBuffer = listener.context.createBuffer(1, bufferSize, sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    let lastOut = 0;
+                    for (let i = 0; i < bufferSize; i++) {
+                        // Pink noise approximation filter
+                        const white = Math.random() * 2 - 1;
+                        output[i] = lastOut * 0.85 + white * 0.15;
+                        lastOut = output[i];
+                        output[i] *= 0.3; // Gain down
+                    }
+                    
+                    waterfallAudio.setBuffer(noiseBuffer);
+                    waterfallAudio.setLoop(true);
+                    waterfallAudio.setRefDistance(15); // Rolloff curve distance
+                    waterfallAudio.setVolume(1.8);
+                    
+                    // Wait for audio context resume (usually governed by First Interaction policy)
+                    const playAudio = () => {
+                        if (listener.context.state === 'suspended') {
+                            listener.context.resume();
+                        }
+                        if (!waterfallAudio.isPlaying) {
+                            waterfallAudio.play();
+                        }
+                    };
+                    
+                    // Attach interaction listener to bootstrap audio on browser restrictions
+                    document.addEventListener('click', playAudio, { once: true });
+                    document.addEventListener('keydown', playAudio, { once: true });
+                    
+                    pond.add(waterfallAudio);
+                }
+
+                // Append to World
+                window._pondEcosystem = pond;
+                window._pondCenter = new THREE.Vector3(pondX, truePondY, pondZ);
+                window._pondExtents = 25.0; // Distance inside which animals graze
+
+                scene.add(pond); // Restoring ecosystem and procedural audio
+                console.log(`[Ecosystem] Spawned Pond Hub with procedural audio @ (${pondX}, ${truePondY.toFixed(1)}, ${pondZ}).`);
+            });
         }
-        window.allTrees = [];
-        window.swayTrees = [];
-        window._editorBases = [];
-        window._flattenedZones = [];
-        window._hexGridMeshes = [];
-        
-        // 4. RECONFIGURE GOVERNANCE
-        if (window.UniverseAnu) {
-            window.UniverseAnu.reconfigure();
-            
-            // Register Structural Anchors for deterministic flattening
-            window.UniverseAnu.registerAnchor('Center_Tipi1', 0, 0, 8, 4);
-            window.UniverseAnu.registerAnchor('BHG_Tipi2', 12, 12, 8, 4);
-            window.UniverseAnu.registerAnchor('REG_Tipi3', -12, 12, 8, 4);
-        }
-        
-        // 5. GENERATE NEW WORLD
-        this.updateLoadingScreen("Rebuilding Topography...");
-        await this.generateWorld(assetFactory);
-        
-        this.updateLoadingScreen("Restoring Life...");
-        console.log("%c[Universe.Anu] New world reconfiguration complete.", "color: #4caf50; font-weight: bold;");
-        
-        // Optional: Trigger a slight camera shake or flash to signal completion
-        if (window.uiManager && window.uiManager.showCenterBubble) {
-            window.uiManager.showCenterBubble("The Great Spirit has reshaped the land.", 3000);
-        }
-    }
 }
 
         // --- NO INPUT (Clean Slate) ---
