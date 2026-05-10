@@ -12,7 +12,11 @@
  */
 
 import * as THREE from "three";
-import { V2_PLAYER_MOVE_SPEED_MPS, V2_TILE_WORLD } from "./constants.js";
+import {
+  V2_AVATAR_GROUNDED_FEET_OFFSET_M,
+  V2_PLAYER_MOVE_SPEED_MPS,
+  V2_TILE_WORLD,
+} from "./constants.js";
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { ANU_SIMULATION_DOMAIN } from "./anu/SimulationController.js";
@@ -395,13 +399,18 @@ export const WorldModule = {
     if (walkIntent) desiredLocomotion = "walk";
     else if (turnOnly) desiredLocomotion = "look";
 
-    const feetY = body.position.y - PLAYER_HEIGHT;
-    this._feetScratch.set(body.position.x, feetY, body.position.z);
+    const rawFeetY = body.position.y - PLAYER_HEIGHT;
+    const terrainAtFeet = this._terrainY(body.position.x, body.position.z);
+    const figurineFeetY = body.grounded
+      ? terrainAtFeet + V2_AVATAR_GROUNDED_FEET_OFFSET_M
+      : rawFeetY;
+    /** Physics / greetings use raw feet height; Avatar3 figurine snaps to analytic terrain when grounded. */
+    this._feetScratch.set(body.position.x, rawFeetY, body.position.z);
     this._fwd.set(-Math.sin(this._yaw), 0, -Math.cos(this._yaw));
     this._back.copy(this._fwd).multiplyScalar(-1);
 
     if (this._avatar) {
-      this._avatar.setPose(body.position.x, feetY, body.position.z, this._yaw);
+      this._avatar.setPose(body.position.x, figurineFeetY, body.position.z, this._yaw);
       if (now >= this._avatar.gestureUntil) {
         const reason =
           desiredLocomotion === "walk"
@@ -419,22 +428,24 @@ export const WorldModule = {
       this._avatar.advanceMixer(delta);
     }
 
+    this._tipi?.userData?.ybNpcMixer?.update?.(delta);
+
     this._tickNpcGreeting(_scene, _frameCount, now);
 
-    const headY = feetY + PLAYER_HEIGHT;
+    const headY = body.position.y;
 
     if (this._mainCanvasMapView) {
       const elev = 78;
-      camera.position.set(body.position.x, feetY + elev, body.position.z);
+      camera.position.set(body.position.x, rawFeetY + elev, body.position.z);
       camera.up.set(0, 1, 0);
-      camera.lookAt(body.position.x, feetY, body.position.z);
+      camera.lookAt(body.position.x, rawFeetY, body.position.z);
       this._cameraSmoothReady = true;
     } else {
       const chaseView = walkIntent || turnOnly;
       if (chaseView) {
         this._cameraPosSmooth.set(
           body.position.x + this._back.x * FOLLOW_CAMERA_DIST,
-          feetY + PLAYER_HEIGHT + FOLLOW_CAMERA_HEIGHT,
+          headY + FOLLOW_CAMERA_HEIGHT,
           body.position.z + this._back.z * FOLLOW_CAMERA_DIST,
         );
         this._lookTarget.set(

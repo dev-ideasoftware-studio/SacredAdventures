@@ -7,7 +7,9 @@ import {
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import {
+  V2_AVATAR_SOLES_GROUND_TRIM_M,
   V2_AVATAR_TARGET_HEIGHT_M,
+  V2_AVATAR_TRAVEL_CIRCLE_LIFT_M,
   V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M,
   V2_AVATAR_WALK_ANIM_REF_SPEED_MPS,
   V2_AVATAR_WALK_ANIM_TIME_SCALE_MAX,
@@ -54,7 +56,8 @@ export function createWorldAvatarController() {
         if (size.y > 0.001) {
           const scale = AVATAR_TARGET_HEIGHT / size.y;
           model.scale.setScalar(scale);
-          model.position.y -= box.min.y * scale;
+          /** Soles on horizontal plane inside `root`; extra trim sinks mesh to kill hover. */
+          model.position.y -= box.min.y * scale + V2_AVATAR_SOLES_GROUND_TRIM_M;
         }
 
         const root = new THREE.Group();
@@ -76,7 +79,7 @@ export function createWorldAvatarController() {
         );
         disc.name = "player_avatar_travel_circle";
         disc.rotation.x = -Math.PI / 2;
-        disc.position.y = 0.018;
+        disc.position.y = V2_AVATAR_TRAVEL_CIRCLE_LIFT_M;
         disc.userData.anuId = "player.avatar.travel_circle";
         disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
         disc.userData.anuKind = "avatar_travel_circle";
@@ -93,7 +96,7 @@ export function createWorldAvatarController() {
         );
         ring.name = "player_avatar_circle_outline";
         ring.rotation.x = -Math.PI / 2;
-        ring.position.y = 0.024;
+        ring.position.y = V2_AVATAR_TRAVEL_CIRCLE_LIFT_M + 0.008;
         ring.userData.anuId = "player.avatar.travel_circle_outline";
         ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
         ring.userData.anuKind = "avatar_travel_circle_outline";
@@ -115,7 +118,7 @@ export function createWorldAvatarController() {
         );
         arrow.name = "player_avatar_facing_arrow";
         arrow.rotation.x = -Math.PI / 2;
-        arrow.position.y = 0.032;
+        arrow.position.y = V2_AVATAR_TRAVEL_CIRCLE_LIFT_M + 0.015;
         arrow.userData.anuId = "player.avatar.facing_arrow";
         arrow.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
         arrow.userData.anuKind = "avatar_facing_arrow";

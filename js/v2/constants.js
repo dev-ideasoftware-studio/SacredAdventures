@@ -68,6 +68,24 @@ export const V2_TIPI_SACRED_PLATFORM_HEIGHT = 0.22;
 /** Lift cylinder center above sampled terrain Y so platform reads “raised”. */
 export const V2_TIPI_SACRED_PLATFORM_CENTER_Y = 0.05;
 
+/** `Assets/NPC.YB.glb` — seated beside / inside tipi 1 (world metres, relative to hex center). */
+export const V2_NPC_YB_TIPI1_LOCAL_X_M = 0.28;
+export const V2_NPC_YB_TIPI1_LOCAL_Z_M = -0.4;
+/** Visual height of the rig after uniform scale (seated read). */
+export const V2_NPC_YB_TIPI1_TARGET_HEIGHT_M = 1.52;
+/** Fine vertical nudge after sole alignment (negative = sink slightly into seat cushion). */
+export const V2_NPC_YB_TIPI1_VERTICAL_TRIM_M = -0.035;
+
+/** Avatar figurine: when grounded, soles sit this far above analytic terrain (avoids Z-fight / sinking disc). */
+export const V2_AVATAR_GROUNDED_FEET_OFFSET_M = 0.012;
+/**
+ * Extra downward shift of scaled Avatar3 mesh in its group (after bbox bottom align) so soles meet the
+ * travel disc — positive values pull the mesh down (fix “feet floating”).
+ */
+export const V2_AVATAR_SOLES_GROUND_TRIM_M = 0.038;
+/** Travel disc / ring / arrow sit slightly above Y=0 in avatar space so they don’t clip into grass. */
+export const V2_AVATAR_TRAVEL_CIRCLE_LIFT_M = 0.042;
+
 /** Legacy Avatar3 baseline height (m) before gameplay scaling tweaks. */
 const V2_AVATAR_BASELINE_HEIGHT_M = 1.78;
 
