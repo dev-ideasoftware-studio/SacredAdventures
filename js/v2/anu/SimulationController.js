@@ -13,7 +13,17 @@ export const ANU_SIMULATION_DOMAIN = Object.freeze({
   FAUNA: "fauna",
   STRUCTURES: "structures",
   POPULATION: "population",
+  ITEMS: "items",
   UNSPECIFIED: "unspecified",
+});
+
+export const ANU_INTERACTION_VERB = Object.freeze({
+  INSPECT: "inspect",
+  HARVEST: "harvest",
+  TALK: "talk",
+  ENTER: "enter",
+  PICK_UP: "pick_up",
+  USE: "use",
 });
 
 /**
@@ -36,13 +46,13 @@ export function buildSimulationOverview(orchestrator) {
     schemaVersion: "1.0",
     generatedAt: new Date().toISOString(),
     role:
-      "Anu is the Sacred Adventures v2 simulation controller — timebase is SacredOrchestrator; subsims (World, Trees, future fauna/NPC/buildings) register as modules and publish state via InteractionBus + tagged scene objects.",
+      "Anu is the Sacred Adventures v2 simulation controller — timebase is SacredOrchestrator; subsims (World, Trees, future fauna/NPC/buildings/items) register as modules, obey governance rules, and publish state via InteractionBus + tagged scene objects.",
     domains: Object.freeze({
       player: Object.freeze({
         status: activeModules.includes("World") ? "active" : "inactive",
         orchestratorModule: "World",
         responsibilities:
-          "keyboard/pointer IO (handled in World), physics body, chase camera, optional avatar mesh — PLAYER_* events",
+          "keyboard/pointer IO capture, ANU-governed PLAYER_* events, 3D gravity/elevation physics body, chase camera, optional avatar mesh",
       }),
       environment: Object.freeze({
         status: activeModules.includes("World") ? "active" : "inactive",
@@ -59,7 +69,7 @@ export function buildSimulationOverview(orchestrator) {
         status: "planned",
         orchestratorModule: "WildlifeModule",
         responsibilities:
-          "wildlife AI meshes + locomotion — dispatch ANU_EVENTS.FAUNA_TICK when implemented",
+          "wildlife AI IO, meshes, 3D physics bodies, locomotion — dispatch ANU_EVENTS.FAUNA_TICK when implemented",
       }),
       structures: Object.freeze({
         status: "planned",
@@ -71,7 +81,13 @@ export function buildSimulationOverview(orchestrator) {
         status: "planned",
         orchestratorModule: "NPCModule",
         responsibilities:
-          "NPCs dialogue + behaviour — ANU_EVENTS.NPC_* when implemented",
+          "NPC AI IO, dialogue, behaviour, 3D physics bodies — ANU_EVENTS.NPC_* when implemented",
+      }),
+      items: Object.freeze({
+        status: "planned",
+        orchestratorModule: "ItemsModule | JournalModule",
+        responsibilities:
+          "loot, journal pages, tools, quest objects — tag meshes ANU_SIMULATION_DOMAIN.ITEMS and emit ITEM_EVENT",
       }),
     }),
     orchestrator: Object.freeze({
@@ -89,7 +105,10 @@ export function buildSimulationOverview(orchestrator) {
     conventions: Object.freeze([
       "Set object.userData.anuSimulationDomain to one of ANU_SIMULATION_DOMAIN values.",
       "Set object.userData.anuKind to a short machine id (e.g. tree_instances, npc_villager).",
-      "Subscribe to AnuUniverse.interactions for PLAYER_*, SCENE_INVENTORY_TICK, FAUNA_TICK / NPC_ENTITY / STRUCTURE_EVENT when implemented.",
+      "Set object.userData.anuInteractable + anuInteractionVerbs when the player/AI can target it.",
+      "Register moving 3D entities with WorldPhysics so gravity/elevation checks stay governed.",
+      "Route player, fauna, and NPC IO through AnuUniverse.interactions even when a domain module captures raw input.",
+      "Subscribe to AnuUniverse.interactions for PLAYER_*, SCENE_INVENTORY_TICK, FAUNA_TICK / NPC_ENTITY / STRUCTURE_EVENT / ITEM_EVENT when implemented.",
     ]),
   });
 }

@@ -1,0 +1,19 @@
+---
+description: Keep agent work synced to live repo state and use Apple Silicon browser tooling
+alwaysApply: true
+---
+
+# Live State And Apple Silicon
+
+## Live State Sync
+
+- Treat IDE-attached open/recent files as a hint, not the source of truth.
+- Before substantive edits, commits, or validation, refresh live state with `git status --short --branch` and re-read the exact files that will be changed or cited.
+- If a previous command, server, or Playwright run may still be active, inspect the live terminal metadata before starting another copy.
+- If observed files differ from the attached IDE timeline, follow the live filesystem and git state, then mention the mismatch briefly.
+
+## Apple Silicon Tooling
+
+- This workspace runs on macOS Apple Silicon (M1 iMac). Prefer ARM/mac-arm64 browser/tool installs.
+- For Playwright browser validation, avoid relying on sandbox x64 browser caches. If Chromium is missing or architecture-mismatched, run `npx playwright install chromium` in the host context before launching.
+- When a browser launch fails because it expects `mac-arm64` or crashes from the sandboxed x64 cache, retry outside the sandbox/with host permissions instead of repeatedly using the stale cache.

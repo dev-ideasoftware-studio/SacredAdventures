@@ -31,9 +31,23 @@ export {
 } from "./SceneModelInventory.js";
 export {
   ANU_SIMULATION_DOMAIN,
+  ANU_INTERACTION_VERB,
   buildSimulationOverview,
   exportSimulationOverviewJson,
 } from "./SimulationController.js";
+export {
+  getFuzzyPipelineSnapshot,
+  exportFuzzyPipelineJson,
+} from "./AnuFuzzyPipelineSensor.js";
+export {
+  getWorldSensoriumSnapshot,
+  exportWorldSensoriumJson,
+} from "./AnuWorldSensorium.js";
+export {
+  ANU_GOVERNANCE_RULES,
+  getGovernanceSnapshot,
+  exportGovernanceJson,
+} from "./AnuGovernanceRules.js";
 export {
   recordSacredLoopError,
   recordModuleLoadError,

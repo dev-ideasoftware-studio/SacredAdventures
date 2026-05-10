@@ -100,4 +100,7 @@ Include these **when applicable** (omit only what does not apply):
 - **What changed** — files and behavior
 - **Parity** — only if 1:1 / fidelity was in scope (§6)
 - **Validation** — tools run, **Anu** line, PASS / notes
-- **Summary** — one tight paragraph
+- **Task Summary** — mandatory short closeout with:
+  - **Asked:** what the user requested
+  - **Provided:** what the agent delivered
+  - **Proof:** concrete evidence it was done (files changed, commit hash, commands/checks run, or explicit “no files changed” for planning)

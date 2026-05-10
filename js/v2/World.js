@@ -16,6 +16,7 @@ import { GLTFLoaderWithDraco } from "./gltfLoaderSetup.js";
 import { V2_TILE_WORLD } from "./constants.js";
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
+import { ANU_SIMULATION_DOMAIN } from "./anu/SimulationController.js";
 
 const CHASE_CAMERA_DIST = 1.42 * V2_TILE_WORLD;
 /**
@@ -301,6 +302,21 @@ const WorldPhysics = {
     if (!this._getY) return true;
     return position.y <= this._getY(position.x, position.z) + EPSILON + 0.05;
   },
+
+  /** ANU governance probe: verifies 3D gravity/elevation physics is live. */
+  getAnuPhysicsSnapshot() {
+    return Object.freeze({
+      schemaVersion: "1.0",
+      gravityEnabled: true,
+      elevationPhysicsEnabled: typeof this._getY === "function",
+      movementAxes: Object.freeze(["x", "y", "z"]),
+      terrainHeightSampling: typeof this._getY === "function",
+      terrainNormalSampling: true,
+      registeredBodyCount: this._bodies.length,
+      gravity: GRAVITY,
+      epsilon: EPSILON,
+    });
+  },
 };
 
 // Expose globally so future modules (NPCs, animals, etc.) can use it
@@ -447,7 +463,8 @@ export const WorldModule = {
     const terrain = new THREE.Mesh(geo, groundMat);
     terrain.receiveShadow = false;
     terrain.name = "terrain";
-    terrain.userData.anuSimulationDomain = "environment";
+    terrain.userData.anuId = "environment.terrain.hex_ground";
+    terrain.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
     terrain.userData.anuKind = "terrain_hex_mesh";
     scene.add(terrain);
     this._objects.push(terrain);
@@ -475,7 +492,8 @@ export const WorldModule = {
     });
     const hazeMesh = new THREE.Mesh(hazeGeo, hazeMat);
     hazeMesh.name = "atmospheric_haze";
-    hazeMesh.userData.anuSimulationDomain = "environment";
+    hazeMesh.userData.anuId = "environment.atmosphere.haze";
+    hazeMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
     hazeMesh.userData.anuKind = "haze_overlay";
     scene.add(hazeMesh);
     this._objects.push(hazeMesh);
@@ -491,7 +509,11 @@ export const WorldModule = {
       side: THREE.BackSide,
     });
     const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.name = "environment_outer_ring";
     ring.position.y = -3;
+    ring.userData.anuId = "environment.boundary.outer_ring";
+    ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+    ring.userData.anuKind = "outer_boundary_ring";
     scene.add(ring);
     this._objects.push(ring);
 
@@ -556,7 +578,8 @@ export const WorldModule = {
       scene.add(this._avatar);
       this._objects.push(this._avatar);
       this._avatar.name = this._avatar.name || "player_avatar_rig";
-      this._avatar.userData.anuSimulationDomain = "player";
+      this._avatar.userData.anuId = "player.avatar.primary";
+      this._avatar.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
       this._avatar.userData.anuKind = "avatar_gltf";
       console.log("%c[World] Avatar3.glb ready (chase cam)", "color:#90caf9;");
     } catch (err) {

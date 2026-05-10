@@ -27,8 +27,16 @@ import {
   exportSceneInventoryJson as serializeSceneInventoryJson,
   getSceneInventorySnapshot,
   ANU_SIMULATION_DOMAIN,
+  ANU_INTERACTION_VERB,
   buildSimulationOverview,
   exportSimulationOverviewJson,
+  getFuzzyPipelineSnapshot as buildFuzzyPipelineSnapshot,
+  exportFuzzyPipelineJson as serializeFuzzyPipelineJson,
+  getWorldSensoriumSnapshot as buildWorldSensoriumSnapshot,
+  exportWorldSensoriumJson as serializeWorldSensoriumJson,
+  ANU_GOVERNANCE_RULES,
+  getGovernanceSnapshot as buildGovernanceSnapshot,
+  exportGovernanceJson as serializeGovernanceJson,
 } from "./anu/index.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 
@@ -98,6 +106,24 @@ export const ANU_PIPELINE_MEMORY = [
     files: ["js/v2/anu/AnuErrorAndStressLedger.js", "js/v2/Orchestrator.js", "js/v2/AnuModule.js"],
   },
   {
+    id: "anu-fuzzy-pipeline-sensor",
+    learnedAt: "2026-05",
+    title: "Anu exposes fuzzy bottleneck diagnosis for AI checks",
+    summary:
+      "AnuFuzzyPipelineSensor merges frame budget, PiP stride, scene inventory, draw-call history, module load errors, and loop errors into a ranked bottleneck list.",
+    mitigations: [
+      "AnuUniverse.getFuzzyPipelineSnapshot() — live object for tools",
+      "AnuUniverse.exportFuzzyPipelineJson() — paste into LLM/issue",
+      "AnuUniverse.report() — logs primary bottleneck with other pipeline memory",
+    ],
+    files: [
+      "js/v2/anu/AnuFuzzyPipelineSensor.js",
+      "js/v2/anu/AnuErrorAndStressLedger.js",
+      "js/v2/anu/SceneModelInventory.js",
+      "js/v2/AnuModule.js",
+    ],
+  },
+  {
     id: "anu-scene-player-bus",
     learnedAt: "2026-05",
     title: "Scene inventory + player/UI interactions on Anu InteractionBus",
@@ -120,6 +146,42 @@ export const ANU_PIPELINE_MEMORY = [
       "Trees / World tag meshes — SacredFlora_* flora, terrain/haze environment",
     ],
     files: ["js/v2/anu/SimulationController.js", "js/v2/Trees.js", "js/v2/World.js", "js/v2/anu/SceneModelInventory.js"],
+  },
+  {
+    id: "anu-world-sensorium",
+    learnedAt: "2026-05",
+    title: "Anu world sensorium unifies objects, domains, interactions, and pressure",
+    summary:
+      "AnuWorldSensorium combines scene inventory, simulation domains, fuzzy pipeline diagnosis, active modules, and interactable metadata into one AI-readable awareness snapshot.",
+    mitigations: [
+      "AnuUniverse.getWorldSensoriumSnapshot() — live object/domain awareness",
+      "AnuUniverse.exportWorldSensoriumJson() — paste into LLM/issue before adding flora/fauna/NPC/buildings/items",
+      "Every world Object3D should set userData.anuSimulationDomain; interactables should set anuInteractable + anuInteractionVerbs.",
+    ],
+    files: [
+      "js/v2/anu/AnuWorldSensorium.js",
+      "js/v2/anu/SceneModelInventory.js",
+      "js/v2/anu/SimulationController.js",
+      "js/v2/AnuModule.js",
+    ],
+  },
+  {
+    id: "anu-governance-rules",
+    learnedAt: "2026-05",
+    title: "Anu governance rules own models, physics, and AI IO",
+    summary:
+      "AnuGovernanceRules makes model registration, interaction registration, 3D gravity, 3D elevation physics, and AI IO authority explicit runtime contracts.",
+    mitigations: [
+      "AnuUniverse.GOVERNANCE_RULES — canonical enabled rules",
+      "AnuUniverse.getGovernanceSnapshot() — live compliance check",
+      "WorldPhysics.getAnuPhysicsSnapshot() — gravity/elevation proof for ANU",
+    ],
+    files: [
+      "js/v2/anu/AnuGovernanceRules.js",
+      "js/v2/World.js",
+      "js/v2/anu/AnuWorldSensorium.js",
+      "js/v2/AnuModule.js",
+    ],
   },
 ];
 
@@ -165,8 +227,11 @@ function buildPublicApi(moduleRef) {
       console.log("Rendering snapshot:", getRenderingSnapshot());
       console.log("Frame budget:", getFrameBudgetSnapshot());
       console.log("Adaptive PiP policy:", getAdaptivePolicyDebug());
+      console.log("Governance:", buildGovernanceSnapshot(_anuOrchestratorRef));
+      console.log("Fuzzy bottleneck sensor:", buildFuzzyPipelineSnapshot(_anuOrchestratorRef));
+      console.log("World sensorium:", buildWorldSensoriumSnapshot(_anuOrchestratorRef));
       console.log(
-        "Exports: exportStressJson() · exportAiStressBrief() · exportSceneInventoryJson() · exportSimulationJson()",
+        "Exports: exportStressJson() · exportAiStressBrief() · exportGovernanceJson() · exportFuzzyPipelineJson() · exportWorldSensoriumJson() · exportSceneInventoryJson() · exportSimulationJson()",
       );
       console.groupEnd();
     },
@@ -208,6 +273,21 @@ function buildPublicApi(moduleRef) {
       return getLedgerSnapshot();
     },
 
+    /**
+     * AI-readable fuzzy bottleneck sensor — rank likely pressure points at check time.
+     */
+    getFuzzyPipelineSnapshot() {
+      const snapshot = buildFuzzyPipelineSnapshot(_anuOrchestratorRef);
+      dispatchInteraction(ANU_EVENTS.FUZZY_PIPELINE_SENSOR, snapshot);
+      return snapshot;
+    },
+
+    exportFuzzyPipelineJson() {
+      const snapshot = buildFuzzyPipelineSnapshot(_anuOrchestratorRef);
+      dispatchInteraction(ANU_EVENTS.FUZZY_PIPELINE_SENSOR, snapshot);
+      return serializeFuzzyPipelineJson(_anuOrchestratorRef);
+    },
+
     clearStressHistory() {
       clearStressLedger();
     },
@@ -222,6 +302,20 @@ function buildPublicApi(moduleRef) {
     },
 
     SIMULATION_DOMAINS: ANU_SIMULATION_DOMAIN,
+    INTERACTION_VERBS: ANU_INTERACTION_VERB,
+    GOVERNANCE_RULES: ANU_GOVERNANCE_RULES,
+
+    getGovernanceSnapshot() {
+      const snapshot = buildGovernanceSnapshot(_anuOrchestratorRef);
+      dispatchInteraction(ANU_EVENTS.GOVERNANCE_SNAPSHOT, snapshot);
+      return snapshot;
+    },
+
+    exportGovernanceJson() {
+      const snapshot = buildGovernanceSnapshot(_anuOrchestratorRef);
+      dispatchInteraction(ANU_EVENTS.GOVERNANCE_SNAPSHOT, snapshot);
+      return serializeGovernanceJson(_anuOrchestratorRef);
+    },
 
     getSimulationSnapshot() {
       return buildSimulationOverview(_anuOrchestratorRef);
@@ -229,6 +323,18 @@ function buildPublicApi(moduleRef) {
 
     exportSimulationJson() {
       return exportSimulationOverviewJson(_anuOrchestratorRef);
+    },
+
+    getWorldSensoriumSnapshot() {
+      const snapshot = buildWorldSensoriumSnapshot(_anuOrchestratorRef);
+      dispatchInteraction(ANU_EVENTS.WORLD_SENSORIUM, snapshot);
+      return snapshot;
+    },
+
+    exportWorldSensoriumJson() {
+      const snapshot = buildWorldSensoriumSnapshot(_anuOrchestratorRef);
+      dispatchInteraction(ANU_EVENTS.WORLD_SENSORIUM, snapshot);
+      return serializeWorldSensoriumJson(_anuOrchestratorRef);
     },
 
     /**

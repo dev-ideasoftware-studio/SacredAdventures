@@ -3,6 +3,7 @@
  * Sampled on an interval (not every frame) to avoid traversal cost on large forests.
  */
 
+import * as THREE from "three";
 import { dispatchInteraction } from "./InteractionBus.js";
 import { ANU_EVENTS } from "./anuEvents.js";
 
@@ -36,7 +37,16 @@ function inferSimulationDomain(obj) {
   if (n.includes("building") || n.includes("house") || n.includes("village")) {
     return "structures";
   }
+  if (n.includes("item") || n.includes("journal") || n.includes("tool") || n.includes("loot")) {
+    return "items";
+  }
   return "unspecified";
+}
+
+function inferInteractionVerbs(obj) {
+  const verbs = obj.userData?.anuInteractionVerbs;
+  if (!Array.isArray(verbs)) return [];
+  return verbs.filter((v) => typeof v === "string" && v.length > 0);
 }
 
 function triangleEstimateFromGeometry(geometry) {
@@ -94,12 +104,14 @@ export function captureSceneRenderInventory(scene) {
     trianglesEstimate: 0,
     /** Rows with triEstimate > 0 */
     drawableRows: 0,
+    interactableRows: 0,
   };
 
-  /** @type {Record<string, { drawables: number; trianglesEstimate: number }>} */
+  /** @type {Record<string, { drawables: number; trianglesEstimate: number; interactables: number }>} */
   const bySimulationDomain = {};
 
   const rows = [];
+  const worldPos = new THREE.Vector3();
 
   scene.traverse((obj) => {
     summary.object3DTotal++;
@@ -122,12 +134,22 @@ export function captureSceneRenderInventory(scene) {
       bySimulationDomain[simulationDomain] = {
         drawables: 0,
         trianglesEstimate: 0,
+        interactables: 0,
       };
     }
     bySimulationDomain[simulationDomain].drawables++;
     bySimulationDomain[simulationDomain].trianglesEstimate += tri;
+    const interactionVerbs = inferInteractionVerbs(obj);
+    const interactable =
+      obj.userData?.anuInteractable === true || interactionVerbs.length > 0;
+    if (interactable) {
+      summary.interactableRows++;
+      bySimulationDomain[simulationDomain].interactables++;
+    }
+    obj.getWorldPosition(worldPos);
 
     rows.push({
+      anuId: obj.userData?.anuId ?? obj.uuid,
       uuid: obj.uuid,
       type: cls.kind,
       name: obj.name || "",
@@ -135,6 +157,14 @@ export function captureSceneRenderInventory(scene) {
       triEstimate: Math.round(tri),
       instances: cls.instances,
       simulationDomain,
+      anuKind: obj.userData?.anuKind ?? null,
+      interactable,
+      interactionVerbs,
+      worldPosition: {
+        x: Math.round(worldPos.x * 1000) / 1000,
+        y: Math.round(worldPos.y * 1000) / 1000,
+        z: Math.round(worldPos.z * 1000) / 1000,
+      },
     });
   });
 

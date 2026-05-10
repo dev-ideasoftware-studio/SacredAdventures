@@ -11,6 +11,10 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import {
+  ANU_INTERACTION_VERB,
+  ANU_SIMULATION_DOMAIN,
+} from "./anu/SimulationController.js";
 
 const TREE_URL = "./Assets/tree.glb";
 
@@ -130,8 +134,14 @@ export const TreesModule = {
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     mesh.name = "SacredFlora_TreesInstanced";
-    mesh.userData.anuSimulationDomain = "flora";
+    mesh.userData.anuId = "flora.tree_instances.primary";
+    mesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FLORA;
     mesh.userData.anuKind = "tree_instances";
+    mesh.userData.anuInteractable = true;
+    mesh.userData.anuInteractionVerbs = [
+      ANU_INTERACTION_VERB.INSPECT,
+      ANU_INTERACTION_VERB.HARVEST,
+    ];
     mesh.userData.anuTargetInstances = TREE_TARGET;
 
     this._tx = new Float32Array(TREE_TARGET);

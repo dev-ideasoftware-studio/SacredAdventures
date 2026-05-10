@@ -13,6 +13,8 @@ export const ANU_EVENTS = Object.freeze({
   MODULE_LOAD_ERROR: "anu-module-load-error",
   /** Optional subscribe — fires when pipeline stress tier changes (nominal | elevated | severe) */
   PIPELINE_STRESS_LEVEL: "anu-pipeline-stress-level",
+  /** AI-readable fuzzy bottleneck diagnosis requested on demand by AnuUniverse */
+  FUZZY_PIPELINE_SENSOR: "anu-fuzzy-pipeline-sensor",
   /** Player keyboard edge (movement / jump / turn keys only) — detail: { key, down, code, t } */
   PLAYER_KEY_EDGE: "anu-player-key-edge",
   /** Throttled world pose + locomotion — detail: position, yaw, grounded, walkDistance, t */
@@ -27,4 +29,10 @@ export const ANU_EVENTS = Object.freeze({
   NPC_ENTITY: "anu-npc-entity",
   /** Buildings / placed structures — detail defined by BuildingsModule */
   STRUCTURE_EVENT: "anu-structure-event",
+  /** Items / inventory world objects — detail defined by ItemsModule */
+  ITEM_EVENT: "anu-item-event",
+  /** Unified sentient-style world sensor snapshot requested by AnuUniverse */
+  WORLD_SENSORIUM: "anu-world-sensorium",
+  /** Governance rules snapshot requested by AnuUniverse */
+  GOVERNANCE_SNAPSHOT: "anu-governance-snapshot",
 });
