@@ -11,7 +11,21 @@
  *  - camera.rotation.order set once in load(), not every frame
  */
 
-import * as THREE from 'three';
+import * as THREE from "three";
+import { GLTFLoaderWithDraco } from "./gltfLoaderSetup.js";
+import { V2_TILE_WORLD } from "./constants.js";
+import { dispatchInteraction } from "./anu/InteractionBus.js";
+import { ANU_EVENTS } from "./anu/anuEvents.js";
+
+const CHASE_CAMERA_DIST = 1.42 * V2_TILE_WORLD;
+const CHASE_LOOK_AHEAD_MOVE = 4.2;
+const CHASE_LOOK_AHEAD_TURN = 0.42;
+const CHASE_CAMERA_HEIGHT = 2.5;
+
+/** Set true to load Avatar3.glb (Draco). Off while profiling — see forensic notes in PR/chat. */
+const ENABLE_AVATAR3 = false;
+
+const AVATAR_URL = "./Assets/Avatar3.glb";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TERRAIN HEIGHT — exact match to AssetFactory.buildGroundChunk terrainY
@@ -304,8 +318,13 @@ export const WorldModule = {
   _bobAmount: 0,
   _bobOffset: 0,
 
+  _avatar: null,
+  _feetScratch: new THREE.Vector3(),
+  _back: new THREE.Vector3(),
+  _lookTarget: new THREE.Vector3(),
+
   // ──────────────────────────────────────────────────────────────────────────
-  load(scene, camera) {
+  async load(scene, camera) {
     this._camera = camera;
     this._canvas = document.querySelector("canvas");
 
@@ -320,7 +339,7 @@ export const WorldModule = {
     // ── Sun ───────────────────────────────────────────────────────────────
     const sun = new THREE.DirectionalLight(0xfff5e0, 1.3);
     sun.position.set(80, 120, 60);
-    sun.castShadow = true;
+    sun.castShadow = false;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 400;
@@ -411,7 +430,7 @@ export const WorldModule = {
     applyNeuHexShader(groundMat);
 
     const terrain = new THREE.Mesh(geo, groundMat);
-    terrain.receiveShadow = true;
+    terrain.receiveShadow = false;
     terrain.name = "terrain";
     scene.add(terrain);
     this._objects.push(terrain);
@@ -473,6 +492,15 @@ export const WorldModule = {
     // ── Input ─────────────────────────────────────────────────────────────
     this._setupInput();
 
+    if (ENABLE_AVATAR3) {
+      await this._loadAvatar(scene);
+    } else {
+      console.log(
+        "%c[World] Avatar3 skipped (ENABLE_AVATAR3=false — chase cam uses physics body only)",
+        "color:#90caf9;",
+      );
+    }
+
     console.log(
       "%c[World] ✅ Phase 1 loaded — terrain + physics + neumorphic hex shader",
       "color:#a5d6a7;font-weight:bold;",
@@ -487,19 +515,40 @@ export const WorldModule = {
     });
   },
 
+  async _loadAvatar(scene) {
+    try {
+      const gltf = await new GLTFLoaderWithDraco().loadAsync(AVATAR_URL);
+      this._avatar = gltf.scene;
+      this._avatar.traverse((child) => {
+        if (child.isMesh) {
+          child.frustumCulled = true;
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+      const box = new THREE.Box3().setFromObject(this._avatar);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      if (size.y > 0.001) {
+        const targetH = 1.78;
+        this._avatar.scale.setScalar(targetH / size.y);
+      }
+      scene.add(this._avatar);
+      this._objects.push(this._avatar);
+      console.log("%c[World] Avatar3.glb ready (chase cam)", "color:#90caf9;");
+    } catch (err) {
+      console.warn("[World] Avatar3.glb load failed:", err);
+    }
+  },
+
   // ──────────────────────────────────────────────────────────────────────────
   // UPDATE — zero allocations, all vectors pre-built
   // ──────────────────────────────────────────────────────────────────────────
   update(delta, _frameCount, _scene, camera) {
     const k = this._keys;
     const speed = 7.0;
-    const turnRate = 1.8;
     const dir = this._moveDir;
     const body = this._playerBody;
-
-    // ── Turn ──────────────────────────────────────────────────────────────
-    if (k["arrowleft"]) this._yaw += turnRate * delta;
-    if (k["arrowright"]) this._yaw -= turnRate * delta;
 
     // ── Horizontal movement intention ─────────────────────────────────────
     dir.set(0, 0, 0);
@@ -507,6 +556,22 @@ export const WorldModule = {
     if (k["s"] || k["arrowdown"]) dir.z += 1;
     if (k["a"]) dir.x -= 1;
     if (k["d"]) dir.x += 1;
+
+    const movingKeys =
+      k["w"] ||
+      k["s"] ||
+      k["arrowup"] ||
+      k["arrowdown"] ||
+      k["a"] ||
+      k["d"];
+
+    const turnOnly =
+      (k["arrowleft"] || k["arrowright"]) && !movingKeys;
+    const turnRate = turnOnly ? 2.85 : 1.72;
+
+    // ── Turn (after movement keys known — faster when rotating in place) ───
+    if (k["arrowleft"]) this._yaw += turnRate * delta;
+    if (k["arrowright"]) this._yaw -= turnRate * delta;
 
     if (dir.lengthSq() > 0) {
       dir.normalize();
@@ -524,10 +589,19 @@ export const WorldModule = {
       body.velocity.z *= 0.82;
     }
 
+    // Turn in place: ← / → without WASD — kill lateral drift immediately
+    if (!movingKeys && (k["arrowleft"] || k["arrowright"])) {
+      body.velocity.x = 0;
+      body.velocity.z = 0;
+    }
+
     // ── Jump (Space) — only if grounded ───────────────────────────────────
     if (k[" "] && body.grounded) {
       body.applyImpulse(0, JUMP_IMPULSE, 0);
       body.grounded = false;
+      dispatchInteraction(ANU_EVENTS.PLAYER_JUMP, {
+        t: typeof performance !== "undefined" ? performance.now() : 0,
+      });
     }
 
     // ── Step all physics bodies (gravity, terrain collision, slope) ────────
@@ -556,29 +630,44 @@ export const WorldModule = {
     this._bobOffset +=
       (targetBob - this._bobOffset) * (1 - Math.pow(bobReturn, delta * 60));
 
+    const feetY = body.position.y - PLAYER_HEIGHT;
+    this._feetScratch.set(body.position.x, feetY, body.position.z);
+
+    if (this._avatar) {
+      this._avatar.position.set(body.position.x, feetY, body.position.z);
+      this._avatar.rotation.y = this._yaw + Math.PI;
+    }
+
+    this._fwd.set(-Math.sin(this._yaw), 0, -Math.cos(this._yaw));
+    this._back.copy(this._fwd).multiplyScalar(-1);
+
     camera.position.set(
-      body.position.x,
-      body.position.y + this._bobOffset,
-      body.position.z,
+      body.position.x + this._back.x * CHASE_CAMERA_DIST,
+      feetY + CHASE_CAMERA_HEIGHT + this._bobOffset,
+      body.position.z + this._back.z * CHASE_CAMERA_DIST,
     );
 
+    const lookAhead = turnOnly ? CHASE_LOOK_AHEAD_TURN : CHASE_LOOK_AHEAD_MOVE;
+    this._lookTarget.copy(this._feetScratch).addScaledVector(this._fwd, lookAhead);
+    this._lookTarget.y += 1.28;
+    camera.up.set(0, 1, 0);
+    camera.lookAt(this._lookTarget);
+
     window.WorldPlayer = {
+      feet: this._feetScratch,
       position: camera.position,
       yaw: this._yaw,
       grounded: body.grounded,
       distanceMeters: this._walkDistance,
       distanceFeet: this._walkDistance * 3.28084,
     };
-
-    // ── Apply look rotation ───────────────────────────────────────────────
-    camera.rotation.y = this._yaw;
-    camera.rotation.x = this._pitch;
   },
 
   // ──────────────────────────────────────────────────────────────────────────
   unload(scene) {
     for (const obj of this._objects) scene.remove(obj);
     this._objects = [];
+    this._avatar = null;
     if (this._onKey) {
       window.removeEventListener("keydown", this._onKey);
       window.removeEventListener("keyup", this._onKey);

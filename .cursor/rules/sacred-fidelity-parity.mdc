@@ -1,0 +1,47 @@
+---
+description: 1:1 CSS/HTML/Three.js parity — phased analysis and grep validation (no lazy minimal diffs)
+globs: **/*.{css,html,js}
+alwaysApply: false
+---
+
+# Fidelity and parity (1:1 match requests)
+
+## Why this rule exists
+
+A **minimal diff** that **mostly** matches invites **repeated fix passes**. When the user asks for **1:1** (visual, layout, or rendering behavior), the agent must **fully understand** reference vs implementation **before** claiming done — **CSS tokens and Three.js/renderer details included**.
+
+**Bare-minimum copy** without inventory is **counter-productive** and wastes user time.
+
+## Multi-phase workflow (mandatory for 1:1 scope)
+
+Do **not** collapse into a single blind edit. Use **distinct phases** (and todos):
+
+| Phase | Goal |
+|--------|------|
+| **A — Source audit** | Reference file(s): every relevant selector, `var()` / hex / `rgba`, font families, z-index layers, media queries, transforms. Three.js: `WebGLRenderer` options, `outputColorSpace`, tone mapping, fog, lights, camera params, material types, custom shaders, loader paths, scene graph expectations. |
+| **B — Gap table** | Side-by-side: *present / missing / wrong value* for each audited item. |
+| **C — Implement** | Close **all** agreed gaps for this delivery — avoid shipping half the stylesheet or half the renderer flags. |
+| **D — Grep parity** | Evidence-based comparison (below). |
+| **E — Lint + Anu** | `read_lints` on touched paths; **Anu** per `agent-task-workflow.mdc` when `js/v2` or pipeline touched. |
+
+## Grep comparison protocol (validation)
+
+After implementation, **prove** parity with **search**, not memory:
+
+1. **Color tokens** — `grep` / ripgrep for distinctive `#rrggbb`, `rgba(`, and named tokens used in the reference; confirm they exist in the target (or document deliberate substitution).
+2. **Class / id hooks** — match critical class names and IDs the UI or JS depends on.
+3. **Three.js symbols** — grep for renderer/scene/camera/material strings that the reference uses (`toneMapping`, `Fog`, `outputColorSpace`, `MeshStandardMaterial`, custom uniform names, etc.).
+4. **Assets & paths** — same basename or intentional remap listed in the summary.
+
+If counts or presence diverge, **fix or explain** before closing the task.
+
+## Anti-patterns (reject)
+
+- Changing one color or one line and stopping when the user asked for **full** parity.
+- Guessing layout from screenshots without reading reference CSS.
+- Assuming Three.js defaults match — always verify **explicit** settings from source.
+- Skipping grep because “it looks right” without tooling.
+
+## Final reply
+
+Include a **Parity** subsection: phases A–E status, **grep** commands or patterns checked, and **intentional** differences (if any).

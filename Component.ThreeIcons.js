@@ -11,11 +11,15 @@ class ThreeIconManager {
         this.lastMouseMoveTime = 0;
 
         // --- SHARED RENDERER SETUP ---
-        this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // HUD overlay: keep fill-rate down (fullscreen clear each frame). Shadows off — tiny UI icons.
+        this.renderer = new THREE.WebGLRenderer({
+            alpha: true,
+            antialias: false,
+            powerPreference: "low-power",
+        });
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.enabled = false;
         
         // Canvas Style (Fixed Background)
         const canvas = this.renderer.domElement;
@@ -29,7 +33,8 @@ class ThreeIconManager {
         document.body.appendChild(canvas);
 
         window.addEventListener('resize', () => {
-             this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
         // MOUSE TRACKING for eye follow

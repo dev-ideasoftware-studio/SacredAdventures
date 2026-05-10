@@ -1,46 +1,76 @@
+import { dispatchInteraction } from "./anu/InteractionBus.js";
+import { ANU_EVENTS } from "./anu/anuEvents.js";
+
 export const UIModule = {
   name: "PanelsPIP",
 
   _root: null,
   _panelFrame: null,
   _pipCanvas: null,
-  _pipCtx: null,
   _compassRing: null,
-  _compassTextLayer: null,
-  _compassMarkers: [],
   _seasonRing: null,
-  _phaseSlots: [],
-  _grassImg: null,
-  _grassPattern: null,
   _gameTime: 8,
   _season: "day",
   _onMessage: null,
-  _lastPipDraw: 0,
+  _overlayCanvas: null,
+  _overlayCtx: null,
   _lastMoonUpdate: 0,
 
   load() {
+    if (!document.getElementById("v2-font-cinzel")) {
+      const l = document.createElement("link");
+      l.id = "v2-font-cinzel";
+      l.rel = "stylesheet";
+      l.href =
+        "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap";
+      document.head.appendChild(l);
+    }
     this._root = document.createElement("div");
     this._root.id = "v2-panels-pip";
     this._root.innerHTML = `
       <style>
-        #v2-panels-pip { position: fixed; inset: 0; pointer-events: none; z-index: 1000; font-family: Nunito, system-ui, sans-serif; }
+        /* Align with SacredGame.css moondial (#moondial-wrapper) */
+        #v2-panels-pip { position: fixed; inset: 0; pointer-events: none; z-index: 9800; font-family: Nunito, system-ui, sans-serif; }
         #v2-side-panel {
           position: fixed; inset: 0; width: 100%; height: 100%;
           border: none; background: transparent; overflow: hidden;
-          pointer-events: none; z-index: 1000;
+          pointer-events: none; z-index: 9800;
         }
-        #panel-frame { width: 100%; height: 100%; border: 0; background: transparent; pointer-events: none; }
+        #panel-frame { width: 100%; height: 100%; border: 0; background: transparent; pointer-events: none; display:none; }
+        /* PiP dial — watch-case outer shell + isolated stacking for glass optics */
         #moondial-wrapper {
-          position: absolute; top: 54px; left: 30px; width: clamp(190px,22vw,280px); height: clamp(190px,22vw,280px);
-          z-index: 1200; border-radius: 50%; pointer-events: auto; cursor: pointer; overflow: visible;
-          background: transparent; border: 6px solid rgba(210,180,140,0.72); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          position: absolute;
+          top: 50px;
+          left: 20px;
+          width: clamp(200px, 25vw, 300px);
+          height: clamp(200px, 25vw, 300px);
+          z-index: 1200;
+          border-radius: 50%;
+          pointer-events: auto;
+          cursor: pointer;
+          overflow: visible;
+          background: transparent;
+          isolation: isolate;
+          border: 6px solid #2a1a17;
+          box-shadow:
+            0 12px 36px rgba(0,0,0,0.55),
+            0 4px 12px rgba(0,0,0,0.35),
+            inset 0 1px 0 rgba(255,255,255,0.07),
+            inset 0 -2px 8px rgba(0,0,0,0.35);
         }
+        /* Compass rim — match SacredGame.css / legacy Panel (inset, mask band, no transform easing) */
         .compass-outer-ring {
-          position: absolute; inset: -16px; border-radius: 50%;
-          background: linear-gradient(145deg, rgba(71,47,25,0.94), rgba(22,18,14,0.94));
-          border: 2px solid rgba(210,180,140,0.78);
-          box-shadow: 0 0 22px rgba(251,192,45,0.22), inset 0 0 18px rgba(0,0,0,0.45);
-          pointer-events: none; z-index: 1; will-change: transform; transform-origin: center;
+          position: absolute;
+          inset: -16px;
+          border-radius: 50%;
+          background: conic-gradient(from 0deg, #3e2723 0%, #6d4c41 25%, #3e2723 50%, #6d4c41 75%, #3e2723 100%);
+          border: 2px solid #2a1a17;
+          box-shadow: inset 0 1px 5px rgba(255,255,255,0.2), inset 0 -2px 8px rgba(0,0,0,0.8), 0 4px 15px rgba(0,0,0,0.8);
+          pointer-events: none;
+          z-index: 2;
+          will-change: transform;
+          transform-origin: center;
+          transition: none;
           -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 18px), black calc(100% - 17px));
           mask-image: radial-gradient(circle closest-side, transparent calc(100% - 18px), black calc(100% - 17px));
         }
@@ -50,25 +80,45 @@ export const UIModule = {
           -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 6px), black calc(100% - 5px));
           mask-image: radial-gradient(circle closest-side, transparent calc(100% - 6px), black calc(100% - 5px));
         }
-        .compass-text-layer { position: absolute; inset: -16px; border-radius: 50%; pointer-events: none; z-index: 3; }
         .compass-marker {
-          position: absolute; color: #d7ccc8; font-family: Georgia, serif; font-size: 14px; font-weight: 700;
-          text-shadow: 0 1px 3px rgba(0,0,0,0.8); line-height: 1;
+          position: absolute;
+          color: #d7ccc8;
+          font-family: 'Cinzel', Georgia, serif;
+          font-size: 14px;
+          font-weight: 700;
+          text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+          line-height: 1;
         }
-        .compass-marker.n { top: 2px; left: 50%; transform: translateX(-50%); }
-        .compass-marker.s { bottom: 2px; left: 50%; transform: translateX(-50%); }
-        .compass-marker.e { right: 4px; top: 50%; transform: translateY(-50%); }
-        .compass-marker.w { left: 4px; top: 50%; transform: translateY(-50%); }
+        .compass-marker.n { top: 2px; left: 50%; transform: translateX(-50%); z-index: 2; }
+        .compass-marker.s { bottom: 2px; left: 50%; transform: translateX(-50%); z-index: 2; }
+        .compass-marker.e { right: 4px; top: 50%; transform: translateY(-50%); z-index: 2; }
+        .compass-marker.w { left: 4px; top: 50%; transform: translateY(-50%); z-index: 2; }
+        /* Fixed lubber-line / heading glass tab — must stay translucent so rim letters (esp. N) read through */
         .season-bracket {
-          position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 32px; height: 40px;
-          background: linear-gradient(145deg, rgba(79,53,31,0.98), rgba(23,18,13,0.98)); border-radius: 12px 12px 0 0;
-          box-shadow: 0 -2px 10px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,0.2);
-          pointer-events: none; z-index: 10;
+          position: absolute; top: -28px; left: 50%; transform: translateX(-50%); width: 36px; height: 36px;
+          border-radius: 10px 10px 4px 4px;
+          pointer-events: none;
+          z-index: 6;
+          background: linear-gradient(
+            165deg,
+            rgba(255, 252, 248, 0.14) 0%,
+            rgba(180, 160, 140, 0.10) 40%,
+            rgba(35, 28, 22, 0.12) 100%
+          );
+          border: 1px solid rgba(251, 192, 45, 0.38);
+          border-bottom: 2px solid rgba(251, 192, 45, 0.55);
+          box-shadow:
+            inset 0 1px 1px rgba(255, 255, 255, 0.35),
+            inset 0 -1px 8px rgba(0, 0, 0, 0.12),
+            0 4px 14px rgba(0, 0, 0, 0.2);
+          backdrop-filter: blur(10px) saturate(1.15);
+          -webkit-backdrop-filter: blur(10px) saturate(1.15);
         }
         .season-outer-ring { position: absolute; inset: -24px; border-radius: 50%; pointer-events: none; z-index: -1; transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1); }
         .season-outer-bg {
-          position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(145deg, rgba(71,47,25,0.94), rgba(22,18,14,0.94));
-          box-shadow: inset 0 2px 10px rgba(0,0,0,0.25), 0 5px 15px rgba(0,0,0,0.18);
+          position: absolute; inset: 0; border-radius: 50%;
+          background: conic-gradient(from 0deg, #3e2723 0%, #6d4c41 25%, #3e2723 50%, #6d4c41 75%, #3e2723 100%);
+          box-shadow: inset 0 2px 10px rgba(0,0,0,0.1), 0 5px 15px rgba(0,0,0,0.1);
           -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 24px), black calc(100% - 23px));
           mask-image: radial-gradient(circle closest-side, transparent calc(100% - 24px), black calc(100% - 23px));
         }
@@ -79,45 +129,109 @@ export const UIModule = {
           color: #d2b48c; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; transition: all 0.2s ease;
         }
         .season-btn:hover { transform: scale(1.4); filter: drop-shadow(0 0 10px rgba(255,215,0,0.8)); }
-        #pipCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: 50%; background: #16230f; z-index: -1; pointer-events: none; }
-        .pip-vignette {
-          position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; z-index: -1; pointer-events: none;
-          box-shadow: inset 0 0 30px rgba(0,0,0,0.2), inset 0 0 60px rgba(255,255,255,0.5);
+        /* Map render target — slight punch through “crystal” (cheap vs shader) */
+        #pipCanvas {
+          position: absolute; top: 0; left: 0; transform: none !important;
+          width: 100%; height: 100%; display: block; border-radius: 50%;
+          z-index: -1; pointer-events: none;
+          filter: contrast(1.04) saturate(1.08) brightness(1.02);
         }
-        .moon-phase-backing {
-          position: absolute; inset: -4px; border-radius: 50%; z-index: 3; pointer-events: none;
-          background: radial-gradient(circle closest-side, transparent calc(100% - 42px), rgba(48,31,18,0.92) calc(100% - 41px), rgba(18,12,8,0.96) 100%);
-          box-shadow: inset 0 0 14px rgba(0,0,0,0.58), 0 0 10px rgba(251,192,45,0.12);
+        /*
+         * Watch-crystal / compass-glass optics (above map, below GPS overlay + moon iframe)
+         * — curved-lens shading, fresnel rim, specular glaze (no backdrop-filter: keeps WebGL sharp)
+         */
+        .pip-optics-stack {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 1;
+          overflow: hidden;
         }
-        .moon-phase-layer {
-          position: absolute; inset: -2px; border-radius: 50%; pointer-events: none; z-index: 5;
+        .pip-optics-shade {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          /* Depth: bottom-heavy shadow (glass dome), edge vignette, cool bounce opposite spec */
+          background:
+            radial-gradient(ellipse 130% 95% at 50% 108%, rgba(8, 22, 38, 0.38) 0%, transparent 48%),
+            radial-gradient(ellipse 90% 88% at 72% 72%, rgba(0, 25, 45, 0.12) 0%, transparent 48%),
+            radial-gradient(circle at 50% 50%, transparent 38%, rgba(0, 0, 0, 0.22) 100%),
+            radial-gradient(circle at 26% 18%, rgba(255, 255, 255, 0.07) 0%, transparent 38%);
+          box-shadow:
+            inset 0 3px 5px rgba(255, 255, 255, 0.42),
+            inset 0 -14px 36px rgba(0, 0, 0, 0.42),
+            inset 6px 10px 22px rgba(255, 255, 255, 0.06),
+            inset -4px -6px 20px rgba(0, 0, 0, 0.28);
         }
-        .moon-phase-dot {
-          position: absolute; width: 9.5%; height: 9.5%; border-radius: 50%;
-          transform: translate(-50%, -50%);
-          background: radial-gradient(circle at 35% 32%, #f4f4ef 0 38%, #10192f 40% 100%);
-          border: 2px solid rgba(93,64,55,0.95);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.62), inset 0 0 6px rgba(255,255,255,0.28);
+        /* Thin inner bezel — polished compass groove */
+        .pip-optics-shade::after {
+          content: '';
+          position: absolute;
+          inset: 5%;
+          border-radius: 50%;
+          box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+            inset 0 2px 4px rgba(255, 255, 255, 0.12),
+            inset 0 -3px 10px rgba(0, 0, 0, 0.35);
+          pointer-events: none;
         }
-        .moon-phase-dot.active {
-          border-color: #fbc02d;
-          box-shadow: 0 0 0 3px rgba(251,192,45,0.85), 0 0 14px rgba(251,192,45,0.7), inset 0 0 6px rgba(255,255,255,0.35);
+        .pip-optics-glaze {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          /* Primary specular — like overhead light on convex crystal */
+          background: radial-gradient(
+            ellipse 95% 72% at 32% 24%,
+            rgba(255, 252, 248, 0.5) 0%,
+            rgba(255, 255, 255, 0.12) 28%,
+            transparent 52%
+          );
+          mix-blend-mode: soft-light;
+          opacity: 0.92;
+        }
+        /* Secondary razor highlight + lower rim catch */
+        .pip-optics-glaze::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background:
+            radial-gradient(ellipse 55% 35% at 68% 78%, rgba(255, 255, 255, 0.14) 0%, transparent 65%),
+            linear-gradient(155deg, transparent 40%, rgba(255, 255, 255, 0.06) 55%, transparent 70%);
+          mix-blend-mode: overlay;
+          opacity: 0.85;
+          pointer-events: none;
+        }
+        #pipOverlay {
+          position: absolute; top: 0; left: 0;
+          width: 100%; height: 100%; border-radius: 50%;
+          z-index: 5; pointer-events: none; display: block;
+        }
+        #moondial-frame {
+          position: absolute;
+          inset: 6px;
+          width: calc(100% - 12px);
+          height: calc(100% - 12px);
+          border: none;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 4;
         }
         #pip-click-overlay {
           position: absolute; top: 10%; left: 10%; width: 80%; height: 80%; border-radius: 50%;
           z-index: 50; cursor: pointer; background: transparent; pointer-events: auto;
         }
         #v2-distance-pill {
-          position: absolute; left: 38px; top: calc(54px + clamp(190px,22vw,280px) + 34px); padding: 8px 12px; border-radius: 999px;
+          position: absolute; left: 28px; top: calc(50px + clamp(200px, 25vw, 300px) + 34px); padding: 8px 12px; border-radius: 999px;
           color: #f7d774; background: rgba(15,12,9,0.72); border: 1px solid rgba(251,192,45,0.24);
           font-size: 12px; letter-spacing: 0.4px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
         }
       </style>
-      <div id="v2-side-panel"><iframe id="panel-frame" src="./SacredGame.Panel.html" title="Sacred Adventures Panel"></iframe></div>
+      <div id="v2-side-panel"><iframe id="panel-frame" title="Sacred Adventures Panel"></iframe></div>
       <div id="v2-distance-pill">0 ft travelled</div>
       <div id="moondial-wrapper" title="Click to toggle Village Map / FPV">
-        <div class="compass-outer-ring"></div>
-        <div class="compass-text-layer">
+        <div class="compass-outer-ring">
           <span class="compass-marker n">N</span>
           <span class="compass-marker s">S</span>
           <span class="compass-marker e">E</span>
@@ -125,18 +239,11 @@ export const UIModule = {
         </div>
         <div class="season-bracket"></div>
         <canvas id="pipCanvas" width="512" height="512"></canvas>
-        <div class="pip-vignette"></div>
-        <div class="moon-phase-backing"></div>
-        <div class="moon-phase-layer">
-          <div class="moon-phase-dot" data-phase="0" style="top:8.5%;left:50%;"></div>
-          <div class="moon-phase-dot" data-phase="1" style="top:20%;left:80%;"></div>
-          <div class="moon-phase-dot" data-phase="2" style="top:50%;left:91.5%;"></div>
-          <div class="moon-phase-dot" data-phase="3" style="top:80%;left:80%;"></div>
-          <div class="moon-phase-dot" data-phase="4" style="top:91.5%;left:50%;"></div>
-          <div class="moon-phase-dot" data-phase="5" style="top:80%;left:20%;"></div>
-          <div class="moon-phase-dot" data-phase="6" style="top:50%;left:8.5%;"></div>
-          <div class="moon-phase-dot" data-phase="7" style="top:20%;left:20%;"></div>
+        <div class="pip-optics-stack" aria-hidden="true">
+          <div class="pip-optics-shade"></div>
+          <div class="pip-optics-glaze"></div>
         </div>
+        <canvas id="pipOverlay" width="512" height="512"></canvas>
         <div class="season-outer-ring" id="season-ring">
           <div class="season-outer-bg"></div>
           <div class="season-anchor" style="transform: rotate(0deg);"><div class="season-btn-wrap" style="transform: rotate(0deg);"><span class="season-btn" data-season="night" title="Starlight Night">🌙</span></div></div>
@@ -145,27 +252,19 @@ export const UIModule = {
           <div class="season-anchor" style="transform: rotate(216deg);"><div class="season-btn-wrap" style="transform: rotate(-216deg);"><span class="season-btn" data-season="dusk" title="Amber Dusk">🔅</span></div></div>
           <div class="season-anchor" style="transform: rotate(288deg);"><div class="season-btn-wrap" style="transform: rotate(-288deg);"><span class="season-btn" data-season="gray" title="Overcast Gray">☁️</span></div></div>
         </div>
+        <iframe id="moondial-frame" src="./Component.MoonDial.html" title="Moon dial" allowtransparency="true" style="background:transparent;"></iframe>
         <div id="pip-click-overlay"></div>
       </div>
     `;
     document.body.appendChild(this._root);
     this._panelFrame = this._root.querySelector("#panel-frame");
     this._pipCanvas = this._root.querySelector("#pipCanvas");
-    this._pipCtx = this._pipCanvas.getContext("2d", { alpha: true });
+    this._overlayCanvas = this._root.querySelector("#pipOverlay");
+    this._overlayCtx = this._overlayCanvas.getContext("2d", { alpha: true });
     this._compassRing = this._root.querySelector(".compass-outer-ring");
-    this._compassTextLayer = this._root.querySelector(".compass-text-layer");
-    this._compassMarkers = [...this._root.querySelectorAll(".compass-marker")];
     this._seasonRing = this._root.querySelector("#season-ring");
-    this._phaseSlots = [...this._root.querySelectorAll(".moon-phase-dot")];
-    this._grassImg = new Image();
-    this._grassImg.src = "./SacredOnes.1/assets/landscape/grass_seamless.png";
-    this._grassImg.onload = () => {
-      if (this._pipCtx)
-        this._grassPattern = this._pipCtx.createPattern(
-          this._grassImg,
-          "repeat",
-        );
-    };
+    this._pipOverlayRing();
+    queueMicrotask(() => this._syncPipOverlaySize());
     this._root.querySelectorAll(".season-btn").forEach((btn) => {
       btn.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -184,13 +283,10 @@ export const UIModule = {
     window.addEventListener("message", this._onMessage);
     const hint = document.getElementById("v2-hint");
     if (hint) hint.style.display = "none";
-    this._panelFrame.addEventListener("load", () =>
-      this._hideEmbeddedPanelPIP(),
-    );
+    this._panelFrame.src = "about:blank";
     window.pipCanvas2D = this._pipCanvas;
-    window.pipCtx = this._pipCtx;
     console.log(
-      "%c[PanelsPIP] ✅ Panel iframe + lightweight PIP loaded",
+      "%c[PanelsPIP] ✅ Legacy moondial layout (SacredGame.Panel) — compass · PiP · MoonDial iframe",
       "color:#81d4fa;font-weight:bold;",
     );
   },
@@ -202,14 +298,12 @@ export const UIModule = {
     const pill = this._root && this._root.querySelector("#v2-distance-pill");
     if (pill && frameCount % 10 === 0)
       pill.textContent = `${Math.round(player.distanceFeet)} ft travelled`;
-    if (frameCount % 3 === 0) this._syncCompass(player.yaw);
+    this._syncCompass(player.yaw);
+    if (frameCount % 45 === 0) this._syncPipOverlaySize();
     if (frameCount - this._lastMoonUpdate >= 30) {
       this._lastMoonUpdate = frameCount;
       this._syncMoonDial();
     }
-    if (frameCount - this._lastPipDraw < 4) return;
-    this._lastPipDraw = frameCount;
-    this._drawPIP(player);
   },
 
   unload() {
@@ -217,18 +311,11 @@ export const UIModule = {
     this._root = null;
     this._panelFrame = null;
     this._pipCanvas = null;
-    this._pipCtx = null;
     this._compassRing = null;
-    this._compassTextLayer = null;
-    this._compassMarkers = [];
     this._seasonRing = null;
-    this._phaseSlots = [];
-    this._grassImg = null;
-    this._grassPattern = null;
     if (this._onMessage) window.removeEventListener("message", this._onMessage);
     this._onMessage = null;
     if (window.pipCanvas2D) window.pipCanvas2D = null;
-    if (window.pipCtx) window.pipCtx = null;
     const hint = document.getElementById("v2-hint");
     if (hint) hint.style.display = "";
     console.log("[PanelsPIP] ⏹ Unloaded.");
@@ -238,15 +325,6 @@ export const UIModule = {
     const deg = (yaw * 180) / Math.PI;
     if (this._compassRing)
       this._compassRing.style.transform = `rotate(${deg}deg)`;
-    if (this._compassTextLayer)
-      this._compassTextLayer.style.transform = `rotate(${deg}deg)`;
-    for (const marker of this._compassMarkers) {
-      if (marker.classList.contains("e") || marker.classList.contains("w")) {
-        marker.style.transform = `translateY(-50%) rotate(${-deg}deg)`;
-      } else {
-        marker.style.transform = `translateX(-50%) rotate(${-deg}deg)`;
-      }
-    }
   },
 
   _setSeason(season) {
@@ -259,6 +337,10 @@ export const UIModule = {
     ];
     if (this._seasonRing)
       this._seasonRing.style.transform = `rotate(${rotation}deg)`;
+    dispatchInteraction(ANU_EVENTS.SEASON_CHANGE, {
+      season,
+      time: this._gameTime,
+    });
     window.dispatchEvent(
       new CustomEvent("v2-season-change", {
         detail: { season, time: this._gameTime },
@@ -268,14 +350,53 @@ export const UIModule = {
   },
 
   _syncMoonDial() {
-    const phase = Math.floor((this._gameTime / 24) * 8) % 8;
-    for (const dot of this._phaseSlots) {
-      dot.classList.toggle("active", Number(dot.dataset.phase) === phase);
-    }
     if (this._seasonRing && this._season === "day") {
       const dialAngle = ((this._gameTime - 12) / 24) * 360;
       this._seasonRing.style.transform = `rotate(${dialAngle}deg)`;
     }
+  },
+
+  _syncPipOverlaySize() {
+    const dial = this._root && this._root.querySelector("#moondial-wrapper");
+    if (!dial || !this._overlayCanvas) return;
+    const pr = Math.min(window.devicePixelRatio || 1, 1.25);
+    const rw = Math.max(64, Math.floor(dial.clientWidth * pr));
+    const rh = Math.max(64, Math.floor(dial.clientHeight * pr));
+    if (
+      this._overlayCanvas.width === rw &&
+      this._overlayCanvas.height === rh
+    )
+      return;
+    this._overlayCanvas.width = rw;
+    this._overlayCanvas.height = rh;
+    this._pipOverlayRing();
+  },
+
+  /** GPS-style player ring — drawn over WebGL PiP (center = avatar). */
+  _pipOverlayRing() {
+    const ov = this._overlayCanvas;
+    const ctx = this._overlayCtx;
+    if (!ov || !ctx) return;
+    const w = ov.width;
+    const h = ov.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = Math.min(w, h) * 0.32;
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.strokeStyle = "rgba(251,192,45,0.44)";
+    ctx.lineWidth = Math.max(2, w * 0.009);
+    ctx.setLineDash([5, 6]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(255,255,255,0.07)";
+    ctx.lineWidth = Math.max(1, w * 0.004);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   },
 
   _hideEmbeddedPanelPIP() {
@@ -287,94 +408,5 @@ export const UIModule = {
       style.textContent = "#moondial-wrapper{display:none!important;}";
       doc.head.appendChild(style);
     } catch (_err) {}
-  },
-
-  _drawPIP(player) {
-    const ctx = this._pipCtx;
-    if (!ctx) return;
-    const w = this._pipCanvas.width;
-    const h = this._pipCanvas.height;
-    const cx = w / 2;
-    const cy = h / 2;
-    ctx.clearRect(0, 0, w, h);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, cx - 4, 0, Math.PI * 2);
-    ctx.clip();
-
-    if (this._grassPattern) {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(player.yaw);
-      ctx.scale(0.42, 0.42);
-      ctx.translate(
-        -cx / 0.42 - player.position.x * 42,
-        -cy / 0.42 - player.position.z * 42,
-      );
-      ctx.fillStyle = this._grassPattern;
-      ctx.fillRect(-w * 3, -h * 3, w * 7, h * 7);
-      ctx.restore();
-    } else {
-      const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, cx);
-      grad.addColorStop(0, "#7dad58");
-      grad.addColorStop(0.58, "#3d6f31");
-      grad.addColorStop(1, "#14220f");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-    }
-
-    ctx.fillStyle = "rgba(34,80,24,0.22)";
-    ctx.fillRect(0, 0, w, h);
-
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(player.yaw);
-    ctx.translate(-cx, -cy);
-
-    ctx.strokeStyle = "rgba(255,236,160,0.09)";
-    ctx.lineWidth = 1;
-    for (let i = -10; i <= 10; i++) {
-      const offX = cx + ((player.position.x * 8 + i * 28) % 28) - 14;
-      const offZ = cy + ((player.position.z * 8 + i * 28) % 28) - 14;
-      ctx.beginPath();
-      ctx.moveTo(offX, 0);
-      ctx.lineTo(offX, h);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, offZ);
-      ctx.lineTo(w, offZ);
-      ctx.stroke();
-    }
-
-    ctx.strokeStyle = "rgba(20,55,16,0.32)";
-    ctx.lineWidth = 10;
-    ctx.beginPath();
-    ctx.moveTo(cx - 110, cy + 44);
-    ctx.bezierCurveTo(cx - 52, cy + 20, cx + 18, cy - 15, cx + 108, cy - 38);
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(126,181,92,0.38)";
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.restore();
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(-player.yaw);
-    ctx.fillStyle = "#fbc02d";
-    ctx.beginPath();
-    ctx.moveTo(0, -18);
-    ctx.lineTo(11, 12);
-    ctx.lineTo(0, 7);
-    ctx.lineTo(-11, 12);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    ctx.strokeStyle = "rgba(255,255,255,0.18)";
-    ctx.lineWidth = 10;
-    ctx.beginPath();
-    ctx.arc(cx, cy, cx - 8, 0, Math.PI * 2);
-    ctx.stroke();
   },
 };

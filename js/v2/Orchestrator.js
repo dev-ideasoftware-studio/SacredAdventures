@@ -12,13 +12,22 @@
  */
 
 import * as THREE from 'three';
+import {
+  V2_PIP_ORTHO_WIDTH,
+  V2_PIP_ORTHO_ZOOM,
+  V2_TARGET_FPS,
+} from "./constants.js";
+import { shouldRenderPipSceneThisFrame } from "./anu/RenderingGovernor.js";
+import { dispatchInteraction } from "./anu/InteractionBus.js";
+import { ANU_EVENTS } from "./anu/anuEvents.js";
+import { recordFrameDuration } from "./anu/FrameBudget.js";
+import { tickAdaptiveRenderPolicy } from "./anu/AdaptiveRenderPolicy.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 const BENCH_FRAMES   = 180;   // frames to average for a benchmark
 const SMOOTH_ALPHA   = 0.05;  // EMA smoothing for live FPS
-const TARGET_FPS = 120;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ORCHESTRATOR CLASS
@@ -28,13 +37,13 @@ export class Orchestrator {
     // ── Renderer ──────────────────────────────────────────────────────────
     this.renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: true,
+      antialias: false,
       powerPreference: "high-performance",
     });
     // Cap at 1.0 so high-DPI screens don't 4x the pixel fill and cap below 120
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = false;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
@@ -66,6 +75,15 @@ export class Orchestrator {
 
     // ── Benchmarking state ────────────────────────────────────────────────
     this._bench = null; // { name, frames, totalDelta, baselineFPS }
+    /** Serial bench queue — avoids overlapping intervals when many modules activate before FPS warmup */
+    this._benchQueue = [];
+    this._warmupPoll = null;
+
+    // ── Moondial PiP (second WebGL context → ortho top-down; policy in anu/RenderingGovernor.js) ──
+    this._pipRenderer = null;
+    this._pipOrtho = null;
+    this._pipW = 0;
+    this._pipH = 0;
 
     // ── HUD ───────────────────────────────────────────────────────────────
     this._hud = this._buildHUD();
@@ -135,28 +153,61 @@ export class Orchestrator {
     this._activeModules.push(name);
     this._updateHUD();
 
-    // Start benchmark after EMA warmup
-    if (!this._fpsReady) {
-      console.log(
-        `[Orchestrator] Waiting for FPS warmup before benchmarking ${name}…`,
-      );
-      const waitBench = setInterval(() => {
-        if (this._fpsReady) {
-          clearInterval(waitBench);
-          this._bench = {
-            name,
-            frames: 0,
-            totalDelta: 0,
-            baselineFPS: this.smoothFPS,
-          };
-          console.log(
-            `[Orchestrator] ⏱ Benchmarking ${name} (baseline ${this.smoothFPS.toFixed(1)} FPS)`,
-          );
-        }
-      }, 200);
-    } else {
-      this._bench = { name, frames: 0, totalDelta: 0, baselineFPS };
+    dispatchInteraction(ANU_EVENTS.MODULE_ACTIVATED, { name });
+
+    this._scheduleBenchForModule(name);
+  }
+
+  /**
+   * One benchmark at a time; queues extras until FPS EMA is meaningful.
+   */
+  _scheduleBenchForModule(name) {
+    if (this._bench) {
+      this._benchQueue.push(name);
+      return;
     }
+
+    const MIN_BASELINE = 8;
+    if (!this._fpsReady || this.smoothFPS < MIN_BASELINE) {
+      this._benchQueue.push(name);
+      if (!this._warmupPoll) {
+        console.log(
+          "%c[Orchestrator] FPS warmup — benchmarks queued until EMA stabilizes (smoothFPS ≥ 8).",
+          "color:#81d4fa;",
+        );
+        this._warmupPoll = setInterval(() => {
+          if (this._fpsReady && this.smoothFPS >= MIN_BASELINE) {
+            clearInterval(this._warmupPoll);
+            this._warmupPoll = null;
+            this._processBenchQueue();
+          }
+        }, 200);
+      }
+      return;
+    }
+
+    this._beginBench(name);
+  }
+
+  _processBenchQueue() {
+    if (this._bench || this._benchQueue.length === 0) return;
+    const next = this._benchQueue.shift();
+    this._beginBench(next);
+  }
+
+  _beginBench(name) {
+    const MIN_BASELINE = 8;
+    const baselineFPS = Math.max(this.smoothFPS, MIN_BASELINE);
+    this._bench = {
+      name,
+      frames: 0,
+      totalDelta: 0,
+      baselineFPS,
+    };
+    console.log(
+      `%c[Orchestrator] ⏱ Benchmarking ${name} (baseline ${baselineFPS.toFixed(1)} FPS)`,
+      "color:#fbc02d;font-weight:bold;",
+    );
   }
 
   /** Deactivate a module — calls unload(), removes from loop */
@@ -166,15 +217,20 @@ export class Orchestrator {
     entry.module.unload(this.scene);
     entry.active = false;
     this._activeModules = this._activeModules.filter(n => n !== name);
+    dispatchInteraction(ANU_EVENTS.MODULE_DEACTIVATED, { name });
     console.log(`%c[Orchestrator] ⏹ Deactivated: ${name}`, 'color:#ef9a9a;');
     this._updateHUD();
   }
 
-  /** Toggle a module on/off */
-  toggle(name) {
+  /** Toggle a module on/off (await when turning on — async load) */
+  async toggle(name) {
     const entry = this._registry.get(name);
     if (!entry) return;
-    entry.active ? this.deactivate(name) : this.activate(name);
+    if (entry.active) {
+      this.deactivate(name);
+    } else {
+      await this.activate(name);
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -188,6 +244,8 @@ export class Orchestrator {
 
   _loop() {
     requestAnimationFrame(() => this._loop());
+
+    const frameT0 = performance.now();
 
     const delta = Math.min(this.clock.getDelta(), 0.1);
     this._frameCount++;
@@ -226,11 +284,16 @@ export class Orchestrator {
 
     // ── Render ────────────────────────────────────────────────────────────
     this.renderer.render(this.scene, this.camera);
+    this._renderPip();
 
     // ── HUD update (every 20 frames) ──────────────────────────────────────
     if (this._frameCount % 20 === 0) {
       this._updateHUDValues();
     }
+
+    const frameMs = performance.now() - frameT0;
+    recordFrameDuration(frameMs);
+    tickAdaptiveRenderPolicy(frameMs);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -250,9 +313,17 @@ export class Orchestrator {
       'color:#fbc02d;font-weight:bold;'
     );
 
+    dispatchInteraction(ANU_EVENTS.ORCHESTRATOR_BENCH_COMPLETE, {
+      name: b.name,
+      avgFPS,
+      cost,
+      baselineFPS: b.baselineFPS,
+    });
+
     this._bench = null;
     this._updateHUD();
     this._recommendNextModule();
+    this._processBenchQueue();
   }
 
   /** After each bench, console-recommend the cheapest unloaded module to add next */
@@ -289,7 +360,7 @@ export class Orchestrator {
   report() {
     const r = this.renderer.info.render;
     console.group('%c[Orchestrator] 📋 Full Status Report', 'color:#fbc02d;font-weight:bold;font-size:13px;');
-    console.log(`FPS: ${this.smoothFPS.toFixed(1)} smooth | ${this.rawFPS.toFixed(1)} raw | Target: ${TARGET_FPS}`);
+    console.log(`FPS: ${this.smoothFPS.toFixed(1)} smooth | ${this.rawFPS.toFixed(1)} raw | Target: ${V2_TARGET_FPS}`);
     console.log(`Draw calls: ${r.calls} | Triangles: ${r.triangles} | Frame: ${this._frameCount}`);
     console.log(`Active modules (${this._activeModules.length}):`, this._activeModules.join(', ') || 'none');
     console.log('Module registry:');
@@ -389,7 +460,7 @@ export class Orchestrator {
 
     const r = this.renderer.info.render;
     if (drawEl)
-      drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles / 1000).toFixed(1)}k | monitor: ${window._detectedHz || ".."}hz`;
+      drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles / 1000).toFixed(1)}k · main · ${window._detectedHz || ".."}hz · PiP=2nd GL`;
 
     if (benchEl) {
       if (this._bench) {
@@ -409,5 +480,101 @@ export class Orchestrator {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this._pipW = 0;
+    this._pipH = 0;
+  }
+
+  /**
+   * Moondial minimap: orthographic camera framing `V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM` world units wide.
+   */
+  _ensurePipPipeline(canvasEl) {
+    if (this._pipRenderer) return;
+    const pr = Math.min(window.devicePixelRatio || 1, 1.25);
+    const rect = canvasEl.getBoundingClientRect();
+    const w = Math.max(160, Math.floor(rect.width * pr));
+    const h = Math.max(160, Math.floor(rect.height * pr));
+    canvasEl.width = w;
+    canvasEl.height = h;
+    this._pipW = w;
+    this._pipH = h;
+
+    this._pipRenderer = new THREE.WebGLRenderer({
+      canvas: canvasEl,
+      alpha: true,
+      antialias: false,
+      powerPreference: 'low-power',
+    });
+    this._pipRenderer.setPixelRatio(1);
+    this._pipRenderer.setSize(w, h, false);
+    if (this.renderer.outputColorSpace !== undefined)
+      this._pipRenderer.outputColorSpace = this.renderer.outputColorSpace;
+    this._pipRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this._pipRenderer.toneMappingExposure = this.renderer.toneMappingExposure;
+
+    const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM;
+    const aspect = w / Math.max(1, h);
+    const halfW = span / 2;
+    const halfH = halfW / aspect;
+    this._pipOrtho = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.5, 520);
+
+    console.log(
+      `%c[Orchestrator] PiP ortho active — ${span.toFixed(2)} world units wide (base × ${V2_PIP_ORTHO_ZOOM} zoom-out)`,
+      'color:#81d4fa;font-weight:bold;',
+    );
+  }
+
+  _resizePipIfNeeded(canvasEl) {
+    if (!this._pipRenderer || !this._pipOrtho) return;
+    const pr = Math.min(window.devicePixelRatio || 1, 1.25);
+    const rect = canvasEl.getBoundingClientRect();
+    const w = Math.max(160, Math.floor(rect.width * pr));
+    const h = Math.max(160, Math.floor(rect.height * pr));
+    if (w === this._pipW && h === this._pipH) return;
+    this._pipW = w;
+    this._pipH = h;
+    canvasEl.width = w;
+    canvasEl.height = h;
+    this._pipRenderer.setSize(w, h, false);
+
+    const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM;
+    const aspect = w / Math.max(1, h);
+    const halfW = span / 2;
+    const halfH = halfW / aspect;
+    this._pipOrtho.left = -halfW;
+    this._pipOrtho.right = halfW;
+    this._pipOrtho.top = halfH;
+    this._pipOrtho.bottom = -halfH;
+    this._pipOrtho.updateProjectionMatrix();
+  }
+
+  _renderPip() {
+    if (!shouldRenderPipSceneThisFrame()) return;
+
+    const wp = window.WorldPlayer;
+    if (!wp || !wp.feet) return;
+
+    const pipCanvas = document.getElementById('pipCanvas');
+    if (!pipCanvas) return;
+
+    if (!this._pipRenderer) this._ensurePipPipeline(pipCanvas);
+    if (!this._pipRenderer || !this._pipOrtho) return;
+
+    this._resizePipIfNeeded(pipCanvas);
+
+    const feet = wp.feet;
+    const elev = 78;
+    this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
+    this._pipOrtho.up.set(0, 1, 0);
+    this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
+
+    const fog = this.scene.fog;
+    const bg = this.scene.background;
+    this.scene.fog = null;
+    this.scene.background = null;
+
+    this._pipRenderer.render(this.scene, this._pipOrtho);
+
+    this.scene.fog = fog;
+    this.scene.background = bg;
   }
 }

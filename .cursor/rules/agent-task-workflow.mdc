@@ -1,0 +1,103 @@
+---
+description: Echo each instruction, track todos in real time, validate before closing every task
+alwaysApply: true
+---
+
+# Agent task workflow (every substantive instruction)
+
+## When this applies
+
+Use the full workflow for **any coding, configuration, or multi-step request**. Skip only for pure chat (“thanks”, “hello”, one-line clarification with no work).
+
+## 1. Instruction “card” (start of work)
+
+In the **first reply** after the user’s instruction:
+
+- Output an **Instruction** section so the goal is visible at a glance (Cursor does not provide a separate modal API; this block is the visible anchor):
+
+  Use a blockquote with the user’s request (verbatim or a faithful short paraphrase). For long requests, use bullets for deliverables.
+
+## 2. Live task list (real-time progress)
+
+Immediately use **todos** for this request:
+
+1. Create todos that **decompose the instruction** into concrete steps (setup → implement → verify).
+2. Set the **first** item to `in_progress`; others `pending`.
+3. As you work: mark the current item **completed**, set the next **in_progress**. Never leave multiple items `in_progress`.
+4. Add todos if scope emerges; cancel items that become irrelevant.
+
+This gives **real-time visibility** in Cursor’s todo UI for what is being worked on.
+
+## 3. Validation gate (before “done”)
+
+**Do not** mark the last todo completed until validation has run.
+
+After implementation, run **debug / validation** appropriate to what changed:
+
+| Change type | Minimum checks |
+|---------------|----------------|
+| Edited JS / TS | `read_lints` on every touched path; for classic Node scripts without `import`, run `node --check file.js` when applicable |
+| Build / test scripts exist | Run the project’s test or lint script if present |
+| HTML / static only | Sanity: paths and references mentioned in the reply |
+
+### 3.1 Anu pipeline check (mandatory final step)
+
+Before the task is **closed**, every substantive change must include an **Anu** validation pass as the **last** check (after lints / tests above):
+
+1. **If** any of `js/v2/**`, `js/v2/anu/**`, `index.v2.html`, or `.cursor/rules/sacred-v2-render-pipeline.mdc` was edited **or** the work could affect render boot, PiP, Orchestrator loop, `constants.js` (`V2_PIP_*`), Trees, V2Panel, or `AnuModule.js`:
+   - Re-read `js/v2/AnuModule.js` (`ANU_PIPELINE_MEMORY`, `evaluateLivePipelineRisk`) and confirm the change does **not** reintroduce a recorded incident (e.g. full-rate PiP every frame without intent, mutating the `three` namespace, treating HUD tri counts as total GPU).
+   - Run `read_lints` on `js/v2/AnuModule.js` if that file or its imports (`constants.js`, etc.) were touched.
+2. **If** the change is **unrelated** to the game shell (e.g. only docs outside `js/v2` / unrelated assets), state in **Validation** that **Anu: N/A** with one-line reason.
+
+Then in the **final** reply (same turn as completing todos), include a **Validation** subsection that **must** list:
+
+- What was run (e.g. read_lints paths, node --check)
+- **Anu:** outcome per §3.1 (or **Anu: N/A**)
+- Outcome: PASS, PASS with notes, or FAIL with reason
+
+If FAIL, fix or explain before marking todos complete.
+
+## 4. Completion order
+
+1. Finish code/config changes  
+2. Run validation (lints / tests, then **§3.1 Anu** as the final check)  
+3. Write **Validation** + short results summary (including **Anu** line)  
+4. Mark **all** related todos **completed**  
+5. Final user-facing summary  
+
+This order is **mandatory** for every substantive instruction.
+
+## 5. Quality bar — avoid bare-minimum work
+
+**Bare-minimum patches** (only the lines that silence an error, copy-paste without reading callers, “good enough” CSS) **look** fast but **cost** extra rounds: regressions, missed edge cases, and repeated user prompts. That is **counter-productive**.
+
+Default stance:
+
+- **Read before writing** — open the surrounding file, imports, and one level of callers so the change fits the system.
+- **Match existing style** — naming, formatting, and abstractions already in the file win over personal preference.
+- **Finish the slice** — if you touch a feature path, complete the happy path + the obvious failure mode (null guard, empty list, missing asset) unless the user explicitly narrowed scope.
+- **Say what you skipped** — if something is out of scope, name it in the summary so the user is not surprised later.
+
+## 6. When “1:1” / visual or behavioral parity is requested
+
+Treat **pixel- or behavior-identical** goals as **multi-phase**, not a single edit pass. **Skipping phases causes rework** — the user asked to avoid repeat cycles.
+
+Required phases (each can be a todo):
+
+1. **Source inventory** — Full list of what the reference actually uses: CSS selectors, custom properties, fonts, stacking contexts, breakpoints; for Three.js / WebGL: renderer options, color space / tone mapping, scene fog/lights, camera FOV/near/far, materials, shaders, loaders, and any `window.*` bridges.
+2. **Gap analysis** — Explicit checklist: reference vs current implementation; mark **match / missing / different**.
+3. **Implementation** — Apply **all** gaps in one coherent pass for that milestone (avoid landing half the tokens and calling it done).
+4. **Grep parity validation** — Run **rigorous** comparisons (see `.cursor/rules/sacred-fidelity-parity.mdc`): distinctive strings (hex colors, class names, uniform/shader hooks, `THREE.` symbols) must appear in the new code where intended; document intentional exceptions.
+5. **Final validation** — Lints, **Anu** if applicable, then state what a human should confirm in the browser if the agent cannot.
+
+The final reply for parity work must include a short **Parity** subsection: phases completed, grep checks run, and any remaining deltas.
+
+## 7. Final reply structure (substantive work)
+
+Include these **when applicable** (omit only what does not apply):
+
+- **Instruction** (quoted / summarized)
+- **What changed** — files and behavior
+- **Parity** — only if 1:1 / fidelity was in scope (§6)
+- **Validation** — tools run, **Anu** line, PASS / notes
+- **Summary** — one tight paragraph

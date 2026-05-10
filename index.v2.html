@@ -38,7 +38,7 @@
       text-align: center;
       pointer-events: none;
       backdrop-filter: blur(4px);
-      z-index: 9998;
+      z-index: 8500;
       transition: opacity 0.5s;
     }
     #v2-banner b { color: #a5d6a7; }
@@ -52,7 +52,7 @@
       color: rgba(255,255,255,0.35);
       font-size: 10px;
       pointer-events: none;
-      z-index: 9998;
+      z-index: 8600;
       line-height: 1.8;
     }
   </style>
@@ -91,8 +91,8 @@
   <canvas id="v2-canvas"></canvas>
 
   <div id="v2-banner">
-    <b>Sacred Adventures v2</b> — Phase 1: Clean World
-    <small>W/S or ↑↓ = move · ←→ arrows = turn · A/D = strafe</small>
+    <b>Sacred Adventures v2</b> — Phase 2: World + forest
+    <small>W/S or ↑↓ = move · ←→ = turn in place · A/D = strafe · SPACE = jump</small>
   </div>
 
   <div id="v2-hint">
@@ -105,7 +105,10 @@
   <script type="module">
     import { Orchestrator } from './js/v2/Orchestrator.js';
     import { WorldModule }  from './js/v2/World.js';
+    import { TreesModule }  from './js/v2/Trees.js';
     import { UIModule }     from './js/v2/UIModule.js';
+    import { V2PanelModule } from './js/v2/V2Panel.js';
+    import { AnuModule }    from './js/v2/AnuModule.js';
 
     // ── Boot ────────────────────────────────────────────────────────────
     const canvas = document.getElementById('v2-canvas');
@@ -113,21 +116,27 @@
 
     // ── Register all modules (inactive until activated) ──────────────────
     orc.register(WorldModule);
+    orc.register(TreesModule);
     orc.register(UIModule);
+    orc.register(V2PanelModule);
+    orc.register(AnuModule);
 
     // Future modules will be registered here as they are built:
-    // orc.register(TreesModule);
     // orc.register(NPCModule);
     // orc.register(AnimalsModule);
     // orc.register(JournalModule);
     // orc.register(VillageMapModule);
     // orc.register(FuzzyBrainModule);
-    // orc.register(AnuModule);
     // orc.register(UIHUDModule);
 
-    // ── Phase 1: Activate World, benchmark it, then stop ────────────────
+    // ── Phase 2: World + forest + panels (benchmarks each add-on in order) ─
     await orc.activate('World');
+    await orc.activate('Trees');
     await orc.activate('PanelsPIP');
+    await orc.activate('Anu');
+    // Guides / neumorphic control deck + ThreeIcons (heavy second WebGL pass) — off for perf.
+    // await orc.activate('V2Panel');
+    // To re-enable:  await orc.activate('V2Panel');
 
     // ── Start render loop ────────────────────────────────────────────────
     orc.start();
@@ -140,15 +149,15 @@
 
     // ── Console welcome ──────────────────────────────────────────────────
     console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
-    console.log('%c  Sacred Adventures v2 — Phase 1: Clean World  ', 'color:#fbc02d;font-weight:bold;font-size:13px;background:#111;padding:4px 8px;');
+    console.log('%c  Sacred Adventures v2 — Phase 2: World + forest  ', 'color:#fbc02d;font-weight:bold;font-size:13px;background:#111;padding:4px 8px;');
     console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
     console.log('');
-    console.log('%cThis is the BASELINE. Only the World module is loaded.', 'color:#a5d6a7;');
+    console.log('%cWorld + Trees + PanelsPIP + Anu (pipeline memory). V2Panel off — Orchestrator.activate("V2Panel") to restore.', 'color:#a5d6a7;');
     console.log('%cWait ~3s for the FPS benchmark to complete, then call:', 'color:#aaa;');
     console.log('%c  Orchestrator.report()', 'color:#ce93d8;font-weight:bold;');
     console.log('');
-    console.log('%cTo add the next module (once registered):', 'color:#aaa;');
-    console.log('%c  Orchestrator.activate("Trees")', 'color:#81d4fa;');
+    console.log('%cTo toggle forest:', 'color:#aaa;');
+    console.log('%c  Orchestrator.toggle("Trees")', 'color:#81d4fa;');
     console.log('');
   </script>
 </body>
