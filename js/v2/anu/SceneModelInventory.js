@@ -7,8 +7,8 @@ import * as THREE from "three";
 import { dispatchInteraction } from "./InteractionBus.js";
 import { ANU_EVENTS } from "./anuEvents.js";
 
-/** How often SacredOrchestrator refreshes the inventory (frames). */
-export const SCENE_INVENTORY_INTERVAL_FRAMES = 90;
+/** How often SacredOrchestrator refreshes the inventory (frames). Slightly relaxed vs every-90f to cut traverse cost on large forests. */
+export const SCENE_INVENTORY_INTERVAL_FRAMES = 120;
 
 /** Max rows in `entries` per snapshot — summary counts remain exact. */
 const MAX_ENTRY_ROWS = 5000;

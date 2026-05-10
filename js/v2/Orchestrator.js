@@ -11,6 +11,8 @@
  *  6. Expose the live shell as window.anuOrchestrator (canonical). window.Orchestrator is a
  *     legacy alias for the same instance. Class SacredOrchestrator ≠ global: import the class,
  *     use window.anuOrchestrator for the singleton engine at runtime.
+ *  7. After AnuModule loads, window.AnuUniverse is the primary governance + sensor portal
+ *     (exports, audit, InteractionBus). Engine HUD stays on anuOrchestrator.report().
  */
 
 import * as THREE from 'three';
@@ -143,7 +145,7 @@ export class SacredOrchestrator {
     );
     console.log("[SacredOrchestrator] Renderer:", this.renderer.info.render);
     console.log(
-      "[SacredOrchestrator] Call anuOrchestrator.report() for full status (canonical global).",
+      "[SacredOrchestrator] anuOrchestrator.report() — engine HUD · AnuUniverse.report() — governance + sensors (after activate('Anu')).",
     );
   }
 
@@ -459,6 +461,25 @@ export class SacredOrchestrator {
       console.log(`  ${status}  ${name}  [${cost}]`);
     }
     console.log("Runtime services:", getRuntimeServicesSnapshot());
+    if (typeof window !== "undefined" && window.AnuUniverse?.audit) {
+      const alerts = window.AnuUniverse.audit();
+      if (Array.isArray(alerts) && alerts.length > 0) {
+        console.log(
+          "%c[Anu Universe] Live audit alerts",
+          "color:#ffab91;font-weight:bold;",
+          alerts,
+        );
+      } else {
+        console.log(
+          "%c[Anu Universe] Live audit: no scripted pipeline warnings (see AnuUniverse.report() for full sensors)",
+          "color:#a5d6a7;",
+        );
+      }
+      console.log(
+        "%c[Anu Universe] exportWorldSensoriumJson() · exportGovernanceJson() · exportStressJson() · exportFuzzyPipelineJson()",
+        "color:#81d4fa;",
+      );
+    }
     console.groupEnd();
   }
 
