@@ -68,13 +68,36 @@ export const V2_TIPI_SACRED_PLATFORM_HEIGHT = 0.22;
 /** Lift cylinder center above sampled terrain Y so platform reads “raised”. */
 export const V2_TIPI_SACRED_PLATFORM_CENTER_Y = 0.05;
 
+/**
+ * Brazier hearth — metres from hex origin on XZ; Y uses sacred deck top + `V2_TIPI_BRAZIER_ABOVE_DECK_M`.
+ * Positions hearth flame/light inside modeled bowl near seated YB.
+ */
+export const V2_TIPI_BRAZIER_WORLD_X_M = 0.04;
+export const V2_TIPI_BRAZIER_WORLD_Z_M = -0.06;
+/** Flame/light origin above cylinder deck — clears rim, reads inside brazier. */
+export const V2_TIPI_BRAZIER_ABOVE_DECK_M = 0.055;
+/** Local Y inside flame group (bowl cradle). */
+export const V2_TIPI_BRAZIER_FIRE_LOCAL_Y_M = 0.02;
+/** Smoke emitter offset above bounding-box apex toward smoke flap (m). */
+export const V2_TIPI_SMOKE_ABOVE_APEX_M = 0.18;
+
 /** `Assets/NPC.YB.glb` — seated beside / inside tipi 1 (world metres, relative to hex center). */
 export const V2_NPC_YB_TIPI1_LOCAL_X_M = 0.28;
 export const V2_NPC_YB_TIPI1_LOCAL_Z_M = -0.4;
-/** Visual height of the rig after uniform scale (seated read). */
+/** Nominal seated rig height **before** `V2_NPC_YB_TIPI1_SIZE_MULTIPLIER`. */
 export const V2_NPC_YB_TIPI1_TARGET_HEIGHT_M = 1.52;
+/** Additional uniform scale vs target (e.g. `0.5` → half previous on-screen height). */
+export const V2_NPC_YB_TIPI1_SIZE_MULTIPLIER = 0.5;
+/**
+ * Rig Y rotation (rad) after glTF load — tuned so NPC **front** faces world **+Z** (“South”),
+ * matching travel-arrow convention (approach from +Z sees her face-on).
+ */
+export const V2_NPC_YB_TIPI1_MODEL_YAW_RAD = Math.PI / 2;
+
 /** Fine vertical nudge after sole alignment (negative = sink slightly into seat cushion). */
 export const V2_NPC_YB_TIPI1_VERTICAL_TRIM_M = -0.035;
+/** Extra downward seating shift — ~6 imperial inches toward cushions/circle (m). */
+export const V2_NPC_YB_TIPI1_SEAT_LOWER_M = 6 * 0.0254;
 
 /** Avatar figurine: when grounded, soles sit this far above analytic terrain (avoids Z-fight / sinking disc). */
 export const V2_AVATAR_GROUNDED_FEET_OFFSET_M = 0.012;
@@ -101,6 +124,12 @@ export const V2_AVATAR_TARGET_HEIGHT_M =
 /** Ground travel circle + arrow radius — scales with avatar vs legacy 1.72 m ring. */
 export const V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M = 1.72 * 0.7 * V2_AVATAR_GAMEPLAY_SCALE;
 
+/** YB gold travel ring radius (half-scale NPC vs player footprint). */
+export const V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M =
+  V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M * 0.5;
+/** YB disc / ring / arrow lift above seated origin. */
+export const V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M = V2_AVATAR_TRAVEL_CIRCLE_LIFT_M * 0.85;
+
 /** Max horizontal speed from World steering when movement keys / autowalk are active (m/s). */
 export const V2_PLAYER_MOVE_SPEED_MPS = 7.0;
 
@@ -110,3 +139,19 @@ export const V2_PLAYER_MOVE_SPEED_MPS = 7.0;
 export const V2_AVATAR_WALK_ANIM_REF_SPEED_MPS = 3.35;
 export const V2_AVATAR_WALK_ANIM_TIME_SCALE_MIN = 0.42;
 export const V2_AVATAR_WALK_ANIM_TIME_SCALE_MAX = 2.4;
+
+// ── Flora — Moondial seasons (`ANU_EVENTS.SEASON_CHANGE`) tint leaf instances ──
+
+/** Per-season multipliers on `THREE.Color.multiply` — keys match `UIModule._setSeason`. */
+export const SEASON_SURFACE_TINTS = Object.freeze({
+  day: Object.freeze({ trees: 0xffffff }),
+  night: Object.freeze({ trees: 0x8899bb }),
+  dawn: Object.freeze({ trees: 0xffefd5 }),
+  dusk: Object.freeze({ trees: 0xffb87a }),
+  gray: Object.freeze({ trees: 0xb8bcc8 }),
+});
+
+/**
+ * Horizontal spread vs legacy width mult `(0.88 + rnd*0.58) * sf`; `1` matches EnvironmentBuilder feel.
+ */
+export const V2_FLORA_TREE_HORIZONTAL_SPREAD = 1.0;
