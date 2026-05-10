@@ -27,7 +27,8 @@ function mulberry32(seed) {
   };
 }
 
-const DAY_VERTEX = /* glsl */ `
+/** Shader snippets are compiled by Three.js with a prelude (uniforms/attributes); not standalone GLSL. */
+const DAY_VERTEX = `
 varying vec3 vWorldPos;
 void main() {
   vec4 w = modelMatrix * vec4(position, 1.0);
@@ -36,7 +37,7 @@ void main() {
 }
 `;
 
-const DAY_FRAGMENT = /* glsl */ `
+const DAY_FRAGMENT = `
 precision highp float;
 varying vec3 vWorldPos;
 uniform vec3 uCameraPos;
@@ -92,7 +93,7 @@ void main() {
 }
 `;
 
-const MOON_VERTEX = /* glsl */ `
+const MOON_VERTEX = `
 varying vec2 vUv;
 void main() {
   vUv = uv;
@@ -100,7 +101,7 @@ void main() {
 }
 `;
 
-const MOON_FRAGMENT = /* glsl */ `
+const MOON_FRAGMENT = `
 precision highp float;
 varying vec2 vUv;
 uniform float phaseAng;
