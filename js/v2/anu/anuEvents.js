@@ -17,6 +17,10 @@ export const ANU_EVENTS = Object.freeze({
   FUZZY_PIPELINE_SENSOR: "anu-fuzzy-pipeline-sensor",
   /** Player keyboard edge (movement / jump / turn keys only) — detail: { key, down, code, t } */
   PLAYER_KEY_EDGE: "anu-player-key-edge",
+  /** Player avatar animation changed — detail: { animation, clipName, reason } */
+  PLAYER_AVATAR_ANIMATION: "anu-player-avatar-animation",
+  /** Player/NPC proximity greeting or goodbye — detail: { phase, playerId, npcId, distance } */
+  PLAYER_NPC_GREETING: "anu-player-npc-greeting",
   /** Throttled world pose + locomotion — detail: position, yaw, grounded, walkDistance, t */
   PLAYER_STATE_SAMPLE: "anu-player-state-sample",
   /** After scene inventory refresh — detail: { at, summary, truncated, totalEntries } */

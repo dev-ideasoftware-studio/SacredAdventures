@@ -86,4 +86,6 @@ For **1:1 visual work**, follow `.cursor/rules/sacred-fidelity-parity.mdc`.
 
 | Date       | Note                                      |
 |------------|-------------------------------------------|
+| 2026-05-10 | World split (`WorldTerrain`, `WorldPhysics`, `WorldAvatar`, `WorldPlayerController`, `WorldStructures`), `RuntimeServices` + Anu snapshots, Orchestrator dual PiP (ortho map vs persp spirit), moondial/GPS overlay stacking, Playwright smoke — see `docs/V2_FILE_TIMELINE.md` |
+| 2026-05-10 | ANU governance sensorium timeline added: rules, world awareness, fuzzy bottleneck diagnosis, and boot-entry visibility |
 | 2026-05-09 | Phase 1 landed: `FrameBudget`, `AdaptiveRenderPolicy`, adaptive PiP stride |

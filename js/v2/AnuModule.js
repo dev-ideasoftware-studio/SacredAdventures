@@ -39,21 +39,25 @@ import {
   exportGovernanceJson as serializeGovernanceJson,
 } from "./anu/index.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
+import {
+  getRuntimeServicesSnapshot,
+  validateRuntimeServiceContracts,
+} from "./RuntimeServices.js";
 
 /** Incidents and invariants — append when the pipeline teaches something new. */
 export const ANU_PIPELINE_MEMORY = [
   {
     id: "pip-second-gl-context",
     learnedAt: "2026-05",
-    title: "PiP duplicates full-scene 3D pass",
+    title: "PiP second WebGL pass (ortho map vs persp spirit)",
     summary:
-      "SacredOrchestrator._renderPip() uses a second WebGLRenderer (#pipCanvas) and renders the same THREE.Scene with an orthographic camera.",
+      "SacredOrchestrator._renderPip() uses a second WebGLRenderer on #pipCanvas and renders the same THREE.Scene when V2_PIP_RENDER_EVERY_N_FRAMES > 0. When the main canvas is FPV, PiP uses an orthographic top-down camera; when the main canvas is map view, PiP uses a short perspective “spirit” camera. Cadence follows RenderingGovernor / frame stride.",
     impact:
-      "Triangle/transform cost is largely duplicated vs the main view; HUD renderer.info only reflects the main canvas.",
+      "Triangle/transform cost is largely duplicated vs the main view when PiP renders; HUD renderer.info only reflects the main canvas.",
     mitigations: [
-      "constants.js — V2_PIP_RENDER_EVERY_N_FRAMES",
+      "constants.js — V2_PIP_RENDER_EVERY_N_FRAMES (0 skips PiP)",
       "anu/RenderingGovernor.js — shouldRenderPipSceneThisFrame()",
-      "anu/AdaptiveRenderPolicy.js — raises stride under frame stress (Phase 1)",
+      "anu/AdaptiveRenderPolicy.js — raises stride under frame stress",
     ],
     files: ["js/v2/Orchestrator.js", "js/v2/constants.js", "js/v2/anu/RenderingGovernor.js"],
   },
@@ -183,6 +187,57 @@ export const ANU_PIPELINE_MEMORY = [
       "js/v2/AnuModule.js",
     ],
   },
+  {
+    id: "avatar3-player-figurine",
+    learnedAt: "2026-05",
+    title: "Avatar3 is the governed player figurine",
+    summary:
+      "World installs Assets/Avatar3.glb as the player avatar, corrects its imported facing to v2 player-forward, stores all GLB animation clips, adds a travel circle, and routes avatar/NPC greeting events through ANU.",
+    mitigations: [
+      "WorldPlayer.animations — runtime list of Avatar3 clips",
+      "WorldPlayer.avatar.userData.anuAnimationScan — scanned clip notes + semantic mapping",
+      "ANU_EVENTS.PLAYER_AVATAR_ANIMATION — animation state changes",
+      "ANU_EVENTS.PLAYER_NPC_GREETING — hello/goodbye proximity rule for population models",
+    ],
+    files: ["Assets/Avatar3.glb", "js/v2/World.js", "js/v2/anu/anuEvents.js"],
+  },
+  {
+    id: "world-collision-autowalk",
+    learnedAt: "2026-05",
+    title: "WorldPhysics owns colliders and autowalk avoidance",
+    summary:
+      "WorldPhysics now exposes circular obstacle colliders, body collision resolution, and steerAroundObstacles() so player, NPC, and wildlife locomotion can share the same avoidance rules. Tipi models are explicitly passable.",
+    mitigations: [
+      "WorldPhysics.js — add solid/passable circular XZ colliders for scene objects",
+      "WorldPhysics.steerAroundObstacles() — reusable avoidance hook before assigning NPC/wildlife/player velocity",
+      "WorldPlayerController.js — long-hold movement key state for player autowalk",
+    ],
+    files: ["js/v2/World.js", "js/v2/WorldPhysics.js", "js/v2/WorldPlayerController.js"],
+  },
+  {
+    id: "tipi-sacred-platform-legacy-parity",
+    learnedAt: "2026-05",
+    title: "Tipi + sacred green platform match legacy EnvironmentBuilder",
+    summary:
+      "Canonical heights live in constants.js: trees scale to V2_TREE_TEMPLATE_TARGET_HEIGHT_M (11), yellow butterfly tipi to V2_TIPI_YELLOW_BUTTERFLY_TARGET_HEIGHT_M (7.2), Avatar3 to V2_AVATAR_TARGET_HEIGHT_M (~0.93 m, baseline 1.78 × 0.7 × 0.75). WorldStructures loads cylinder platform radius 4.7, height 0.22, colour 0x1a2e1a, cylinder centre terrainY + 0.05 — parity with js/EnvironmentBuilder.js.",
+    mitigations: [
+      "js/v2/constants.js — shared tuning constants",
+      "js/v2/WorldStructures.js — loadCenterTipi implementation",
+      "Legacy reference — js/EnvironmentBuilder.js (yellow butterfly tipi block)",
+    ],
+    files: ["js/v2/constants.js", "js/v2/WorldStructures.js", "js/v2/Trees.js", "js/v2/WorldAvatar.js"],
+  },
+  {
+    id: "avatar-crossfade-play-order",
+    learnedAt: "2026-05",
+    title: "Animation crossFadeFrom requires incoming action to be playing first",
+    summary:
+      "THREE.AnimationAction.crossFadeFrom schedules fadeIn on the incoming clip. Calling crossFadeTo before play() leaves mixer weights wrong and can strand limbs (e.g. one leg frozen during walk).",
+    mitigations: [
+      "WorldAvatar.play — next.play() then next.crossFadeFrom(prev) (Three.js executeCrossFade pattern).",
+    ],
+    files: ["js/v2/WorldAvatar.js"],
+  },
 ];
 
 /** Bound SacredOrchestrator shell (window.anuOrchestrator). Cleared on unload. */
@@ -196,7 +251,7 @@ function evaluateLivePipelineRisk() {
       id: "pip-full-rate",
       severity: "warn",
       text:
-        "[Anu Universe] PiP 3D runs every frame — duplicates full-scene GPU work (see ANU_PIPELINE_MEMORY pip-second-gl-context). Prefer V2_PIP_RENDER_EVERY_N_FRAMES ≥ 2 or 0 while profiling.",
+        "[Anu Universe] PiP cadence is every frame. With V2_PIP_RENDER_EVERY_N_FRAMES === 1, the second WebGL pass on #pipCanvas doubles scene work when PiP renders; prefer ≥ 2 or 0 while profiling.",
     });
   }
 
@@ -227,6 +282,11 @@ function buildPublicApi(moduleRef) {
       console.log("Rendering snapshot:", getRenderingSnapshot());
       console.log("Frame budget:", getFrameBudgetSnapshot());
       console.log("Adaptive PiP policy:", getAdaptivePolicyDebug());
+      console.log("Runtime services:", getRuntimeServicesSnapshot());
+      console.log(
+        "Runtime service contracts:",
+        validateRuntimeServiceContracts(_anuOrchestratorRef?._activeModules ?? []),
+      );
       console.log("Governance:", buildGovernanceSnapshot(_anuOrchestratorRef));
       console.log("Fuzzy bottleneck sensor:", buildFuzzyPipelineSnapshot(_anuOrchestratorRef));
       console.log("World sensorium:", buildWorldSensoriumSnapshot(_anuOrchestratorRef));
@@ -259,6 +319,12 @@ function buildPublicApi(moduleRef) {
     adaptive: Object.freeze({
       debug: getAdaptivePolicyDebug,
     }),
+
+    getRuntimeServicesSnapshot,
+
+    validateRuntimeServiceContracts() {
+      return validateRuntimeServiceContracts(_anuOrchestratorRef?._activeModules ?? []);
+    },
 
     /** SacredOrchestrator loop errors + pipeline stress history — paste JSON into issues / LLMs. */
     exportStressJson() {

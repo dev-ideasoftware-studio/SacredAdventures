@@ -4,7 +4,7 @@
 ---
 
 ## Current Status: STABLE
-**Last verified:** 05-09-2026 ~2:00am CT  
+**Last verified:** 2026-05-10 (V2 commit: world modularization + dual PiP + moondial + Playwright smoke)  
 **Branch:** main  
 **Server:** `python3 -m http.server 8080` → `http://localhost:8080`
 
@@ -27,6 +27,12 @@
 ## 🔧 In Progress
 - FPS verification (need browser console report)
 - Journal 404 confirmation after SW v9
+- V2 ANU governance timeline — see `docs/V2_FILE_TIMELINE.md`
+
+## 🧭 V2 Timeline Pointer
+- Canonical per-file milestones: `docs/V2_FILE_TIMELINE.md` (update in the **same commit** as V2 code changes).
+- Latest tranche (2026-05-10): World module split, `RuntimeServices` + Anu snapshots, Orchestrator PiP ortho/spirit modes, PanelsPIP moondial + GPS overlay stacking, Playwright `tests/v2-smoke.spec.js` (artifacts in `test-results/` gitignored).
+- Boot entry: `index.v2.html` — module order and dev hints should stay aligned with Anu-first contracts.
 
 ## 📋 Next Up (in order)
 1. FPS check — browser hard refresh, report FuzzyBrain console output

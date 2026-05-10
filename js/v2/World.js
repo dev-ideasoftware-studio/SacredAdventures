@@ -12,315 +12,37 @@
  */
 
 import * as THREE from "three";
-import { GLTFLoaderWithDraco } from "./gltfLoaderSetup.js";
-import { V2_TILE_WORLD } from "./constants.js";
+import { V2_PLAYER_MOVE_SPEED_MPS, V2_TILE_WORLD } from "./constants.js";
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { ANU_SIMULATION_DOMAIN } from "./anu/SimulationController.js";
+import {
+  clearRuntimeService,
+  registerRuntimeService,
+} from "./RuntimeServices.js";
+import { applyNeuHexShader, terrainY } from "./WorldTerrain.js";
+import {
+  GRAVITY,
+  JUMP_IMPULSE,
+  PLAYER_COLLISION_RADIUS,
+  PLAYER_HEIGHT,
+  WorldPhysics,
+} from "./WorldPhysics.js";
+import { createWorldAvatarController } from "./WorldAvatar.js";
+import {
+  buildWorldPlayerState,
+  clearPlayerInput,
+  syncAutowalkFromHeldKeys,
+  wirePlayerInput,
+} from "./WorldPlayerController.js";
+import { loadCenterTipi } from "./WorldStructures.js";
 
-const CHASE_CAMERA_DIST = 1.42 * V2_TILE_WORLD;
-/**
- * ←/→ only (no WASD): short boom — full CHASE_CAMERA_DIST makes the eye orbit a huge
- * horizontal arc; user wants pivot-in-place (mostly rotate view, minimal XZ swing).
- */
-const CHASE_CAMERA_DIST_TURN = 2.05;
-const CHASE_LOOK_AHEAD_MOVE = 4.2;
-/** Small forward focus when ←/→ only — keeps pivot tight so view doesn’t “orbit-slide”. */
-const CHASE_LOOK_AHEAD_TURN = 0.12;
-const CHASE_CAMERA_HEIGHT = 2.5;
-/** lookAt height above feet when walking — long chase + look-ahead keeps sight line shallow. */
-const CHASE_LOOK_HEIGHT_MOVE = 1.28;
-/**
- * lookAt height above feet when pivoting (←/→ only). Short boom + tiny look-ahead puts the
- * aim point very close in XZ; if we kept CHASE_LOOK_HEIGHT_MOVE the camera would stare at the ground.
- */
-const CHASE_LOOK_HEIGHT_TURN = 2.38;
-
-/** Set true to load Avatar3.glb (Draco). Off while profiling — see forensic notes in PR/chat. */
-const ENABLE_AVATAR3 = false;
-
-const AVATAR_URL = "./Assets/Avatar3.glb";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TERRAIN HEIGHT — exact match to AssetFactory.buildGroundChunk terrainY
-// ─────────────────────────────────────────────────────────────────────────────
-function terrainY(gx, gz) {
-  const CLEARING_R = 30;
-  const HILL_INNER = 30;
-  const HILL_OUTER = 60;
-  const HILL_HEIGHT = 4.0;
-
-  let baseNoise =
-    Math.sin(gx * 0.08) * Math.cos(gz * 0.1) * 1.5 +
-    Math.sin(gx * 0.2 + gz * 0.15) * 0.4;
-  let y = baseNoise;
-  const dist = Math.sqrt(gx * gx + gz * gz);
-
-  if (dist < CLEARING_R) {
-    if (dist < 8) {
-      y = 0;
-    } else {
-      const t = (dist - 8) / (CLEARING_R - 8);
-      const flatten = 0.5 + 0.5 * Math.cos(t * Math.PI);
-      y = baseNoise * (1.0 - flatten);
-    }
-  }
-
-  if (dist >= HILL_INNER && dist < HILL_OUTER) {
-    const t = (dist - HILL_INNER) / (HILL_OUTER - HILL_INNER);
-    const hillShape = Math.sin(t * Math.PI);
-    const angle = Math.atan2(gz, gx);
-    const noise =
-      0.65 + 0.35 * Math.sin(angle * 3 + 0.8) * Math.sin(angle * 5 + 2.1) * 0.3;
-    const lobe = 0.7 + 0.3 * Math.sin(angle * 2.3 + 1.2);
-    y += HILL_HEIGHT * hillShape * (noise + 0.5) * lobe;
-  }
-
-  if (dist > HILL_OUTER) {
-    const outerBlend = Math.min(1.0, (dist - HILL_OUTER) / 10);
-    const rollingH =
-      Math.sin(gx * 0.06 + 1.0) * Math.cos(gz * 0.05 + 0.7) * 2.5 +
-      Math.sin(gx * 0.12 + gz * 0.1) * 1.0;
-    y += rollingH * outerBlend;
-  }
-
-  if (dist > 100) {
-    const dropT = Math.min(1.0, (dist - 100) / 20.0);
-    y = y * (1.0 - dropT) - Math.pow(dropT, 3.0) * 8.0;
-  }
-
-  return y;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NEUMORPHIC HEX SHADER — ported directly from AssetFactory onBeforeCompile
-// ─────────────────────────────────────────────────────────────────────────────
-function applyNeuHexShader(material) {
-  material.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <common>',
-      '#include <common>\nvarying vec3 vWorldPos;'
-    );
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <worldpos_vertex>',
-      `#include <worldpos_vertex>
-       vWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`
-    );
-
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <common>',
-      `#include <common>
-       varying vec3 vWorldPos;
-       float hexDist(vec2 p) {
-         p = abs(p);
-         float c = dot(p, normalize(vec2(1.0, 1.73205081)));
-         return max(c, p.x);
-       }`
-    );
-
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <color_fragment>",
-      `#include <color_fragment>
-       float hexRadius = 6.27;
-       float hr3 = hexRadius * 1.73205081;
-       vec2 r = vec2(hr3, hexRadius * 3.0);
-       vec2 h = r * 0.5;
-       vec2 uv = vWorldPos.xz;
-       vec2 a = mod(uv, r) - h;
-       vec2 b = mod(uv - h, r) - h;
-       vec2 localPos = dot(a,a) < dot(b,b) ? a : b;
-       float dist2 = hexDist(localPos);
-       float maxDist = hr3 * 0.5;
-       float edgeDist = maxDist - dist2;
-
-       // --- LEGO-LEVEL TILE SEPARATION ---
-       // Zone 1: Deep black crack at the very edge
-       if (edgeDist < 0.28) {
-         float crack = smoothstep(0.0, 0.28, edgeDist);
-         // Pitch-black trough at edgeDist=0, rising steeply
-         diffuseColor.rgb *= (crack * crack * 0.7);
-       }
-       // Zone 2: Steep dark bevel slope rising from the crack
-       else if (edgeDist < 0.65) {
-         float slope = smoothstep(0.28, 0.65, edgeDist);
-         diffuseColor.rgb *= (slope * 0.45 + 0.35);
-       }
-       // Zone 3: Bright raised rim — the top "lip" of the lego stud edge
-       else if (edgeDist < 0.95) {
-         float rim = smoothstep(0.65, 0.95, edgeDist);
-         diffuseColor.rgb *= (1.0 + (1.0 - rim) * 0.22);
-       }
-       // Zone 4: Flat tile interior — very slight inner brightening
-       else {
-         diffuseColor.rgb *= 1.04;
-       }
-       // Corner triple-junction: extra deep shadow where 3 tiles meet
-       float cornerDist = length(localPos);
-       if (cornerDist > hexRadius * 0.65) {
-         float cornerDip = smoothstep(hexRadius * 0.65, hexRadius, cornerDist);
-         diffuseColor.rgb *= (1.0 - cornerDip * 0.55);
-       }`,
-    );
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WORLD PHYSICS ENGINE
-// Permanent foundation — every module that loads after World can use this.
-// Exposed as window.WorldPhysics so NPCs, animals, projectiles etc. can
-// register bodies and get free gravity + terrain collision.
-// ─────────────────────────────────────────────────────────────────────────────
-const GRAVITY       = -18.0;  // m/s²  (slightly heavier than Earth 9.8 for game feel)
-const PLAYER_HEIGHT = 1.7;    // eye height above ground in metres
-const JUMP_IMPULSE  = 7.0;    // m/s upward velocity on jump
-const EPSILON       = 0.08;   // surface epsilon — considered "grounded" within this
-
-/**
- * PhysicsBody — attach to any entity that needs gravity + terrain collision.
- * @param {THREE.Vector3} position  — live reference to the entity's position
- * @param {number}        eyeOffset — height above ground (0 for objects resting on terrain)
- */
-class PhysicsBody {
-  constructor(position, eyeOffset = 0) {
-    this.position = position; // direct reference — mutated in place
-    this.eyeOffset = eyeOffset;
-    this.velocity = new THREE.Vector3(); // current velocity m/s
-    this.grounded = false;
-    this.mass = 1.0;
-    this._normal = new THREE.Vector3(0, 1, 0); // terrain normal at feet
-  }
-
-  /** Sample terrain slope normal from 4 neighbour points */
-  _sampleNormal(getY) {
-    const D = 0.4;
-    const x = this.position.x,
-      z = this.position.z;
-    const L = getY(x - D, z),
-      R = getY(x + D, z);
-    const B = getY(x, z - D),
-      F = getY(x, z + D);
-    this._normal.set(L - R, 2 * D, B - F).normalize();
-  }
-
-  /**
-   * Integrate one physics step.
-   * @param {number}   delta   — frame dt (seconds)
-   * @param {function} getY    — terrainY(x,z) lookup
-   */
-  step(delta, getY) {
-    this._sampleNormal(getY);
-    const groundY = getY(this.position.x, this.position.z) + this.eyeOffset;
-
-    if (this.position.y > groundY + EPSILON) {
-      // Airborne — apply gravity
-      this.velocity.y += GRAVITY * delta;
-      this.grounded = false;
-    } else {
-      // On the ground — project horizontal velocity onto slope, cancel vertical
-      this.grounded = true;
-      if (this.velocity.y < 0) this.velocity.y = 0;
-      // Clamp to surface
-      this.position.y = groundY;
-      // Slope friction — reduce horizontal speed slightly on steep inclines
-      const slopeFactor = Math.max(0.6, this._normal.y); // 1.0 = flat, < 1 = steep
-      this.velocity.x *= Math.pow(slopeFactor, delta * 4);
-      this.velocity.z *= Math.pow(slopeFactor, delta * 4);
-    }
-
-    // Integrate position
-    this.position.x += this.velocity.x * delta;
-    this.position.y += this.velocity.y * delta;
-    this.position.z += this.velocity.z * delta;
-
-    // Hard floor clamp (prevents tunnelling on fast falls)
-    const floor = getY(this.position.x, this.position.z) + this.eyeOffset;
-    if (this.position.y < floor) {
-      this.position.y = floor;
-      if (this.velocity.y < 0) this.velocity.y = 0;
-      this.grounded = true;
-    }
-  }
-
-  /** Apply an instantaneous impulse (e.g. jump) */
-  applyImpulse(vx, vy, vz) {
-    this.velocity.x += vx;
-    this.velocity.y += vy;
-    this.velocity.z += vz;
-  }
-}
-
-/**
- * WorldPhysics — singleton registry.
- * Future modules call: WorldPhysics.createBody(position, eyeOffset)
- */
-const WorldPhysics = {
-  _bodies: [],
-  _getY: null, // set by World.load()
-
-  /** Called once by World.load() to inject the terrain height function */
-  _init(getY) {
-    this._getY = getY;
-    this._bodies = [];
-  },
-
-  /** Register a new physics body. Returns the body for the caller to hold. */
-  createBody(position, eyeOffset = 0) {
-    const body = new PhysicsBody(position, eyeOffset);
-    this._bodies.push(body);
-    return body;
-  },
-
-  /** Remove a body (call on NPC death / module unload) */
-  removeBody(body) {
-    this._bodies = this._bodies.filter((b) => b !== body);
-  },
-
-  /** Step all registered bodies. Called once per frame by World.update(). */
-  stepAll(delta) {
-    if (!this._getY) return;
-    for (const body of this._bodies) body.step(delta, this._getY);
-  },
-
-  /** Convenience: get ground height + slope normal at world position (x, z) */
-  getGroundY(x, z) {
-    return this._getY ? this._getY(x, z) : 0;
-  },
-
-  /** Sample terrain surface normal at (x, z) */
-  getGroundNormal(x, z, out = new THREE.Vector3()) {
-    if (!this._getY) return out.set(0, 1, 0);
-    const D = 0.5;
-    const L = this._getY(x - D, z),
-      R = this._getY(x + D, z);
-    const B = this._getY(x, z - D),
-      F = this._getY(x, z + D);
-    return out.set(L - R, 2 * D, B - F).normalize();
-  },
-
-  /** True if position is within EPSILON of the terrain surface */
-  isGrounded(position) {
-    if (!this._getY) return true;
-    return position.y <= this._getY(position.x, position.z) + EPSILON + 0.05;
-  },
-
-  /** ANU governance probe: verifies 3D gravity/elevation physics is live. */
-  getAnuPhysicsSnapshot() {
-    return Object.freeze({
-      schemaVersion: "1.0",
-      gravityEnabled: true,
-      elevationPhysicsEnabled: typeof this._getY === "function",
-      movementAxes: Object.freeze(["x", "y", "z"]),
-      terrainHeightSampling: typeof this._getY === "function",
-      terrainNormalSampling: true,
-      registeredBodyCount: this._bodies.length,
-      gravity: GRAVITY,
-      epsilon: EPSILON,
-    });
-  },
-};
-
-// Expose globally so future modules (NPCs, animals, etc.) can use it
-window.WorldPhysics = WorldPhysics;
+const FOOT_TO_M = 0.3048;
+const DEFAULT_CAMERA_FOV = 58;
+const IDLE_FPV_HEAD_FORWARD = 5 * FOOT_TO_M;
+const FOLLOW_CAMERA_DIST = V2_TILE_WORLD;
+const FOLLOW_CAMERA_HEIGHT = 2 * FOOT_TO_M;
+const NPC_GREETING_DISTANCE = V2_TILE_WORLD * 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WORLD MODULE
@@ -344,20 +66,38 @@ export const WorldModule = {
   _walkDistance: 0,
   _lastWalkX: 0,
   _lastWalkZ: 0,
-  _bobAmount: 0,
-  _bobOffset: 0,
 
-  _avatar: null,
+  _avatar: createWorldAvatarController(),
   _feetScratch: new THREE.Vector3(),
+  _avatarFeetScratch: new THREE.Vector3(),
   _back: new THREE.Vector3(),
   _lookTarget: new THREE.Vector3(),
-  /** Smoothed chase arm — avoids snap when releasing ←/→ after pivot. */
-  _chaseDistSmooth: CHASE_CAMERA_DIST,
+  _cameraPosSmooth: new THREE.Vector3(),
+  _cameraLookSmooth: new THREE.Vector3(),
+  _cameraSmoothReady: false,
+  _npcGreetingState: new Map(),
+  _npcScanFrame: 0,
+  _tmpNpcPos: new THREE.Vector3(),
+  _tmpPlayerPos: new THREE.Vector3(),
+  _tmpAvoidVelocity: new THREE.Vector3(),
+  _autoWalk: {
+    active: false,
+    key: null,
+    startedByHoldAt: 0,
+    dirX: 0,
+    dirZ: -1,
+  },
+  _keyDownAt: {},
+  _tipi: null,
+  /** FPV chase / idle forward vs top-down map on main canvas (PiP shows the other). */
+  _mainCanvasMapView: false,
 
   // ──────────────────────────────────────────────────────────────────────────
   async load(scene, camera) {
     this._camera = camera;
     this._canvas = document.querySelector("canvas");
+    camera.fov = DEFAULT_CAMERA_FOV;
+    camera.updateProjectionMatrix();
 
     // ── Sky ───────────────────────────────────────────────────────────────
     scene.background = new THREE.Color(0xfff1ca); // match original warm sky
@@ -519,6 +259,9 @@ export const WorldModule = {
 
     // ── Physics engine ────────────────────────────────────────────────────
     WorldPhysics._init(terrainY);
+    registerRuntimeService("WorldPhysics", WorldPhysics, { owner: this.name });
+    // Legacy alias for older modules/scripts while V2 migrates to RuntimeServices.
+    window.WorldPhysics = WorldPhysics;
 
     // ── Player physics body ───────────────────────────────────────────────
     this._playerPos.set(0, terrainY(0, 0) + PLAYER_HEIGHT, 8);
@@ -528,20 +271,18 @@ export const WorldModule = {
     this._walkDistance = 0;
     this._lastWalkX = this._playerPos.x;
     this._lastWalkZ = this._playerPos.z;
-    this._bobAmount = 0;
-    this._bobOffset = 0;
+    this._cameraSmoothReady = false;
+    this._npcGreetingState.clear();
+    this._mainCanvasMapView = false;
 
     // ── Input ─────────────────────────────────────────────────────────────
     this._setupInput();
 
-    if (ENABLE_AVATAR3) {
-      await this._loadAvatar(scene);
-    } else {
-      console.log(
-        "%c[World] Avatar3 skipped (ENABLE_AVATAR3=false — chase cam uses physics body only)",
-        "color:#90caf9;",
-      );
-    }
+    const [tipi] = await Promise.all([
+      loadCenterTipi({ scene, objects: this._objects, worldPhysics: WorldPhysics }),
+      this._avatar.load(scene, this._objects),
+    ]);
+    this._tipi = tipi;
 
     console.log(
       "%c[World] ✅ Phase 1 loaded — terrain + physics + neumorphic hex shader",
@@ -557,44 +298,15 @@ export const WorldModule = {
     });
   },
 
-  async _loadAvatar(scene) {
-    try {
-      const gltf = await new GLTFLoaderWithDraco().loadAsync(AVATAR_URL);
-      this._avatar = gltf.scene;
-      this._avatar.traverse((child) => {
-        if (child.isMesh) {
-          child.frustumCulled = true;
-          child.castShadow = false;
-          child.receiveShadow = false;
-        }
-      });
-      const box = new THREE.Box3().setFromObject(this._avatar);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      if (size.y > 0.001) {
-        const targetH = 1.78;
-        this._avatar.scale.setScalar(targetH / size.y);
-      }
-      scene.add(this._avatar);
-      this._objects.push(this._avatar);
-      this._avatar.name = this._avatar.name || "player_avatar_rig";
-      this._avatar.userData.anuId = "player.avatar.primary";
-      this._avatar.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
-      this._avatar.userData.anuKind = "avatar_gltf";
-      console.log("%c[World] Avatar3.glb ready (chase cam)", "color:#90caf9;");
-    } catch (err) {
-      console.warn("[World] Avatar3.glb load failed:", err);
-    }
-  },
-
   // ──────────────────────────────────────────────────────────────────────────
   // UPDATE — zero allocations, all vectors pre-built
   // ──────────────────────────────────────────────────────────────────────────
   update(delta, _frameCount, _scene, camera) {
     const k = this._keys;
-    const speed = 7.0;
+    const speed = V2_PLAYER_MOVE_SPEED_MPS;
     const dir = this._moveDir;
     const body = this._playerBody;
+    const now = typeof performance !== "undefined" ? performance.now() : 0;
 
     // ── Horizontal movement intention ─────────────────────────────────────
     dir.set(0, 0, 0);
@@ -603,8 +315,14 @@ export const WorldModule = {
     if (k["a"]) dir.x -= 1;
     if (k["d"]) dir.x += 1;
 
-    const movingKeys =
+    const physicalMovingKeys =
       k["w"] || k["s"] || k["arrowup"] || k["arrowdown"] || k["a"] || k["d"];
+    if (physicalMovingKeys) {
+      syncAutowalkFromHeldKeys(this, now, dir);
+    } else if (this._autoWalk.active) {
+      dir.set(this._autoWalk.dirX, 0, this._autoWalk.dirZ);
+    }
+    const movingKeys = physicalMovingKeys || this._autoWalk.active;
 
     const turnOnly = (k["arrowleft"] || k["arrowright"]) && !movingKeys;
     const turnRate = turnOnly ? 2.85 : 1.72;
@@ -620,9 +338,15 @@ export const WorldModule = {
         sin = Math.sin(this._yaw);
       const wx = dir.x * cos + dir.z * sin;
       const wz = -dir.x * sin + dir.z * cos;
+      this._tmpAvoidVelocity.set(wx * speed, 0, wz * speed);
+      WorldPhysics.steerAroundObstacles(
+        body.position,
+        this._tmpAvoidVelocity,
+        PLAYER_COLLISION_RADIUS,
+      );
       // Feed into physics body velocity (horizontal only)
-      body.velocity.x = wx * speed;
-      body.velocity.z = wz * speed;
+      body.velocity.x = this._tmpAvoidVelocity.x;
+      body.velocity.z = this._tmpAvoidVelocity.z;
     } else if (turnOnly) {
       // ←/→ only: no horizontal motion — do not blend with friction (avoids drift before zero)
       body.velocity.x = 0;
@@ -644,6 +368,7 @@ export const WorldModule = {
 
     // ── Step all physics bodies (gravity, terrain collision, slope) ────────
     WorldPhysics.stepAll(delta);
+    WorldPhysics.resolveBodyCollisions(body, PLAYER_COLLISION_RADIUS);
 
     // Belt-and-suspenders: slope integration must not leave horizontal drift during pivot
     if (turnOnly) {
@@ -663,51 +388,85 @@ export const WorldModule = {
       body.grounded && horizontalSpeed > 0.18 && dir.lengthSq() > 0;
     if (moving) this._walkDistance += stepDistance;
 
-    const targetBobAmount = moving ? Math.min(1, horizontalSpeed / speed) : 0;
-    const bobBlend = 1 - Math.pow(0.001, delta);
-    this._bobAmount += (targetBobAmount - this._bobAmount) * bobBlend;
+    /** Hold walk clip whenever movement intent is active — avoids idle flashes from grounded/slope jitter. */
+    const walkIntent = movingKeys && dir.lengthSq() > 0;
 
-    const phase = this._walkDistance * 3.45;
-    const gaitWave = Math.sin(phase) * 0.028 + Math.sin(phase * 2) * 0.006;
-    const targetBob = gaitWave * this._bobAmount;
-    const bobReturn = moving ? 0.18 : 0.11;
-    this._bobOffset +=
-      (targetBob - this._bobOffset) * (1 - Math.pow(bobReturn, delta * 60));
+    let desiredLocomotion = "idle";
+    if (walkIntent) desiredLocomotion = "walk";
+    else if (turnOnly) desiredLocomotion = "look";
 
     const feetY = body.position.y - PLAYER_HEIGHT;
     this._feetScratch.set(body.position.x, feetY, body.position.z);
-
-    if (this._avatar) {
-      this._avatar.position.set(body.position.x, feetY, body.position.z);
-      this._avatar.rotation.y = this._yaw + Math.PI;
-    }
-
     this._fwd.set(-Math.sin(this._yaw), 0, -Math.cos(this._yaw));
     this._back.copy(this._fwd).multiplyScalar(-1);
 
-    const targetChaseDist = turnOnly
-      ? CHASE_CAMERA_DIST_TURN
-      : CHASE_CAMERA_DIST;
-    const chaseLerp = turnOnly ? 18 : 11;
-    this._chaseDistSmooth +=
-      (targetChaseDist - this._chaseDistSmooth) *
-      Math.min(1, delta * chaseLerp);
+    if (this._avatar) {
+      this._avatar.setPose(body.position.x, feetY, body.position.z, this._yaw);
+      if (now >= this._avatar.gestureUntil) {
+        const reason =
+          desiredLocomotion === "walk"
+            ? "move"
+            : desiredLocomotion === "look"
+              ? "turn-in-place"
+              : "idle";
+        this._avatar.syncLocomotionIfNeeded(desiredLocomotion, reason);
+      }
+      this._avatar.syncWalkAnimToHorizontalSpeed(
+        horizontalSpeed,
+        walkIntent && desiredLocomotion === "walk",
+        now,
+      );
+      this._avatar.advanceMixer(delta);
+    }
 
-    camera.position.set(
-      body.position.x + this._back.x * this._chaseDistSmooth,
-      feetY + CHASE_CAMERA_HEIGHT + this._bobOffset,
-      body.position.z + this._back.z * this._chaseDistSmooth,
-    );
+    this._tickNpcGreeting(_scene, _frameCount, now);
 
-    const lookAhead = turnOnly ? CHASE_LOOK_AHEAD_TURN : CHASE_LOOK_AHEAD_MOVE;
-    this._lookTarget
-      .copy(this._feetScratch)
-      .addScaledVector(this._fwd, lookAhead);
-    this._lookTarget.y += turnOnly
-      ? CHASE_LOOK_HEIGHT_TURN
-      : CHASE_LOOK_HEIGHT_MOVE;
-    camera.up.set(0, 1, 0);
-    camera.lookAt(this._lookTarget);
+    const headY = feetY + PLAYER_HEIGHT;
+
+    if (this._mainCanvasMapView) {
+      const elev = 78;
+      camera.position.set(body.position.x, feetY + elev, body.position.z);
+      camera.up.set(0, 1, 0);
+      camera.lookAt(body.position.x, feetY, body.position.z);
+      this._cameraSmoothReady = true;
+    } else {
+      const chaseView = walkIntent || turnOnly;
+      if (chaseView) {
+        this._cameraPosSmooth.set(
+          body.position.x + this._back.x * FOLLOW_CAMERA_DIST,
+          feetY + PLAYER_HEIGHT + FOLLOW_CAMERA_HEIGHT,
+          body.position.z + this._back.z * FOLLOW_CAMERA_DIST,
+        );
+        this._lookTarget.set(
+          body.position.x + this._fwd.x * V2_TILE_WORLD,
+          headY,
+          body.position.z + this._fwd.z * V2_TILE_WORLD,
+        );
+      } else {
+        this._cameraPosSmooth.set(
+          body.position.x + this._fwd.x * IDLE_FPV_HEAD_FORWARD,
+          headY,
+          body.position.z + this._fwd.z * IDLE_FPV_HEAD_FORWARD,
+        );
+        this._lookTarget.set(
+          body.position.x + this._fwd.x * V2_TILE_WORLD,
+          headY,
+          body.position.z + this._fwd.z * V2_TILE_WORLD,
+        );
+      }
+
+      if (!this._cameraSmoothReady) {
+        camera.position.copy(this._cameraPosSmooth);
+        this._cameraLookSmooth.copy(this._lookTarget);
+        this._cameraSmoothReady = true;
+      } else {
+        const cameraLerp = 1 - Math.pow(0.01, delta);
+        camera.position.lerp(this._cameraPosSmooth, cameraLerp);
+        this._cameraLookSmooth.lerp(this._lookTarget, cameraLerp);
+      }
+      camera.up.set(0, 1, 0);
+      camera.lookAt(this._cameraLookSmooth);
+    }
 
     if (_frameCount % 24 === 0) {
       dispatchInteraction(ANU_EVENTS.PLAYER_STATE_SAMPLE, {
@@ -725,58 +484,163 @@ export const WorldModule = {
       });
     }
 
-    window.WorldPlayer = {
-      feet: this._feetScratch,
-      position: camera.position,
-      yaw: this._yaw,
-      grounded: body.grounded,
-      distanceMeters: this._walkDistance,
-      distanceFeet: this._walkDistance * 3.28084,
+    const playerState = buildWorldPlayerState(this, camera, body);
+    registerRuntimeService("WorldPlayer", playerState, { owner: this.name });
+    // Legacy alias for console workflows and older scripts.
+    window.WorldPlayer = playerState;
+  },
+
+  _yawFacing(from, to) {
+    return Math.atan2(-(to.x - from.x), -(to.z - from.z));
+  },
+
+  _triggerAvatarGesture(kind, reason, now) {
+    const clipName = this._avatar.semanticClips?.[kind] ?? null;
+    const duration =
+      this._avatar.clips.find((clip) => clip.name === clipName)?.duration ?? 1.8;
+    this._avatar.gestureUntil = now + Math.min(2600, Math.max(900, duration * 1000));
+    this._avatar.play(kind, reason, 0.12, true);
+  },
+
+  _findNearestNpc(scene) {
+    if (!scene || !this._avatar.root) return null;
+    let nearest = null;
+    let nearestD2 = Infinity;
+    const player = this._tmpPlayerPos.copy(this._feetScratch);
+    scene.traverse((obj) => {
+      if (
+        obj === this._avatar.root ||
+        obj.userData?.anuSimulationDomain !== ANU_SIMULATION_DOMAIN.POPULATION
+      ) {
+        return;
+      }
+      obj.getWorldPosition(this._tmpNpcPos);
+      const dx = this._tmpNpcPos.x - player.x;
+      const dz = this._tmpNpcPos.z - player.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < nearestD2) {
+        nearestD2 = d2;
+        nearest = obj;
+      }
+    });
+    if (!nearest) return null;
+    return {
+      object: nearest,
+      distance: Math.sqrt(nearestD2),
     };
+  },
+
+  _turnNpcToward(npc, targetPosition) {
+    if (!npc) return;
+    npc.getWorldPosition(this._tmpNpcPos);
+    npc.rotation.y = this._yawFacing(this._tmpNpcPos, targetPosition);
+    npc.userData.anuGreetingState = "facing_player";
+  },
+
+  _tickNpcGreeting(scene, frameCount, now) {
+    if (frameCount === this._npcScanFrame || frameCount % 10 !== 0) return;
+    this._npcScanFrame = frameCount;
+    const nearest = this._findNearestNpc(scene);
+    const activeIds = new Set();
+
+    if (nearest && nearest.distance <= NPC_GREETING_DISTANCE) {
+      const npc = nearest.object;
+      const npcId = npc.userData?.anuId ?? npc.uuid;
+      activeIds.add(npcId);
+      const state = this._npcGreetingState.get(npcId) ?? {
+        greeted: false,
+        goodbyeSent: false,
+        object: npc,
+      };
+      state.object = npc;
+      npc.getWorldPosition(this._tmpNpcPos);
+      this._yaw = this._yawFacing(this._feetScratch, this._tmpNpcPos);
+      if (this._avatar.root) this._avatar.root.rotation.y = this._yaw;
+      this._turnNpcToward(npc, this._feetScratch);
+
+      if (!state.greeted) {
+        state.greeted = true;
+        state.goodbyeSent = false;
+        this._triggerAvatarGesture("wave", "npc-greeting", now);
+        npc.userData.anuGreetingState = "wave_hello";
+        if (typeof npc.userData.anuPlayGesture === "function") {
+          npc.userData.anuPlayGesture("wave_hello");
+        }
+        dispatchInteraction(ANU_EVENTS.PLAYER_NPC_GREETING, {
+          phase: "hello",
+          playerId: "player.avatar.primary",
+          npcId,
+          distance: nearest.distance,
+          t: now,
+        });
+      }
+      this._npcGreetingState.set(npcId, state);
+    }
+
+    for (const [npcId, state] of this._npcGreetingState.entries()) {
+      if (activeIds.has(npcId) || !state.greeted || state.goodbyeSent) continue;
+      state.goodbyeSent = true;
+      this._triggerAvatarGesture("goodbye", "npc-goodbye", now);
+      if (state.object) {
+        this._turnNpcToward(state.object, this._feetScratch);
+        state.object.userData.anuGreetingState = "wave_goodbye";
+        if (typeof state.object.userData.anuPlayGesture === "function") {
+          state.object.userData.anuPlayGesture("wave_goodbye");
+        }
+        if (typeof window !== "undefined") {
+          window.setTimeout(() => {
+            if (state.object?.userData) state.object.userData.anuGreetingState = "normal";
+          }, 1800);
+        }
+      }
+      dispatchInteraction(ANU_EVENTS.PLAYER_NPC_GREETING, {
+        phase: "goodbye",
+        playerId: "player.avatar.primary",
+        npcId,
+        distance: NPC_GREETING_DISTANCE,
+        t: now,
+      });
+      this._npcGreetingState.delete(npcId);
+    }
   },
 
   // ──────────────────────────────────────────────────────────────────────────
   unload(scene) {
-    for (const obj of this._objects) scene.remove(obj);
-    this._objects = [];
-    this._avatar = null;
-    if (this._onKey) {
-      window.removeEventListener("keydown", this._onKey);
-      window.removeEventListener("keyup", this._onKey);
+    for (const obj of this._objects) {
+      scene.remove(obj);
+      obj.traverse?.((child) => {
+        if (child.geometry) child.geometry.dispose?.();
+        const mat = child.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose?.());
+        else mat?.dispose?.();
+      });
+      if (obj.geometry) obj.geometry.dispose?.();
+      const mat = obj.material;
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose?.());
+      else mat?.dispose?.();
     }
+    this._objects = [];
+    this._avatar.dispose();
+    this._playerBody = null;
+    this._cameraSmoothReady = false;
+    this._npcGreetingState.clear();
+    this._autoWalk.active = false;
+    this._autoWalk.key = null;
+    this._autoWalk.startedByHoldAt = 0;
+    this._keyDownAt = {};
+    this._mainCanvasMapView = false;
+    clearPlayerInput(this);
+    WorldPhysics._reset();
+    clearRuntimeService("WorldPhysics", WorldPhysics);
+    clearRuntimeService("WorldPlayer");
+    if (window.WorldPhysics === WorldPhysics) delete window.WorldPhysics;
+    if (window.WorldPlayer) delete window.WorldPlayer;
+    if (window._terrainHeightCache?.lookup === terrainY) delete window._terrainHeightCache;
     console.log("[World] ⏹ Unloaded.");
   },
 
   // ──────────────────────────────────────────────────────────────
   _setupInput() {
-    this._keys = {};
-    this._onKey = (e) => {
-      const down = e.type === "keydown";
-      const raw = e.key;
-      const key = typeof raw === "string" ? raw.toLowerCase() : "";
-      this._keys[key] = down;
-      if (
-        [
-          "w",
-          "a",
-          "s",
-          "d",
-          " ",
-          "arrowup",
-          "arrowdown",
-          "arrowleft",
-          "arrowright",
-        ].includes(key)
-      ) {
-        dispatchInteraction(ANU_EVENTS.PLAYER_KEY_EDGE, {
-          key,
-          down,
-          code: e.code,
-          t: typeof performance !== "undefined" ? performance.now() : 0,
-        });
-      }
-    };
-    window.addEventListener("keydown", this._onKey);
-    window.addEventListener("keyup", this._onKey);
+    wirePlayerInput(this, dispatchInteraction, ANU_EVENTS);
   },
 };

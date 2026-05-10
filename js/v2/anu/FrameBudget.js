@@ -2,6 +2,8 @@
  * Wall-clock frame duration sampling for Anu / adaptive policy (main thread).
  */
 
+import { V2_FRAME_MS_BUDGET } from "../constants.js";
+
 const _ROLL_LEN = 45;
 const _samples = [];
 
@@ -25,9 +27,16 @@ export function getRollingAvgFrameMs() {
 }
 
 export function getFrameBudgetSnapshot() {
+  const avgMs = getRollingAvgFrameMs();
+  const loadPct =
+    V2_FRAME_MS_BUDGET > 0
+      ? ((avgMs > 0 ? avgMs : _lastMs) / V2_FRAME_MS_BUDGET) * 100
+      : 0;
   return Object.freeze({
     lastMs: _lastMs,
-    avgMs: getRollingAvgFrameMs(),
+    avgMs,
+    loadPct,
+    budgetMs: V2_FRAME_MS_BUDGET,
     samples: _samples.length,
   });
 }

@@ -15,6 +15,8 @@ import {
   ANU_INTERACTION_VERB,
   ANU_SIMULATION_DOMAIN,
 } from "./anu/SimulationController.js";
+import { getRuntimeService } from "./RuntimeServices.js";
+import { V2_TREE_TEMPLATE_TARGET_HEIGHT_M } from "./constants.js";
 
 const TREE_URL = "./Assets/tree.glb";
 
@@ -92,11 +94,13 @@ export const TreesModule = {
   _tsc: null,
   _tbaseRy: null,
   _tphase: null,
+  _colliders: [],
 
   async load(scene) {
+    const worldPhysics = getRuntimeService("WorldPhysics") ?? window.WorldPhysics;
     const getY =
-      window.WorldPhysics && typeof window.WorldPhysics.getGroundY === "function"
-        ? window.WorldPhysics.getGroundY.bind(window.WorldPhysics)
+      worldPhysics && typeof worldPhysics.getGroundY === "function"
+        ? worldPhysics.getGroundY.bind(worldPhysics)
         : null;
 
     if (!getY) {
@@ -117,7 +121,8 @@ export const TreesModule = {
     const bb = geom.boundingBox;
     const size = new THREE.Vector3();
     bb.getSize(size);
-    const scaleFix = size.y > 0 ? 11 / size.y : 1;
+    const scaleFix =
+      size.y > 0 ? V2_TREE_TEMPLATE_TARGET_HEIGHT_M / size.y : 1;
     geom.scale(scaleFix, scaleFix, scaleFix);
     geom.computeBoundingBox();
 
@@ -172,6 +177,18 @@ export const TreesModule = {
       this._tsc[placed] = s;
       this._tbaseRy[placed] = ry;
       this._tphase[placed] = rand() * Math.PI * 2;
+      if (typeof worldPhysics.registerCollider === "function") {
+        this._colliders.push(
+          worldPhysics.registerCollider({
+            id: `flora.tree.${placed}`,
+            x,
+            z,
+            radius: Math.max(0.65, s * 0.95),
+            passable: false,
+            kind: "tree",
+          }),
+        );
+      }
 
       dummy.position.set(x, y, z);
       dummy.rotation.set(0, ry, 0);
@@ -228,6 +245,11 @@ export const TreesModule = {
   },
 
   unload(scene) {
+    const worldPhysics = getRuntimeService("WorldPhysics") ?? window.WorldPhysics;
+    if (worldPhysics && typeof worldPhysics.removeCollider === "function") {
+      for (const collider of this._colliders) worldPhysics.removeCollider(collider);
+    }
+    this._colliders = [];
     for (const obj of this._objects) {
       scene.remove(obj);
       if (obj.geometry) obj.geometry.dispose();

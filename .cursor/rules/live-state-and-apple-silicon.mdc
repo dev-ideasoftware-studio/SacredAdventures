@@ -17,3 +17,11 @@ alwaysApply: true
 - This workspace runs on macOS Apple Silicon (M1 iMac). Prefer ARM/mac-arm64 browser/tool installs.
 - For Playwright browser validation, avoid relying on sandbox x64 browser caches. If Chromium is missing or architecture-mismatched, run `npx playwright install chromium` in the host context before launching.
 - When a browser launch fails because it expects `mac-arm64` or crashes from the sandboxed x64 cache, retry outside the sandbox/with host permissions instead of repeatedly using the stale cache.
+
+## Always-Run Browser Pattern
+
+- For Playwright installs and browser launches, use the local browser path pattern by default:
+  - Install: `PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium`
+  - Launch/probe: `PLAYWRIGHT_BROWSERS_PATH=0 node ...`
+- Request host permissions (`all` / full network when installing) for Playwright browser installs and probes that need the real mac-arm64 browser. Do not keep retrying the Cursor sandbox cache path after it reports a missing `chrome-headless-shell-mac-arm64`.
+- Reuse an existing local static server when one is running; do not start duplicate servers just to run Playwright.

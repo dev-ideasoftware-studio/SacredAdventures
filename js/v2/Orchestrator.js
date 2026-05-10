@@ -17,6 +17,7 @@ import * as THREE from 'three';
 import {
   V2_PIP_ORTHO_WIDTH,
   V2_PIP_ORTHO_ZOOM,
+  V2_PIP_RENDER_EVERY_N_FRAMES,
   V2_TARGET_FPS,
 } from "./constants.js";
 import { shouldRenderPipSceneThisFrame } from "./anu/RenderingGovernor.js";
@@ -34,6 +35,13 @@ import {
   captureSceneRenderInventory,
   SCENE_INVENTORY_INTERVAL_FRAMES,
 } from "./anu/SceneModelInventory.js";
+import {
+  getRuntimeService,
+  getRuntimeServicesSnapshot,
+  validateRuntimeServiceContracts,
+} from "./RuntimeServices.js";
+
+const _pipSpiritLook = new THREE.Vector3();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -84,6 +92,8 @@ export class SacredOrchestrator {
     this._peakFPS = 0; // highest smoothed FPS seen — theoretical max
     this._fpsReady = false; // wait for EMA to warm up before benchmarking
     this._frameCount = 0;
+    this._disposed = false;
+    this._rafId = 0;
 
     // ── Benchmarking state ────────────────────────────────────────────────
     this._bench = null; // { name, frames, totalDelta, baselineFPS }
@@ -91,17 +101,33 @@ export class SacredOrchestrator {
     this._benchQueue = [];
     this._warmupPoll = null;
 
-    // ── Moondial PiP (second WebGL context → ortho top-down; policy in anu/RenderingGovernor.js) ──
+    // ── Moondial PiP: second WebGLRenderer — ortho (map) vs persp (spirit) swapped with main view ──
     this._pipRenderer = null;
     this._pipOrtho = null;
+    this._pipPersp = null;
     this._pipW = 0;
     this._pipH = 0;
+    const self = this;
+    this._pipStrategy = {
+      getSnapshot() {
+        return Object.freeze({
+          id: "webgl-scene-pip",
+          label: "PiP=WebGL (ortho/persp swap vs main)",
+          canvasWidth: self._pipW,
+          canvasHeight: self._pipH,
+          secondWebGlPass: V2_PIP_RENDER_EVERY_N_FRAMES > 0,
+        });
+      },
+      dispose() {},
+      render() {},
+    };
 
     // ── HUD ───────────────────────────────────────────────────────────────
     this._hud = this._buildHUD();
 
     // ── Resize ────────────────────────────────────────────────────────────
-    window.addEventListener("resize", () => this._onResize());
+    this._onResizeBound = () => this._onResize();
+    window.addEventListener("resize", this._onResizeBound);
 
     /** Runtime discriminator — only the constructed engine shell sets this (not random globals). */
     this.isSacredOrchestratorShell = true;
@@ -177,6 +203,7 @@ export class SacredOrchestrator {
     this._updateHUD();
 
     dispatchInteraction(ANU_EVENTS.MODULE_ACTIVATED, { name });
+    this._validateRuntimeContracts(`activate:${name}`);
 
     this._scheduleBenchForModule(name);
   }
@@ -237,10 +264,13 @@ export class SacredOrchestrator {
   deactivate(name) {
     const entry = this._registry.get(name);
     if (!entry || !entry.active) { console.warn(`[SacredOrchestrator] Not active: ${name}`); return; }
-    entry.module.unload(this.scene);
+    if (typeof entry.module.unload === "function") {
+      entry.module.unload(this.scene, this.camera, this.renderer, this);
+    }
     entry.active = false;
     this._activeModules = this._activeModules.filter(n => n !== name);
     dispatchInteraction(ANU_EVENTS.MODULE_DEACTIVATED, { name });
+    this._validateRuntimeContracts(`deactivate:${name}`);
     console.log(`%c[SacredOrchestrator] ⏹ Deactivated: ${name}`, 'color:#ef9a9a;');
     this._updateHUD();
   }
@@ -261,12 +291,14 @@ export class SacredOrchestrator {
   // ──────────────────────────────────────────────────────────────────────────
 
   start() {
+    this._disposed = false;
     this.clock.start();
     this._loop();
   }
 
   _loop() {
-    requestAnimationFrame(() => this._loop());
+    if (this._disposed) return;
+    this._rafId = requestAnimationFrame(() => this._loop());
 
     try {
       const frameT0 = performance.now();
@@ -426,7 +458,28 @@ export class SacredOrchestrator {
       const cost   = entry.fpsCost !== null ? `${entry.fpsCost.toFixed(1)} FPS cost` : 'not benchmarked';
       console.log(`  ${status}  ${name}  [${cost}]`);
     }
+    console.log("Runtime services:", getRuntimeServicesSnapshot());
     console.groupEnd();
+  }
+
+  getRuntimeServicesSnapshot() {
+    return getRuntimeServicesSnapshot();
+  }
+
+  validateRuntimeContracts() {
+    return validateRuntimeServiceContracts(this._activeModules);
+  }
+
+  _validateRuntimeContracts(reason) {
+    const result = this.validateRuntimeContracts();
+    if (!result.ok) {
+      console.warn(
+        `%c[SacredOrchestrator] Runtime service contract issue after ${reason}`,
+        "color:#ffab91;font-weight:bold;",
+        result.missing,
+      );
+    }
+    return result;
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -516,8 +569,11 @@ export class SacredOrchestrator {
     }
 
     const r = this.renderer.info.render;
-    if (drawEl)
-      drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles / 1000).toFixed(1)}k · main · ${window._detectedHz || ".."}hz · PiP=2nd GL`;
+    if (drawEl) {
+      const pipLabel =
+        V2_PIP_RENDER_EVERY_N_FRAMES > 0 ? "WebGL swap" : "off";
+      drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles / 1000).toFixed(1)}k · main · ${window._detectedHz || ".."}hz · PiP=${pipLabel}`;
+    }
 
     if (benchEl) {
       if (this._bench) {
@@ -541,9 +597,6 @@ export class SacredOrchestrator {
     this._pipH = 0;
   }
 
-  /**
-   * Moondial minimap: orthographic camera framing `V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM` world units wide.
-   */
   _ensurePipPipeline(canvasEl) {
     if (this._pipRenderer) return;
     const pr = Math.min(window.devicePixelRatio || 1, 1.25);
@@ -559,12 +612,13 @@ export class SacredOrchestrator {
       canvas: canvasEl,
       alpha: true,
       antialias: false,
-      powerPreference: 'low-power',
+      powerPreference: "low-power",
     });
     this._pipRenderer.setPixelRatio(1);
     this._pipRenderer.setSize(w, h, false);
-    if (this.renderer.outputColorSpace !== undefined)
+    if (this.renderer.outputColorSpace !== undefined) {
       this._pipRenderer.outputColorSpace = this.renderer.outputColorSpace;
+    }
     this._pipRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     this._pipRenderer.toneMappingExposure = this.renderer.toneMappingExposure;
 
@@ -572,16 +626,24 @@ export class SacredOrchestrator {
     const aspect = w / Math.max(1, h);
     const halfW = span / 2;
     const halfH = halfW / aspect;
-    this._pipOrtho = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.5, 520);
+    this._pipOrtho = new THREE.OrthographicCamera(
+      -halfW,
+      halfW,
+      halfH,
+      -halfH,
+      0.5,
+      520,
+    );
+    this._pipPersp = new THREE.PerspectiveCamera(42, aspect, 0.12, 220);
 
     console.log(
-      `%c[SacredOrchestrator] PiP ortho active — ${span.toFixed(2)} world units wide (base × ${V2_PIP_ORTHO_ZOOM} zoom-out)`,
-      'color:#81d4fa;font-weight:bold;',
+      "%c[SacredOrchestrator] PiP WebGL pipeline — ortho map / persp spirit (swapped vs main view)",
+      "color:#81d4fa;font-weight:bold;",
     );
   }
 
   _resizePipIfNeeded(canvasEl) {
-    if (!this._pipRenderer || !this._pipOrtho) return;
+    if (!this._pipRenderer || !this._pipOrtho || !this._pipPersp) return;
     const pr = Math.min(window.devicePixelRatio || 1, 1.25);
     const rect = canvasEl.getBoundingClientRect();
     const w = Math.max(160, Math.floor(rect.width * pr));
@@ -602,36 +664,92 @@ export class SacredOrchestrator {
     this._pipOrtho.top = halfH;
     this._pipOrtho.bottom = -halfH;
     this._pipOrtho.updateProjectionMatrix();
+    this._pipPersp.aspect = aspect;
+    this._pipPersp.updateProjectionMatrix();
+  }
+
+  _disposePipRenderer() {
+    if (this._pipRenderer) {
+      this._pipRenderer.dispose();
+      this._pipRenderer = null;
+    }
+    this._pipOrtho = null;
+    this._pipPersp = null;
+    this._pipW = 0;
+    this._pipH = 0;
   }
 
   _renderPip() {
     if (!shouldRenderPipSceneThisFrame()) return;
 
-    const wp = window.WorldPlayer;
+    const wp = getRuntimeService("WorldPlayer") ?? window.WorldPlayer;
     if (!wp || !wp.feet) return;
 
-    const pipCanvas = document.getElementById('pipCanvas');
+    const pipCanvas = document.getElementById("pipCanvas");
     if (!pipCanvas) return;
 
     if (!this._pipRenderer) this._ensurePipPipeline(pipCanvas);
-    if (!this._pipRenderer || !this._pipOrtho) return;
+    if (!this._pipRenderer || !this._pipOrtho || !this._pipPersp) return;
 
     this._resizePipIfNeeded(pipCanvas);
 
     const feet = wp.feet;
-    const elev = 78;
-    this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
-    this._pipOrtho.up.set(0, 1, 0);
-    this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
-
+    const mainMap = wp.mainCanvasMapView === true;
     const fog = this.scene.fog;
     const bg = this.scene.background;
     this.scene.fog = null;
     this.scene.background = null;
 
-    this._pipRenderer.render(this.scene, this._pipOrtho);
+    if (!mainMap) {
+      const elev = 78;
+      this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
+      this._pipOrtho.up.set(0, 1, 0);
+      this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
+      this._pipRenderer.render(this.scene, this._pipOrtho);
+    } else {
+      const yaw = wp.yaw || 0;
+      const sin = Math.sin(yaw);
+      const cos = Math.cos(yaw);
+      const hx = feet.x - sin * 0.4;
+      const hz = feet.z - cos * 0.4;
+      const hy = feet.y + 1.55;
+      _pipSpiritLook.set(feet.x - sin * 12, feet.y + 1.35, feet.z - cos * 12);
+      this._pipPersp.position.set(hx, hy, hz);
+      this._pipPersp.up.set(0, 1, 0);
+      this._pipPersp.lookAt(_pipSpiritLook);
+      this._pipRenderer.render(this.scene, this._pipPersp);
+    }
 
     this.scene.fog = fog;
     this.scene.background = bg;
+  }
+
+  dispose() {
+    if (this._disposed) return;
+    this._disposed = true;
+    if (this._rafId) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = 0;
+    }
+    if (this._warmupPoll) {
+      clearInterval(this._warmupPoll);
+      this._warmupPoll = null;
+    }
+    window.removeEventListener("resize", this._onResizeBound);
+
+    for (const name of [...this._activeModules].reverse()) {
+      this.deactivate(name);
+    }
+
+    this._disposePipRenderer();
+    this._pipStrategy = null;
+
+    if (this._hud?.parentNode) this._hud.parentNode.removeChild(this._hud);
+    this._hud = null;
+
+    this.renderer.dispose();
+
+    delete window.anuOrchestrator;
+    delete window.Orchestrator;
   }
 }

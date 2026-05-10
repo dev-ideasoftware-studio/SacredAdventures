@@ -40,3 +40,48 @@ export const V2_FRAME_MS_BUDGET = 1000 / V2_TARGET_FPS;
 
 /** Adaptive PiP: upper bound on “every N frames” stride under stress (≥ baseline). */
 export const V2_ADAPTIVE_PIP_MAX_STRIDE = 8;
+
+// ── Canonical mesh heights / structures (legacy EnvironmentBuilder 1:1) ────────
+
+/** `Assets/tree.glb` template scaled so upright mesh height matches this (m). Trees.js `scaleFix`. */
+export const V2_TREE_TEMPLATE_TARGET_HEIGHT_M = 11;
+
+/**
+ * Yellow butterfly tipi (`tipi.yellowbutterfly.glb`) — legacy target vertical extent (m).
+ * js/EnvironmentBuilder.js → targetH = 7.2
+ */
+export const V2_TIPI_YELLOW_BUTTERFLY_TARGET_HEIGHT_M = 7.2;
+
+/**
+ * Sacred circle platform under center tipi — 75% of hex circumradius (legacy comment).
+ * CylinderGeometry(platRadius, platRadius + 0.15, 0.22).
+ */
+export const V2_TIPI_SACRED_PLATFORM_RADIUS = 4.7;
+export const V2_TIPI_SACRED_PLATFORM_HEIGHT = 0.22;
+/** Lift cylinder center above sampled terrain Y so platform reads “raised”. */
+export const V2_TIPI_SACRED_PLATFORM_CENTER_Y = 0.05;
+
+/** Legacy Avatar3 baseline height (m) before gameplay scaling tweaks. */
+const V2_AVATAR_BASELINE_HEIGHT_M = 1.78;
+
+/** Extra gameplay shrink vs the post-baseline scale (see V2_AVATAR_TARGET_HEIGHT_M). */
+const V2_AVATAR_GAMEPLAY_SCALE = 0.75;
+
+/**
+ * Avatar3 mesh height target (m). Baseline −30%, then −25% for figurine read.
+ */
+export const V2_AVATAR_TARGET_HEIGHT_M =
+  V2_AVATAR_BASELINE_HEIGHT_M * 0.7 * V2_AVATAR_GAMEPLAY_SCALE;
+
+/** Ground travel circle + arrow radius — scales with avatar vs legacy 1.72 m ring. */
+export const V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M = 1.72 * 0.7 * V2_AVATAR_GAMEPLAY_SCALE;
+
+/** Max horizontal speed from World steering when movement keys / autowalk are active (m/s). */
+export const V2_PLAYER_MOVE_SPEED_MPS = 7.0;
+
+/**
+ * Walk loop timeScale = clamp(|v.xz| / ref, min, max). Tune `ref` so cadence matches stride at cruise speed.
+ */
+export const V2_AVATAR_WALK_ANIM_REF_SPEED_MPS = 3.35;
+export const V2_AVATAR_WALK_ANIM_TIME_SCALE_MIN = 0.42;
+export const V2_AVATAR_WALK_ANIM_TIME_SCALE_MAX = 2.4;

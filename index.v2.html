@@ -96,7 +96,8 @@
   </div>
 
   <div id="v2-hint">
-    AnuUniverse.report() — pipeline memory · anuOrchestrator.report() — engine HUD<br>
+    AnuUniverse.report() — pipeline memory · AnuUniverse.exportGovernanceJson() — rules · AnuUniverse.exportWorldSensoriumJson() — world awareness<br>
+    anuOrchestrator.report() — engine HUD<br>
     Canonical: window.anuOrchestrator (SacredOrchestrator shell). Legacy alias: window.Orchestrator<br>
     AnuUniverse.anuOrchestrator === window.anuOrchestrator · AnuUniverse.isLiveSacredOrchestratorBound()<br>
     anuOrchestrator.activate('ModuleName') — add module<br>
@@ -124,10 +125,14 @@
     orc.register(UIModule);
     orc.register(V2PanelModule);
 
+    // ANU timeline 2026-05-10: governance + sensorium APIs live.
+    // Use AnuUniverse.exportGovernanceJson(), exportWorldSensoriumJson(), and exportFuzzyPipelineJson()
+    // before adding modules so every model, physics body, and IO path enters through ANU rules.
     // Simulation domains (register & activate when built — AnuUniverse.exportSimulationJson()):
-    // orc.register(WildlifeModule);   // fauna — meshes + AI; dispatch FAUNA_TICK
-    // orc.register(NPCModule);        // population — NPC behaviour / dialogue; dispatch NPC_ENTITY
+    // orc.register(WildlifeModule);   // fauna — meshes + AI IO; WorldPhysics body; dispatch FAUNA_TICK
+    // orc.register(NPCModule);        // population — NPC AI IO / dialogue; dispatch NPC_ENTITY
     // orc.register(BuildingsModule);  // structures — buildings / sockets; dispatch STRUCTURE_EVENT
+    // orc.register(ItemsModule);      // items — pickups / tools / journal objects; dispatch ITEM_EVENT
     // orc.register(JournalModule);
     // orc.register(VillageMapModule);
     // orc.register(FuzzyBrainModule);
