@@ -429,6 +429,7 @@ export const WorldModule = {
     }
 
     this._tipi?.userData?.ybNpcMixer?.update?.(delta);
+    this._tipi?.userData?.tipiAmbientEffectsUpdate?.(delta);
 
     this._tickNpcGreeting(_scene, _frameCount, now);
 
@@ -521,7 +522,8 @@ export const WorldModule = {
     scene.traverse((obj) => {
       if (
         obj === this._avatar.root ||
-        obj.userData?.anuSimulationDomain !== ANU_SIMULATION_DOMAIN.POPULATION
+        obj.userData?.anuSimulationDomain !== ANU_SIMULATION_DOMAIN.POPULATION ||
+        obj.userData?.anuInteractable !== true
       ) {
         return;
       }
@@ -543,6 +545,8 @@ export const WorldModule = {
 
   _turnNpcToward(npc, targetPosition) {
     if (!npc) return;
+    /** Seated/stage-placed rigs (YB) — keep loader/authored yaw; don't spin whole Group toward player. */
+    if (npc.userData?.anuPreservePlacementYaw) return;
     npc.getWorldPosition(this._tmpNpcPos);
     npc.rotation.y = this._yawFacing(this._tmpNpcPos, targetPosition);
     npc.userData.anuGreetingState = "facing_player";

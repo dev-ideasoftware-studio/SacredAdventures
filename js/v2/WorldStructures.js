@@ -5,15 +5,26 @@ import {
   ANU_SIMULATION_DOMAIN,
 } from "./anu/SimulationController.js";
 import {
+  V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M,
+  V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M,
   V2_NPC_YB_TIPI1_LOCAL_X_M,
   V2_NPC_YB_TIPI1_LOCAL_Z_M,
+  V2_NPC_YB_TIPI1_MODEL_YAW_RAD,
+  V2_NPC_YB_TIPI1_SEAT_LOWER_M,
+  V2_NPC_YB_TIPI1_SIZE_MULTIPLIER,
   V2_NPC_YB_TIPI1_TARGET_HEIGHT_M,
   V2_NPC_YB_TIPI1_VERTICAL_TRIM_M,
+  V2_TIPI_BRAZIER_ABOVE_DECK_M,
+  V2_TIPI_BRAZIER_WORLD_X_M,
+  V2_TIPI_BRAZIER_WORLD_Z_M,
   V2_TIPI_SACRED_PLATFORM_CENTER_Y,
   V2_TIPI_SACRED_PLATFORM_HEIGHT,
   V2_TIPI_SACRED_PLATFORM_RADIUS,
+  V2_TIPI_SMOKE_ABOVE_APEX_M,
   V2_TIPI_YELLOW_BUTTERFLY_TARGET_HEIGHT_M,
 } from "./constants.js";
+import { applyPipOrthoRingDiskClipToSubtree } from "./anu/PipOrthoRingDiskClip.js";
+import { createTipiCampfire, createTipiSmokePlume } from "./TipiCampfire.js";
 import { terrainY } from "./WorldTerrain.js";
 
 /** Legacy primary yellow butterfly tipi path — WORDPRESS bundle mirrors original Assets layout. */
@@ -26,30 +37,105 @@ export function tipi1SacredDeckTopY(platMesh) {
   return platMesh.position.y + V2_TIPI_SACRED_PLATFORM_HEIGHT * 0.5;
 }
 
+/** Gold circle + ring + arrow (same layout as Avatar travel UI; arrow points **local +Z** = world South here). */
+function addSouthFacingGoldTravelMarker(group, radius, liftY) {
+  const R = radius;
+  const lift = liftY;
+
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(R, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0xb8860b,
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false,
+    }),
+  );
+  disc.name = "population_npc_yb_gold_travel_disc";
+  disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.POPULATION;
+  disc.userData.anuKind = "npc_yb_travel_disc";
+  disc.userData.anuId = "population.npc.yellow_butterfly.gold_disc";
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.y = lift;
+  disc.renderOrder = 1;
+  group.add(disc);
+
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(R * 0.92, R, 72),
+    new THREE.MeshBasicMaterial({
+      color: 0xffd700,
+      transparent: true,
+      opacity: 0.94,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  );
+  ring.name = "population_npc_yb_gold_travel_ring";
+  ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.POPULATION;
+  ring.userData.anuKind = "npc_yb_travel_ring";
+  ring.userData.anuId = "population.npc.yellow_butterfly.gold_ring";
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = lift + 0.008;
+  ring.renderOrder = 2;
+  group.add(ring);
+
+  const arrowShape = new THREE.Shape()
+    .moveTo(0, R * 0.92)
+    .lineTo(R * 0.22, R * 0.52)
+    .lineTo(-R * 0.22, R * 0.52)
+    .lineTo(0, R * 0.92);
+  const arrow = new THREE.Mesh(
+    new THREE.ShapeGeometry(arrowShape),
+    new THREE.MeshBasicMaterial({
+      color: 0xfff8dc,
+      transparent: true,
+      opacity: 0.96,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  );
+  arrow.name = "population_npc_yb_gold_travel_arrow";
+  arrow.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.POPULATION;
+  arrow.userData.anuKind = "npc_yb_travel_arrow";
+  arrow.userData.anuId = "population.npc.yellow_butterfly.gold_arrow";
+  arrow.rotation.x = -Math.PI / 2;
+  arrow.position.y = lift + 0.018;
+  arrow.renderOrder = 3;
+  group.add(arrow);
+}
+
 /**
  * Loads `NPC.YB.glb` seated on the tipi 1 cylinder deck (inside / centre area).
  * Animation: sit clip by name (`sit`, `003`, …) or legacy index **3** fallback (`EnvironmentBuilder.js`).
+ *
+ * Orientation: **`V2_NPC_YB_TIPI1_MODEL_YAW_RAD`** aligns rig **front** toward world **+Z** (players
+ * spawning / approaching from **`z > 0`** see face-on — “South” travel arrow follows same +Z rule as Avatar).
  */
 async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) {
   try {
     const gltf = await new GLTFLoaderWithDraco().loadAsync(NPC_YB_URL);
     const model = gltf.scene;
-    /** Match v2 figurine NPC convention (+Z gameplay forward after fix). */
-    model.rotation.y = -Math.PI / 2;
+    /** glTF-local → figurine-facing world +Z (+Z South; greet players from south of tipi). */
+    model.rotation.y = V2_NPC_YB_TIPI1_MODEL_YAW_RAD;
 
     model.traverse((ch) => {
-      if (ch.isMesh) {
+      if (ch.isMesh || ch.isSkinnedMesh) {
         ch.castShadow = false;
         ch.receiveShadow = false;
         ch.frustumCulled = true;
+        ch.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.POPULATION;
+        ch.userData.anuKind = "npc_yb_tipi1_rig_mesh";
+        const nm = (ch.name || "mesh").replace(/\s+/g, "_").slice(0, 48);
+        ch.userData.anuId = `population.npc.yellow_butterfly.mesh.${nm}`;
       }
     });
 
     const box0 = new THREE.Box3().setFromObject(model);
     const size0 = new THREE.Vector3();
     box0.getSize(size0);
-    const sc =
+    const baseSc =
       size0.y > 0.001 ? V2_NPC_YB_TIPI1_TARGET_HEIGHT_M / size0.y : 1;
+    const sc = baseSc * V2_NPC_YB_TIPI1_SIZE_MULTIPLIER;
     model.scale.setScalar(sc);
     model.updateMatrixWorld(true);
 
@@ -65,15 +151,19 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
     root.userData.anuInteractable = true;
     root.userData.anuInteractionVerbs = [ANU_INTERACTION_VERB.INSPECT];
     root.userData.anuCollision = "passable";
+    /** Seated hub host — authored facing (+Z stage); skip World NPC greet spin (see `_turnNpcToward`). */
+    root.userData.anuPreservePlacementYaw = true;
     root.userData.anuLegacyReference =
       "EnvironmentBuilder.js NPC.YB — seated only (fresh v2 attachment)";
+
+    addSouthFacingGoldTravelMarker(root, V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M, V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M);
 
     root.add(model);
 
     const deckTop = tipi1SacredDeckTopY(platMesh);
     root.position.set(
       V2_NPC_YB_TIPI1_LOCAL_X_M,
-      deckTop + V2_NPC_YB_TIPI1_VERTICAL_TRIM_M,
+      deckTop + V2_NPC_YB_TIPI1_VERTICAL_TRIM_M - V2_NPC_YB_TIPI1_SEAT_LOWER_M,
       V2_NPC_YB_TIPI1_LOCAL_Z_M,
     );
 
@@ -98,6 +188,7 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
       act.setLoop(THREE.LoopRepeat, Infinity);
       act.clampWhenFinished = false;
       act.play();
+      mixer.update(0);
       root.userData.anuActiveAnimation = { kind: "sit", clip: sitClip.name };
     }
 
@@ -191,10 +282,14 @@ export async function loadCenterTipi({ scene, objects, worldPhysics }) {
     platMesh.userData.buildingRoot = tipi;
 
     tipi.traverse((child) => {
-      if (child.isMesh) {
+      if (child.isMesh || child.isSkinnedMesh) {
         child.castShadow = false;
         child.receiveShadow = false;
         child.userData.anuCollision = "passable";
+        child.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;
+        child.userData.anuKind = "tipi_yellow_butterfly_mesh";
+        const msh = (child.name || "mesh").replace(/\s+/g, "_").slice(0, 48);
+        child.userData.anuId = `structure.tipi_1.mesh.${msh}`;
         const mats = Array.isArray(child.material)
           ? child.material
           : [child.material];
@@ -215,7 +310,45 @@ export async function loadCenterTipi({ scene, objects, worldPhysics }) {
     scene.add(tipi);
     objects.push(tipi);
 
-    await attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi);
+    const ybSeat = await attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi);
+
+    const deckFx = tipi1SacredDeckTopY(platMesh);
+    const hearthY = deckFx + V2_TIPI_BRAZIER_ABOVE_DECK_M;
+    const fireCtl = createTipiCampfire({
+      scene,
+      objects,
+      x: hexPos.x + V2_TIPI_BRAZIER_WORLD_X_M,
+      y: hearthY,
+      z: hexPos.z + V2_TIPI_BRAZIER_WORLD_Z_M,
+    });
+
+    tipi.updateMatrixWorld(true);
+    const apexBox = new THREE.Box3().setFromObject(tipi);
+    const apexCenter = apexBox.getCenter(new THREE.Vector3());
+    const smokeCtl = createTipiSmokePlume({
+      scene,
+      objects,
+      x: apexCenter.x,
+      y: apexBox.max.y + V2_TIPI_SMOKE_ABOVE_APEX_M,
+      z: apexCenter.z,
+    });
+
+    tipi.userData.tipiAmbientEffectsUpdate = (dt) => {
+      fireCtl.update(dt);
+      smokeCtl.update(dt);
+    };
+
+    /* PiP ortho inner-circle discard: foliage / airborne VFX only — keep tipi/YB/platform visible under compass. */
+    applyPipOrthoRingDiskClipToSubtree(fireCtl.group);
+    applyPipOrthoRingDiskClipToSubtree(smokeCtl.group);
+
+    tipi.userData.anuSubsystemIds = Object.freeze([
+      platMesh.userData.anuId,
+      tipi.userData.anuId,
+      ybSeat?.root?.userData?.anuId ?? null,
+      fireCtl.group.userData.anuId,
+      smokeCtl.group.userData.anuId,
+    ].filter(Boolean));
 
     worldPhysics.registerCollider({
       id: "structure.tipi_1.center.passable",
