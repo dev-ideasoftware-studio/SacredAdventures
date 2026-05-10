@@ -43,11 +43,17 @@ export const V2_FRAME_MS_BUDGET = 1000 / V2_TARGET_FPS;
 export const V2_ADAPTIVE_PIP_MAX_STRIDE = 8;
 
 /**
- * Moondial `#pipOverlay` yellow dashed minimap cue: radius as a fraction of `min(canvasW,canvasH)`
- * (`UIModule._pipOverlayRing`). `anu/PipOrthoRingDiskClip.js` arms PiP ortho discard inside this disk for
- * **forest meshes + airborne tipi particles** — tipi meshes, decks, and seated NPC remain visible.
+ * Moondial `#pipOverlay` yellow dashed **focus cue** only: radius = `factor * min(canvasW, canvasH)`
+ * (`UIModule._pipOverlayRing`). Independent of foliage PiP discard (see glass disk factor below).
  */
 export const V2_PIP_OVERLAY_BRANCH_CLIP_RADIUS_FACTOR = 0.32;
+
+/**
+ * PiP ortho fragment discard for **forest + smoke/particles**: disk radius =
+ * `factor * min(canvasW, canvasH)` (same scale as overlay factor; max practical ≈ 0.5).
+ * Matches the circular **glass** minimap aperture — larger than the yellow dashed cue disk.
+ */
+export const V2_PIP_GLASS_DISK_CLIP_RADIUS_FACTOR = 0.46;
 
 // ── Canonical mesh heights / structures (legacy EnvironmentBuilder 1:1) ────────
 
@@ -90,9 +96,14 @@ export const V2_NPC_YB_TIPI1_TARGET_HEIGHT_M = 1.52;
 /** Additional uniform scale vs target (e.g. `0.5` → half previous on-screen height). */
 export const V2_NPC_YB_TIPI1_SIZE_MULTIPLIER = 0.5;
 /**
- * Rig Y rotation (rad) after glTF load — tuned so NPC.YB faces **world +Z** (figurine convention).
+ * `NPC.YB.glb` only — −X bind in-world after tipi **`rotation.y = −π/2`** and hex placement.
+ * Base fix was **+90° Y** (`π/2`); she is spun **+180°** on top so her forward stance faces **world −Z**
+ * (entrance / approach from +Z sees her turned to match revised GLB forward).
  */
-export const V2_NPC_YB_TIPI1_MODEL_YAW_RAD = -Math.PI / 2;
+export const V2_NPC_YB_TIPI1_MODEL_YAW_RAD = Math.PI / 2 + Math.PI;
+
+/** Avatar3 inner Y rotation (`WorldAvatar.js`) — aligns imported model forward with v2 player-forward. */
+export const V2_AVATAR_MODEL_YAW_RAD = Math.PI / 2;
 
 /** Fine vertical nudge after sole alignment (negative = sink slightly into seat cushion). */
 export const V2_NPC_YB_TIPI1_VERTICAL_TRIM_M = -0.035;
@@ -127,8 +138,16 @@ export const V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M = 1.72 * 0.7 * V2_AVATAR_GAMEPLAY_
 /** YB gold travel ring radius (half-scale NPC vs player footprint). */
 export const V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M =
   V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M * 0.5;
-/** YB disc / ring / arrow lift above seated origin. */
-export const V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M = V2_AVATAR_TRAVEL_CIRCLE_LIFT_M * 0.85;
+/**
+ * Gold travel disc / ring / arrow: **local Y** from seated `root` origin.
+ * Root is at `deckTop + vertical_trim − seat_lower`, i.e. below the sacred deck cap; this delta
+ * reaches the deck surface plus `V2_AVATAR_TRAVEL_CIRCLE_LIFT_M` so the decal sits on the platform,
+ * not inside the green cylinder (was previously ~only the avatar lift and read “under” the deck).
+ */
+export const V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M =
+  V2_NPC_YB_TIPI1_SEAT_LOWER_M -
+  V2_NPC_YB_TIPI1_VERTICAL_TRIM_M +
+  V2_AVATAR_TRAVEL_CIRCLE_LIFT_M;
 
 /** Max horizontal speed from World steering when movement keys / autowalk are active (m/s). */
 export const V2_PLAYER_MOVE_SPEED_MPS = 7.0;

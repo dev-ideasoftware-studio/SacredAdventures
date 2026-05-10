@@ -196,14 +196,27 @@ export const ANU_PIPELINE_MEMORY = [
     learnedAt: "2026-05",
     title: "Avatar3 is the governed player figurine",
     summary:
-      "World installs Assets/Avatar3.glb as the player avatar, corrects its imported facing to v2 player-forward, stores all GLB animation clips, adds a travel circle, and routes avatar/NPC greeting events through ANU.",
+      "World installs Assets/Avatar3.glb as the player avatar, corrects its imported facing to v2 player-forward, stores all GLB animation clips, and adds a travel circle.",
     mitigations: [
       "WorldPlayer.animations — runtime list of Avatar3 clips",
       "WorldPlayer.avatar.userData.anuAnimationScan — scanned clip notes + semantic mapping",
       "ANU_EVENTS.PLAYER_AVATAR_ANIMATION — animation state changes",
-      "ANU_EVENTS.PLAYER_NPC_GREETING — hello/goodbye proximity rule for population models",
+      "Proximity NPC greet/orbit was removed — no automatic tipi/population coupling to player yaw",
     ],
     files: ["Assets/Avatar3.glb", "js/v2/World.js", "js/v2/anu/anuEvents.js"],
+  },
+  {
+    id: "npc-yb-tipi1-population",
+    learnedAt: "2026-05",
+    title: "NPC.YB (Yellow Butterfly) seated host on tipi 1 sacred deck",
+    summary:
+      "WorldStructures loads Assets/NPC.YB.glb with POPULATION domain tagging, sit clip, model yaw from constants, and a gold player-style travel marker (disc + ring + facing arrow). The seated root origin is **below** the green platform deck (`deckTop + vertical_trim − seat_lower`); the marker lift must include `(seat_lower − vertical_trim) + travel_lift` so the decal draws **on** the deck, not inside the cylinder beneath it.",
+    mitigations: [
+      "constants.js — V2_NPC_YB_TIPI1_* including V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M",
+      "WorldStructures.js — attachYellowButterflySeatedTipi1 / addGoldTravelMarkerAtFeet",
+      "PiP ortho ring clip allowlist keeps tipi, platform, and YB visible under the compass disk",
+    ],
+    files: ["js/v2/WorldStructures.js", "js/v2/constants.js", "js/v2/anu/PipOrthoRingDiskClip.js"],
   },
   {
     id: "world-collision-autowalk",

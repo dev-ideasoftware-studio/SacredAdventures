@@ -37,18 +37,26 @@ export function tipi1SacredDeckTopY(platMesh) {
   return platMesh.position.y + V2_TIPI_SACRED_PLATFORM_HEIGHT * 0.5;
 }
 
-/** Gold circle + ring + arrow (same layout as Avatar travel UI; arrow points **local +Z** = world South here). */
-function addSouthFacingGoldTravelMarker(group, radius, liftY) {
+/**
+ * Metal-gold floor marker — same layout as `WorldAvatar` travel UI (disc + ring 0.92–1.0 + arrow),
+ * with gold palette. `arrowYawRad` rotates the arrow around Y so it matches `V2_NPC_YB_TIPI1_MODEL_YAW_RAD`
+ * (convention: model yaw π/2 faces +Z; arrow uses `modelYaw − π/2`). Lift comes from `constants.js`
+ * so geometry clears the sacred platform deck (`V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M`).
+ */
+function addGoldTravelMarkerAtFeet(group, radius, liftY, arrowYawRad = 0) {
   const R = radius;
   const lift = liftY;
 
   const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(R, 64),
+    new THREE.CircleGeometry(R, 72),
     new THREE.MeshBasicMaterial({
-      color: 0xb8860b,
+      color: 0xc9a227,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.28,
       depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -2,
     }),
   );
   disc.name = "population_npc_yb_gold_travel_disc";
@@ -61,13 +69,16 @@ function addSouthFacingGoldTravelMarker(group, radius, liftY) {
   group.add(disc);
 
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(R * 0.92, R, 72),
+    new THREE.RingGeometry(R * 0.92, R, 96),
     new THREE.MeshBasicMaterial({
-      color: 0xffd700,
+      color: 0xe6c200,
       transparent: true,
-      opacity: 0.94,
+      opacity: 0.95,
       side: THREE.DoubleSide,
       depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -2,
     }),
   );
   ring.name = "population_npc_yb_gold_travel_ring";
@@ -87,11 +98,14 @@ function addSouthFacingGoldTravelMarker(group, radius, liftY) {
   const arrow = new THREE.Mesh(
     new THREE.ShapeGeometry(arrowShape),
     new THREE.MeshBasicMaterial({
-      color: 0xfff8dc,
+      color: 0xfff4b3,
       transparent: true,
       opacity: 0.96,
       side: THREE.DoubleSide,
       depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -2,
     }),
   );
   arrow.name = "population_npc_yb_gold_travel_arrow";
@@ -99,7 +113,8 @@ function addSouthFacingGoldTravelMarker(group, radius, liftY) {
   arrow.userData.anuKind = "npc_yb_travel_arrow";
   arrow.userData.anuId = "population.npc.yellow_butterfly.gold_arrow";
   arrow.rotation.x = -Math.PI / 2;
-  arrow.position.y = lift + 0.018;
+  arrow.rotation.y = arrowYawRad;
+  arrow.position.y = lift + 0.015;
   arrow.renderOrder = 3;
   group.add(arrow);
 }
@@ -108,12 +123,13 @@ function addSouthFacingGoldTravelMarker(group, radius, liftY) {
  * Loads `NPC.YB.glb` seated on the tipi 1 cylinder deck (inside / centre area).
  * Animation: sit clip by name (`sit`, `003`, …) or legacy index **3** fallback (`EnvironmentBuilder.js`).
  *
- * Orientation: **`V2_NPC_YB_TIPI1_MODEL_YAW_RAD`** — matches v2 Avatar/NPC figurine forward (+Z gameplay).
+ * Orientation: `V2_NPC_YB_TIPI1_MODEL_YAW_RAD` (see `constants.js` — includes +180° vs base π/2 for forward stance).
  */
 async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) {
   try {
     const gltf = await new GLTFLoaderWithDraco().loadAsync(NPC_YB_URL);
     const model = gltf.scene;
+    model.name = "population_npc_yb_model";
     model.rotation.y = V2_NPC_YB_TIPI1_MODEL_YAW_RAD;
 
     model.traverse((ch) => {
@@ -152,7 +168,14 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
     root.userData.anuLegacyReference =
       "EnvironmentBuilder.js NPC.YB — seated only (fresh v2 attachment)";
 
-    addSouthFacingGoldTravelMarker(root, V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M, V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M);
+    const ybFacingArrowYaw =
+      V2_NPC_YB_TIPI1_MODEL_YAW_RAD - Math.PI / 2;
+    addGoldTravelMarkerAtFeet(
+      root,
+      V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M,
+      V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M,
+      ybFacingArrowYaw,
+    );
 
     root.add(model);
 
@@ -188,8 +211,6 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
     }
 
     if (tipi) tipi.userData.ybNpcMixer = mixer;
-
-    root.userData.anuPlayGesture = () => {};
 
     console.log("%c[World] NPC.YB seated at tipi 1 (minimal load)", "color:#ce93d8;");
     return { root, mixer };
