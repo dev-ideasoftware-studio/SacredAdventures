@@ -94,10 +94,12 @@ function createGoldTravelFacingArrowMesh(radius, localY) {
       transparent: true,
       opacity: 0.96,
       side: THREE.DoubleSide,
+      // Match the shared travel-floor-decal policy (ANU memory:
+      // travel-floor-decal-depth). depthTest off + renderOrder 10 keeps
+      // the arrow readable on the sacred deck and on tilted terrain
+      // alike, with no polygonOffset artefacts.
+      depthTest: false,
       depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -2,
     }),
   );
   arrow.name = "population_npc_yb_gold_travel_arrow";
@@ -106,7 +108,7 @@ function createGoldTravelFacingArrowMesh(radius, localY) {
   arrow.userData.anuId = "population.npc.yellow_butterfly.gold_arrow";
   arrow.rotation.x = -Math.PI / 2;
   arrow.position.y = localY;
-  arrow.renderOrder = 3;
+  arrow.renderOrder = 10;
   return arrow;
 }
 

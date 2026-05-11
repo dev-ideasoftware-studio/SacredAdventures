@@ -308,6 +308,31 @@ export const ANU_PIPELINE_MEMORY = [
     files: ["scripts/check-assets.mjs", "package.json", "Assets/README.md"],
   },
   {
+    id: "pip-user-zoom-wire-up",
+    learnedAt: "2026-05",
+    title: "PiP user zoom (UIModule \"+/−\") wired into the Orchestrator ortho frustum",
+    summary:
+      "UIModule's pip-zoom buttons dispatch CustomEvent `v2-pip-zoom-change` and persist `sacred:v2:pipZoom` to localStorage. Phase 5 adds the matching listener in SacredOrchestrator: `_pipUserZoom` is seeded from localStorage on construct, updated on each event, and combined as `V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM * _pipUserZoom` for both `_ensurePipPipeline` and `_resizePipIfNeeded` frustum spans. Both zero `_pipW/_pipH` after a zoom change so the ortho rebake happens on the next PiP tick. Listener torn down in dispose().",
+    mitigations: [
+      "UIModule clamp [0.6, 1.6] is duplicated on the orchestrator side as a defense for callers that bypass UIModule.",
+      "_pipUserZoom is read from localStorage with try/catch (private mode / blocked storage) — falls back to 1.",
+      "Designer constant V2_PIP_ORTHO_ZOOM stays the canonical default; user zoom multiplies it, not replaces it.",
+    ],
+    files: ["js/v2/Orchestrator.js", "js/v2/UIModule.js", "js/v2/constants.js"],
+  },
+  {
+    id: "npc-arrow-decal-policy-alignment",
+    learnedAt: "2026-05",
+    title: "NPC YB gold travel arrow now follows the shared floor-decal depth policy",
+    summary:
+      "Phase 5 audit found one straggler: the NPC YB arrow in WorldStructures.js used a hand-rolled MeshBasicMaterial with polygonOffset, missing depthTest:false, and renderOrder:3 — out of step with the avatar arrow (renderOrder:10, depthTest:false, depthWrite:false). Aligned with the policy from `travel-floor-decal-depth`: drop polygonOffset, add depthTest:false, bump renderOrder to 10. Stays readable on the sacred deck and on tilted terrain alike.",
+    mitigations: [
+      "If a future arrow / decal genuinely should occlude, build a different material — do not flip the policy on the shared one.",
+      "When adding a new floor decal, copy the avatar arrow's material recipe (depthTest+depthWrite false + renderOrder 8/9/10).",
+    ],
+    files: ["js/v2/WorldStructures.js", "js/v2/WorldAvatar.js", "js/v2/anu/TravelFloorCircleMaterials.js"],
+  },
+  {
     id: "orchestrator-pip-decomp-and-hud-line",
     learnedAt: "2026-05",
     title: "PiP render decomposed (prepare/pass/restore) + HUD pip status line",

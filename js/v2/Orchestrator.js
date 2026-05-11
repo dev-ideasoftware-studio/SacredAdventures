@@ -121,6 +121,13 @@ export class SacredOrchestrator {
     this._pipTipiSmokePlume = null;
     /** Did the last `_renderPip()` invocation actually render? Surfaced in the HUD's PiP line. */
     this._pipRenderedLastFrame = false;
+    /**
+     * User-level PiP ortho zoom multiplier (UIModule "+/−" buttons → CustomEvent
+     * "v2-pip-zoom-change"). Combined with V2_PIP_ORTHO_ZOOM in the frustum
+     * span so adaptive policy + designer-tuned defaults compose with the
+     * per-user preference. Range matches UIModule clamp [0.6, 1.6].
+     */
+    this._pipUserZoom = this._readPipUserZoomFromStorage();
     const self = this;
     this._pipStrategy = {
       getSnapshot() {
@@ -142,6 +149,10 @@ export class SacredOrchestrator {
     // ── Resize ────────────────────────────────────────────────────────────
     this._onResizeBound = () => this._onResize();
     window.addEventListener("resize", this._onResizeBound);
+
+    // ── PiP user zoom (UIModule "v2-pip-zoom-change") ─────────────────────
+    this._onPipZoomChangeBound = (e) => this._onPipUserZoomChange(e);
+    window.addEventListener("v2-pip-zoom-change", this._onPipZoomChangeBound);
 
     /** Runtime discriminator — only the constructed engine shell sets this (not random globals). */
     this.isSacredOrchestratorShell = true;
@@ -712,6 +723,34 @@ export class SacredOrchestrator {
     this._pipH = 0;
   }
 
+  /**
+   * UIModule.js dispatches `v2-pip-zoom-change` on each "+/−" press. We
+   * clamp defensively in case a future caller bypasses UIModule's clamp,
+   * then zero the cached PiP backing-store size so `_resizePipIfNeeded`
+   * recomputes the ortho frustum on the next PiP tick.
+   */
+  _onPipUserZoomChange(e) {
+    const raw = e?.detail?.zoom;
+    const next = Number.isFinite(raw) ? Math.min(1.6, Math.max(0.6, raw)) : 1;
+    if (next === this._pipUserZoom) return;
+    this._pipUserZoom = next;
+    this._pipW = 0;
+    this._pipH = 0;
+  }
+
+  _readPipUserZoomFromStorage() {
+    try {
+      const raw = window.localStorage?.getItem("sacred:v2:pipZoom");
+      const parsed = Number.parseFloat(raw ?? "");
+      if (Number.isFinite(parsed)) {
+        return Math.min(1.6, Math.max(0.6, parsed));
+      }
+    } catch (_err) {
+      /* private mode / disabled — fall through to default */
+    }
+    return 1;
+  }
+
   _ensurePipPipeline(canvasEl) {
     if (this._pipRenderer) return;
     const pr = Math.min(window.devicePixelRatio || 1, 1.25);
@@ -737,7 +776,8 @@ export class SacredOrchestrator {
     this._pipRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     this._pipRenderer.toneMappingExposure = this.renderer.toneMappingExposure;
 
-    const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM;
+    // Frustum span = designer constant × per-user zoom (UIModule "+/−").
+    const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM * this._pipUserZoom;
     const aspect = w / Math.max(1, h);
     const halfW = span / 2;
     const halfH = halfW / aspect;
@@ -770,7 +810,8 @@ export class SacredOrchestrator {
     canvasEl.height = h;
     this._pipRenderer.setSize(w, h, false);
 
-    const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM;
+    // Frustum span = designer constant × per-user zoom (UIModule "+/−").
+    const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM * this._pipUserZoom;
     const aspect = w / Math.max(1, h);
     const halfW = span / 2;
     const halfH = halfW / aspect;
@@ -949,6 +990,10 @@ export class SacredOrchestrator {
       this._warmupPoll = null;
     }
     window.removeEventListener("resize", this._onResizeBound);
+    if (this._onPipZoomChangeBound) {
+      window.removeEventListener("v2-pip-zoom-change", this._onPipZoomChangeBound);
+      this._onPipZoomChangeBound = null;
+    }
 
     for (const name of [...this._activeModules].reverse()) {
       this.deactivate(name);
