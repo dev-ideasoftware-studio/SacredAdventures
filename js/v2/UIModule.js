@@ -41,6 +41,7 @@ export const UIModule = {
   _overlayCanvas: null,
   _overlayCtx: null,
   _lastMoonUpdate: 0,
+  _pipZoom: 1,
   /** If set 0–7, radial lunar dial uses manual phase; else real-world synodic approximation. */
   _lunarManualIndex: null,
 
@@ -74,6 +75,9 @@ export const UIModule = {
           --pip-gold: #c6a035;
           --pip-gold-soft: rgba(232, 212, 148, 0.92);
           --pip-parchment: #f3ece3;
+          --pip-moon-track: 22px;
+          --pip-compass-track: 20px;
+          --pip-outer-track: 16px;
           position: absolute;
           top: 50px;
           left: 20px;
@@ -132,10 +136,24 @@ export const UIModule = {
         }
         .lunar-radial-ring {
           position: absolute;
-          inset: -18px;
+          inset: -4px;
           border-radius: 50%;
           pointer-events: none;
           z-index: 7;
+          background: radial-gradient(
+            circle closest-side at 50% 50%,
+            transparent 0,
+            transparent calc(100% - var(--pip-moon-track)),
+            var(--pip-bronze-lo) calc(100% - var(--pip-moon-track) + 1px),
+            var(--pip-bronze-hi) calc(100% - 12px),
+            #4a362e calc(100% - 5px),
+            var(--pip-bronze-lo) 100%
+          );
+          box-shadow:
+            inset 0 0 0 1px rgba(255, 248, 235, 0.1),
+            inset 0 3px 8px rgba(255, 248, 235, 0.08),
+            inset 0 -7px 12px rgba(0, 0, 0, 0.36),
+            0 0 0 1px rgba(20, 12, 9, 0.72);
         }
         .lunar-radial-rim {
           position: absolute;
@@ -144,8 +162,8 @@ export const UIModule = {
           pointer-events: none;
         }
         .lunar-radial-rim.pip-ring-bronze {
-          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 28px), black calc(100% - 26px));
-          mask-image: radial-gradient(circle closest-side, transparent calc(100% - 28px), black calc(100% - 26px));
+          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-moon-track)), black calc(100% - var(--pip-moon-track) + 1px));
+          mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-moon-track)), black calc(100% - var(--pip-moon-track) + 1px));
         }
         .lunar-radial-rim.pip-ring-ticks::before {
           content: '';
@@ -160,14 +178,14 @@ export const UIModule = {
             transparent 0.75deg,
             transparent 17.25deg
           );
-          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 24px), black calc(100% - 22px));
-          mask-image: radial-gradient(circle closest-side, transparent calc(100% - 24px), black calc(100% - 22px));
+          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-moon-track) + 4px), black calc(100% - var(--pip-moon-track) + 5px));
+          mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-moon-track) + 4px), black calc(100% - var(--pip-moon-track) + 5px));
         }
         .lunar-phase-slot {
           position: absolute;
           pointer-events: auto;
-          width: 13%;
-          height: 13%;
+          width: clamp(20px, 7.5%, 24px);
+          height: clamp(20px, 7.5%, 24px);
           border: none;
           background: transparent;
           border-radius: 50%;
@@ -200,14 +218,14 @@ export const UIModule = {
             0 0 0 2px rgba(198, 160, 53, 0.45),
             0 4px 14px rgba(0, 0, 0, 0.35);
         }
-        .lunar-phase-slot.slot-0 { top: 7.5%; left: 50%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-1 { top: 19%; left: 81%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-2 { top: 50%; left: 93%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-3 { top: 81%; left: 81%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-4 { top: 92.5%; left: 50%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-5 { top: 81%; left: 19%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-6 { top: 50%; left: 7%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-7 { top: 19%; left: 19%; transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-0 { top: 3.5%; left: 50%; transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-1 { top: 16.8%; left: 83.2%; transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-2 { top: 50%; left: 96.5%; transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-3 { top: 83.2%; left: 83.2%; transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-4 { top: 96.5%; left: 50%; transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-5 { top: 83.2%; left: 16.8%; transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-6 { top: 50%; left: 3.5%; transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-7 { top: 16.8%; left: 16.8%; transform: translate(-50%, -50%); }
         .lunar-phase-slot:hover.slot-0,
         .lunar-phase-slot:hover.slot-1,
         .lunar-phase-slot:hover.slot-2,
@@ -228,15 +246,19 @@ export const UIModule = {
         }
         .compass-outer-ring {
           position: absolute;
-          inset: -28px;
+          inset: -24px;
           border-radius: 50%;
           pointer-events: none;
           z-index: 6;
           will-change: transform;
           transform-origin: center;
           transition: none;
-          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 20px), black calc(100% - 19px));
-          mask-image: radial-gradient(circle closest-side, transparent calc(100% - 20px), black calc(100% - 19px));
+          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-compass-track)), black calc(100% - var(--pip-compass-track) + 1px));
+          mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-compass-track)), black calc(100% - var(--pip-compass-track) + 1px));
+          box-shadow:
+            inset 0 0 0 1px rgba(255, 248, 235, 0.08),
+            inset 0 -8px 16px rgba(0, 0, 0, 0.42),
+            0 0 0 1px rgba(18, 10, 8, 0.78);
         }
         .compass-outer-ring.pip-ring-bronze::before {
           content: '';
@@ -256,17 +278,17 @@ export const UIModule = {
         }
         .compass-marker {
           position: absolute;
-          color: var(--pip-parchment);
+          color: #fffdf5;
           font-family: 'Cinzel', Georgia, serif;
-          font-size: clamp(12px, 2.9vw, 15px);
-          font-weight: 700;
+          font-size: clamp(14px, 3.3vw, 17px);
+          font-weight: 800;
           letter-spacing: 0.06em;
           text-shadow:
             0 1px 2px rgba(0, 0, 0, 0.9),
             0 0 12px rgba(198, 160, 53, 0.2);
           line-height: 1;
         }
-        .compass-marker.n { top: 3px; left: 50%; transform: translateX(-50%); z-index: 2; color: var(--pip-gold-soft); }
+        .compass-marker.n { top: 3px; left: 50%; transform: translateX(-50%); z-index: 2; color: #fffdf5; }
         .compass-marker.s { bottom: 3px; left: 50%; transform: translateX(-50%); z-index: 2; }
         .compass-marker.e { right: 5px; top: 50%; transform: translateY(-50%); z-index: 2; }
         .compass-marker.w { left: 5px; top: 50%; transform: translateY(-50%); z-index: 2; }
@@ -319,12 +341,26 @@ export const UIModule = {
             drop-shadow(0 0 6px rgba(198, 160, 53, 0.55));
           pointer-events: none;
         }
-        .season-outer-ring { position: absolute; inset: -24px; border-radius: 50%; pointer-events: none; z-index: -1; transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .season-outer-ring {
+          position: absolute;
+          inset: 16%;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 8;
+          opacity: 0;
+          transform: rotate(var(--season-rotation, 0deg)) scale(0.94);
+          transition:
+            opacity 0.22s ease,
+            transform 0.22s ease;
+        }
         .season-outer-bg {
           position: absolute; inset: 0; border-radius: 50%;
-          box-shadow: inset 0 3px 14px rgba(0, 0, 0, 0.28), 0 8px 20px rgba(0, 0, 0, 0.22);
-          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 24px), black calc(100% - 23px));
-          mask-image: radial-gradient(circle closest-side, transparent calc(100% - 24px), black calc(100% - 23px));
+          box-shadow:
+            inset 0 1px 5px rgba(255, 248, 235, 0.12),
+            inset 0 -8px 16px rgba(0, 0, 0, 0.36),
+            0 0 0 1px rgba(18, 10, 8, 0.68);
+          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 16px), black calc(100% - 15px));
+          mask-image: radial-gradient(circle closest-side, transparent calc(100% - 16px), black calc(100% - 15px));
         }
         .season-outer-bg.pip-ring-bronze {
           border: none;
@@ -334,18 +370,28 @@ export const UIModule = {
             0 8px 22px rgba(0, 0, 0, 0.38);
         }
         .season-anchor { position: absolute; inset: 0; pointer-events: none; }
-        .season-btn-wrap { position: absolute; top: 18px; left: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; pointer-events: auto; }
+        .season-btn-wrap { position: absolute; top: 8px; left: 50%; width: 24px; height: 24px; margin: -12px 0 0 -12px; pointer-events: auto; }
         .season-btn {
           position: relative; left: 0; top: 0; margin: 0; width: 100%; height: 100%;
-          background: rgba(12, 8, 6, 0.2); border: none; border-radius: 50%;
+          background: rgba(12, 8, 6, 0.42); border: 1px solid rgba(255, 248, 235, 0.14); border-radius: 50%;
           color: var(--pip-gold-soft); display: flex; align-items: center; justify-content: center;
-          font-size: 17px; cursor: pointer; pointer-events: auto;
+          font-size: 14px; cursor: pointer; pointer-events: auto;
+          box-shadow:
+            inset 0 1px 2px rgba(255, 248, 235, 0.12),
+            inset 0 -3px 6px rgba(0, 0, 0, 0.32),
+            0 2px 6px rgba(0, 0, 0, 0.32);
           transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease, background 0.25s ease;
         }
         .season-btn:hover {
           transform: scale(1.18);
           background: rgba(198, 160, 53, 0.12);
           filter: drop-shadow(0 0 14px rgba(198, 160, 53, 0.65));
+        }
+        #moondial-wrapper:hover .season-outer-ring,
+        #moondial-wrapper:focus-within .season-outer-ring {
+          opacity: 1;
+          pointer-events: auto;
+          transform: rotate(var(--season-rotation, 0deg)) scale(1);
         }
         #pipCanvas {
           position: absolute; top: 0; left: 0; transform: none !important;
@@ -426,8 +472,11 @@ export const UIModule = {
           margin: 0;
           -webkit-tap-highlight-color: transparent;
           box-shadow:
-            inset 0 0 0 1px rgba(255, 255, 255, 0.28),
-            inset 4px 10px 22px rgba(255, 255, 255, 0.16),
+            0 0 0 1px rgba(17, 10, 8, 0.9),
+            0 0 0 3px rgba(109, 82, 68, 0.55),
+            0 4px 10px rgba(0, 0, 0, 0.32),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.32),
+            inset 4px 10px 22px rgba(255, 255, 255, 0.14),
             inset -8px -16px 28px rgba(0, 0, 0, 0.38),
             0 2px 0 rgba(255, 255, 255, 0.04);
         }
@@ -457,6 +506,45 @@ export const UIModule = {
             radial-gradient(circle at 50% 88%, rgba(15, 22, 32, 0.12) 0%, transparent 44%);
           mix-blend-mode: soft-light;
           opacity: 0.72;
+        }
+        .pip-glass-controls {
+          position: absolute;
+          left: 14%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+          z-index: 9;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+        #moondial-wrapper:hover .pip-glass-controls,
+        #moondial-wrapper:focus-within .pip-glass-controls {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        .pip-zoom-btn {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 1px solid rgba(255, 248, 235, 0.22);
+          padding: 0;
+          color: #fffdf5;
+          background: linear-gradient(145deg, rgba(108, 82, 68, 0.92), rgba(38, 25, 20, 0.96));
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 14px;
+          cursor: pointer;
+          box-shadow:
+            inset 0 1px 1px rgba(255, 248, 235, 0.24),
+            inset 0 -3px 5px rgba(0, 0, 0, 0.42),
+            0 2px 5px rgba(0, 0, 0, 0.4);
+        }
+        .pip-zoom-btn:hover {
+          filter: brightness(1.12) drop-shadow(0 0 7px rgba(198, 160, 53, 0.36));
         }
         #pipOverlay {
           position: absolute; top: 0; left: 0;
@@ -500,6 +588,10 @@ export const UIModule = {
           <div class="pip-optics-glaze"></div>
         </div>
         <button type="button" id="pip-lens-legacy" class="pip-lens-legacy" aria-label="Toggle map view and first-person view"></button>
+        <div class="pip-glass-controls" aria-label="PiP zoom controls">
+          <button type="button" class="pip-zoom-btn" data-pip-zoom="in" title="Zoom PiP in" aria-label="Zoom PiP in">+</button>
+          <button type="button" class="pip-zoom-btn" data-pip-zoom="out" title="Zoom PiP out" aria-label="Zoom PiP out">−</button>
+        </div>
         <canvas id="pipOverlay" width="512" height="512"></canvas>
         <div class="compass-outer-ring pip-ring-bronze">
           <span class="compass-marker n">N</span>
@@ -526,6 +618,7 @@ export const UIModule = {
     this._compassRing = this._root.querySelector(".compass-outer-ring");
     this._seasonRing = this._root.querySelector("#season-ring");
     this._lunarRing = this._root.querySelector(".lunar-radial-ring");
+    this._pipZoom = this._readStoredPipZoom();
     this._bindLensAndPhases();
     this._pipOverlayRing();
     queueMicrotask(() => this._syncPipOverlaySize());
@@ -575,6 +668,15 @@ export const UIModule = {
         if (this._lunarManualIndex === i) this._lunarManualIndex = null;
         else this._lunarManualIndex = i;
         this._syncLunarRadialPhase();
+      });
+    });
+
+    this._root?.querySelectorAll(".pip-zoom-btn").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const direction = btn.getAttribute("data-pip-zoom");
+        this._setPipZoom(direction === "in" ? this._pipZoom + 0.1 : this._pipZoom - 0.1);
       });
     });
   },
@@ -635,7 +737,7 @@ export const UIModule = {
       season
     ];
     if (this._seasonRing)
-      this._seasonRing.style.transform = `rotate(${rotation}deg)`;
+      this._seasonRing.style.setProperty("--season-rotation", `${rotation}deg`);
     dispatchInteraction(ANU_EVENTS.SEASON_CHANGE, {
       season,
       time: this._gameTime,
@@ -651,8 +753,29 @@ export const UIModule = {
   _syncMoonDial() {
     if (this._seasonRing && this._season === "day") {
       const dialAngle = ((this._gameTime - 12) / 24) * 360;
-      this._seasonRing.style.transform = `rotate(${dialAngle}deg)`;
+      this._seasonRing.style.setProperty("--season-rotation", `${dialAngle}deg`);
     }
+  },
+
+  _readStoredPipZoom() {
+    try {
+      const raw = window.localStorage?.getItem("sacred:v2:pipZoom");
+      const parsed = Number.parseFloat(raw ?? "");
+      if (Number.isFinite(parsed)) return Math.min(1.6, Math.max(0.6, parsed));
+    } catch (_err) {}
+    return 1;
+  },
+
+  _setPipZoom(value) {
+    this._pipZoom = Math.round(Math.min(1.6, Math.max(0.6, value)) * 10) / 10;
+    try {
+      window.localStorage?.setItem("sacred:v2:pipZoom", String(this._pipZoom));
+    } catch (_err) {}
+    window.dispatchEvent(
+      new CustomEvent("v2-pip-zoom-change", {
+        detail: { zoom: this._pipZoom },
+      }),
+    );
   },
 
   _syncPipOverlaySize() {
