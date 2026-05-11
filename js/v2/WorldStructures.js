@@ -18,6 +18,10 @@ import {
   V2_TIPI_BRAZIER_ABOVE_DECK_M,
   V2_TIPI_BRAZIER_WORLD_X_M,
   V2_TIPI_BRAZIER_WORLD_Z_M,
+  V2_TIPI_NPC_CEREMONIAL_FIRE_ABOVE_GROUND_M,
+  V2_TIPI_NPC_CEREMONIAL_FIRE_LOCAL_X_M,
+  V2_TIPI_NPC_CEREMONIAL_FIRE_LOCAL_Z_M,
+  V2_TIPI_NPC_CEREMONIAL_FIRE_SCALE,
   V2_TIPI_SACRED_PLATFORM_CENTER_Y,
   V2_TIPI_SACRED_PLATFORM_HEIGHT,
   V2_TIPI_SACRED_PLATFORM_RADIUS,
@@ -79,14 +83,20 @@ function addGoldTravelFloorDecalAtFeet(group, radius, liftY) {
   return [discMat, ringMat];
 }
 
-/** Facing arrow mesh (+Z in pivot space after `rotation.x = −π/2`). Parent: `ybFacingGroup`. */
+/**
+ * Facing arrow mesh (−Z in pivot space after `rotation.x = −π/2`). Parent:
+ * `ybFacingGroup`. Tip is built at −Y in shape space so that after the
+ * rotation the arrow points in the seated host's forward direction (the
+ * opposite side of her disc to where it pointed prior — see ANU memory
+ * card `npc-yb-tipi-scene-polish`).
+ */
 function createGoldTravelFacingArrowMesh(radius, localY) {
   const R = radius;
   const arrowShape = new THREE.Shape()
-    .moveTo(0, R * 0.92)
-    .lineTo(R * 0.22, R * 0.52)
-    .lineTo(-R * 0.22, R * 0.52)
-    .lineTo(0, R * 0.92);
+    .moveTo(0, -R * 0.92)
+    .lineTo(R * 0.22, -R * 0.52)
+    .lineTo(-R * 0.22, -R * 0.52)
+    .lineTo(0, -R * 0.92);
   const arrow = new THREE.Mesh(
     new THREE.ShapeGeometry(arrowShape),
     new THREE.MeshBasicMaterial({
@@ -110,6 +120,48 @@ function createGoldTravelFacingArrowMesh(radius, localY) {
   arrow.position.y = localY;
   arrow.renderOrder = 10;
   return arrow;
+}
+
+/**
+ * Soft additive halo behind the seated host's headdress — gives a subtle
+ * "saintly" glow without adding a full PointLight. Generated from a tiny
+ * canvas radial gradient so we never have to ship a halo PNG asset.
+ *
+ * Sprite always faces the camera; depthTest:false lets the additive light
+ * read through the headdress silhouette as a gentle bloom rather than a
+ * hard disc occluded by hair / feathers.
+ */
+function createNpcEtherealHaloSprite(diameterMetres) {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 4, size / 2, size / 2, size / 2 - 4);
+  grad.addColorStop(0.0, "rgba(255, 248, 210, 0.95)");
+  grad.addColorStop(0.32, "rgba(255, 220, 130, 0.55)");
+  grad.addColorStop(0.62, "rgba(255, 180, 80, 0.18)");
+  grad.addColorStop(1.0, "rgba(255, 160, 60, 0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const halo = new THREE.Sprite(mat);
+  halo.scale.set(diameterMetres, diameterMetres, 1);
+  halo.renderOrder = 11;
+  halo.name = "population_npc_yb_ethereal_halo";
+  halo.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.POPULATION;
+  halo.userData.anuKind = "npc_yb_ethereal_halo";
+  halo.userData.anuId = "population.npc.yellow_butterfly.halo";
+  return halo;
 }
 
 /**
@@ -168,6 +220,17 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
     const box = new THREE.Box3().setFromObject(model);
     /** Soles on group origin plane. */
     model.position.y = -box.min.y;
+    /**
+     * Centre the model on its bbox X/Z so the seated host sits over the
+     * disc centre (the GLB's internal pivot is offset to one side; without
+     * this the figure read "off to the side" of the gold travel disc).
+     * See ANU memory card `npc-yb-tipi-scene-polish`.
+     */
+    const boxCenter = box.getCenter(new THREE.Vector3());
+    model.position.x = -boxCenter.x;
+    model.position.z = -boxCenter.z;
+    /** Re-derive scaled height for halo placement (post-centre). */
+    const scaledHeight = box.max.y - box.min.y;
 
     const root = new THREE.Group();
     root.name = "population_npc_yellow_butterfly_tipi1_seated";
@@ -199,6 +262,22 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
     );
     facingGroup.add(model);
     facingGroup.add(arrow);
+
+    /**
+     * Slight ethereal halo behind the headdress — sized to ~1.4× of the
+     * "head crown" position above her soles (sprite is camera-aligned so
+     * the diameter is in world metres). Sits at the head height in
+     * facingGroup local space. Subtle by design.
+     *
+     * Note: PiP ortho ring clip currently handles Mesh/Points only — a
+     * SpriteMaterial path is out of scope here. The halo's small
+     * world-space diameter makes it a sub-pixel dot on the PiP minimap,
+     * which reads as a faint location marker rather than an artefact.
+     */
+    const halo = createNpcEtherealHaloSprite(scaledHeight * 0.55);
+    halo.position.set(0, scaledHeight * 0.92, 0);
+    facingGroup.add(halo);
+
     root.add(facingGroup);
 
     const deckTop = tipi1SacredDeckTopY(platMesh);
@@ -366,6 +445,27 @@ export async function loadCenterTipi({ scene, objects, worldPhysics }) {
       z: hexPos.z + V2_TIPI_BRAZIER_WORLD_Z_M,
     });
 
+    /**
+     * Small ceremonial fire in front of the seated host: hex centre offset
+     * by V2_TIPI_NPC_CEREMONIAL_FIRE_LOCAL_Z_M (1 ft south), Y at terrain
+     * + V2_TIPI_NPC_CEREMONIAL_FIRE_ABOVE_GROUND_M (1 ft above ground).
+     * Reuses the brazier shader, scaled to ~30% (≈ 6 in flame). Lower
+     * lightIntensity / distance keeps the warm fill local.
+     */
+    const ceremonialFireCtl = createTipiCampfire({
+      scene,
+      objects,
+      x: hexPos.x + V2_TIPI_NPC_CEREMONIAL_FIRE_LOCAL_X_M,
+      y: platformY + V2_TIPI_NPC_CEREMONIAL_FIRE_ABOVE_GROUND_M,
+      z: hexPos.z + V2_TIPI_NPC_CEREMONIAL_FIRE_LOCAL_Z_M,
+      scale: V2_TIPI_NPC_CEREMONIAL_FIRE_SCALE,
+      lightIntensity: 0.25,
+      lightDistance: 1.0,
+      anuIdOverride: "environment.tipi_1.ceremonial_fire",
+      anuKindOverride: "tipi_ceremonial_fire",
+      nameOverride: "effect_tipi_ceremonial_fire",
+    });
+
     tipi.updateMatrixWorld(true);
     const apexBox = new THREE.Box3().setFromObject(tipi);
     const apexCenter = apexBox.getCenter(new THREE.Vector3());
@@ -379,11 +479,13 @@ export async function loadCenterTipi({ scene, objects, worldPhysics }) {
 
     tipi.userData.tipiAmbientEffectsUpdate = (dt) => {
       fireCtl.update(dt);
+      ceremonialFireCtl.update(dt);
       smokeCtl.update(dt);
     };
 
     /* PiP ortho inner-circle discard: foliage / airborne VFX only — keep tipi/YB/platform visible under compass. */
     applyPipOrthoRingDiskClipToSubtree(fireCtl.group);
+    applyPipOrthoRingDiskClipToSubtree(ceremonialFireCtl.group);
     applyPipOrthoRingDiskClipToSubtree(smokeCtl.group);
 
     tipi.userData.anuSubsystemIds = Object.freeze([
@@ -391,6 +493,7 @@ export async function loadCenterTipi({ scene, objects, worldPhysics }) {
       tipi.userData.anuId,
       ybSeat?.root?.userData?.anuId ?? null,
       fireCtl.group.userData.anuId,
+      ceremonialFireCtl.group.userData.anuId,
       smokeCtl.group.userData.anuId,
     ].filter(Boolean));
 

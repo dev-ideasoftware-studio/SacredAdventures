@@ -308,6 +308,24 @@ export const ANU_PIPELINE_MEMORY = [
     files: ["scripts/check-assets.mjs", "package.json", "Assets/README.md"],
   },
   {
+    id: "npc-yb-tipi-scene-polish",
+    learnedAt: "2026-05",
+    title: "Seated NPC YB scene: model centred on disc, arrow flipped, halo + small ceremonial fire added",
+    summary:
+      "User-reported scene polish to the seated host at tipi 1. (1) Model X/Z centred on its bbox so she sits over the gold disc centre (the GLB pivot is internally offset). (2) Facing arrow shape Y values negated → tip now points to the OPPOSITE side of the disc, matching her seated forward direction. (3) Root Z pushed 1 ft north (V2_NPC_YB_TIPI1_LOCAL_Z_M = -0.4 - 0.3048) so a small ceremonial fire fits 1 ft south of hex centre, 1 ft above the analytic terrain, with a 6-inch flame (V2_TIPI_NPC_CEREMONIAL_FIRE_*). The new fire reuses the brazier shader via createTipiCampfire's new optional { scale, lightIntensity, lightDistance } params. (4) Soft additive Sprite halo behind her headdress (canvas radial gradient, depthTest:false, AdditiveBlending) — saintly read without a real PointLight.",
+    mitigations: [
+      "When adding a new GLB host, do not assume the model's internal pivot is centred — measure with Box3.getCenter and translate model.position.x/z accordingly.",
+      "If a future arrow needs to flip again, prefer flipping the Shape Y values over rotating the mesh post-rotation — keeps the arrow.rotation.x = -π/2 invariant simple.",
+      "createTipiCampfire's lightIntensity/lightDistance scale linearly with the proportional flicker; a smaller flame should also use a smaller PointLight range to avoid overpainting the deck.",
+      "PiP ortho ring/disk clip handles Mesh/Points materials only — Sprite materials slip through. Acceptable for the small NPC halo; if a larger sprite VFX is added, extend installPointsShaderMaterialPipRingDiskClip's sibling for SpriteMaterial.",
+    ],
+    files: [
+      "js/v2/WorldStructures.js",
+      "js/v2/TipiCampfire.js",
+      "js/v2/constants.js",
+    ],
+  },
+  {
     id: "pip-user-zoom-wire-up",
     learnedAt: "2026-05",
     title: "PiP user zoom (UIModule \"+/−\") wired into the Orchestrator ortho frustum",

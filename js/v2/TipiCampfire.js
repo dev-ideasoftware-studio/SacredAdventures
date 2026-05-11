@@ -5,18 +5,44 @@ import { ANU_SIMULATION_DOMAIN } from "./anu/SimulationController.js";
 /**
  * Brazier hearth — WebGL point-sprite flame (additive) + flickering warm fill light.
  * Tuned for a small bowl brazier: tight core, turbulent tongues, ember tip.
+ *
+ * @param {object} cfg
+ * @param {THREE.Scene}   cfg.scene
+ * @param {object[]}      cfg.objects
+ * @param {number}        cfg.x
+ * @param {number}        cfg.y
+ * @param {number}        cfg.z
+ * @param {number}        [cfg.scale=1]            Uniform group scale (e.g. 0.3 for a small ceremonial flame).
+ * @param {number}        [cfg.lightIntensity=0.85] Base PointLight intensity.
+ * @param {number}        [cfg.lightDistance=3.4]   PointLight range in metres.
+ * @param {string}        [cfg.anuIdOverride]       Optional anuId (defaults to environment.tipi_1.campfire).
+ * @param {string}        [cfg.anuKindOverride]     Optional anuKind (defaults to tipi_campfire).
+ * @param {string}        [cfg.nameOverride]        Optional THREE name.
  */
-export function createTipiCampfire({ scene, objects, x, y, z }) {
+export function createTipiCampfire({
+  scene,
+  objects,
+  x,
+  y,
+  z,
+  scale = 1,
+  lightIntensity = 0.85,
+  lightDistance = 3.4,
+  anuIdOverride,
+  anuKindOverride,
+  nameOverride,
+}) {
   const group = new THREE.Group();
-  group.name = "effect_tipi_campfire";
+  group.name = nameOverride || "effect_tipi_campfire";
   group.position.set(x, y, z);
-  group.userData.anuId = "environment.tipi_1.campfire";
+  if (scale !== 1) group.scale.setScalar(scale);
+  group.userData.anuId = anuIdOverride || "environment.tipi_1.campfire";
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
-  group.userData.anuKind = "tipi_campfire";
+  group.userData.anuKind = anuKindOverride || "tipi_campfire";
 
   const fy = V2_TIPI_BRAZIER_FIRE_LOCAL_Y_M;
   /** Warm fill — small range so the halo dies before painting the platform deck below the bowl. */
-  const light = new THREE.PointLight(0xff7a30, 0.85, 3.4, 2.2);
+  const light = new THREE.PointLight(0xff7a30, lightIntensity, lightDistance, 2.2);
   light.position.set(0, fy + 0.18, 0);
   group.add(light);
 
@@ -152,7 +178,10 @@ export function createTipiCampfire({ scene, objects, x, y, z }) {
           (0.5 + 0.5 * Math.sin(t * 7.8 + 1.1));
       const f2 = 0.9 + 0.1 * Math.sin(t * 19.7);
       uFlicker.value = f * f2;
-      light.intensity = 0.82 * uFlicker.value;
+      // Maintain the original 0.82/0.85 baseline ratio so a smaller
+      // ceremonial flame (lightIntensity=0.25) still flickers at the
+      // same proportional amplitude as the brazier hearth.
+      light.intensity = lightIntensity * 0.965 * uFlicker.value;
       const warm = 0.5 + 0.08 * uFlicker.value;
       light.color.setRGB(1, 0.42 + 0.1 * uFlicker.value, warm * 0.28);
     },

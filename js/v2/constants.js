@@ -100,9 +100,28 @@ export const V2_TIPI_BRAZIER_FIRE_LOCAL_Y_M = 0.02;
 /** Smoke emitter: metres above tipi mesh apex (hole / crown). */
 export const V2_TIPI_SMOKE_ABOVE_APEX_M = 0.18;
 
+/**
+ * Small ceremonial fire in front of the seated YB host (separate from
+ * the brazier hearth). Positioned 1 ft south of hex centre, 1 ft above
+ * the analytic terrain, with a 6-inch nominal flame height (achieved
+ * by uniformly scaling the shared campfire helper to ~30%).
+ */
+export const V2_TIPI_NPC_CEREMONIAL_FIRE_LOCAL_X_M = 0;
+export const V2_TIPI_NPC_CEREMONIAL_FIRE_LOCAL_Z_M = 0.3048; // 1 ft south
+export const V2_TIPI_NPC_CEREMONIAL_FIRE_ABOVE_GROUND_M = 0.3048; // 1 ft above terrain
+/** Uniform scale on the campfire group → ~6" flame from the ~52cm baseline. */
+export const V2_TIPI_NPC_CEREMONIAL_FIRE_SCALE = 0.3;
+
 /** `Assets/NPC.YB.glb` — seated beside / inside tipi 1 (world metres, relative to hex center). */
 export const V2_NPC_YB_TIPI1_LOCAL_X_M = 0.28;
-export const V2_NPC_YB_TIPI1_LOCAL_Z_M = -0.4;
+/**
+ * Z position of the seated host. Moved 1 imperial foot **north** (−Z is
+ * world-north for this scene; matches `V2_NPC_YB_TIPI1_MODEL_YAW_RAD`
+ * comment "her forward stance faces world −Z") so she sits further into
+ * the tipi and the small ceremonial fire (V2_TIPI_NPC_CEREMONIAL_FIRE_*)
+ * reads cleanly in front of her. Was -0.4 prior.
+ */
+export const V2_NPC_YB_TIPI1_LOCAL_Z_M = -0.4 - 0.3048;
 /** Nominal seated rig height **before** `V2_NPC_YB_TIPI1_SIZE_MULTIPLIER`. */
 export const V2_NPC_YB_TIPI1_TARGET_HEIGHT_M = 1.52;
 /** Additional uniform scale vs target (e.g. `0.5` → half previous on-screen height). */
