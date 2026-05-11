@@ -60,3 +60,47 @@ Assets/
 3. Prefer **symlink or copy** during transition if something is risky; delete old path only when green.
 
 This README is the source of truth for naming until `constants.js` or a small `Assets/manifest.json` is introduced.
+
+## Assets gate (`npm run check:assets`)
+
+`scripts/check-assets.mjs` is the automated gate that backs this README. It is wired into `npm test`, so any failure blocks the full validation run.
+
+What it does:
+
+1. Walks source trees (`js/v2/**`, `index.v2.html`, then legacy + WordPress + SacredOnes.1 + scratch) and extracts every `Assets/...` (or `WORDPRESS/Assets/...`) reference.
+2. Verifies each unique path exists on disk.
+3. For `.glb` files, verifies the first 4 bytes are the `glTF` magic (`0x67 0x6c 0x54 0x46`).
+4. Classifies each existing `Assets/*` path by taxonomy bucket and prints a count of classified vs. unclassified files.
+
+Two tiers:
+
+- **STRICT** — references found in `js/v2/**` or `index.v2.html`. A missing or corrupt asset here exits 1 and fails `npm test`.
+- **WARN**   — references found only in legacy / WordPress / SacredOnes.1 / scratch trees. These are reported (with the offending file:line) but do **not** fail the gate. They become Phase 7 (legacy reconciliation) work.
+
+Useful flags:
+
+```bash
+npm run check:assets              # default: warn-tier informational
+node scripts/check-assets.mjs --strict   # promote WARN to FAIL (use for "clean everything" runs)
+node scripts/check-assets.mjs --list     # print every unique asset reference (no checks)
+node scripts/check-assets.mjs --json     # machine-readable summary on stdout
+```
+
+## How to add a new asset
+
+1. Pick the **bucket** from the table above (flora / fauna / npc / buildings / landscape-scenes). When the file lives at root for now, that is fine — just record it under "unclassified" in the gate output.
+2. Drop the file under `Assets/<bucket>/<asset-folder>/file.ext` (or at root during the transition window).
+3. Reference it from canonical v2 code with a path that is clearly visible in source — the gate's regex looks for `Assets/...` substrings:
+   - From `js/v2/**` modules loaded via `GLTFLoader`: use `"./Assets/..."`.
+   - From a module that needs `import.meta.url` resolution: use `new URL("../../Assets/...", import.meta.url)`.
+4. Run `npm run check:assets` — it must report your new path under STRICT and PASS.
+5. If the asset is large or risky, also run the full `npm test` to make sure smoke + check:v2 still pass.
+6. Commit the asset and the code reference together; never split them.
+
+## How to remove or rename an asset
+
+1. Find every reference: `npm run check:assets -- --list` then grep, or `rg 'Assets/<old-name>'`.
+2. Update or delete the references in the **same** commit as the asset move/delete.
+3. Re-run `npm run check:assets`. If the gate fails with a STRICT missing entry, you missed a reference — fix it before commit.
+
+> The gate exists because today (`bush.glb` removal) showed how easy it is to leave a dangling loader after pulling a corrupted asset. This is the cheapest possible CI step that catches that exact regression.
