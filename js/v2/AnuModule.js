@@ -255,12 +255,93 @@ export const ANU_PIPELINE_MEMORY = [
     ],
     files: ["js/v2/WorldAvatar.js"],
   },
+  {
+    id: "pip-ui-vs-webgl-scope",
+    learnedAt: "2026-05",
+    title: "PiP UI scope vs WebGL PiP scope — protect parent #pipCanvas",
+    summary:
+      "Mixing HTML/CSS dial work with the live #pipCanvas WebGL render path historically replaced the green map with a flat fill. UI changes (compass, moon dial, season hover, zoom controls, separators) belong in js/v2/UIModule.js around the canvas; render-path changes belong in SacredOrchestrator._renderPip / PipRenderStrategy / PipOrthoRingDiskClip. .cursor/rules/sacred-pip-map-protect.mdc encodes the boundary.",
+    mitigations: [
+      "Treat #pipCanvas as the Orchestrator WebGL target — never repurpose for 2D decoration.",
+      "Bezel/compass/moon dial/zoom edits live in UIModule.js + Component.MoonDial.html, never in render-path files.",
+      "If the change might touch WebGL PiP, stop and confirm in one line before editing.",
+    ],
+    files: [".cursor/rules/sacred-pip-map-protect.mdc", "js/v2/UIModule.js", "js/v2/Orchestrator.js", "js/v2/anu/PipRenderStrategy.js"],
+  },
+  {
+    id: "travel-floor-decal-depth",
+    learnedAt: "2026-05",
+    title: "Horizontal travel decals must ignore depth on uneven terrain",
+    summary:
+      "The white travel ring/disc and gold NPC marker disappeared into grass micro-relief on tilted terrain because the shader materials default to depth testing. Fix is depthTest:false + depthWrite:false plus consistent renderOrder (8/9/10 disc/ring/arrow) on every horizontal floor decal.",
+    mitigations: [
+      "TravelFloorCircleMaterials.js — disc and ring materials disable depth.",
+      "WorldAvatar.js arrow + WorldStructures.js NPC marker reuse the same depth + renderOrder policy.",
+      "If a future decal should occlude, build a different material factory; do not flip the policy on the shared one.",
+    ],
+    files: ["js/v2/anu/TravelFloorCircleMaterials.js", "js/v2/WorldAvatar.js", "js/v2/WorldStructures.js"],
+  },
+  {
+    id: "bush-glb-removal-discipline",
+    learnedAt: "2026-05",
+    title: "Remove every reference when removing a corrupt asset",
+    summary:
+      "A corrupt bush model under the Assets root required stripping its loader call in six files (js/EnvironmentBuilder.js, dist/js/EnvironmentBuilder.js, WORDPRESS/js/EnvironmentBuilder.js, WORDPRESS/dist/js/EnvironmentBuilder.js, WORDPRESS/js/components/WorldManager.js, and _legacy_archive/SacredGame.3f24aff.html). Loader chains that resolve via promise must still resolve so forest pipelines do not stall.",
+    mitigations: [
+      "Run `npm run check:assets` — STRICT failures cite file:line of every dangling reference.",
+      "When deleting an asset, grep its base name across the repo before commit; do not rely on memory.",
+    ],
+    files: ["scripts/check-assets.mjs", "Assets/README.md"],
+  },
+  {
+    id: "assets-gate-strict-warn",
+    learnedAt: "2026-05",
+    title: "Assets gate guards canonical v2 against missing or corrupt files",
+    summary:
+      "scripts/check-assets.mjs walks js/v2/** + index.v2.html (STRICT) and legacy/WordPress/SacredOnes.1/scratch (WARN), verifies every Assets/... reference exists, and confirms .glb files start with the glTF magic. Wired into `npm test` so CI fails on STRICT regressions before Playwright even starts.",
+    mitigations: [
+      "npm run check:assets — fast gate, exits 1 on STRICT failure.",
+      "--strict flag promotes WARN findings to failures for full-tree audits.",
+      "WARN tier surfaces ~30 legacy dangling refs as the Phase 7 reconciliation queue.",
+    ],
+    files: ["scripts/check-assets.mjs", "package.json", "Assets/README.md"],
+  },
+  {
+    id: "anu-api-naming-coherence",
+    learnedAt: "2026-05",
+    title: "AnuUniverse.report() labels match public API names; help() indexes the surface",
+    summary:
+      "Earlier report() output logged `Frame budget:` while the public method is AnuUniverse.budget.snapshot — confusing for tools and copy-paste debugging. report() now labels every console line with the canonical AnuUniverse.* method that produced it, and AnuUniverse.help() returns + prints the grouped supported-method index.",
+    mitigations: [
+      "AnuUniverse.help() — grouped index of supported methods.",
+      "AnuUniverse.report() — labels each console.log with its public API name.",
+    ],
+    files: ["js/v2/AnuModule.js"],
+  },
 ];
 
 /** Bound SacredOrchestrator shell (window.anuOrchestrator). Cleared on unload. */
 let _anuOrchestratorRef = null;
 
-function evaluateLivePipelineRisk() {
+/** Stateful streaks for sustained-pressure alerts; only the periodic update path bumps these. */
+const _streaks = {
+  triPressure: 0,
+};
+
+const _SUSTAINED_TRI_PRIMARY_THRESHOLD = 3; // 240-frame samples (~12 s @ 60 fps)
+const _SUSTAINED_TRI_SCORE_FLOOR = 0.6;
+
+/**
+ * Live audit of the Sacred v2 pipeline. Returns a deduplicated array of
+ * `{ id, severity, text }` alerts. Every check is defensive — a snapshot
+ * failure must never escape this function.
+ *
+ * @param {object} [opts]
+ * @param {boolean} [opts.fromUpdate=false]  When true, the periodic update
+ *   loop is calling this; sustained-pressure streak counters are advanced.
+ *   Manual calls (`AnuUniverse.audit()`, `report()`) leave streak state alone.
+ */
+function evaluateLivePipelineRisk(opts = {}) {
   const alerts = [];
 
   if (V2_PIP_RENDER_EVERY_N_FRAMES === 1) {
@@ -269,6 +350,79 @@ function evaluateLivePipelineRisk() {
       severity: "warn",
       text:
         "[Anu Universe] PiP cadence is every frame. With V2_PIP_RENDER_EVERY_N_FRAMES === 1, the second WebGL pass on #pipCanvas doubles scene work when PiP renders; prefer ≥ 2 or 0 while profiling.",
+    });
+  }
+
+  // World module active but the WorldPlayer service has not registered — PiP
+  // render path silently no-ops every frame in this state, so it deserves a
+  // dedicated alert (and not a fuzzy bottleneck candidate).
+  try {
+    if (V2_PIP_RENDER_EVERY_N_FRAMES > 0 && _anuOrchestratorRef) {
+      const active = _anuOrchestratorRef._activeModules ?? [];
+      const services = getRuntimeServicesSnapshot().names;
+      if (active.includes("World") && !services.includes("WorldPlayer")) {
+        alerts.push({
+          id: "pip-without-world-player",
+          severity: "warn",
+          text:
+            "[Anu Universe] World module is active but WorldPlayer service is not registered. PiP renderer will no-op each frame; suspect a regression in World.load() service registration.",
+        });
+      }
+    }
+  } catch (_) {
+    /* defensive — never let the audit throw */
+  }
+
+  // Detect surprise WebGL surfaces. Expected canvases: 1 (main) + (PiP enabled
+  // ? 1 : 0) + (V2Panel/PanelsPIP active ? 1 : 0). Allow +1 slack for
+  // incidental UI canvases (e.g. moon dial bezel inside the iframe).
+  try {
+    if (typeof document !== "undefined" && _anuOrchestratorRef) {
+      const active = _anuOrchestratorRef._activeModules ?? [];
+      const expected =
+        1 +
+        (V2_PIP_RENDER_EVERY_N_FRAMES > 0 ? 1 : 0) +
+        (active.includes("PanelsPIP") || active.includes("V2Panel") ? 1 : 0);
+      const actual = document.querySelectorAll("canvas").length;
+      if (actual > expected + 1) {
+        alerts.push({
+          id: "unexpected-canvas-count",
+          severity: "warn",
+          text:
+            `[Anu Universe] Detected ${actual} <canvas> elements in DOM; expected ~${expected} for the active module set. Extra WebGL contexts add uncredited GPU cost (HUD tri/draw counts only reflect the main renderer).`,
+        });
+      }
+    }
+  } catch (_) {
+    /* defensive */
+  }
+
+  // Sustained triangle pressure: only the periodic update path adjusts the
+  // streak; any caller that finds streak ≥ N surfaces the alert so manual
+  // audit() / report() runs see consistent state.
+  if (opts.fromUpdate === true) {
+    try {
+      const fuzzy = buildFuzzyPipelineSnapshot(_anuOrchestratorRef);
+      const primary = fuzzy?.primaryBottleneck ?? null;
+      if (
+        primary &&
+        primary.id === "scene-triangles" &&
+        (primary.score ?? 0) >= _SUSTAINED_TRI_SCORE_FLOOR
+      ) {
+        _streaks.triPressure++;
+      } else {
+        _streaks.triPressure = 0;
+      }
+    } catch (_) {
+      /* defensive */
+    }
+  }
+  if (_streaks.triPressure >= _SUSTAINED_TRI_PRIMARY_THRESHOLD) {
+    alerts.push({
+      id: "sustained-triangle-pressure",
+      severity: "warn",
+      text:
+        `[Anu Universe] Triangle pressure has been the primary fuzzy bottleneck for ${_streaks.triPressure} consecutive 240-frame samples. Reduce flora/tree instance counts (V2_FLORA_MAX_TREE_INSTANCES) or domain density before adding more.`,
     });
   }
 
@@ -295,22 +449,79 @@ function buildPublicApi(moduleRef) {
       for (const m of ANU_PIPELINE_MEMORY) {
         console.log(`— ${m.id}: ${m.title}`);
       }
-      console.log("Live audit:", evaluateLivePipelineRisk());
-      console.log("Rendering snapshot:", getRenderingSnapshot());
-      console.log("Frame budget:", getFrameBudgetSnapshot());
-      console.log("Adaptive PiP policy:", getAdaptivePolicyDebug());
-      console.log("Runtime services:", getRuntimeServicesSnapshot());
+      // Labels are the canonical AnuUniverse.* method that produced each line —
+      // makes copy-paste debugging and tooling unambiguous (Phase 2 ergonomics fix).
+      console.log("AnuUniverse.audit():", evaluateLivePipelineRisk());
+      console.log("AnuUniverse.rendering.getRenderingSnapshot():", getRenderingSnapshot());
+      console.log("AnuUniverse.budget.snapshot():", getFrameBudgetSnapshot());
+      console.log("AnuUniverse.adaptive.debug():", getAdaptivePolicyDebug());
+      console.log("AnuUniverse.getRuntimeServicesSnapshot():", getRuntimeServicesSnapshot());
       console.log(
-        "Runtime service contracts:",
+        "AnuUniverse.validateRuntimeServiceContracts():",
         validateRuntimeServiceContracts(_anuOrchestratorRef?._activeModules ?? []),
       );
-      console.log("Governance:", buildGovernanceSnapshot(_anuOrchestratorRef));
-      console.log("Fuzzy bottleneck sensor:", buildFuzzyPipelineSnapshot(_anuOrchestratorRef));
-      console.log("World sensorium:", buildWorldSensoriumSnapshot(_anuOrchestratorRef));
-      console.log(
-        "Exports: exportStressJson() · exportAiStressBrief() · exportGovernanceJson() · exportFuzzyPipelineJson() · exportWorldSensoriumJson() · exportSceneInventoryJson() · exportSimulationJson()",
-      );
+      console.log("AnuUniverse.getGovernanceSnapshot():", buildGovernanceSnapshot(_anuOrchestratorRef));
+      console.log("AnuUniverse.getFuzzyPipelineSnapshot():", buildFuzzyPipelineSnapshot(_anuOrchestratorRef));
+      console.log("AnuUniverse.getWorldSensoriumSnapshot():", buildWorldSensoriumSnapshot(_anuOrchestratorRef));
+      console.log("Run AnuUniverse.help() for the full method index.");
       console.groupEnd();
+    },
+
+    /**
+     * Grouped index of supported AnuUniverse methods. Returns a frozen object
+     * AND prints a friendly summary so docs and code agree on names.
+     */
+    help() {
+      const index = Object.freeze({
+        boot: Object.freeze(["isLiveSacredOrchestratorBound", "anuOrchestrator", "version"]),
+        audit: Object.freeze(["audit", "report", "resetAlerts", "memory", "EVENTS"]),
+        rendering: Object.freeze([
+          "rendering.getRenderingSnapshot",
+          "rendering.shouldRenderPipSceneThisFrame",
+          "rendering.resetPipRenderPhase",
+          "rendering.blueprint",
+          "adaptive.debug",
+        ]),
+        budget: Object.freeze(["budget.snapshot"]),
+        services: Object.freeze([
+          "getRuntimeServicesSnapshot",
+          "validateRuntimeServiceContracts",
+        ]),
+        governance: Object.freeze([
+          "getGovernanceSnapshot",
+          "exportGovernanceJson",
+          "GOVERNANCE_RULES",
+        ]),
+        sensorium: Object.freeze([
+          "getWorldSensoriumSnapshot",
+          "exportWorldSensoriumJson",
+        ]),
+        simulation: Object.freeze([
+          "getSimulationSnapshot",
+          "exportSimulationJson",
+          "SIMULATION_DOMAINS",
+          "INTERACTION_VERBS",
+        ]),
+        scene: Object.freeze(["getSceneInventory", "exportSceneInventoryJson"]),
+        fuzzy: Object.freeze(["getFuzzyPipelineSnapshot", "exportFuzzyPipelineJson"]),
+        stress: Object.freeze([
+          "getStressSnapshot",
+          "exportStressJson",
+          "exportAiStressBrief",
+          "clearStressHistory",
+        ]),
+        interactions: Object.freeze(["interactions.subscribe", "interactions.dispatch"]),
+        help: Object.freeze(["help"]),
+      });
+      console.group(
+        "%c[Anu Universe] help() — supported API surface",
+        "color:#fbc02d;font-weight:bold;",
+      );
+      for (const [group, methods] of Object.entries(index)) {
+        console.log(`${group}:  ${methods.join(",  ")}`);
+      }
+      console.groupEnd();
+      return index;
     },
 
     /** PiP / main WebGL policy (same functions SacredOrchestrator uses). */
@@ -491,7 +702,7 @@ export const AnuModule = {
 
   update(_delta, frameCount) {
     if (frameCount % 240 !== 0) return;
-    this._emitNewAlerts(evaluateLivePipelineRisk());
+    this._emitNewAlerts(evaluateLivePipelineRisk({ fromUpdate: true }));
   },
 
   _emitNewAlerts(alerts) {
@@ -511,6 +722,7 @@ export const AnuModule = {
     _anuOrchestratorRef = null;
     delete window.AnuUniverse;
     this._alertedIds.clear();
+    _streaks.triPressure = 0;
     console.log("%c[Anu / SacredOrchestrator] Module unloaded.", "color:#ef9a9a;");
   },
 };
