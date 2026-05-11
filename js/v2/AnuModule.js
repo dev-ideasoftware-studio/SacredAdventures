@@ -308,6 +308,24 @@ export const ANU_PIPELINE_MEMORY = [
     files: ["scripts/check-assets.mjs", "package.json", "Assets/README.md"],
   },
   {
+    id: "legacy-tree-reconciliation",
+    learnedAt: "2026-05",
+    title: "Legacy / WordPress drift policy — keep / freeze / sunset matrix",
+    summary:
+      "Phase 7 of the 78→100 program. The repo holds parallel trees that pre-date js/v2/ (the canonical engine). docs/legacy-reconciliation.md is the source of truth: js/v2/ KEEP-canonical; WORDPRESS/ KEEP-FROZEN production bundle; dist/ KEEP-artifact; js/ (non-v2) FROZEN reference; _legacy_archive/ SUNSET read-only; scratch/ SUNSET deletable; SacredOnes.1/ KEEP sibling exploration. The asset gate already encodes the same tier split (STRICT vs WARN). When porting behaviour from legacy, re-implement inside js/v2/, add a fidelity test, leave the legacy file untouched.",
+    mitigations: [
+      "Before editing anything outside js/v2/, read docs/legacy-reconciliation.md and confirm the tree's status.",
+      "Do NOT 'mirror' v2 changes into WORDPRESS/ unless the user explicitly asks for a deploy update — the WP bundle is independent.",
+      "If a WARN-tier asset reference becomes a real WP runtime blocker, promote to a focused fix on the WP page only — never a sweep across legacy code.",
+      "Future legacy ports follow the 5-step protocol in docs/legacy-reconciliation.md (read → re-implement in v2 → add test → ANU card → leave legacy alone).",
+    ],
+    files: [
+      "docs/legacy-reconciliation.md",
+      "scripts/check-assets.mjs",
+      "js/v2",
+    ],
+  },
+  {
     id: "npc-yb-tipi-scene-polish",
     learnedAt: "2026-05",
     title: "Seated NPC YB scene: model centred on disc, arrow flipped, halo + small ceremonial fire added",
