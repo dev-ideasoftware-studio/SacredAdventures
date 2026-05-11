@@ -556,10 +556,12 @@ export class SacredOrchestrator {
       font-family: 'Fredoka', 'Segoe UI', sans-serif;
       font-size: 13px;
       color: #fbc02d;
-      min-width: 230px;
+      width: 240px;
+      box-sizing: border-box;
       pointer-events: none;
       box-shadow: 0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,220,100,0.08);
       user-select: none;
+      overflow: hidden;
     `;
     hud.innerHTML = this._hudHTML();
     document.body.appendChild(hud);
@@ -572,10 +574,10 @@ export class SacredOrchestrator {
       <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:2px;">-- FPS</div>
       <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
       <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:8px;letter-spacing:0.4px;">PiP …</div>
-      <div style="position:relative;margin-bottom:10px;">
-        <canvas id="v2-frame-graph" width="220" height="36" style="display:block;width:100%;height:36px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.25) 100%);box-shadow:inset 0 0 0 1px rgba(251,192,45,0.18), inset 0 1px 2px rgba(0,0,0,0.5);"></canvas>
-        <div id="v2-load" style="position:absolute;left:8px;top:4px;font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.78);font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;">LOAD --%</div>
-        <div id="v2-load-detail" style="position:absolute;right:8px;top:4px;font-size:9px;letter-spacing:0.5px;color:rgba(255,255,255,0.5);pointer-events:none;">--/--ms</div>
+      <div style="position:relative;width:200px;height:30px;margin-bottom:10px;">
+        <canvas id="v2-frame-graph" width="200" height="30" style="display:block;width:200px;height:30px;border-radius:5px;background:linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.32) 100%);box-shadow:inset 0 0 0 1px rgba(251,192,45,0.22), inset 0 1px 2px rgba(0,0,0,0.55);"></canvas>
+        <div id="v2-load" style="position:absolute;left:6px;top:2px;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.82);font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.9);pointer-events:none;">LOAD --%</div>
+        <div id="v2-load-detail" style="position:absolute;right:6px;top:2px;font-size:8px;letter-spacing:0.4px;color:rgba(255,255,255,0.55);text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;">--/--ms</div>
       </div>
       <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
       <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">ACTIVE MODULES</div>
