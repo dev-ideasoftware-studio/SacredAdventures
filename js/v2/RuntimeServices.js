@@ -6,6 +6,19 @@
  * toward an explicit runtime contract.
  */
 
+/**
+ * Runtime service contracts.
+ *
+ * Two flavours of contract:
+ *   • Required ({ requiredWhenActive }) — when the named module is active,
+ *     the service MUST be registered or validate fails.
+ *   • Optional ({ optional: true })   — never required to be registered;
+ *     when registered, its shape (`methods`) is verified.
+ *
+ * `methods` map is `{ [methodName]: { kind: "function", arity?: number } }`.
+ * `arity` is the declared parameter count (Function.length); omit when
+ * variadic or when the count is not part of the contract.
+ */
 export const RUNTIME_SERVICE_CONTRACTS = Object.freeze({
   WorldPhysics: Object.freeze({
     owner: "World",
@@ -16,6 +29,16 @@ export const RUNTIME_SERVICE_CONTRACTS = Object.freeze({
     owner: "World",
     requiredWhenActive: "World",
     description: "Live governed player pose, avatar, yaw, movement, and distance state.",
+  }),
+  PipOrthoBranchClip: Object.freeze({
+    owner: "PipOrthoRingDiskClip",
+    optional: true,
+    description:
+      "PiP ortho ring/disk clip — discards forest fragments under the moondial bezel so the compass reads cleanly.",
+    methods: Object.freeze({
+      armOrthoClip: Object.freeze({ kind: "function", arity: 2 }),
+      clearOrthoClip: Object.freeze({ kind: "function", arity: 0 }),
+    }),
   }),
 });
 
@@ -72,17 +95,71 @@ export function getRuntimeServicesSnapshot() {
   });
 }
 
+/**
+ * Validate every contracted service against the live registry.
+ *
+ * @param {string[]} activeModules - Names of currently active orchestrator modules.
+ * @returns {Readonly<{
+ *   ok: boolean,
+ *   missing: ReadonlyArray<{ name: string, owner: string, requiredWhenActive: string }>,
+ *   malformed: ReadonlyArray<{ name: string, reason: string, methods?: string[] }>,
+ *   snapshot: ReturnType<typeof getRuntimeServicesSnapshot>,
+ * }>}
+ */
 export function validateRuntimeServiceContracts(activeModules = []) {
   const active = new Set(activeModules);
   const missing = [];
+  const malformed = [];
+
   for (const [name, contract] of Object.entries(RUNTIME_SERVICE_CONTRACTS)) {
-    if (contract.requiredWhenActive && active.has(contract.requiredWhenActive) && !_services.has(name)) {
-      missing.push({ name, owner: contract.owner, requiredWhenActive: contract.requiredWhenActive });
+    const isOptional = contract.optional === true;
+    const isPresent = _services.has(name);
+
+    // Required+absent → missing
+    if (
+      !isOptional &&
+      contract.requiredWhenActive &&
+      active.has(contract.requiredWhenActive) &&
+      !isPresent
+    ) {
+      missing.push({
+        name,
+        owner: contract.owner,
+        requiredWhenActive: contract.requiredWhenActive,
+      });
+      continue;
+    }
+
+    // Present (required or optional) with a methods contract → verify shape
+    if (isPresent && contract.methods) {
+      const value = _services.get(name);
+      const issues = [];
+      if (value == null || (typeof value !== "object" && typeof value !== "function")) {
+        malformed.push({ name, reason: `service value is not an object/function (got ${typeof value})` });
+        continue;
+      }
+      for (const [method, spec] of Object.entries(contract.methods)) {
+        const fn = value[method];
+        if (spec.kind === "function") {
+          if (typeof fn !== "function") {
+            issues.push(`${method}: missing or non-function (got ${typeof fn})`);
+            continue;
+          }
+          if (typeof spec.arity === "number" && fn.length !== spec.arity) {
+            issues.push(`${method}: declared arity ${spec.arity}, got ${fn.length}`);
+          }
+        }
+      }
+      if (issues.length > 0) {
+        malformed.push({ name, reason: "method-shape", methods: issues });
+      }
     }
   }
+
   return Object.freeze({
-    ok: missing.length === 0,
+    ok: missing.length === 0 && malformed.length === 0,
     missing: Object.freeze(missing),
+    malformed: Object.freeze(malformed),
     snapshot: getRuntimeServicesSnapshot(),
   });
 }

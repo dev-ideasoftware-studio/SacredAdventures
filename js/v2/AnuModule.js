@@ -42,6 +42,7 @@ import { ANU_EVENTS } from "./anu/anuEvents.js";
 import {
   getRuntimeServicesSnapshot,
   validateRuntimeServiceContracts,
+  RUNTIME_SERVICE_CONTRACTS,
 } from "./RuntimeServices.js";
 
 /** Incidents and invariants — append when the pipeline teaches something new. */
@@ -484,6 +485,9 @@ function buildPublicApi(moduleRef) {
         ]),
         budget: Object.freeze(["budget.snapshot"]),
         services: Object.freeze([
+          "services.list",
+          "services.validate",
+          "services.contracts",
           "getRuntimeServicesSnapshot",
           "validateRuntimeServiceContracts",
         ]),
@@ -553,6 +557,21 @@ function buildPublicApi(moduleRef) {
     validateRuntimeServiceContracts() {
       return validateRuntimeServiceContracts(_anuOrchestratorRef?._activeModules ?? []);
     },
+
+    /**
+     * Read-only view of the runtime service registry: contracts table,
+     * current registrations, and live validation result. Phase 3 ergonomics —
+     * makes the registry inspectable from a single AnuUniverse.services.* path.
+     */
+    services: Object.freeze({
+      contracts: RUNTIME_SERVICE_CONTRACTS,
+      list() {
+        return getRuntimeServicesSnapshot();
+      },
+      validate() {
+        return validateRuntimeServiceContracts(_anuOrchestratorRef?._activeModules ?? []);
+      },
+    }),
 
     /** SacredOrchestrator loop errors + pipeline stress history — paste JSON into issues / LLMs. */
     exportStressJson() {
