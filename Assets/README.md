@@ -75,7 +75,7 @@ What it does:
 Two tiers:
 
 - **STRICT** — references found in `js/v2/**` or `index.v2.html`. A missing or corrupt asset here exits 1 and fails `npm test`.
-- **WARN**   — references found only in legacy / WordPress / SacredOnes.1 / scratch trees. These are reported (with the offending file:line) but do **not** fail the gate. They become Phase 7 (legacy reconciliation) work.
+- **WARN**   — references found only in legacy / WordPress / SacredOnes.1 / scratch trees. These are reported (with the offending file:line) but do **not** fail the gate. The accepted backlog of WARN-tier debt and the policy for each tree (KEEP / FROZEN / SUNSET) lives in [`../docs/legacy-reconciliation.md`](../docs/legacy-reconciliation.md) — read that before "fixing" any WARN entry by editing legacy code.
 
 Useful flags:
 

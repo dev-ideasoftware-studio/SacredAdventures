@@ -393,6 +393,25 @@ export const ANU_PIPELINE_MEMORY = [
     ],
     files: ["js/v2/AnuModule.js"],
   },
+  {
+    id: "phase-8-docs-and-dx",
+    learnedAt: "2026-05",
+    title: "Phase 8 — repo entry points: README, CONTRIBUTING, AnuUniverse cheatsheet",
+    summary:
+      "78→100 program Phase 8 (Documentation & DX). Added top-level README.md (project quick-start + tree map + invariants), CONTRIBUTING.md (workflow rules summary, npm scripts, asset gate, ANU memory cards, doc map), and docs/anu-cheatsheet.md (markdown mirror of AnuUniverse.help()). Cross-linked Assets/README.md to docs/legacy-reconciliation.md so the WARN-tier asset entries point at the policy that accepts them. Promoted AnuUniverse.help() in index.v2.html: bolded in the visible #v2-hint, plus an obvious `Start here → AnuUniverse.help()` line in the boot console banner.",
+    mitigations: [
+      "AnuUniverse.help() is the live source of truth — when adding a new public method, register it in the help() index in the same commit so docs/anu-cheatsheet.md and CONTRIBUTING stay accurate by reference.",
+      "When adding a new docs file, link it from CONTRIBUTING.md's documentation map and from README.md's tree map.",
+      "If the v2-hint or boot console message is restyled, keep the AnuUniverse.help() pointer prominent — first-time DevTools open is the only chance to surface the discovery path.",
+    ],
+    files: [
+      "README.md",
+      "CONTRIBUTING.md",
+      "docs/anu-cheatsheet.md",
+      "Assets/README.md",
+      "index.v2.html",
+    ],
+  },
 ];
 
 /** Bound SacredOrchestrator shell (window.anuOrchestrator). Cleared on unload. */
