@@ -571,14 +571,14 @@ export class SacredOrchestrator {
   _hudHTML() {
     return `
       <div style="font-size:10px;letter-spacing:2px;color:rgba(251,192,45,0.5);margin-bottom:10px;font-weight:600;">SACRED ADV v2 · ORCHESTRATOR</div>
-      <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:2px;">-- FPS</div>
-      <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
-      <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:8px;letter-spacing:0.4px;">PiP …</div>
-      <div style="position:relative;width:200px;height:30px;margin-bottom:10px;">
+      <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:4px;">-- FPS</div>
+      <div style="position:relative;width:200px;height:30px;margin-bottom:8px;">
         <canvas id="v2-frame-graph" width="200" height="30" style="display:block;width:200px;height:30px;border-radius:5px;background:linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.32) 100%);box-shadow:inset 0 0 0 1px rgba(251,192,45,0.22), inset 0 1px 2px rgba(0,0,0,0.55);"></canvas>
-        <div id="v2-load" style="position:absolute;left:6px;top:2px;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.82);font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.9);pointer-events:none;">LOAD --%</div>
-        <div id="v2-load-detail" style="position:absolute;right:6px;top:2px;font-size:8px;letter-spacing:0.4px;color:rgba(255,255,255,0.55);text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;">--/--ms</div>
+        <div id="v2-load" style="position:absolute;left:6px;top:2px;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.85);font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.9);pointer-events:none;">LOAD --%</div>
+        <div id="v2-load-detail" style="position:absolute;right:6px;top:2px;font-size:8px;letter-spacing:0.4px;color:rgba(255,255,255,0.6);text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;">--/--ms</div>
       </div>
+      <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
+      <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:10px;letter-spacing:0.4px;">PiP …</div>
       <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
       <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">ACTIVE MODULES</div>
       <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
