@@ -571,11 +571,11 @@ export class SacredOrchestrator {
   _hudHTML() {
     return `
       <div style="font-size:10px;letter-spacing:2px;color:rgba(251,192,45,0.5);margin-bottom:10px;font-weight:600;">SACRED ADV v2 · ORCHESTRATOR</div>
-      <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:4px;">-- FPS</div>
-      <div style="position:relative;width:200px;height:30px;margin-bottom:8px;">
-        <canvas id="v2-frame-graph" width="200" height="30" style="display:block;width:200px;height:30px;border-radius:5px;background:linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.32) 100%);box-shadow:inset 0 0 0 1px rgba(251,192,45,0.22), inset 0 1px 2px rgba(0,0,0,0.55);"></canvas>
-        <div id="v2-load" style="position:absolute;left:6px;top:2px;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.85);font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.9);pointer-events:none;">LOAD --%</div>
-        <div id="v2-load-detail" style="position:absolute;right:6px;top:2px;font-size:8px;letter-spacing:0.4px;color:rgba(255,255,255,0.6);text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;">--/--ms</div>
+      <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:6px;">-- FPS</div>
+      <div style="position:relative;width:204px;height:46px;margin-bottom:8px;border-radius:9px;padding:3px;box-sizing:border-box;background:linear-gradient(160deg, #0a0603 0%, #1a0f06 50%, #060300 100%);box-shadow:inset 2px 2px 5px rgba(0,0,0,0.95), inset -1px -1px 2px rgba(251,192,45,0.10), 0 1px 0 rgba(255,220,100,0.06), 0 -1px 0 rgba(0,0,0,0.6);">
+        <canvas id="v2-frame-graph" width="198" height="40" style="display:block;width:198px;height:40px;border-radius:6px;background:transparent;"></canvas>
+        <div id="v2-load" style="position:absolute;left:8px;top:5px;font-size:9px;letter-spacing:1.4px;color:rgba(255,248,220,0.92);font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7);pointer-events:none;">LOAD --%</div>
+        <div id="v2-load-detail" style="position:absolute;right:8px;top:5px;font-size:8px;letter-spacing:0.6px;color:rgba(255,248,220,0.62);text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.7);pointer-events:none;">--/--ms</div>
       </div>
       <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
       <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:10px;letter-spacing:0.4px;">PiP …</div>
@@ -672,8 +672,14 @@ export class SacredOrchestrator {
   }
 
   /**
-   * Frame-time sparkline for the HUD. Bars are coloured per-sample by their
-   * own load ratio; a faint horizontal reference line marks the budget (1.0×).
+   * HUD frame-time equalizer.
+   *
+   * Renders the most recent N samples as discrete vertical bars in the
+   * neomorphic recessed wrapper. Each bar is coloured by its OWN load
+   * ratio (green / amber / red) with a vertical gradient (deeper base,
+   * brighter tip) and a 1px bright cap that reads as a peak indicator.
+   * A faint dashed reference line marks the 1.0× budget.
+   *
    * Y axis: 0 ms at the bottom, 2× budget at the top (clamped).
    */
   _drawFrameGraph(canvasEl, samples, budgetMs) {
@@ -684,13 +690,29 @@ export class SacredOrchestrator {
     ctx.clearRect(0, 0, w, h);
     if (!(budgetMs > 0)) return;
 
-    // Budget reference line at 1.0× budget.
+    // Inner well — extra depth on top of the wrapper's recessed shadow.
+    const wellGrad = ctx.createLinearGradient(0, 0, 0, h);
+    wellGrad.addColorStop(0, "rgba(0, 0, 0, 0.42)");
+    wellGrad.addColorStop(0.55, "rgba(20, 12, 4, 0.55)");
+    wellGrad.addColorStop(1, "rgba(0, 0, 0, 0.45)");
+    ctx.fillStyle = wellGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Faint baseline at y=0 ms.
+    ctx.strokeStyle = "rgba(251, 192, 45, 0.10)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, h - 0.5);
+    ctx.lineTo(w, h - 0.5);
+    ctx.stroke();
+
+    // Dashed budget reference line at 1.0× budget.
     const span = 2 * budgetMs;
     const yForMs = (ms) => h - Math.min(1, Math.max(0, ms) / span) * h;
     const yBudget = yForMs(budgetMs);
-    ctx.strokeStyle = "rgba(251, 192, 45, 0.32)";
-    ctx.setLineDash([3, 3]);
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(251, 192, 45, 0.28)";
+    ctx.setLineDash([2, 3]);
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
     ctx.moveTo(0, yBudget + 0.5);
     ctx.lineTo(w, yBudget + 0.5);
@@ -699,14 +721,74 @@ export class SacredOrchestrator {
 
     const N = samples.length;
     if (N === 0) return;
-    const barW = w / N;
-    for (let i = 0; i < N; i++) {
-      const ms = samples[i];
+
+    // Equalizer config: 32 bars (classic count). If the buffer holds more
+    // than 32 samples we render the most recent 32; if fewer, we render
+    // what we have left-aligned in the well.
+    const MAX_BARS = 32;
+    const visible = Math.min(N, MAX_BARS);
+    const startIdx = Math.max(0, N - visible);
+    const slotW = w / MAX_BARS;
+    const barW = Math.max(2, slotW - 1.2);
+    const radius = Math.min(1.6, barW * 0.32);
+
+    for (let i = 0; i < visible; i++) {
+      const ms = samples[startIdx + i];
+      if (!(ms > 0)) continue;
       const ratio = ms / budgetMs;
-      const col = ratio < 0.7 ? "#a5d6a7" : ratio < 1.05 ? "#fbc02d" : "#ef5350";
       const y = yForMs(ms);
-      ctx.fillStyle = col;
-      ctx.fillRect(Math.floor(i * barW), Math.floor(y), Math.max(1, Math.floor(barW) - 1), h - Math.floor(y));
+      const barH = h - y;
+      if (barH < 1) continue;
+
+      // Per-bar palette by its own load ratio (independent of LOAD% avg).
+      let baseCol;
+      let midCol;
+      let tipCol;
+      let capAlpha;
+      if (ratio < 0.7) {
+        baseCol = "#1b5e20";
+        midCol = "#66bb6a";
+        tipCol = "#c8e6c9";
+        capAlpha = 0.45;
+      } else if (ratio < 1.05) {
+        baseCol = "#e65100";
+        midCol = "#fbc02d";
+        tipCol = "#fff59d";
+        capAlpha = 0.6;
+      } else {
+        baseCol = "#7f0000";
+        midCol = "#ef5350";
+        tipCol = "#ffcdd2";
+        capAlpha = 0.85;
+      }
+
+      const grad = ctx.createLinearGradient(0, y, 0, h);
+      grad.addColorStop(0, tipCol);
+      grad.addColorStop(0.42, midCol);
+      grad.addColorStop(1, baseCol);
+      ctx.fillStyle = grad;
+
+      const x = Math.floor(i * slotW + (slotW - barW) * 0.5);
+      const bw = Math.floor(barW);
+
+      // Rounded-top bar (only the top corners rounded — base sits flush).
+      if (radius >= 0.5 && barH > radius) {
+        ctx.beginPath();
+        ctx.moveTo(x, h);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.lineTo(x + bw - radius, y);
+        ctx.quadraticCurveTo(x + bw, y, x + bw, y + radius);
+        ctx.lineTo(x + bw, h);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.fillRect(x, y, bw, barH);
+      }
+
+      // Bright cap line — peak indicator (slight glow on red bars).
+      ctx.fillStyle = `rgba(255, 255, 255, ${capAlpha})`;
+      ctx.fillRect(x, y, bw, 1);
     }
   }
 

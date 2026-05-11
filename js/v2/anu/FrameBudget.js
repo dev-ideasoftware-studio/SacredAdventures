@@ -4,7 +4,13 @@
 
 import { V2_FRAME_MS_BUDGET } from "../constants.js";
 
-const _ROLL_LEN = 45;
+/**
+ * Rolling sample size: ≈ 0.67 s of frames at the V2_TARGET_FPS budget.
+ * 40 samples gives the HUD equalizer a clean 32-bar render window with
+ * 8 samples of "lookback" headroom that the rolling avg can use without
+ * being dominated by the most recent spike.
+ */
+const _ROLL_LEN = 40;
 const _samples = [];
 
 let _lastMs = 0;
