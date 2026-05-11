@@ -580,7 +580,7 @@ export class SacredOrchestrator {
       <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
       <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:10px;letter-spacing:0.4px;">PiP …</div>
       <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
-      <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">ACTIVE MODULES</div>
+      <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">UNIVERSE</div>
       <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
       <div id="v2-bench" style="font-size:11px;color:#ce93d8;margin-top:10px;min-height:16px;"></div>
     `;

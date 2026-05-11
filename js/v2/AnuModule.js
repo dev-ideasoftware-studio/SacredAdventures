@@ -394,6 +394,24 @@ export const ANU_PIPELINE_MEMORY = [
     files: ["js/v2/AnuModule.js"],
   },
   {
+    id: "phase-9-final-integration",
+    learnedAt: "2026-05",
+    title: "Phase 9 — 78→100 program close: rubric reassessment, baseline/v1, HUD label = UNIVERSE",
+    summary:
+      "Closing phase of the 78→100 program. Full suite green: 4/4 smoke + 4/4 fidelity in 36.8 s on Apple Silicon. Asset gate clean (6/6 STRICT pass; 31 WARN are policy-accepted per docs/legacy-reconciliation.md). Audit replay confirmed: evaluateLivePipelineRisk shape unchanged since Phase 2, none of the 27 ANU_PIPELINE_MEMORY incidents re-introduced. Score reassessment landed at 94/100 (rubric) — 8 of 10 dimensions in Excellent / World-class, no dimension below 85, hard floors held (Dim 3 ≥ 80 ✓, Dim 10 ≥ 80 ✓). Two laggards (Dim 5 Completeness 85, Dim 1 Architecture 94) have explicit out-of-scope follow-ups in docs/baselines/2026-05-10-final.md. One small UX touch: HUD modal label `ACTIVE MODULES` → `UNIVERSE` per user request — generally readable to non-developers while still pointing at the AnuUniverse module registry.",
+    mitigations: [
+      "Future work to push 94 → 100 has a written list in docs/baselines/2026-05-10-final.md §What's next (split Orchestrator.js, activate Fauna, HUD visual sentinel, boot help() print, quarantine SUNSET trees).",
+      "When re-running the rubric, follow docs/SCORECARD.md §Capture protocol exactly — copy outputs from AnuUniverse.audit / report / budget / services / help into the next-dated baseline file.",
+      "The HUD label is intentionally `UNIVERSE` not `ACTIVE MODULES`. Don't 'fix' it back — the underlying registry is still the AnuUniverse active-module list, the label is just user-facing.",
+      "git tag baseline/v1 marks this snapshot; baseline/v0 is the pre-program reference. Never force-move either tag.",
+    ],
+    files: [
+      "docs/baselines/2026-05-10-final.md",
+      "docs/SCORECARD.md",
+      "js/v2/Orchestrator.js",
+    ],
+  },
+  {
     id: "phase-8-docs-and-dx",
     learnedAt: "2026-05",
     title: "Phase 8 — repo entry points: README, CONTRIBUTING, AnuUniverse cheatsheet",
