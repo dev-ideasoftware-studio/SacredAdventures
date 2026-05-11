@@ -22,7 +22,10 @@ import {
   V2_PIP_RENDER_EVERY_N_FRAMES,
   V2_TARGET_FPS,
 } from "./constants.js";
-import { shouldRenderPipSceneThisFrame } from "./anu/RenderingGovernor.js";
+import {
+  shouldRenderPipSceneThisFrame,
+  getRenderingSnapshot,
+} from "./anu/RenderingGovernor.js";
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { recordFrameDuration } from "./anu/FrameBudget.js";
@@ -112,6 +115,8 @@ export class SacredOrchestrator {
     this._pipH = 0;
     /** Cached `userData.anuKind === "tipi_smoke"` — hidden for PiP ortho + spirit passes. */
     this._pipTipiSmokePlume = null;
+    /** Did the last `_renderPip()` invocation actually render? Surfaced in the HUD's PiP line. */
+    this._pipRenderedLastFrame = false;
     const self = this;
     this._pipStrategy = {
       getSnapshot() {
@@ -550,7 +555,8 @@ export class SacredOrchestrator {
     return `
       <div style="font-size:10px;letter-spacing:2px;color:rgba(251,192,45,0.5);margin-bottom:10px;font-weight:600;">SACRED ADV v2 · ORCHESTRATOR</div>
       <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:2px;">-- FPS</div>
-      <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:12px;">warming up…</div>
+      <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
+      <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:12px;letter-spacing:0.4px;">PiP …</div>
       <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
       <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">ACTIVE MODULES</div>
       <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
@@ -601,6 +607,18 @@ export class SacredOrchestrator {
       drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles / 1000).toFixed(1)}k · main · ${window._detectedHz || ".."}hz · PiP=${pipLabel}`;
     }
 
+    // PiP status line — surfaces the second-context cost (Phase 4).
+    const pipEl = this._hud.querySelector("#v2-pip");
+    if (pipEl) {
+      if (V2_PIP_RENDER_EVERY_N_FRAMES <= 0) {
+        pipEl.textContent = "PiP=off  (V2_PIP_RENDER_EVERY_N_FRAMES = 0)";
+      } else {
+        const snap = getRenderingSnapshot();
+        pipEl.textContent =
+          `PiP=on  stride:${snap.pipEffectiveStride}  phase:${snap.pipPhase}  rendered:${this._pipRenderedLastFrame ? "✓" : "·"}`;
+      }
+    }
+
     if (benchEl) {
       if (this._bench) {
         const pct = Math.floor((this._bench.frames / BENCH_FRAMES) * 100);
@@ -619,6 +637,9 @@ export class SacredOrchestrator {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    // Force _resizePipIfNeeded to recompute on the next PiP frame; the canvas
+    // backing store is owned by the second WebGLRenderer and must follow the
+    // moondial wrapper's new client rect.
     this._pipW = 0;
     this._pipH = 0;
   }
@@ -723,75 +744,134 @@ export class SacredOrchestrator {
     if (stash?.g) stash.g.visible = stash.prev;
   }
 
+  /**
+   * Top-level PiP gate + delegation. Decomposed into prepare/pass/restore
+   * so each step has one job and the finally-restore is bulletproof.
+   * Sets `_pipRenderedLastFrame` so the HUD pip line reports whether the
+   * pass actually executed this tick (vs gated out by stride/services).
+   */
   _renderPip() {
-    if (!shouldRenderPipSceneThisFrame()) return;
+    if (!shouldRenderPipSceneThisFrame()) {
+      this._pipRenderedLastFrame = false;
+      return;
+    }
 
     const wp = getRuntimeService("WorldPlayer") ?? window.WorldPlayer;
-    if (!wp || !wp.feet) return;
+    if (!wp || !wp.feet) {
+      this._pipRenderedLastFrame = false;
+      return;
+    }
 
     const pipCanvas = document.getElementById("pipCanvas");
-    if (!pipCanvas) return;
+    if (!pipCanvas) {
+      this._pipRenderedLastFrame = false;
+      return;
+    }
 
     if (!this._pipRenderer) this._ensurePipPipeline(pipCanvas);
-    if (!this._pipRenderer || !this._pipOrtho || !this._pipPersp) return;
+    if (!this._pipRenderer || !this._pipOrtho || !this._pipPersp) {
+      this._pipRenderedLastFrame = false;
+      return;
+    }
 
     this._resizePipIfNeeded(pipCanvas);
 
-    const smokeStash = this._stashTipiSmokeForPipRender();
+    const state = this._preparePipScene(wp);
     try {
-      const feet = wp.feet;
-      const mainMap = wp.mainCanvasMapView === true;
-      const fog = this.scene.fog;
-      const bg = this.scene.background;
-      this.scene.fog = null;
-      this.scene.background = null;
-
-      if (!mainMap) {
-        const elev = 78;
-        this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
-        this._pipOrtho.up.set(0, 1, 0);
-        this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
-        const pipClip = getRuntimeService("PipOrthoBranchClip");
-        let clipArmed = false;
-        if (
-          pipClip &&
-          typeof pipClip.armOrthoClip === "function" &&
-          typeof pipClip.clearOrthoClip === "function"
-        ) {
-          clipArmed = pipClip.armOrthoClip(this._pipW, this._pipH) === true;
-        }
-        this._pipRenderer.render(this.scene, this._pipOrtho);
-        if (
-          clipArmed &&
-          pipClip &&
-          typeof pipClip.clearOrthoClip === "function"
-        ) {
-          pipClip.clearOrthoClip();
-        }
-      } else {
-        const yaw = wp.yaw || 0;
-        const sin = Math.sin(yaw);
-        const cos = Math.cos(yaw);
-        const hx = feet.x - sin * 0.4;
-        const hz = feet.z - cos * 0.4;
-        const hy = feet.y + 1.55;
-        _pipSpiritLook.set(feet.x - sin * 12, feet.y + 1.35, feet.z - cos * 12);
-        this._pipPersp.position.set(hx, hy, hz);
-        this._pipPersp.up.set(0, 1, 0);
-        this._pipPersp.lookAt(_pipSpiritLook);
-        this._pipRenderer.render(this.scene, this._pipPersp);
-      }
-
-      this.scene.fog = fog;
-      this.scene.background = bg;
+      this._renderPipPass(state);
+      this._pipRenderedLastFrame = true;
     } finally {
-      this._restoreTipiSmokeAfterPip(smokeStash);
+      this._restorePipScene(state);
     }
   }
 
+  /**
+   * Stash mutated scene state and capture the per-frame inputs the pass needs.
+   * Always paired with `_restorePipScene(state)` in a finally block.
+   */
+  _preparePipScene(wp) {
+    const fog = this.scene.fog;
+    const bg = this.scene.background;
+    this.scene.fog = null;
+    this.scene.background = null;
+    return {
+      smokeStash: this._stashTipiSmokeForPipRender(),
+      fog,
+      bg,
+      feet: wp.feet,
+      yaw: wp.yaw || 0,
+      mainMap: wp.mainCanvasMapView === true,
+    };
+  }
+
+  /**
+   * The render pass itself: ortho top-down (with optional ring-disc clip)
+   * when the main view is FPV, or short perspective "spirit" cam when the
+   * main view is the map. No scene mutation beyond camera pose.
+   */
+  _renderPipPass(state) {
+    const { feet, yaw, mainMap } = state;
+    if (!mainMap) {
+      const elev = 78;
+      this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
+      this._pipOrtho.up.set(0, 1, 0);
+      this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
+      const pipClip = getRuntimeService("PipOrthoBranchClip");
+      let clipArmed = false;
+      if (
+        pipClip &&
+        typeof pipClip.armOrthoClip === "function" &&
+        typeof pipClip.clearOrthoClip === "function"
+      ) {
+        clipArmed = pipClip.armOrthoClip(this._pipW, this._pipH) === true;
+      }
+      this._pipRenderer.render(this.scene, this._pipOrtho);
+      if (
+        clipArmed &&
+        pipClip &&
+        typeof pipClip.clearOrthoClip === "function"
+      ) {
+        pipClip.clearOrthoClip();
+      }
+      return;
+    }
+
+    const sin = Math.sin(yaw);
+    const cos = Math.cos(yaw);
+    const hx = feet.x - sin * 0.4;
+    const hz = feet.z - cos * 0.4;
+    const hy = feet.y + 1.55;
+    _pipSpiritLook.set(feet.x - sin * 12, feet.y + 1.35, feet.z - cos * 12);
+    this._pipPersp.position.set(hx, hy, hz);
+    this._pipPersp.up.set(0, 1, 0);
+    this._pipPersp.lookAt(_pipSpiritLook);
+    this._pipRenderer.render(this.scene, this._pipPersp);
+  }
+
+  /** Always called in `finally`; idempotent on null state. */
+  _restorePipScene(state) {
+    if (!state) return;
+    this.scene.fog = state.fog;
+    this.scene.background = state.bg;
+    this._restoreTipiSmokeAfterPip(state.smokeStash);
+  }
+
+  /**
+   * Tear down the engine shell. Order matters:
+   *   1. Set _disposed early so any in-flight RAF callback short-circuits.
+   *   2. Cancel RAF + clear the warmup poll so no further updates fire.
+   *   3. Drop the resize listener (would otherwise call into a destroyed shell).
+   *   4. Reverse-deactivate modules so dependencies unload before their
+   *      dependents (matches the activate() order).
+   *   5. Tear down the second WebGLRenderer (PiP) and forget cached refs.
+   *   6. Remove the HUD from the DOM.
+   *   7. Dispose the main renderer (frees the WebGL context).
+   *   8. Drop window globals so nothing accidentally re-grabs the dead shell.
+   */
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+
     if (this._rafId) {
       cancelAnimationFrame(this._rafId);
       this._rafId = 0;
@@ -809,6 +889,7 @@ export class SacredOrchestrator {
     this._disposePipRenderer();
     this._pipStrategy = null;
     this._pipTipiSmokePlume = null;
+    this._pipRenderedLastFrame = false;
 
     if (this._hud?.parentNode) this._hud.parentNode.removeChild(this._hud);
     this._hud = null;

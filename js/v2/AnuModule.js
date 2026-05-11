@@ -308,6 +308,19 @@ export const ANU_PIPELINE_MEMORY = [
     files: ["scripts/check-assets.mjs", "package.json", "Assets/README.md"],
   },
   {
+    id: "orchestrator-pip-decomp-and-hud-line",
+    learnedAt: "2026-05",
+    title: "PiP render decomposed (prepare/pass/restore) + HUD pip status line",
+    summary:
+      "SacredOrchestrator._renderPip() previously did gating, scene mutation, branch render, and restore in one block. Phase 4 split it into _preparePipScene → _renderPipPass → _restorePipScene with a finally-guaranteed restore, and added _pipRenderedLastFrame tracked at every gate exit. The HUD now carries a #v2-pip line `PiP=on stride:N phase:M rendered:✓` (or `PiP=off`) so the second-context cost (which renderer.info does not include) is at least visible at a glance.",
+    mitigations: [
+      "Future PiP review only needs to read the prepare/pass/restore trio, not a 60-line monolith.",
+      "HUD pip line surfaces stride/phase from RenderingGovernor.getRenderingSnapshot() — single source of truth.",
+      "_pipRenderedLastFrame flag is cleared on dispose so a re-mount starts honest.",
+    ],
+    files: ["js/v2/Orchestrator.js", "js/v2/anu/RenderingGovernor.js"],
+  },
+  {
     id: "anu-api-naming-coherence",
     learnedAt: "2026-05",
     title: "AnuUniverse.report() labels match public API names; help() indexes the surface",
