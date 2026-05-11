@@ -26,6 +26,19 @@ export function getRollingAvgFrameMs() {
   return s / _samples.length;
 }
 
+/**
+ * Snapshot of the rolling sample ring buffer (oldest → newest). Read-only
+ * copy so HUD/audit consumers cannot mutate FrameBudget state.
+ */
+export function getFrameSamples() {
+  return _samples.slice();
+}
+
+/** Maximum number of samples kept in the rolling ring buffer. */
+export function getFrameSamplesCapacity() {
+  return _ROLL_LEN;
+}
+
 export function getFrameBudgetSnapshot() {
   const avgMs = getRollingAvgFrameMs();
   const loadPct =

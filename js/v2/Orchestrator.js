@@ -28,7 +28,11 @@ import {
 } from "./anu/RenderingGovernor.js";
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
-import { recordFrameDuration } from "./anu/FrameBudget.js";
+import {
+  recordFrameDuration,
+  getFrameBudgetSnapshot,
+  getFrameSamples,
+} from "./anu/FrameBudget.js";
 import { tickAdaptiveRenderPolicy } from "./anu/AdaptiveRenderPolicy.js";
 import {
   recordSacredLoopError,
@@ -556,7 +560,12 @@ export class SacredOrchestrator {
       <div style="font-size:10px;letter-spacing:2px;color:rgba(251,192,45,0.5);margin-bottom:10px;font-weight:600;">SACRED ADV v2 · ORCHESTRATOR</div>
       <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:2px;">-- FPS</div>
       <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
-      <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:12px;letter-spacing:0.4px;">PiP …</div>
+      <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:8px;letter-spacing:0.4px;">PiP …</div>
+      <div style="position:relative;margin-bottom:10px;">
+        <canvas id="v2-frame-graph" width="220" height="36" style="display:block;width:100%;height:36px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.25) 100%);box-shadow:inset 0 0 0 1px rgba(251,192,45,0.18), inset 0 1px 2px rgba(0,0,0,0.5);"></canvas>
+        <div id="v2-load" style="position:absolute;left:8px;top:4px;font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.78);font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;">LOAD --%</div>
+        <div id="v2-load-detail" style="position:absolute;right:8px;top:4px;font-size:9px;letter-spacing:0.5px;color:rgba(255,255,255,0.5);pointer-events:none;">--/--ms</div>
+      </div>
       <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
       <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">ACTIVE MODULES</div>
       <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
@@ -619,6 +628,26 @@ export class SacredOrchestrator {
       }
     }
 
+    // LOAD% + frame-time sparkline (Phase 4.5). The proxy is wall-clock frame
+    // duration vs V2_FRAME_MS_BUDGET; WebGL does not expose true GPU load.
+    const loadEl = this._hud.querySelector("#v2-load");
+    const loadDetailEl = this._hud.querySelector("#v2-load-detail");
+    const graphEl = this._hud.querySelector("#v2-frame-graph");
+    if (loadEl || loadDetailEl || graphEl) {
+      const fb = getFrameBudgetSnapshot();
+      const samples = getFrameSamples();
+      const loadPct = Math.round(fb.loadPct);
+      const loadCol = loadPct < 75 ? "#a5d6a7" : loadPct < 105 ? "#fbc02d" : "#ef5350";
+      if (loadEl) {
+        loadEl.textContent = `LOAD ${loadPct}%`;
+        loadEl.style.color = loadCol;
+      }
+      if (loadDetailEl) {
+        loadDetailEl.textContent = `${fb.avgMs.toFixed(1)}/${fb.budgetMs.toFixed(1)}ms`;
+      }
+      if (graphEl) this._drawFrameGraph(graphEl, samples, fb.budgetMs);
+    }
+
     if (benchEl) {
       if (this._bench) {
         const pct = Math.floor((this._bench.frames / BENCH_FRAMES) * 100);
@@ -626,6 +655,45 @@ export class SacredOrchestrator {
       } else {
         benchEl.textContent = '';
       }
+    }
+  }
+
+  /**
+   * Frame-time sparkline for the HUD. Bars are coloured per-sample by their
+   * own load ratio; a faint horizontal reference line marks the budget (1.0×).
+   * Y axis: 0 ms at the bottom, 2× budget at the top (clamped).
+   */
+  _drawFrameGraph(canvasEl, samples, budgetMs) {
+    const ctx = canvasEl.getContext("2d");
+    if (!ctx) return;
+    const w = canvasEl.width;
+    const h = canvasEl.height;
+    ctx.clearRect(0, 0, w, h);
+    if (!(budgetMs > 0)) return;
+
+    // Budget reference line at 1.0× budget.
+    const span = 2 * budgetMs;
+    const yForMs = (ms) => h - Math.min(1, Math.max(0, ms) / span) * h;
+    const yBudget = yForMs(budgetMs);
+    ctx.strokeStyle = "rgba(251, 192, 45, 0.32)";
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, yBudget + 0.5);
+    ctx.lineTo(w, yBudget + 0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const N = samples.length;
+    if (N === 0) return;
+    const barW = w / N;
+    for (let i = 0; i < N; i++) {
+      const ms = samples[i];
+      const ratio = ms / budgetMs;
+      const col = ratio < 0.7 ? "#a5d6a7" : ratio < 1.05 ? "#fbc02d" : "#ef5350";
+      const y = yForMs(ms);
+      ctx.fillStyle = col;
+      ctx.fillRect(Math.floor(i * barW), Math.floor(y), Math.max(1, Math.floor(barW) - 1), h - Math.floor(y));
     }
   }
 
