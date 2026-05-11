@@ -355,19 +355,16 @@ export const UIModule = {
         }
         .season-outer-bg {
           position: absolute; inset: 0; border-radius: 50%;
-          box-shadow:
-            inset 0 1px 5px rgba(255, 248, 235, 0.12),
-            inset 0 -8px 16px rgba(0, 0, 0, 0.36),
-            0 0 0 1px rgba(18, 10, 8, 0.68);
+          background: transparent;
+          box-shadow: none;
+          pointer-events: none;
           -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 16px), black calc(100% - 15px));
           mask-image: radial-gradient(circle closest-side, transparent calc(100% - 16px), black calc(100% - 15px));
         }
         .season-outer-bg.pip-ring-bronze {
           border: none;
-          box-shadow:
-            inset 0 2px 10px rgba(255, 248, 235, 0.07),
-            inset 0 -14px 30px rgba(0, 0, 0, 0.5),
-            0 8px 22px rgba(0, 0, 0, 0.38);
+          background: transparent;
+          box-shadow: none;
         }
         .season-anchor { position: absolute; inset: 0; pointer-events: none; }
         .season-btn-wrap { position: absolute; top: 8px; left: 50%; width: 24px; height: 24px; margin: -12px 0 0 -12px; pointer-events: auto; }
@@ -390,7 +387,9 @@ export const UIModule = {
         #moondial-wrapper:hover .season-outer-ring,
         #moondial-wrapper:focus-within .season-outer-ring {
           opacity: 1;
-          pointer-events: auto;
+          /* pointer-events stays none on the ring container so clicks fall
+             through to .pip-lens-legacy. Individual .season-btn-wrap nodes
+             re-enable pointer-events: auto so the season buttons still click. */
           transform: rotate(var(--season-rotation, 0deg)) scale(1);
         }
         #pipCanvas {
