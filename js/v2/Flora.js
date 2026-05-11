@@ -13,11 +13,8 @@ import {
   ANU_INTERACTION_VERB,
   ANU_SIMULATION_DOMAIN,
 } from "./anu/SimulationController.js";
-import {
-  getRuntimeService,
-  registerRuntimeService,
-  clearRuntimeService,
-} from "./RuntimeServices.js";
+import { getRuntimeService } from "./RuntimeServices.js";
+import { installMeshMaterialPipRingDiskClip } from "./anu/PipOrthoRingDiskClip.js";
 import {
   SEASON_SURFACE_TINTS,
   V2_FLORA_TREE_HORIZONTAL_SPREAD,
@@ -55,33 +52,6 @@ function isLeafMaterial(material) {
   );
 }
 
-/** PiP ortho only: hide wood / branch submeshes inside `#pipOverlay` yellow dash disk (see UIModule `_pipOverlayRing` 0.288×). */
-function installBranchPipRingClip(material, uniforms) {
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uPipRingClip = uniforms.uPipRingClip;
-    shader.uniforms.uPipRingCen = uniforms.uPipRingCen;
-    shader.uniforms.uPipRingRad2 = uniforms.uPipRingRad2;
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <common>",
-      `#include <common>
-uniform float uPipRingClip;
-uniform vec2 uPipRingCen;
-uniform float uPipRingRad2;
-`,
-    );
-    const clipNeedle = "#include <clipping_planes_fragment>";
-    if (shader.fragmentShader.includes(clipNeedle)) {
-      shader.fragmentShader = shader.fragmentShader.replace(
-        clipNeedle,
-        `${clipNeedle}
-vec2 _pipRingDf = gl_FragCoord.xy - uPipRingCen;
-if (uPipRingClip > 0.5 && dot(_pipRingDf, _pipRingDf) < uPipRingRad2) discard;
-`,
-      );
-    }
-  };
-}
-
 const TreesForestModule = {
   name: "Trees",
 
@@ -97,10 +67,6 @@ const TreesForestModule = {
   /** @type {(() => void) | null} */
   _unsubSeason: null,
   _colliders: [],
-  /** PiP minimap: discard branch fragments inside yellow dash circle (ortho pass only). */
-  _pipRingUniforms: null,
-  /** Bridges Orchestrator PipOrthoBranchClip → armPipOrthoBranchRing / clear */
-  _pipOrthoAdapter: null,
   /** Shared template geometries (dispose once on unload). */
   _sharedTreeGeometries: new Set(),
   matrix: new THREE.Matrix4(),
@@ -173,11 +139,6 @@ const TreesForestModule = {
 
     const windUniform = { value: 0 };
     this._windUniform = windUniform;
-    this._pipRingUniforms = {
-      uPipRingClip: { value: 0 },
-      uPipRingCen: { value: new THREE.Vector2() },
-      uPipRingRad2: { value: 0 },
-    };
     this._leafMeshes = [];
     this._foliageBaseColors = new Array(N);
     this._sharedTreeGeometries = new Set();
@@ -223,8 +184,9 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
             vertMods,
           );
         };
+        installMeshMaterialPipRingDiskClip(material);
       } else {
-        installBranchPipRingClip(material, this._pipRingUniforms);
+        installMeshMaterialPipRingDiskClip(material);
       }
 
       const instancedMesh = new THREE.InstancedMesh(mesh.geometry, material, N);
@@ -340,6 +302,7 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       });
+      installMeshMaterialPipRingDiskClip(dirtMat);
       const dirtMesh = new THREE.Mesh(dirtGeo, dirtMat);
       dirtMesh.renderOrder = 1;
       dirtMesh.name = "SacredFlora_TreeDirtPatch";
@@ -376,19 +339,6 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
       this._applySeasonSurfaceTint(detail?.season);
     });
 
-    const modSelf = this;
-    this._pipOrthoAdapter = {
-      armOrthoClip(w, h) {
-        return modSelf.armPipOrthoBranchRing(w, h);
-      },
-      clearOrthoClip() {
-        modSelf.clearPipOrthoBranchRing();
-      },
-    };
-    registerRuntimeService("PipOrthoBranchClip", this._pipOrthoAdapter, {
-      owner: "Trees",
-    });
-
     console.log(
       `%c[Trees] ✅ ${N} × Assets/tree.glb — legacy-quality multipart forest; heights ${minTargetH.toFixed(2)}…${maxTargetH.toFixed(2)} m — ANU tracks ${N} instances per drawable`,
       "color:#81c784;font-weight:bold;",
@@ -397,26 +347,6 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
 
   update(delta) {
     if (this._windUniform) this._windUniform.value += delta;
-  },
-
-  /**
-   * Call immediately before SacredOrchestrator PiP ortho render (`pipCanvas` size in px).
-   * @returns {boolean} true if uniform state was armed (caller must clear)
-   */
-  armPipOrthoBranchRing(w, h) {
-    const u = this._pipRingUniforms;
-    if (!u || !(w >= 16) || !(h >= 16)) return false;
-    const r = 0.288 * Math.min(w, h);
-    u.uPipRingCen.value.set(w * 0.5, h * 0.5);
-    u.uPipRingRad2.value = r * r;
-    u.uPipRingClip.value = 1;
-    return true;
-  },
-
-  /** After PiP ortho render (always call if `armPipOrthoBranchRing` returned true). */
-  clearPipOrthoBranchRing() {
-    const u = this._pipRingUniforms;
-    if (u) u.uPipRingClip.value = 0;
   },
 
   /** @param {string | undefined} season */
@@ -446,10 +376,6 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
   unload(scene) {
     this._unsubSeason?.();
     this._unsubSeason = null;
-    if (this._pipOrthoAdapter) {
-      clearRuntimeService("PipOrthoBranchClip", this._pipOrthoAdapter);
-      this._pipOrthoAdapter = null;
-    }
     const worldPhysics = getRuntimeService("WorldPhysics") ?? window.WorldPhysics;
     if (worldPhysics && typeof worldPhysics.removeCollider === "function") {
       for (const collider of this._colliders) worldPhysics.removeCollider(collider);
@@ -489,7 +415,6 @@ transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
     this._leafMeshes = [];
     this._foliageBaseColors = [];
     this._windUniform = null;
-    this._pipRingUniforms = null;
     this._sharedTreeGeometries = new Set();
     console.log("[Trees] ⏹ Unloaded.");
   },

@@ -39,14 +39,16 @@ import {
   syncAutowalkFromHeldKeys,
   wirePlayerInput,
 } from "./WorldPlayerController.js";
-import { loadCenterTipi } from "./WorldStructures.js";
+import {
+  loadCenterTipi,
+  updateYellowButterflyPlayerAim,
+} from "./WorldStructures.js";
 
 const FOOT_TO_M = 0.3048;
 const DEFAULT_CAMERA_FOV = 58;
 const IDLE_FPV_HEAD_FORWARD = 5 * FOOT_TO_M;
 const FOLLOW_CAMERA_DIST = V2_TILE_WORLD;
 const FOLLOW_CAMERA_HEIGHT = 2 * FOOT_TO_M;
-const NPC_GREETING_DISTANCE = V2_TILE_WORLD * 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WORLD MODULE
@@ -79,10 +81,6 @@ export const WorldModule = {
   _cameraPosSmooth: new THREE.Vector3(),
   _cameraLookSmooth: new THREE.Vector3(),
   _cameraSmoothReady: false,
-  _npcGreetingState: new Map(),
-  _npcScanFrame: 0,
-  _tmpNpcPos: new THREE.Vector3(),
-  _tmpPlayerPos: new THREE.Vector3(),
   _tmpAvoidVelocity: new THREE.Vector3(),
   _autoWalk: {
     active: false,
@@ -276,7 +274,6 @@ export const WorldModule = {
     this._lastWalkX = this._playerPos.x;
     this._lastWalkZ = this._playerPos.z;
     this._cameraSmoothReady = false;
-    this._npcGreetingState.clear();
     this._mainCanvasMapView = false;
 
     // ── Input ─────────────────────────────────────────────────────────────
@@ -404,7 +401,7 @@ export const WorldModule = {
     const figurineFeetY = body.grounded
       ? terrainAtFeet + V2_AVATAR_GROUNDED_FEET_OFFSET_M
       : rawFeetY;
-    /** Physics / greetings use raw feet height; Avatar3 figurine snaps to analytic terrain when grounded. */
+    /** Physics uses raw feet height; Avatar3 figurine snaps to analytic terrain when grounded. */
     this._feetScratch.set(body.position.x, rawFeetY, body.position.z);
     this._fwd.set(-Math.sin(this._yaw), 0, -Math.cos(this._yaw));
     this._back.copy(this._fwd).multiplyScalar(-1);
@@ -429,9 +426,8 @@ export const WorldModule = {
     }
 
     this._tipi?.userData?.ybNpcMixer?.update?.(delta);
+    updateYellowButterflyPlayerAim(this._tipi, body.position.x, body.position.z);
     this._tipi?.userData?.tipiAmbientEffectsUpdate?.(delta);
-
-    this._tickNpcGreeting(_scene, _frameCount, now);
 
     const headY = body.position.y;
 
@@ -502,120 +498,6 @@ export const WorldModule = {
     window.WorldPlayer = playerState;
   },
 
-  _yawFacing(from, to) {
-    return Math.atan2(-(to.x - from.x), -(to.z - from.z));
-  },
-
-  _triggerAvatarGesture(kind, reason, now) {
-    const clipName = this._avatar.semanticClips?.[kind] ?? null;
-    const duration =
-      this._avatar.clips.find((clip) => clip.name === clipName)?.duration ?? 1.8;
-    this._avatar.gestureUntil = now + Math.min(2600, Math.max(900, duration * 1000));
-    this._avatar.play(kind, reason, 0.12, true);
-  },
-
-  _findNearestNpc(scene) {
-    if (!scene || !this._avatar.root) return null;
-    let nearest = null;
-    let nearestD2 = Infinity;
-    const player = this._tmpPlayerPos.copy(this._feetScratch);
-    scene.traverse((obj) => {
-      if (
-        obj === this._avatar.root ||
-        obj.userData?.anuSimulationDomain !== ANU_SIMULATION_DOMAIN.POPULATION
-      ) {
-        return;
-      }
-      obj.getWorldPosition(this._tmpNpcPos);
-      const dx = this._tmpNpcPos.x - player.x;
-      const dz = this._tmpNpcPos.z - player.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < nearestD2) {
-        nearestD2 = d2;
-        nearest = obj;
-      }
-    });
-    if (!nearest) return null;
-    return {
-      object: nearest,
-      distance: Math.sqrt(nearestD2),
-    };
-  },
-
-  _turnNpcToward(npc, targetPosition) {
-    if (!npc) return;
-    npc.getWorldPosition(this._tmpNpcPos);
-    npc.rotation.y = this._yawFacing(this._tmpNpcPos, targetPosition);
-    npc.userData.anuGreetingState = "facing_player";
-  },
-
-  _tickNpcGreeting(scene, frameCount, now) {
-    if (frameCount === this._npcScanFrame || frameCount % 10 !== 0) return;
-    this._npcScanFrame = frameCount;
-    const nearest = this._findNearestNpc(scene);
-    const activeIds = new Set();
-
-    if (nearest && nearest.distance <= NPC_GREETING_DISTANCE) {
-      const npc = nearest.object;
-      const npcId = npc.userData?.anuId ?? npc.uuid;
-      activeIds.add(npcId);
-      const state = this._npcGreetingState.get(npcId) ?? {
-        greeted: false,
-        goodbyeSent: false,
-        object: npc,
-      };
-      state.object = npc;
-      npc.getWorldPosition(this._tmpNpcPos);
-      this._yaw = this._yawFacing(this._feetScratch, this._tmpNpcPos);
-      if (this._avatar.root) this._avatar.root.rotation.y = this._yaw;
-      this._turnNpcToward(npc, this._feetScratch);
-
-      if (!state.greeted) {
-        state.greeted = true;
-        state.goodbyeSent = false;
-        this._triggerAvatarGesture("wave", "npc-greeting", now);
-        npc.userData.anuGreetingState = "wave_hello";
-        if (typeof npc.userData.anuPlayGesture === "function") {
-          npc.userData.anuPlayGesture("wave_hello");
-        }
-        dispatchInteraction(ANU_EVENTS.PLAYER_NPC_GREETING, {
-          phase: "hello",
-          playerId: "player.avatar.primary",
-          npcId,
-          distance: nearest.distance,
-          t: now,
-        });
-      }
-      this._npcGreetingState.set(npcId, state);
-    }
-
-    for (const [npcId, state] of this._npcGreetingState.entries()) {
-      if (activeIds.has(npcId) || !state.greeted || state.goodbyeSent) continue;
-      state.goodbyeSent = true;
-      this._triggerAvatarGesture("goodbye", "npc-goodbye", now);
-      if (state.object) {
-        this._turnNpcToward(state.object, this._feetScratch);
-        state.object.userData.anuGreetingState = "wave_goodbye";
-        if (typeof state.object.userData.anuPlayGesture === "function") {
-          state.object.userData.anuPlayGesture("wave_goodbye");
-        }
-        if (typeof window !== "undefined") {
-          window.setTimeout(() => {
-            if (state.object?.userData) state.object.userData.anuGreetingState = "normal";
-          }, 1800);
-        }
-      }
-      dispatchInteraction(ANU_EVENTS.PLAYER_NPC_GREETING, {
-        phase: "goodbye",
-        playerId: "player.avatar.primary",
-        npcId,
-        distance: NPC_GREETING_DISTANCE,
-        t: now,
-      });
-      this._npcGreetingState.delete(npcId);
-    }
-  },
-
   // ──────────────────────────────────────────────────────────────────────────
   unload(scene) {
     for (const obj of this._objects) {
@@ -635,7 +517,6 @@ export const WorldModule = {
     this._avatar.dispose();
     this._playerBody = null;
     this._cameraSmoothReady = false;
-    this._npcGreetingState.clear();
     this._autoWalk.active = false;
     this._autoWalk.key = null;
     this._autoWalk.startedByHoldAt = 0;

@@ -17,9 +17,9 @@ export const V2_PIP_ORTHO_WIDTH =
 
 /**
  * PiP “zoom”: multiply ortho horizontal span by this factor.
- * 1.2 = zoom out 20% (20% wider view → more terrain visible).
+ * 1.2 = baseline. 0.96 ≈ +25% zoom-in (tighter ortho span) vs 1.2.
  */
-export const V2_PIP_ORTHO_ZOOM = 1.2;
+export const V2_PIP_ORTHO_ZOOM = 0.96;
 
 /**
  * Minimap (#pipCanvas): Orchestrator runs a **second** `WebGLRenderer` that draws
@@ -55,6 +55,13 @@ export const V2_PIP_OVERLAY_BRANCH_CLIP_RADIUS_FACTOR = 0.32;
  */
 export const V2_PIP_GLASS_DISK_CLIP_RADIUS_FACTOR = 0.46;
 
+/**
+ * PiP ortho: **smoke** point-sprites use a **larger** screen-space discard disk than
+ * `V2_PIP_GLASS_DISK_CLIP_RADIUS_FACTOR` so billowing tipi smoke stays off the minimap
+ * even when particles drift past the foliage clip radius.
+ */
+export const V2_PIP_SMOKE_DISK_CLIP_RADIUS_FACTOR = 0.58;
+
 // ── Canonical mesh heights / structures (legacy EnvironmentBuilder 1:1) ────────
 
 /** `Assets/tree.glb` template scaled so upright mesh height matches this (m). Trees.js `scaleFix`. */
@@ -76,16 +83,21 @@ export const V2_TIPI_SACRED_PLATFORM_HEIGHT = 0.22;
 export const V2_TIPI_SACRED_PLATFORM_CENTER_Y = 0.05;
 
 /**
- * Brazier hearth — metres from hex origin on XZ; Y uses sacred deck top + `V2_TIPI_BRAZIER_ABOVE_DECK_M`.
- * Positions hearth flame/light inside modeled bowl near seated YB.
+ * Brazier hearth — metres from hex origin on XZ; Y = sacred deck top + bowl-rim height.
+ * Bowl + tripod are baked into `tipi.yellowbutterfly.glb` near hex center; XZ here just nudges
+ * the flame to sit *centered in the bowl* (tunable per asset). Y must clear the bowl rim so the
+ * flame reads as coming **from inside** the bowl, not as a glow on the platform deck.
  */
 export const V2_TIPI_BRAZIER_WORLD_X_M = 0.04;
 export const V2_TIPI_BRAZIER_WORLD_Z_M = -0.06;
-/** Flame/light origin above cylinder deck — clears rim, reads inside brazier. */
-export const V2_TIPI_BRAZIER_ABOVE_DECK_M = 0.055;
-/** Local Y inside flame group (bowl cradle). */
+/**
+ * Flame/light origin above the green sacred deck (m).
+ * Brazier bowl rim ≈ 0.45 m above deck (tripod legs); flame Y must reach into the bowl interior.
+ */
+export const V2_TIPI_BRAZIER_ABOVE_DECK_M = 0.46;
+/** Local Y inside flame group (bowl cradle — small lift inside the cup). */
 export const V2_TIPI_BRAZIER_FIRE_LOCAL_Y_M = 0.02;
-/** Smoke emitter offset above bounding-box apex toward smoke flap (m). */
+/** Smoke emitter: metres above tipi mesh apex (hole / crown). */
 export const V2_TIPI_SMOKE_ABOVE_APEX_M = 0.18;
 
 /** `Assets/NPC.YB.glb` — seated beside / inside tipi 1 (world metres, relative to hex center). */
@@ -101,6 +113,12 @@ export const V2_NPC_YB_TIPI1_SIZE_MULTIPLIER = 0.5;
  * (entrance / approach from +Z sees her turned to match revised GLB forward).
  */
 export const V2_NPC_YB_TIPI1_MODEL_YAW_RAD = Math.PI / 2 + Math.PI;
+
+/**
+ * Optional yaw bias on the live player-aim pivot (`ybFacingGroup`).
+ * Facing uses `atan2(dx, dz)` so local +Z tracks the player; tune if the rig’s chest vs glTF forward is offset.
+ */
+export const V2_NPC_YB_TIPI1_PLAYER_AIM_YAW_BIAS_RAD = 0;
 
 /** Avatar3 inner Y rotation (`WorldAvatar.js`) — aligns imported model forward with v2 player-forward. */
 export const V2_AVATAR_MODEL_YAW_RAD = Math.PI / 2;
@@ -132,8 +150,12 @@ const V2_AVATAR_GAMEPLAY_SCALE = 0.75;
 export const V2_AVATAR_TARGET_HEIGHT_M =
   V2_AVATAR_BASELINE_HEIGHT_M * 0.7 * V2_AVATAR_GAMEPLAY_SCALE;
 
-/** Ground travel circle + arrow radius — scales with avatar vs legacy 1.72 m ring. */
-export const V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M = 1.72 * 0.7 * V2_AVATAR_GAMEPLAY_SCALE;
+/**
+ * Ground travel circle + arrow radius — scales with avatar vs legacy 1.72 m ring.
+ * **×1.5** for clearer map / PiP read (NPC gold uses half of this via `V2_NPC_YB_*`).
+ */
+export const V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M =
+  1.72 * 0.7 * V2_AVATAR_GAMEPLAY_SCALE * 1.5;
 
 /** YB gold travel ring radius (half-scale NPC vs player footprint). */
 export const V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M =
@@ -181,3 +203,9 @@ export const V2_FLORA_TREE_HORIZONTAL_SPREAD = 1.0;
  * Tune alongside `exportFuzzyPipelineJson()` / stress brief when flora or PiP dominates.
  */
 export const V2_FLORA_MAX_TREE_INSTANCES = 155;
+
+/**
+ * No tree **trunk** placement closer than this to the tipi hex anchor (m, XZ).
+ * Keeps instanced canopy mass from leaning through the tipi volume.
+ */
+export const V2_FLORA_TIPI_CLEAR_ZONE_RADIUS_M = 12.5;

@@ -1,0 +1,28 @@
+---
+description: Mandatory — do not replace or obscure the live v2 PiP map (#pipCanvas) unless the user explicitly asks to change map rendering.
+alwaysApply: true
+---
+
+# PiP / map feed — hard scope boundary
+
+## What is sacred unless the user explicitly says otherwise
+
+- **Parent `#pipCanvas`** (`#v2-panels-pip #moondial-wrapper #pipCanvas`) is the **Orchestrator WebGL** target for the **live** village map / PiP scene. It is **not** a 2D decoration layer, texture slot, or place to “preview” a solid placeholder.
+- **Do not**: swap PiP to a surrogate/static/solid fill for that canvas; change clear color / render path so the hole reads as a flat color; or stack **opaque** HTML/CSS over the lens so the map is replaced by UI **unless** the user’s instruction explicitly authorizes that behavior.
+
+## UI-only work (typical ask: bezel, compass, moon dial, reticle)
+
+- Restrict changes to **presentation** around the hole: `js/v2/UIModule.js` (scoped `#v2-panels-pip` CSS + DOM), `Component.MoonDial.html` (iframe bezel), fonts, z-index **without** blocking the parent map with unintended opaque surfaces.
+- **Do not** “help” by editing `SacredOrchestrator` PiP pass, `PipRenderStrategy`, `constants.js` `V2_PIP_*`, or camera selection **for a styling task**. If the user did not mention render strategy / WebGL / surrogate PiP, treat those paths as **out of scope**.
+
+## Disambiguation
+
+- **`#pip-canvas`** inside `Component.MoonDial.html` is **not** the same as parent **`#pipCanvas`**. The injected style hides the iframe’s embedded canvas by design; do not use that as an excuse to repurpose the **parent** WebGL canvas.
+
+## If something might touch WebGL PiP
+
+- **Stop** and confirm in one line with the user, or split the change: UI first, render policy only if they explicitly request it.
+
+## When this regresses
+
+- Append a short entry to `js/v2/AnuModule.js` `ANU_PIPELINE_MEMORY` (what broke, file, mitigation) so it is not repeated.

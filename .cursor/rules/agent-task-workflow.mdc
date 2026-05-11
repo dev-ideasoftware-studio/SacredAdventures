@@ -1,9 +1,20 @@
 ---
-description: Echo each instruction, track todos in real time, validate before closing every task
+description: Mandatory workflow — strict task scope, workflow compliance audit + code validation + Anu, todos, final reply structure
 alwaysApply: true
 ---
 
 # Agent task workflow (every substantive instruction)
+
+## 0. Hard scope lock (MANDATORY — highest priority)
+
+**If a file, path, subsystem, or behavior is not *directly required* by the current instruction, you do not change it. No drive‑bys, no “while I’m here,” no speculative improvements.** Treat this as **non‑negotiable** for every substantive task. Violating scope is a **task failure** even if the narrow change works.
+
+- You must be able to state **exactly which files** you will edit and **why each one is in scope** before editing. If you cannot, **do not code** — ask one precise scope question first.
+- **Forbidden without explicit user request:** refactors, renames, formatting-only sweeps, dependency bumps, unrelated config, touching adjacent modules, “hardening” unrelated paths, or “parity” outside what was asked.
+- **Allowed:** the minimal edit set that satisfies the written instruction; imports/types strictly required by that edit.
+- If the user later widens scope mid‑thread, treat that as an explicit expansion — still do not touch anything outside the expanded scope.
+
+**PiP / live map (additional invariant):** `.cursor/rules/sacred-pip-map-protect.mdc` is **always on** — do not replace or obscure parent `#pipCanvas` / Orchestrator PiP with solid textures or render-path changes unless the user explicitly requests that.
 
 ## When this applies
 
@@ -30,7 +41,7 @@ This gives **real-time visibility** in Cursor’s todo UI for what is being work
 
 ## 3. Validation gate (before “done”)
 
-**Do not** mark the last todo completed until validation has run.
+**Do not** mark the last todo completed until validation has run (**including §3.1 Workflow compliance audit** and **§3.2 Anu** when applicable).
 
 After implementation, run **debug / validation** appropriate to what changed:
 
@@ -40,9 +51,23 @@ After implementation, run **debug / validation** appropriate to what changed:
 | Build / test scripts exist | Run the project’s test or lint script if present |
 | HTML / static only | Sanity: paths and references mentioned in the reply |
 
-### 3.1 Anu pipeline check (mandatory final step)
+### 3.1 Workflow compliance audit (MANDATORY — before Anu)
 
-Before the task is **closed**, every substantive change must include an **Anu** validation pass as the **last** check (after lints / tests above):
+After code/tests/lints, **debug the task itself**: prove this turn did **not** violate workflow mandates. Do **not** close the task until this passes. If any item fails, **FAIL** — correct scope or explicitly document an unavoidable exception before marking work done.
+
+**Audit checklist (answer in the final reply under `Workflow compliance`):**
+
+1. **§0 Scope lock** — List every file you changed. For each: one line, why it was **directly required** by the instruction. Confirm **no** out-of-scope edits (no drive-bys, refactors, or “extras”).
+2. **Instruction fidelity** — Deliverables match what was asked; nothing added or dropped unless the user explicitly changed scope in-thread.
+3. **This rule file** — For substantive work: first reply had an **Instruction** block; **todos** were used with a single `in_progress` at a time; todos reflect actual work.
+4. **Project invariants** — If work touched PiP, map, or `js/v2` shell paths: confirm `.cursor/rules/sacred-pip-map-protect.mdc` was respected (parent `#pipCanvas` / Orchestrator PiP not repurposed without explicit ask).
+5. **Quality bar (§5)** — If you touched a feature path, confirm the obvious failure mode was not left broken without the user narrowing scope.
+
+If the task was **pure rules/docs** with no code, still run items 1–3 against what was edited (files + fidelity to ask).
+
+### 3.2 Anu pipeline check (mandatory final step)
+
+After **§3.1 passes**, run the **Anu** validation pass as the **last technical** check:
 
 1. **If** any of `js/v2/**`, `js/v2/anu/**`, `index.v2.html`, or `.cursor/rules/sacred-v2-render-pipeline.mdc` was edited **or** the work could affect render boot, PiP, Orchestrator loop, `constants.js` (`V2_PIP_*`), Trees, V2Panel, or `AnuModule.js`:
    - Re-read `js/v2/AnuModule.js` (`ANU_PIPELINE_MEMORY`, `evaluateLivePipelineRisk`) and confirm the change does **not** reintroduce a recorded incident (e.g. full-rate PiP every frame without intent, mutating the `three` namespace, treating HUD tri counts as total GPU).
@@ -52,7 +77,8 @@ Before the task is **closed**, every substantive change must include an **Anu** 
 Then in the **final** reply (same turn as completing todos), include a **Validation** subsection that **must** list:
 
 - What was run (e.g. read_lints paths, node --check)
-- **Anu:** outcome per §3.1 (or **Anu: N/A**)
+- **`Workflow compliance`:** outcome of **§3.1** (PASS / FAIL + bullets for checklist items; if FAIL, what was fixed or why blocked)
+- **Anu:** outcome per **§3.2** (or **Anu: N/A**)
 - Outcome: PASS, PASS with notes, or FAIL with reason
 
 If FAIL, fix or explain before marking todos complete.
@@ -60,8 +86,8 @@ If FAIL, fix or explain before marking todos complete.
 ## 4. Completion order
 
 1. Finish code/config changes  
-2. Run validation (lints / tests, then **§3.1 Anu** as the final check)  
-3. Write **Validation** + short results summary (including **Anu** line)  
+2. Run validation (lints / tests, then **§3.1 Workflow compliance audit**, then **§3.2 Anu**)
+3. Write **Validation** + short results summary (including **`Workflow compliance`** + **Anu** lines)
 4. Mark **all** related todos **completed**  
 5. Final user-facing summary  
 
@@ -88,7 +114,7 @@ Required phases (each can be a todo):
 2. **Gap analysis** — Explicit checklist: reference vs current implementation; mark **match / missing / different**.
 3. **Implementation** — Apply **all** gaps in one coherent pass for that milestone (avoid landing half the tokens and calling it done).
 4. **Grep parity validation** — Run **rigorous** comparisons (see `.cursor/rules/sacred-fidelity-parity.mdc`): distinctive strings (hex colors, class names, uniform/shader hooks, `THREE.` symbols) must appear in the new code where intended; document intentional exceptions.
-5. **Final validation** — Lints, **Anu** if applicable, then state what a human should confirm in the browser if the agent cannot.
+5. **Final validation** — Lints, **§3.1 workflow compliance**, **Anu** if applicable, then state what a human should confirm in the browser if the agent cannot.
 
 The final reply for parity work must include a short **Parity** subsection: phases completed, grep checks run, and any remaining deltas.
 
@@ -99,7 +125,7 @@ Include these **when applicable** (omit only what does not apply):
 - **Instruction** (quoted / summarized)
 - **What changed** — files and behavior
 - **Parity** — only if 1:1 / fidelity was in scope (§6)
-- **Validation** — tools run, **Anu** line, PASS / notes
+- **Validation** — tools run, **`Workflow compliance`** (§3.1), **Anu** (§3.2), PASS / notes
 - **Task Summary** — mandatory short closeout with:
   - **Asked:** what the user requested
   - **Provided:** what the agent delivered

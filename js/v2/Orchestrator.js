@@ -42,6 +42,7 @@ import {
   getRuntimeServicesSnapshot,
   validateRuntimeServiceContracts,
 } from "./RuntimeServices.js";
+import { ensurePipOrthoRingClipRuntimeServiceRegistered } from "./anu/PipOrthoRingDiskClip.js";
 
 const _pipSpiritLook = new THREE.Vector3();
 
@@ -109,6 +110,8 @@ export class SacredOrchestrator {
     this._pipPersp = null;
     this._pipW = 0;
     this._pipH = 0;
+    /** Cached `userData.anuKind === "tipi_smoke"` — hidden for PiP ortho + spirit passes. */
+    this._pipTipiSmokePlume = null;
     const self = this;
     this._pipStrategy = {
       getSnapshot() {
@@ -138,6 +141,8 @@ export class SacredOrchestrator {
     window.anuOrchestrator = this;
     /** Legacy alias — must stay identical to anuOrchestrator (singleton engine shell). */
     window.Orchestrator = this;
+
+    ensurePipOrthoRingClipRuntimeServiceRegistered();
 
     console.log(
       "%c[SacredOrchestrator] 🚀 Sacred Adventures v2 — Engine Online",
@@ -700,6 +705,24 @@ export class SacredOrchestrator {
     this._pipH = 0;
   }
 
+  _stashTipiSmokeForPipRender() {
+    if (!this._pipTipiSmokePlume && this.scene) {
+      this.scene.traverse((o) => {
+        if (o.userData?.anuKind === "tipi_smoke")
+          this._pipTipiSmokePlume = o;
+      });
+    }
+    const g = this._pipTipiSmokePlume;
+    if (!g) return null;
+    const prev = g.visible;
+    g.visible = false;
+    return { g, prev };
+  }
+
+  _restoreTipiSmokeAfterPip(stash) {
+    if (stash?.g) stash.g.visible = stash.prev;
+  }
+
   _renderPip() {
     if (!shouldRenderPipSceneThisFrame()) return;
 
@@ -714,51 +737,56 @@ export class SacredOrchestrator {
 
     this._resizePipIfNeeded(pipCanvas);
 
-    const feet = wp.feet;
-    const mainMap = wp.mainCanvasMapView === true;
-    const fog = this.scene.fog;
-    const bg = this.scene.background;
-    this.scene.fog = null;
-    this.scene.background = null;
+    const smokeStash = this._stashTipiSmokeForPipRender();
+    try {
+      const feet = wp.feet;
+      const mainMap = wp.mainCanvasMapView === true;
+      const fog = this.scene.fog;
+      const bg = this.scene.background;
+      this.scene.fog = null;
+      this.scene.background = null;
 
-    if (!mainMap) {
-      const elev = 78;
-      this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
-      this._pipOrtho.up.set(0, 1, 0);
-      this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
-      const pipClip = getRuntimeService("PipOrthoBranchClip");
-      let clipArmed = false;
-      if (
-        pipClip &&
-        typeof pipClip.armOrthoClip === "function" &&
-        typeof pipClip.clearOrthoClip === "function"
-      ) {
-        clipArmed = pipClip.armOrthoClip(this._pipW, this._pipH) === true;
+      if (!mainMap) {
+        const elev = 78;
+        this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
+        this._pipOrtho.up.set(0, 1, 0);
+        this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
+        const pipClip = getRuntimeService("PipOrthoBranchClip");
+        let clipArmed = false;
+        if (
+          pipClip &&
+          typeof pipClip.armOrthoClip === "function" &&
+          typeof pipClip.clearOrthoClip === "function"
+        ) {
+          clipArmed = pipClip.armOrthoClip(this._pipW, this._pipH) === true;
+        }
+        this._pipRenderer.render(this.scene, this._pipOrtho);
+        if (
+          clipArmed &&
+          pipClip &&
+          typeof pipClip.clearOrthoClip === "function"
+        ) {
+          pipClip.clearOrthoClip();
+        }
+      } else {
+        const yaw = wp.yaw || 0;
+        const sin = Math.sin(yaw);
+        const cos = Math.cos(yaw);
+        const hx = feet.x - sin * 0.4;
+        const hz = feet.z - cos * 0.4;
+        const hy = feet.y + 1.55;
+        _pipSpiritLook.set(feet.x - sin * 12, feet.y + 1.35, feet.z - cos * 12);
+        this._pipPersp.position.set(hx, hy, hz);
+        this._pipPersp.up.set(0, 1, 0);
+        this._pipPersp.lookAt(_pipSpiritLook);
+        this._pipRenderer.render(this.scene, this._pipPersp);
       }
-      this._pipRenderer.render(this.scene, this._pipOrtho);
-      if (
-        clipArmed &&
-        pipClip &&
-        typeof pipClip.clearOrthoClip === "function"
-      ) {
-        pipClip.clearOrthoClip();
-      }
-    } else {
-      const yaw = wp.yaw || 0;
-      const sin = Math.sin(yaw);
-      const cos = Math.cos(yaw);
-      const hx = feet.x - sin * 0.4;
-      const hz = feet.z - cos * 0.4;
-      const hy = feet.y + 1.55;
-      _pipSpiritLook.set(feet.x - sin * 12, feet.y + 1.35, feet.z - cos * 12);
-      this._pipPersp.position.set(hx, hy, hz);
-      this._pipPersp.up.set(0, 1, 0);
-      this._pipPersp.lookAt(_pipSpiritLook);
-      this._pipRenderer.render(this.scene, this._pipPersp);
+
+      this.scene.fog = fog;
+      this.scene.background = bg;
+    } finally {
+      this._restoreTipiSmokeAfterPip(smokeStash);
     }
-
-    this.scene.fog = fog;
-    this.scene.background = bg;
   }
 
   dispose() {
@@ -780,6 +808,7 @@ export class SacredOrchestrator {
 
     this._disposePipRenderer();
     this._pipStrategy = null;
+    this._pipTipiSmokePlume = null;
 
     if (this._hud?.parentNode) this._hud.parentNode.removeChild(this._hud);
     this._hud = null;

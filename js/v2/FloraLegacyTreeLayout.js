@@ -9,6 +9,8 @@
  * exists (legacy board), positions snap to hex centers; otherwise raw XZ is kept.
  */
 
+import { V2_FLORA_TIPI_CLEAR_ZONE_RADIUS_M } from "./constants.js";
+
 /** @typedef {{ x: number; z: number; scale: number; widthOverride: number | null }} FloraTreeSlot */
 
 /**
@@ -40,6 +42,8 @@ export function buildLegacyEnvironmentBuilderTreeSlots(opts = {}) {
   /** @type {FloraTreeSlot[]} */
   const treePositions = [];
   const minDistanceSq = 3.5 * 3.5;
+  const tipiBlockSq =
+    V2_FLORA_TIPI_CLEAR_ZONE_RADIUS_M * V2_FLORA_TIPI_CLEAR_ZONE_RADIUS_M;
 
   /**
    * @param {number} rawX
@@ -49,6 +53,9 @@ export function buildLegacyEnvironmentBuilderTreeSlots(opts = {}) {
    */
   const tryAddPosition = (rawX, rawZ, scale, widthOverride = null) => {
     const { x, z } = snap(rawX, rawZ);
+    const dTipiX = x - tipiX;
+    const dTipiZ = z - tipiZ;
+    if (dTipiX * dTipiX + dTipiZ * dTipiZ < tipiBlockSq) return false;
     for (let i = 0; i < treePositions.length; i++) {
       const dx = treePositions[i].x - x;
       const dz = treePositions[i].z - z;
@@ -61,7 +68,8 @@ export function buildLegacyEnvironmentBuilderTreeSlots(opts = {}) {
   const numTipiTrees = 1 + Math.floor(Math.random() * 3);
   for (let i = 0; i < numTipiTrees; i++) {
     const angle = Math.PI * 0.8 + Math.random() * Math.PI * 1.4;
-    const r = 7.0 + Math.random() * 3.0;
+    const r =
+      V2_FLORA_TIPI_CLEAR_ZONE_RADIUS_M + 0.6 + Math.random() * 3.2;
     tryAddPosition(
       tipiX + Math.cos(angle) * r,
       tipiZ + Math.sin(angle) * r,

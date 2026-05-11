@@ -27,6 +27,8 @@ export const ANU_EVENTS = Object.freeze({
   SCENE_INVENTORY_TICK: "anu-scene-inventory-tick",
   /** Moondial PiP overlay toggled (postMessage TOGGLE_VIEW_MODE) */
   UI_PIP_VIEW_TOGGLE: "anu-ui-pip-view-toggle",
+  /** MoonDial iframe manual phase — detail: { phase } (0–7), from Component.MoonDial postMessage */
+  MOON_DIAL_PHASE: "anu-moon-dial-phase",
   /** Wildlife AI tick / probe — detail defined by WildlifeModule */
   FAUNA_TICK: "anu-fauna-tick",
   /** NPC entity lifecycle — detail defined by NPCModule */

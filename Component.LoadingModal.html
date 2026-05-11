@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Loading Screen</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sacred Adventures — Loading</title>
     <style>
+        /* Visual language: 1:1 with legacy WORDPRESS/Component.LoadingModal.html (leather deck + Fredoka).
+           Retains v2: dual MP4 paths, blob prefetch, gradient video fallback, a11y, safe log text. */
         body, html {
             margin: 0;
             padding: 0;
@@ -15,14 +18,14 @@
         #loading {
             position: fixed;
             inset: 0;
-            background: #111; /* Dark base so video pops */
+            background: #111;
             display: flex;
-            align-items: flex-end; /* Move to bottom */
+            align-items: flex-end;
             justify-content: center;
-            padding-bottom: 50px; /* +50px from bottom viewport */
+            padding-bottom: 50px;
             overflow: hidden;
             transition: opacity 0.5s ease-out;
-            pointer-events: none; /* Let clicks pass through transparent areas */
+            pointer-events: none;
         }
         #loading-video {
             position: absolute;
@@ -30,7 +33,6 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* Force GPU layer to prevent stutters during main thread heavy load */
             will-change: transform, opacity;
             transform: translateZ(0);
             backface-visibility: hidden;
@@ -38,29 +40,39 @@
             transition: opacity 1s ease-in-out;
             z-index: 0;
         }
+        #loading-video-fallback {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: #111;
+        }
+        #loading.is-video-fallback #loading-video-fallback {
+            display: block;
+        }
+
         .loading-modal {
             position: fixed;
             left: 50%;
             transform: translateX(-50%);
             bottom: 50px;
-            width: 400px; /* Reduced width by 50% */
+            width: 400px;
             min-height: 280px;
-            padding: 25px; 
+            padding: 25px;
             background: linear-gradient(180deg, rgba(40, 26, 20, 0.95), rgba(15, 10, 8, 0.98));
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
-            
             border: 4px solid #8d6e63;
-            border-bottom: 8px solid #5d4037; 
+            border-bottom: 8px solid #5d4037;
             border-radius: 24px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.8), inset 0 0 20px rgba(251, 192, 45, 0.1);
-            
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(251, 192, 45, 0.1);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
             box-sizing: border-box;
             z-index: 100;
+            pointer-events: auto;
         }
 
         .loading-content-box {
@@ -76,12 +88,21 @@
             color: #fbc02d;
             text-transform: uppercase;
             letter-spacing: 2px;
-            text-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
             margin: 0 0 5px 0;
             text-align: center;
         }
+        .loading-subline {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.68rem;
+            font-weight: 500;
+            color: rgba(215, 204, 200, 0.65);
+            text-align: center;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin: -2px 0 8px 0;
+        }
 
-        /* Diagnostic Bar Styling */
         .diag-row {
             display: flex;
             flex-direction: column;
@@ -97,6 +118,7 @@
             letter-spacing: 1px;
             opacity: 0.8;
         }
+        .diag-label span:last-child { font-variant-numeric: tabular-nums; }
         .loading-bar-container {
             width: 100%;
             height: 4px;
@@ -138,12 +160,6 @@
             margin-top: 5px;
         }
 
-        @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
-            100% { opacity: 0.6; }
-        }
-        /* GPU Hardware Accelerated Slot-Machine Counter (Universal Compatibility) */
         .gpu-slot-container {
             height: 1.2em;
             overflow: hidden;
@@ -165,20 +181,31 @@
         .gpu-slot-active .gpu-slot-strip {
             animation: slotScroll 30s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            #loading, #loading-video, .loading-bar {
+                transition: none;
+            }
+            .gpu-slot-active .gpu-slot-strip { animation: none; }
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Outfit:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="loading">
+    <div id="loading" role="presentation">
         <video id="loading-video" autoplay loop muted playsinline>
+            <source src="WORDPRESS/Assets/AnimatedOpening.mp4" type="video/mp4">
             <source src="Assets/AnimatedOpening.mp4" type="video/mp4">
         </video>
-        
-        <div class="loading-modal">
+        <div id="loading-video-fallback" aria-hidden="true"></div>
+
+        <div class="loading-modal" role="status" aria-live="polite" aria-label="Game loading progress">
             <div class="loading-content-box">
-                <h1 class="loading-title">Sacred Adventures</h1>
-                
-                <!-- Multi-Tier Diagnostic Bars -->
+                <div>
+                    <h1 class="loading-title">Sacred Adventures</h1>
+                    <p class="loading-subline">v2 engine · world &amp; Anu</p>
+                </div>
+
                 <div class="diag-row">
                     <div class="diag-label"><span>Downloading...</span><span id="p-video">0%</span></div>
                     <div class="loading-bar-container"><div id="bar-video" class="loading-bar"></div></div>
@@ -193,7 +220,7 @@
                     <div class="diag-label">
                         <span>Processing...</span>
                         <span id="p-logic">0%</span>
-                        <span id="p-logic-slot" class="gpu-slot-container" style="display:none;"></span>
+                        <span id="p-logic-slot" class="gpu-slot-container" style="display:none;" aria-hidden="true"></span>
                     </div>
                     <div class="loading-bar-container"><div id="bar-logic" class="loading-bar"></div></div>
                 </div>
@@ -203,99 +230,137 @@
                     <div class="loading-bar-container"><div id="bar-init" class="loading-bar"></div></div>
                 </div>
 
-                <div id="loading-log"></div>
+                <div id="loading-log" aria-live="polite" aria-relevant="additions"></div>
             </div>
-            
+
             <div class="copyright">Sacred Ones &bull; Est. 2026</div>
         </div>
     </div>
 
     <script>
-        // MEMORY-SAFE VIDEO BOOTLOADER
-        // Architected to ensure zero-stutter playback by loading into RAM blob
-        (async function initVideo() {
+        (function () {
+            const LOADING_ROOT = document.getElementById('loading');
             const video = document.getElementById('loading-video');
-            const videoPath = 'Assets/AnimatedOpening.mp4';
-            
-            try {
-                console.log("[LoadingModal] Pre-fetching Cinematic MP4 to Memory...");
-                const response = await fetch(videoPath);
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                
-                video.src = blobUrl;
-                video.load();
-                
-                // Wait for video to be ready and playing before notifying parent
-                video.onplaying = () => {
-                    console.log("[LoadingModal] Cinematic Video Active and In-Memory. Firing Ready Signal.");
-                    video.style.opacity = '1';
-                    window.parent.postMessage({ type: 'VIDEO_READY' }, '*');
-                };
-                
-                video.play().catch(e => {
-                    console.warn("Autoplay blocked or failed:", e);
-                    // Fallback to notifying parent anyway so we don't hang
-                    window.parent.postMessage({ type: 'VIDEO_READY' }, '*');
-                });
-            } catch (e) {
-                console.error("Video Fetch Failed:", e);
-                window.parent.postMessage({ type: 'VIDEO_READY' }, '*');
-            }
-        })();
+            const VIDEO_CANDIDATES = [
+                'WORDPRESS/Assets/AnimatedOpening.mp4',
+                'Assets/AnimatedOpening.mp4',
+            ];
 
-        // Listen for messages from the parent window
-        window.addEventListener('message', (event) => {
-            if (event.data && event.data.type) {
-                switch(event.data.type) {
-                    case 'LOG_SYSTEM':
-                        const msg = event.data.msg;
-                        const pVideo = event.data.pVideo;
-                        const pAssets = event.data.pAssets;
-                        const pLogic = event.data.pLogic;
-                        const pInit = event.data.pInit;
-                        
+            function notifyVideoReady() {
+                try {
+                    window.parent.postMessage({ type: 'VIDEO_READY', source: 'SacredLoadingModal' }, '*');
+                } catch (_) {}
+            }
+
+            function showVideoFallback() {
+                if (LOADING_ROOT) LOADING_ROOT.classList.add('is-video-fallback');
+                video.style.display = 'none';
+                notifyVideoReady();
+            }
+
+            (async function initVideo() {
+                let srcUrl = null;
+                let blobUrl = null;
+                for (const path of VIDEO_CANDIDATES) {
+                    try {
+                        const r = await fetch(path, { cache: 'force-cache' });
+                        if (!r.ok) continue;
+                        const blob = await r.blob();
+                        blobUrl = URL.createObjectURL(blob);
+                        srcUrl = blobUrl;
+                        break;
+                    } catch (_) {}
+                }
+
+                if (!srcUrl) {
+                    console.warn('[LoadingModal] No opening video (tried:', VIDEO_CANDIDATES.join(', '), ')');
+                    showVideoFallback();
+                    return;
+                }
+
+                video.src = srcUrl;
+                video.load();
+
+                video.onplaying = () => {
+                    video.style.opacity = '1';
+                    notifyVideoReady();
+                };
+
+                video.onerror = () => {
+                    if (blobUrl) URL.revokeObjectURL(blobUrl);
+                    showVideoFallback();
+                };
+
+                try {
+                    await video.play();
+                } catch (e) {
+                    console.warn('[LoadingModal] Autoplay blocked:', e);
+                    notifyVideoReady();
+                }
+            })();
+
+            function isHeavyMainThreadParseMessage(msg) {
+                if (!msg || typeof msg !== 'string') return false;
+                if (msg.includes('Avatar (78MB)')) return true;
+                if (/Avatar3\.glb/i.test(msg)) return true;
+                if (/NPC\.YB\.glb/i.test(msg)) return true;
+                return false;
+            }
+
+            function isParseCompleteMessage(msg) {
+                if (!msg || typeof msg !== 'string') return false;
+                return msg.includes('Avatar Loaded');
+            }
+
+            window.addEventListener('message', (event) => {
+                const data = event.data;
+                if (!data || !data.type) return;
+
+                switch (data.type) {
+                    case 'LOG_SYSTEM': {
+                        const msg = data.msg;
+                        const pVideo = data.pVideo;
+                        const pAssets = data.pAssets;
+                        const pLogic = data.pLogic;
+                        const pInit = data.pInit;
+
                         const logBox = document.getElementById('loading-log');
-                        
                         if (logBox && msg) {
                             const now = new Date();
-                            const timeStr = now.getHours().toString().padStart(2, '0') + ":" + 
-                                           now.getMinutes().toString().padStart(2, '0') + ":" + 
-                                           now.getSeconds().toString().padStart(2, '0');
-                            
+                            const timeStr = [now.getHours(), now.getMinutes(), now.getSeconds()]
+                                .map((n) => String(n).padStart(2, '0')).join(':');
                             const logEntry = document.createElement('div');
-                            logEntry.innerHTML = `[${timeStr}] ${msg}`;
+                            logEntry.textContent = '[' + timeStr + '] ' + msg;
                             logBox.appendChild(logEntry);
+                            while (logBox.children.length > 12) logBox.removeChild(logBox.firstChild);
                             logBox.scrollTop = logBox.scrollHeight;
                         }
-                        
+
                         let actualVideo = pVideo;
                         let actualAssets = pAssets;
                         let actualLogic = pLogic;
                         let actualInit = pInit;
 
-                        if (msg && msg.includes("Avatar (78MB)")) {
-                            // INTERCEPT: The massive 78MB synchronous parse is about to lock the main thread for 10 seconds!
-                            // We instantly set the CSS transition to 10 seconds and push the target to 99%
+                        if (isHeavyMainThreadParseMessage(msg)) {
                             actualLogic = 99;
-                            
+
                             if (!window._gpuSlideStarted) {
                                 window._gpuSlideStarted = true;
                                 const logicBar = document.getElementById('bar-logic');
                                 if (logicBar) {
                                     logicBar.style.transition = 'transform 30s cubic-bezier(0.1, 0.7, 0.1, 1)';
-                                    logicBar.style.transform = `scaleX(0.99)`;
+                                    logicBar.style.transform = 'scaleX(0.99)';
                                 }
-                                
-                                const pLogic = document.getElementById('p-logic');
-                                pLogic.style.display = 'none'; // Hide static text
-                                
+
+                                const pLogicEl = document.getElementById('p-logic');
+                                if (pLogicEl) pLogicEl.style.display = 'none';
+
                                 const pSlot = document.getElementById('p-logic-slot');
                                 if (pSlot) {
                                     if (!pSlot.innerHTML) {
                                         let strip = '<div class="gpu-slot-strip">';
                                         for (let i = 25; i <= 99; i++) {
-                                            strip += `<div style="height:1.2em; line-height:1.2em;">${i}%</div>`;
+                                            strip += '<div style="height:1.2em;line-height:1.2em;">' + i + '%</div>';
                                         }
                                         strip += '</div>';
                                         pSlot.innerHTML = strip;
@@ -304,13 +369,11 @@
                                     pSlot.classList.add('gpu-slot-active');
                                 }
                             }
-                            
-                            // Also push assets to 100% just in case it got stuck at 95%
+
                             actualAssets = 100;
                         }
 
-                        if (msg && msg.includes("Avatar Loaded")) {
-                            // Lockup is over! Snap transition back to fast
+                        if (isParseCompleteMessage(msg)) {
                             const logicBar = document.getElementById('bar-logic');
                             if (logicBar) {
                                 logicBar.style.transition = 'transform 0.4s ease-out';
@@ -318,42 +381,53 @@
                             actualLogic = 100;
                         }
 
-                        // Update Bars and Labels
                         if (actualVideo !== undefined) {
-                            document.getElementById('bar-video').style.transform = `scaleX(${actualVideo / 100})`;
-                            document.getElementById('p-video').innerText = Math.round(actualVideo) + '%';
+                            const el = document.getElementById('bar-video');
+                            if (el) el.style.transform = 'scaleX(' + actualVideo / 100 + ')';
+                            const lab = document.getElementById('p-video');
+                            if (lab) lab.textContent = Math.round(actualVideo) + '%';
                         }
                         if (actualAssets !== undefined) {
-                            document.getElementById('bar-assets').style.transform = `scaleX(${actualAssets / 100})`;
-                            document.getElementById('p-assets').innerText = Math.round(actualAssets) + '%';
+                            const el = document.getElementById('bar-assets');
+                            if (el) el.style.transform = 'scaleX(' + actualAssets / 100 + ')';
+                            const lab = document.getElementById('p-assets');
+                            if (lab) lab.textContent = Math.round(actualAssets) + '%';
                         }
                         if (actualLogic !== undefined) {
-                            // Only update if it's the final snap to 100%, otherwise let the GPU counter handle it!
                             if (actualLogic === 100 || !window._gpuSlideStarted) {
                                 const pSlot = document.getElementById('p-logic-slot');
                                 if (pSlot) pSlot.style.display = 'none';
-                                
-                                const pLogic = document.getElementById('p-logic');
-                                pLogic.style.display = 'inline';
-                                pLogic.innerText = Math.round(actualLogic) + '%';
-                                document.getElementById('bar-logic').style.transform = `scaleX(${actualLogic / 100})`;
+
+                                const pLogicEl = document.getElementById('p-logic');
+                                if (pLogicEl) {
+                                    pLogicEl.style.display = 'inline';
+                                    pLogicEl.textContent = Math.round(actualLogic) + '%';
+                                }
+                                const logicBar = document.getElementById('bar-logic');
+                                if (logicBar) logicBar.style.transform = 'scaleX(' + actualLogic / 100 + ')';
                             }
                         }
                         if (actualInit !== undefined) {
-                            document.getElementById('bar-init').style.transform = `scaleX(${actualInit / 100})`;
-                            document.getElementById('p-init').innerText = Math.round(actualInit) + '%';
+                            const el = document.getElementById('bar-init');
+                            if (el) el.style.transform = 'scaleX(' + actualInit / 100 + ')';
+                            const lab = document.getElementById('p-init');
+                            if (lab) lab.textContent = Math.round(actualInit) + '%';
                         }
                         break;
-                    case 'LOADING_COMPLETE':
+                    }
+                    case 'LOADING_COMPLETE': {
                         const ld = document.getElementById('loading');
                         if (ld) {
                             ld.style.opacity = '0';
-                            ld.style.pointerEvents = 'none'; // CRITICAL: Stop blocking clicks after fade!
+                            ld.style.pointerEvents = 'none';
                         }
                         break;
+                    }
+                    default:
+                        break;
                 }
-            }
-        });
+            });
+        })();
     </script>
 </body>
 </html>

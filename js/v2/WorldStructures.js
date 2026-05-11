@@ -10,6 +10,7 @@ import {
   V2_NPC_YB_TIPI1_LOCAL_X_M,
   V2_NPC_YB_TIPI1_LOCAL_Z_M,
   V2_NPC_YB_TIPI1_MODEL_YAW_RAD,
+  V2_NPC_YB_TIPI1_PLAYER_AIM_YAW_BIAS_RAD,
   V2_NPC_YB_TIPI1_SEAT_LOWER_M,
   V2_NPC_YB_TIPI1_SIZE_MULTIPLIER,
   V2_NPC_YB_TIPI1_TARGET_HEIGHT_M,
@@ -24,6 +25,11 @@ import {
   V2_TIPI_YELLOW_BUTTERFLY_TARGET_HEIGHT_M,
 } from "./constants.js";
 import { applyPipOrthoRingDiskClipToSubtree } from "./anu/PipOrthoRingDiskClip.js";
+import {
+  createPhotorealTravelDiscMaterial,
+  createPhotorealTravelRingMaterial,
+  touchTravelCircleTime,
+} from "./anu/TravelFloorCircleMaterials.js";
 import { createTipiCampfire, createTipiSmokePlume } from "./TipiCampfire.js";
 import { terrainY } from "./WorldTerrain.js";
 
@@ -38,27 +44,15 @@ export function tipi1SacredDeckTopY(platMesh) {
 }
 
 /**
- * Metal-gold floor marker — same layout as `WorldAvatar` travel UI (disc + ring 0.92–1.0 + arrow),
- * with gold palette. `arrowYawRad` rotates the arrow around Y so it matches `V2_NPC_YB_TIPI1_MODEL_YAW_RAD`
- * (convention: model yaw π/2 faces +Z; arrow uses `modelYaw − π/2`). Lift comes from `constants.js`
- * so geometry clears the sacred platform deck (`V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M`).
+ * Gold deck decal only (disc + ring) — stays on `root` while rig + arrow rotate in `ybFacingGroup`.
  */
-function addGoldTravelMarkerAtFeet(group, radius, liftY, arrowYawRad = 0) {
+function addGoldTravelFloorDecalAtFeet(group, radius, liftY) {
   const R = radius;
   const lift = liftY;
+  const innerR = R * 0.92;
 
-  const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(R, 72),
-    new THREE.MeshBasicMaterial({
-      color: 0xc9a227,
-      transparent: true,
-      opacity: 0.28,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -2,
-    }),
-  );
+  const discMat = createPhotorealTravelDiscMaterial("npc", R);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(R, 72), discMat);
   disc.name = "population_npc_yb_gold_travel_disc";
   disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.POPULATION;
   disc.userData.anuKind = "npc_yb_travel_disc";
@@ -68,18 +62,10 @@ function addGoldTravelMarkerAtFeet(group, radius, liftY, arrowYawRad = 0) {
   disc.renderOrder = 1;
   group.add(disc);
 
+  const ringMat = createPhotorealTravelRingMaterial("npc", innerR, R);
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(R * 0.92, R, 96),
-    new THREE.MeshBasicMaterial({
-      color: 0xe6c200,
-      transparent: true,
-      opacity: 0.95,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -2,
-    }),
+    new THREE.RingGeometry(innerR, R, 96),
+    ringMat,
   );
   ring.name = "population_npc_yb_gold_travel_ring";
   ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.POPULATION;
@@ -90,6 +76,12 @@ function addGoldTravelMarkerAtFeet(group, radius, liftY, arrowYawRad = 0) {
   ring.renderOrder = 2;
   group.add(ring);
 
+  return [discMat, ringMat];
+}
+
+/** Facing arrow mesh (+Z in pivot space after `rotation.x = −π/2`). Parent: `ybFacingGroup`. */
+function createGoldTravelFacingArrowMesh(radius, localY) {
+  const R = radius;
   const arrowShape = new THREE.Shape()
     .moveTo(0, R * 0.92)
     .lineTo(R * 0.22, R * 0.52)
@@ -113,17 +105,35 @@ function addGoldTravelMarkerAtFeet(group, radius, liftY, arrowYawRad = 0) {
   arrow.userData.anuKind = "npc_yb_travel_arrow";
   arrow.userData.anuId = "population.npc.yellow_butterfly.gold_arrow";
   arrow.rotation.x = -Math.PI / 2;
-  arrow.rotation.y = arrowYawRad;
-  arrow.position.y = lift + 0.015;
+  arrow.position.y = localY;
   arrow.renderOrder = 3;
-  group.add(arrow);
+  return arrow;
+}
+
+/**
+ * Aim seated YB rig + gold arrow toward the player on XZ (`World` passes physics/camera body XZ).
+ * `ybFacingGroup.rotation.y = atan2(dx, dz)` aligns local +Z with (player − YB); matches Three.js Ry.
+ */
+export function updateYellowButterflyPlayerAim(tipi, playerX, playerZ) {
+  const fg = tipi?.userData?.ybFacingGroup;
+  const root = tipi?.userData?.ybSeatRoot;
+  if (!fg || !root) return;
+  const dx = playerX - root.position.x;
+  const dz = playerZ - root.position.z;
+  if (dx * dx + dz * dz < 1e-10) return;
+  fg.rotation.y = Math.atan2(dx, dz) + V2_NPC_YB_TIPI1_PLAYER_AIM_YAW_BIAS_RAD;
+  const mats = tipi?.userData?.ybTravelCircleMaterials;
+  if (Array.isArray(mats)) {
+    const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+    for (let i = 0; i < mats.length; i++) touchTravelCircleTime(mats[i], t);
+  }
 }
 
 /**
  * Loads `NPC.YB.glb` seated on the tipi 1 cylinder deck (inside / centre area).
  * Animation: sit clip by name (`sit`, `003`, …) or legacy index **3** fallback (`EnvironmentBuilder.js`).
  *
- * Orientation: `V2_NPC_YB_TIPI1_MODEL_YAW_RAD` (see `constants.js` — includes +180° vs base π/2 for forward stance).
+ * Bind pose: `V2_NPC_YB_TIPI1_MODEL_YAW_RAD` on the mesh inside `ybFacingGroup`, which is rotated each frame toward the player.
  */
 async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) {
   try {
@@ -168,16 +178,26 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
     root.userData.anuLegacyReference =
       "EnvironmentBuilder.js NPC.YB — seated only (fresh v2 attachment)";
 
-    const ybFacingArrowYaw =
-      V2_NPC_YB_TIPI1_MODEL_YAW_RAD - Math.PI / 2;
-    addGoldTravelMarkerAtFeet(
+    const ybTravelCircleMats = addGoldTravelFloorDecalAtFeet(
       root,
       V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M,
       V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M,
-      ybFacingArrowYaw,
     );
 
-    root.add(model);
+    const lift = V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M;
+    const facingGroup = new THREE.Group();
+    facingGroup.name = "population_npc_yb_facing";
+    facingGroup.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.POPULATION;
+    facingGroup.userData.anuKind = "npc_yb_facing_pivot";
+    facingGroup.userData.anuId = "population.npc.yellow_butterfly.facing_pivot";
+
+    const arrow = createGoldTravelFacingArrowMesh(
+      V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M,
+      lift + 0.015,
+    );
+    facingGroup.add(model);
+    facingGroup.add(arrow);
+    root.add(facingGroup);
 
     const deckTop = tipi1SacredDeckTopY(platMesh);
     root.position.set(
@@ -210,7 +230,12 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
       root.userData.anuActiveAnimation = { kind: "sit", clip: sitClip.name };
     }
 
-    if (tipi) tipi.userData.ybNpcMixer = mixer;
+    if (tipi) {
+      tipi.userData.ybNpcMixer = mixer;
+      tipi.userData.ybFacingGroup = facingGroup;
+      tipi.userData.ybSeatRoot = root;
+      tipi.userData.ybTravelCircleMaterials = ybTravelCircleMats;
+    }
 
     console.log("%c[World] NPC.YB seated at tipi 1 (minimal load)", "color:#ce93d8;");
     return { root, mixer };
@@ -330,6 +355,7 @@ export async function loadCenterTipi({ scene, objects, worldPhysics }) {
 
     const deckFx = tipi1SacredDeckTopY(platMesh);
     const hearthY = deckFx + V2_TIPI_BRAZIER_ABOVE_DECK_M;
+    /** Flame group sits at the brazier mesh XZ; Y is the bowl-rim cradle (V2_TIPI_BRAZIER_ABOVE_DECK_M). */
     const fireCtl = createTipiCampfire({
       scene,
       objects,

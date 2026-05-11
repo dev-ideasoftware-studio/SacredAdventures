@@ -23,6 +23,17 @@
       z-index: 1;
     }
 
+    /* Full-screen loading modal (Component.LoadingModal.html) — above canvas until boot completes */
+    #v2-loading-iframe {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      z-index: 100000;
+      background: #111;
+    }
+
     /* ── Phase intro banner ─────────────────────────────────────── */
     #v2-banner {
       position: fixed;
@@ -88,6 +99,13 @@
 </head>
 <body>
 
+  <iframe
+    id="v2-loading-iframe"
+    src="Component.LoadingModal.html?v=v2"
+    title="Sacred Adventures loading"
+    allow="autoplay"
+  ></iframe>
+
   <canvas id="v2-canvas"></canvas>
 
   <div id="v2-banner">
@@ -113,6 +131,59 @@
     import { UIModule }     from './js/v2/UIModule.js';
     import { V2PanelModule } from './js/v2/V2Panel.js';
 
+    const loadingIframe = document.getElementById('v2-loading-iframe');
+
+    function postToLoadingModal(payload) {
+      try {
+        loadingIframe?.contentWindow?.postMessage(payload, '*');
+      } catch (_) { /* ignore */ }
+    }
+
+    function v2LoadLog(msg, pVideo, pAssets, pLogic, pInit) {
+      postToLoadingModal({
+        type: 'LOG_SYSTEM',
+        msg,
+        pVideo,
+        pAssets,
+        pLogic,
+        pInit,
+      });
+    }
+
+    function v2LoadingComplete() {
+      postToLoadingModal({ type: 'LOADING_COMPLETE' });
+    }
+
+    function teardownLoadingIframe() {
+      const ifr = document.getElementById('v2-loading-iframe');
+      if (!ifr) return;
+      ifr.style.transition = 'opacity 0.65s ease';
+      ifr.style.opacity = '0';
+      ifr.style.pointerEvents = 'none';
+      setTimeout(() => {
+        ifr.remove();
+      }, 700);
+    }
+
+    window.addEventListener('message', (event) => {
+      if (!event.data || typeof event.data.type !== 'string') return;
+      if (event.data.type === 'VIDEO_READY') {
+        v2LoadLog('Opening reel ready', 100, 8, 0, 0);
+      }
+    });
+
+    await new Promise((resolve) => {
+      if (!loadingIframe) {
+        resolve();
+        return;
+      }
+      const done = () => resolve();
+      loadingIframe.addEventListener('load', done, { once: true });
+      setTimeout(done, 4000);
+    });
+
+    v2LoadLog('Sacred Adventures v2 — starting engine', 5, 5, 0, 0);
+
     // ── Boot ────────────────────────────────────────────────────────────
     const canvas = document.getElementById('v2-canvas');
     const orc    = new SacredOrchestrator(canvas);
@@ -124,6 +195,8 @@
     orc.register(TreesModule);
     orc.register(UIModule);
     orc.register(V2PanelModule);
+
+    v2LoadLog('Modules registered', 100, 18, 12, 8);
 
     // ANU timeline 2026-05-10: governance + sensorium APIs live.
     // Use AnuUniverse.exportGovernanceJson(), exportWorldSensoriumJson(), and exportFuzzyPipelineJson()
@@ -139,16 +212,31 @@
     // orc.register(UIHUDModule);
 
     // ── Phase 2: Anu (primary coordinator) → world + forest + panels (benchmark order) ─
+    v2LoadLog('Activating Anu (governance shell)', 100, 28, 22, 12);
     await orc.activate('Anu');
+    v2LoadLog('Anu online', 100, 38, 35, 18);
+
+    v2LoadLog('Activating World — terrain, tipi, Avatar3.glb, NPC.YB', 100, 52, 38, 22);
     await orc.activate('World');
+    v2LoadLog('Avatar Loaded — world scene ready', 100, 100, 100, 42);
+
+    v2LoadLog('Activating Trees — instanced forest', 100, 100, 100, 62);
     await orc.activate('Trees');
+    v2LoadLog('Trees online', 100, 100, 100, 78);
+
+    v2LoadLog('Activating Panels & minimap PiP', 100, 100, 100, 88);
     await orc.activate('PanelsPIP');
+    v2LoadLog('Enter world', 100, 100, 100, 100);
+
     // Guides / neumorphic control deck + ThreeIcons (heavy second WebGL pass) — off for perf.
     // await orc.activate('V2Panel');
     // To re-enable:  await orc.activate('V2Panel');
 
-    // ── Start render loop ────────────────────────────────────────────────
+    // ── Start render loop (runs behind iframe until overlay tears down) ─
     orc.start();
+
+    v2LoadingComplete();
+    setTimeout(teardownLoadingIframe, 480);
 
     // ── Hide banner after 6 seconds ──────────────────────────────────────
     setTimeout(() => {

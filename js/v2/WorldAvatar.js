@@ -7,6 +7,7 @@ import {
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import {
+  V2_AVATAR_MODEL_YAW_RAD,
   V2_AVATAR_SOLES_GROUND_TRIM_M,
   V2_AVATAR_TARGET_HEIGHT_M,
   V2_AVATAR_TRAVEL_CIRCLE_LIFT_M,
@@ -15,10 +16,14 @@ import {
   V2_AVATAR_WALK_ANIM_TIME_SCALE_MAX,
   V2_AVATAR_WALK_ANIM_TIME_SCALE_MIN,
 } from "./constants.js";
+import {
+  createPhotorealTravelDiscMaterial,
+  createPhotorealTravelRingMaterial,
+  touchTravelCircleTime,
+} from "./anu/TravelFloorCircleMaterials.js";
 
 const AVATAR_TARGET_HEIGHT = V2_AVATAR_TARGET_HEIGHT_M;
 const AVATAR_CIRCLE_RADIUS = V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M;
-const AVATAR_MODEL_YAW_OFFSET = Math.PI / 2;
 const AVATAR_URL = "./Assets/Avatar3.glb";
 
 export function createWorldAvatarController() {
@@ -27,6 +32,7 @@ export function createWorldAvatarController() {
     model: null,
     circle: null,
     arrow: null,
+    _travelRingMesh: null,
     mixer: null,
     actions: null,
     clips: [],
@@ -41,7 +47,7 @@ export function createWorldAvatarController() {
       try {
         const gltf = await new GLTFLoaderWithDraco().loadAsync(AVATAR_URL);
         const model = gltf.scene;
-        model.rotation.y = AVATAR_MODEL_YAW_OFFSET;
+        model.rotation.y = V2_AVATAR_MODEL_YAW_RAD;
         model.traverse((child) => {
           if (child.isMesh) {
             child.frustumCulled = true;
@@ -68,14 +74,13 @@ export function createWorldAvatarController() {
         root.userData.anuInteractable = true;
         root.userData.anuInteractionVerbs = [ANU_INTERACTION_VERB.INSPECT];
 
+        const discMat = createPhotorealTravelDiscMaterial(
+          "player",
+          AVATAR_CIRCLE_RADIUS,
+        );
         const disc = new THREE.Mesh(
           new THREE.CircleGeometry(AVATAR_CIRCLE_RADIUS, 72),
-          new THREE.MeshBasicMaterial({
-            color: 0x228b22,
-            transparent: true,
-            opacity: 0.28,
-            depthWrite: false,
-          }),
+          discMat,
         );
         disc.name = "player_avatar_travel_circle";
         disc.rotation.x = -Math.PI / 2;
@@ -85,14 +90,15 @@ export function createWorldAvatarController() {
         disc.userData.anuKind = "avatar_travel_circle";
         root.add(disc);
 
+        const innerR = AVATAR_CIRCLE_RADIUS * 0.92;
+        const ringMat = createPhotorealTravelRingMaterial(
+          "player",
+          innerR,
+          AVATAR_CIRCLE_RADIUS,
+        );
         const ring = new THREE.Mesh(
-          new THREE.RingGeometry(AVATAR_CIRCLE_RADIUS * 0.92, AVATAR_CIRCLE_RADIUS, 96),
-          new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.95,
-            side: THREE.DoubleSide,
-          }),
+          new THREE.RingGeometry(innerR, AVATAR_CIRCLE_RADIUS, 96),
+          ringMat,
         );
         ring.name = "player_avatar_circle_outline";
         ring.rotation.x = -Math.PI / 2;
@@ -132,6 +138,7 @@ export function createWorldAvatarController() {
         this.model = model;
         this.circle = disc;
         this.arrow = arrow;
+        this._travelRingMesh = ring;
         this.clips = gltf.animations.map((clip, index) =>
           Object.freeze({
             index,
@@ -286,6 +293,9 @@ export function createWorldAvatarController() {
     update(delta, x, y, z, yaw) {
       this.setPose(x, y, z, yaw);
       this.advanceMixer(delta);
+      const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+      touchTravelCircleTime(this.circle?.material, t);
+      touchTravelCircleTime(this._travelRingMesh?.material, t);
     },
 
     dispose() {
@@ -298,6 +308,7 @@ export function createWorldAvatarController() {
       this.model = null;
       this.circle = null;
       this.arrow = null;
+      this._travelRingMesh = null;
       this.mixer = null;
       this.actions = null;
       this.clips = [];
