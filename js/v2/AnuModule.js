@@ -8,6 +8,9 @@
  * - Canonical live singleton: window.anuOrchestrator (same object as AnuUniverse.anuOrchestrator)
  * - Legacy alias: window.Orchestrator (same object — prefer anuOrchestrator)
  * - Discriminator on the live shell: instance.isSacredOrchestratorShell === true
+ *
+ * Product (governance label): The Empathy Engine v1.0a — see ANU_EMPATHY_ENGINE_NAME
+ * and the `empathy-engine-product-name` pipeline memory card.
  */
 
 import { V2_PIP_RENDER_EVERY_N_FRAMES } from "./constants.js";
@@ -44,6 +47,9 @@ import {
   validateRuntimeServiceContracts,
   RUNTIME_SERVICE_CONTRACTS,
 } from "./RuntimeServices.js";
+
+/** Canonical human-facing name for this governed shell (Anu + Sacred v2). */
+export const ANU_EMPATHY_ENGINE_NAME = "The Empathy Engine v1.0a";
 
 /** Incidents and invariants — append when the pipeline teaches something new. */
 export const ANU_PIPELINE_MEMORY = [
@@ -224,11 +230,12 @@ export const ANU_PIPELINE_MEMORY = [
     learnedAt: "2026-05",
     title: "WorldPhysics owns colliders and autowalk avoidance",
     summary:
-      "WorldPhysics now exposes circular obstacle colliders, body collision resolution, and steerAroundObstacles() so player, NPC, and wildlife locomotion can share the same avoidance rules. Tipi models are explicitly passable.",
+      "WorldPhysics now exposes circular obstacle colliders, body collision resolution, and steerAroundObstacles() so player, NPC, and wildlife locomotion can share the same avoidance rules. Tipi models are explicitly passable. Player **long-hold autowalk** (WorldPlayerController.syncAutowalkFromHeldKeys) is additionally suppressed inside **one tile** of either tipi centre in World.js — clears `_autoWalk` if already active and blocks both arming (3 s hold) and the drift branch while near — so autowalk never stomps through NPC greet poses at tipi 1 or tipi 2.",
     mitigations: [
       "WorldPhysics.js — add solid/passable circular XZ colliders for scene objects",
       "WorldPhysics.steerAroundObstacles() — reusable avoidance hook before assigning NPC/wildlife/player velocity",
       "WorldPlayerController.js — long-hold movement key state for player autowalk",
+      "World.js — tipi proximity gate: `min(distXZ(player, origin), distXZ(player, (V2_TIPI_2_CENTER_X_M,0))) < V2_TILE_WORLD` suppresses autowalk (clears active flag + skips sync + skips drift dir). Tipi centres are world-space constants matching WorldStructures placement.",
     ],
     files: ["js/v2/World.js", "js/v2/WorldPhysics.js", "js/v2/WorldPlayerController.js"],
   },
@@ -268,6 +275,27 @@ export const ANU_PIPELINE_MEMORY = [
       "If the change might touch WebGL PiP, stop and confirm in one line before editing.",
     ],
     files: [".cursor/rules/sacred-pip-map-protect.mdc", "js/v2/UIModule.js", "js/v2/Orchestrator.js", "js/v2/anu/PipRenderStrategy.js"],
+  },
+  {
+    id: "moondial-compass-and-glass",
+    learnedAt: "2026-05",
+    title: "Moondial compass formula + PiP crystal-dome glass (legacy 1:1, extended to moonphase rim)",
+    summary:
+      "Two related UIModule fixes for the moondial bezel, scoped strictly to js/v2/UIModule.js (no PiP WebGL or render-strategy edits). (1) Compass: _syncCompass(yaw) now rotates the ring by `180 - yawDeg` instead of `yawDeg`. The earlier formula painted the dial 180° upside-down at spawn because v2 spawn yaw is π (player facing +Z = north toward tipi 1), not 0. Verified for all four cardinals: yaw=π → N at top, yaw=0 → S at top, yaw=π/2 → W at top, yaw=-π/2 → E at top. (2) Crystal-dome glass: .pip-optics-stack mask was tightened from a clamp around 14% inset to `calc(100% - var(--pip-moon-track))` so the glass surface now reaches the **inner edge of the moonphase track** (where the lunar ring meets the WebGL hole). .pip-optics-glaze is the legacy Component.MoonDial #pip-lens::after formula reproduced 1:1: highlight `ellipse 92% 74% at 34% 26% → rgba(255,255,255,0.22)`, dark seat `circle at 50% 88% → rgba(0,15,30,0.18)`, `mix-blend-mode: soft-light`, opacity 0.88. .pip-optics-shade keeps the top inset rim highlight but the bottom inset shadow was pulled from 40px / 0.20 to 28px / 0.14 so the moonphase ring at the rim no longer reads as dimmed under the glass. .lunar-phase-slot dropped its 0.82 opacity + heavy drop-shadow filter — moon glyphs are now crisp on top of the dome.",
+    mitigations: [
+      "Layering invariant: .pip-optics-stack is z:1, .lunar-radial-ring (moon phase slots) is z:7, compass-outer-ring is z:6, pip-lens-legacy is z:4, pipOverlay is z:3, pipCanvas is z:0. The glass NEVER overlays the moonphases because of this z-order — if a future contributor raises optics-stack above z:6, the moons will start reading as fuzzed again. Don't raise it.",
+      "Compass formula is `180 - yawDeg` (mod 360). Do not 'fix' to plain `-yawDeg` or `yawDeg` — both give wrong results at the current spawn (yaw=π). The constant comes from the marker positions (N=0°, E=90°, S=180°, W=270° CW from top) plus v2's world yaw convention (yaw=0 ⇒ facing -Z).",
+      "If the v2 spawn yaw changes, the compass still self-corrects — the formula derives ring rotation from the live yaw, no per-spawn baked constant. If world-yaw convention itself flips (e.g. switch to right-hand from-above CW), update the formula derivation in the JSDoc and re-verify all four cardinals.",
+      "The crystal-dome mask boundary is var(--pip-moon-track) (default 22px). If a future redesign moves the moonphase track inward, change the CSS var only — both the lunar-radial-ring's own mask AND the optics-stack mask key off the same variable so they stay aligned.",
+      "Glass formulas are the legacy iframe (Component.MoonDial.html) 1:1 — DO NOT just bump intensities to 'more glassy'. The legacy was tuned at those exact numbers (highlight 0.22, dark anchor 0.18, blend soft-light, opacity 0.88) — they're the canonical look the user explicitly asked for.",
+      "Moon-glyph crispness was the user-visible cost of the previous 0.82 opacity + drop-shadow blur halo. If you re-add a glow effect (e.g. for active phase), use box-shadow / filter only on the .active-phase / :hover states — do NOT apply a default filter to .lunar-phase-slot itself.",
+      "This card lives alongside `pip-ui-vs-webgl-scope` — together they form the scope boundary for moondial work. Future moondial tweaks (bezel material, additional rings, animated indicator pointer) belong in UIModule.js + this card; render-path changes do not.",
+    ],
+    files: [
+      "js/v2/UIModule.js",
+      "Component.MoonDial.html",
+      ".cursor/rules/sacred-pip-map-protect.mdc",
+    ],
   },
   {
     id: "travel-floor-decal-depth",
@@ -412,6 +440,127 @@ export const ANU_PIPELINE_MEMORY = [
     ],
   },
   {
+    id: "fauna-pillar-rabbit-warren",
+    learnedAt: "2026-05",
+    title: "Fauna pillar — rabbit family burrow v3 (simple real hole + motion-gated animation, relocated)",
+    summary:
+      "js/v2/Fauna.js spawns a five-member rabbit family (dad 1.5× mom, mom, three babies with distinct coats) around a **minimal burrow** — no raised mound, no pebble/grass props. **Location**: the empty tile **directly right of tipi 1** — WARREN_X = V2_TILE_WORLD ≈ 10.86 m, WARREN_Z = 0 — between tipi 1 (origin) and tipi 2 (V2_TILE_WORLD*2). Inside the V2_FLORA_TIPI_CLEAR_ZONE_RADIUS_M=12.5 m exclusion so no tree will plant on the ring. **Warren pieces** (`buildWarren()`): (a) disturbed-earth **RingGeometry** flush with the grass (inner radius ≈ throat top, outer ≈ 1.05 m) — reads as kicked-up dirt without a second 'saucer' mesh sitting on the terrain; (b) tapering open throat (top 0.38 → bottom 0.22 m, 0.95 m deep) with baked vertex-colour gradient rim soil (0x3a2316) → pure black on `MeshBasicMaterial({ vertexColors, side: BackSide, toneMapped: false })` so only the interior walls are visible and tone-mapping doesn't lift the black; (c) inner **CircleGeometry** cap with radial vertex colours so a straight-down camera stays black; (d) small underground `BackSide` sphere pocket for AI / introspection. **Spawn**: rabbits boot in a **tight 0.55–0.87 m** radius around the burrow lip (not 1.6–2.0 m away) so they're obviously in-frame next to the hole. All rabbits share one rigged GLB (Assets/rabbit.animated.glb, single hop loop) cloned per-instance with material clones so per-rabbit tints don't bleed. **Animation gate**: action is created + scheduled (`action.play()`) at load but starts `paused = true`; `_updateRabbitMotion` flips `paused` based on whether the rabbit is in a locomoting state (HOP / CHASE_SIBLING / FLEE / FOLLOW_MOM) — and bumps `timeScale` (CHASE 1.3×, FLEE 1.6×). Idle / graze / look / peek / emerge / hide all sit in the bind pose. Behaviour FSM and proximity tuning unchanged.",
+    mitigations: [
+      "**Vertex-colour gradient gotcha**: the throat must be a `MeshBasicMaterial` (not Standard/Physical) because tone mapping + a soft light bath were lifting pure-black vertex colours into a perceptible dark-brown. `toneMapped: false` and a Basic material guarantee the rim→black falloff renders as intended. If you switch to a lit material to add shadowing, replicate this with a custom shader; do not just turn off tone mapping on a lit material.",
+      "**Throat is BackSide-only** so the player can never see the cylinder's outer wall from above; the disturbed-earth ring hides the outer seam at the lip. Don't switch to DoubleSide or you'll see the cylinder showing through the ring when the sun is low.",
+      "**Terrain occlusion reality**: the main terrain mesh is continuous — a 'true hole' that deletes terrain triangles would need a terrain carve pass. This burrow instead **cuts through visually** with an open throat + black cap while staying flush with the grass plane (no raised mound). If you ever author a terrain carve, keep the throat + cap — they're still the right interior vocabulary.",
+      "**Position is right-of-tipi-1**. If a 'tipi 3' is ever added, do not place it at V2_TILE_WORLD — that tile is the warren. The next available 'next tile' from tipi 2 going east is `V2_TILE_WORLD * 4`.",
+      "**Animation gate** depends on `r.action` existing — if a future fauna species ships with no animations, the gate is a no-op via the `if (r.action)` guard. If the rabbit GLB grows more clips (walk / sit / nibble), upgrade `_updateRabbitMotion` to a state→action map and crossfade between them rather than toggling `.paused` on the single hop clip.",
+      "**Boot pause** — calling `action.play()` then `action.paused = true` is the correct way to 'schedule but freeze' an AnimationAction. Setting `action.enabled = false` would also work but stops the mixer from advancing time at all (breaking later resume). Don't replace this idiom.",
+      "ANU_EVENTS.FAUNA_TICK still fires every 180 ms with { rabbitCount, states[], warren, playerSpeedMps }. The warren payload is `{ x: WARREN_X, z: WARREN_Z }` — subscribers can read the new position by reacting to that tick (no API break).",
+      "Per-rabbit material clones are mandatory — sharing the GLB's source material would make recolouring one rabbit recolour all five.",
+      "Rabbits use the cosmetic-pet motion model (parabolic hop arc + getGroundY snap), not WorldPhysics bodies. Don't 'upgrade' them to full bodies without a budget plan.",
+      "Fauna activates AFTER PanelsPIP in index.v2.html so the moondial + HUD finish wiring first; do not reorder without also moving the v2LoadLog progress beats.",
+    ],
+    files: [
+      "js/v2/Fauna.js",
+      "index.v2.html",
+      "js/v2/anu/anuEvents.js",
+      "js/v2/anu/AnuWorldSensorium.js",
+      "js/v2/anu/SimulationController.js",
+      "Assets/rabbit.animated.glb",
+    ],
+  },
+  {
+    id: "tipi-owner-proximity-behaviour",
+    learnedAt: "2026-05",
+    title: "Tipi-owner proximity FSM — two tipi owners wired (NPC.YB tipi 1, NPC.BHG tipi 2)",
+    summary:
+      "Each tipi has an 'owner' NPC. Two are now wired: NPC.YB at tipi 1 (origin) and NPC.BHG at tipi 2 (+2 tile widths east, V2_TIPI_2_CENTER_X_M ≈ 21.72 m — one empty tile of grass between centres, satisfying 'right of tipi 1 skip 1 tile'). Both tipis are PLAYER-IMPASSABLE via a 2.2 m solid collider at their centre — the NPC bypasses because she writes `root.position` directly each frame and is not a registered physics body, so the asymmetric 'NPC can enter, player can't' rule emerges naturally from the two motion models. Each NPC is gated by a rising-edge `playerHasLeftZone` flag: she remains seated at boot even if the player happens to spawn within 1 tile, and she only triggers the greeting when the player has been observed beyond DEPART_DIST_M (2 tiles) and then crosses back inside APPROACH_DIST_M (1 tile). On a rising edge she takes the body yaw from the seated aim helper, plays the wave clip, walks to a FIXED entrance point on the tipi's doorway side (`entranceLocalXZ`, default `{x:0, z:-2.6}` — outside the cone's south flare; real tipis have one entrance), and crossfades to idle. Past 2 tiles she walks back to her exact seat XZ/Y, turns around, and crossfades to sit. World.js gates each tipi's seated aim helper on its own `*Behaviour.suppressPlayerAim` so the two yaw writers per tipi never fight. Greeting/lifecycle events publish through ANU_EVENTS.PLAYER_NPC_GREETING (phases: approach / arrived / depart / returned) — payloads include `npcId` so subscribers can distinguish 'npc_yb_tipi1' from 'npc_bhg_tipi2'.",
+    mitigations: [
+      "NPC.YB.glb (8.4 MB Draco-compressed) and NPC.BHG.glb (30 MB Draco-compressed — was 105 MB uncompressed, see `assets-draco-diet-pass-1` for the May-2026 compression pass). Both ship 5 NlaTrack-named clips. The controller does name-search first (so a future re-bake with 'wave' / 'idle' / 'sit' / 'walk' clip names will Just Work) and falls back to the legacy `js/EnvironmentBuilder.js` index mapping: walk=0, idle=2, sit=3, wave=4. If those indices ever shift, update CLIP_PREFS.*.fallbackIndex.",
+      "**Asset size**: NPC.BHG.glb was 12.5× larger than NPC.YB.glb until both were brought onto the same Draco pipeline in May 2026 — the residual 3.7× gap (30 MB vs 8.4 MB) is now textures, which Draco does not touch. Further reduction needs `textureCompress` (KTX2/Basis) or a smaller source bake.",
+      "Tipi 2 reuses tipi 1's GLB (TIPI_2_URL = TIPI_1_URL). When a unique BHG tipi GLB lands, change just `TIPI_2_URL` in WorldStructures.js — every other tuning constant is already in `V2_TIPI_2_*` / `V2_NPC_BHG_TIPI2_*`.",
+      "The behaviour controller is the only thing allowed to write `*FacingGroup.rotation.y` while the NPC is moving — the seated aim helper in World.js is short-circuited via `suppressPlayerAim`. Don't add another writer; either extend this controller or re-route through it.",
+      "Approach/depart thresholds key off `V2_TILE_WORLD` (the canonical hex flat-width). Use that constant, not raw metres — the world has a hex shader and the design language is in tiles.",
+      "The SEATED → EXITING_WAVE transition is a RISING-EDGE trigger via `playerHasLeftZone`. If you remove the gate, the NPC pulls out of her seat instantly whenever the player loads inside the tile radius (the boot-time regression). Initialise the flag false; do not init to true.",
+      "Entrance position is FIXED, not radial. Earlier code used `_computeExitPoint(playerX, playerZ)` to walk her toward the player on a radial of `platformRadius + 1 foot`. That landed her at the deck edge regardless of which way the doorway actually faces. The new contract: every tipi owner walks to a single per-tipi entrance point set at construction.",
+      "Tipi-cone player block uses radius 2.2 m < platform radius 4.7 m so the deck remains walkable around each tipi. If a future tipi has a wider base (re-baked asset), recompute the radius from the scaled bbox. Tipi 2 uses the same 2.2 m because it reuses tipi 1's visual asset.",
+      "ANU_EVENTS.PLAYER_NPC_GREETING is the canonical proximity event. Subscribers should expect { phase, playerId, npcId, distance, tipi:{x,z} }. With two NPCs wired, `npcId` is now meaningfully distinguishing ('npc_yb_tipi1' vs 'npc_bhg_tipi2') and subscribers MUST branch on it if they need per-tipi handling.",
+      "TIPI 3+ ROADMAP: a third tipi owner is the duplication-tipping point — the three loaders (loadCenterTipi, loadTipi2WithBhg, hypothetical loadTipi3WithREG) and three aim functions share so much code that a config-driven `loadTipi({hexPos, npcUrl, npcConstants, npcKey, npcSlug, entranceLocalXZ})` is the right refactor before adding tipi 3. Until then, the duplication is bounded and intentional (zero risk to tipi 1).",
+      "Tree-clear-zone (`V2_FLORA_TIPI_CLEAR_ZONE_RADIUS_M`) only excludes a circle around the ORIGIN (tipi 1). Trees won't currently respect tipi 2's footprint. In practice the legacy tree rings (r=31-45 m) sit well outside tipi 2's 4.7 m platform so they don't overlap visually, but if a future spawn rule places trees inside the 12.5 m clearzone radius around tipi 2's centre they would clip. Fix when it becomes a visible problem.",
+    ],
+    files: [
+      "js/v2/NPCBehaviour.js",
+      "js/v2/WorldStructures.js",
+      "js/v2/World.js",
+      "js/v2/WorldPhysics.js",
+      "js/v2/constants.js",
+      "js/v2/anu/anuEvents.js",
+      "Assets/NPC.YB.glb",
+      "Assets/NPC.BHG.glb",
+    ],
+  },
+  {
+    id: "assets-draco-diet-pass-1",
+    learnedAt: "2026-05",
+    title: "Draco diet (pass 1) — 5 active GLBs compressed, ~166 MB saved, all GLTFLoaders must use GLTFLoaderWithDraco",
+    summary:
+      "May-2026 mesh-compression pass took the five GLBs actually loaded by js/v2/** (NPC.BHG, animated.stag, WORDPRESS/Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb, Avatar3, tree) and ran them through `scripts/draco-compress.mjs` — a tiny wrapper that drives KHR_draco_mesh_compression directly via @gltf-transform/core + /extensions (we bypass @gltf-transform/functions because its bundle eagerly imports `ndarray-pixels` → `sharp`, which won't load on this workspace's Node 20.0.0). Result: BHG 100.6 → 30.1 MB (-70 %), stag 46.7 → 3.5 MB (-93 %), tipi 42.8 → 4.2 MB (-90 %), Avatar3 22.4 → 8.7 MB (-61 %), tree 7.4 → 6.7 MB (-9 %, mostly texture). Originals are preserved in `BACKUP/draco-originals/` so the swap is fully reversible. Boot end-to-end (orchestrator ready → tipi 2 + BHG present) dropped to ~7 s. CONSEQUENCE: every GLTFLoader in the project that opens one of these files MUST be Draco-aware — Flora.js was migrated from `new GLTFLoader()` to `new GLTFLoaderWithDraco()` as part of this pass. Fauna.js still uses a plain loader because rabbit.animated.glb (294 KB) was NOT compressed (too small to be worth the round trip).",
+    mitigations: [
+      "Quantization knobs in `scripts/draco-compress.mjs` are conservative on purpose for skinned meshes: POSITION=14, NORMAL=10, TEXCOORD=12, GENERIC=12 (covers JOINTS / WEIGHTS). DO NOT drop GENERIC below 12 on skinned models — joint weights start to drift visibly off the skeleton. POSITION below 12 starts to show as faceting on smooth surfaces (BHG face especially).",
+      "If you add a new GLB to `js/v2/**`, decide compression policy up front. (a) > ~2 MB: compress with `node scripts/draco-compress.mjs in.glb out.glb` and load via GLTFLoaderWithDraco. (b) ≤ ~2 MB: leave uncompressed (Draco's per-asset decoder bootstrap can be a wash for small meshes). Either way, the loader call must be GLTFLoaderWithDraco unless you have a documented reason not to.",
+      "Residual file size on BHG (30 MB) and Avatar3 (8.7 MB) is now TEXTURES. Draco only compresses mesh attributes (POSITION / NORMAL / TEXCOORD / COLOR / JOINTS / WEIGHTS). Further reduction needs KTX2/Basis (via @gltf-transform/functions `textureCompress` — which requires upgrading Node ≥ 20.3 to satisfy sharp / ndarray-pixels) or a smaller source bake. Do not promise more compression gains in this card until that gate is unblocked.",
+      "BACKUP/draco-originals/ is the rollback chute. If a Draco re-bake breaks visually (joint drift, normal seams, UV jitter), `cp BACKUP/draco-originals/<file>.glb <orig path>` reverts in seconds. Do not delete the backup folder until at least one full QA pass has shipped without complaint.",
+      "Inactive heavy GLBs (Avatar2, animated.avatar, tipi.player, animated.bringshappiness, TraderJosh3d, Buffalo, NPC.REG, animated.deer/source/, NPC.YB is already Draco) were SKIPPED on purpose — the user is sourcing smaller replacements for some of them. Compress them only when they get wired into js/v2/**; compressing files about to be replaced is wasted bytes-on-disk.",
+      "The CLI variant `npx gltf-transform draco` does NOT work on this workspace because its bin shim loads `sharp` at startup and Node 20.0.0 < required 20.3. The local `scripts/draco-compress.mjs` is the supported entry point. If you upgrade Node, you can switch back to the CLI; until then, use the script.",
+    ],
+    files: [
+      "scripts/draco-compress.mjs",
+      "js/v2/Flora.js",
+      "js/v2/gltfLoaderSetup.js",
+      "Assets/NPC.BHG.glb",
+      "Assets/Avatar3.glb",
+      "Assets/animated.stag.glb",
+      "Assets/tree.glb",
+      "WORDPRESS/Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb",
+      "BACKUP/draco-originals/",
+      "package.json",
+    ],
+  },
+  {
+    id: "tipi-2-bhg-stripe-overlay",
+    learnedAt: "2026-05",
+    title: "Tipi 2 visual identity — onBeforeCompile stripe + butterfly-suppression shader",
+    summary:
+      "Tipi 2 reuses tipi 1's yellow-butterfly GLB. To give BHG a distinct visual identity without authoring a new asset, every tipi-2 material is **cloned** on load and patched via `onBeforeCompile`. A vertex varying carries the world-space Y of each fragment (computed as `(modelMatrix * vec4(transformed, 1.0)).y` right after `<begin_vertex>`) and the fragment shader paints two 6-inch horizontal bands (red below the middle, blue above) separated by a 6-inch empty gap centred on `uBhgMidY`, while outside the band the baked yellow butterfly motifs are dimmed by mixing the baseColor 55% toward a flat canvas tan. World-Y is used (NOT unscaled local-Y) because the source GLB has an intermediate node transform that shifts local position values away from the symmetric [-0.5, 0.5] range the bbox accessor suggests; world-Y is invariant to those surprises. `uBhgMidY` is seeded after the tipi is positioned by computing `Box3.setFromObject(tipi)` and taking the midpoint, and the JS-side uniform object is shared by reference with `shader.uniforms` so updates propagate without recompile.",
+    mitigations: [
+      "The clone-before-mutate pattern is what makes tipi 1 safe. Both tipis load the same GLB and although `loadAsync` returns separate gltf trees, sharing a material instance would couple their appearance. If a future tipi N also reuses TIPI_1_URL, copy the clone-first pattern.",
+      "`onBeforeCompile` runs once when the material is first uploaded. The patch chains by saving the existing `onBeforeCompile` (`prior`) and calling it inside the new one — this preserves any chunks Three.js or another module may have already added.",
+      "Varyings are prefixed `vBhg*` and uniforms `uBhg*` to avoid collisions with future per-material shader patches. If you add a stripe/badge shader for another NPC's tipi, use a different prefix.",
+      "DO NOT use the GLTF POSITION accessor's `min/max` to compute band positions in local-Y space — the result will be off by an intermediate node transform that doesn't show up in the accessor alone. World-Y via `modelMatrix * vec4(transformed, 1.0)` is the right primitive.",
+      "Stripe colours are constants in the shader, not uniforms — fast but means you have to recompile to retune. If you want runtime sliders, switch the consts to uniforms exposed via shader.uniforms.",
+      "Suppression mix is 0.55 — a sweet spot found by reading the existing baseColor lightness. If a future tipi asset has a brighter or darker baked texture, retune this constant or the canvas tan colour to keep the stripes the dominant feature.",
+      "6\" stripes on a 7.2 m tipi render as ~7 px wide at typical viewing distance and ~30 px at close approach — readable but subtle. If you want them more dominant, bump BHG_STRIPE_H / BHG_GAP_HALF to 12\" or 18\" equivalents (0.3048 / 0.4572 m). Don't change the world-Y math, just the band constants.",
+      "When tipi 2 needs its own GLB (BHG-specific texture), swap `TIPI_2_URL` in WorldStructures.js and DELETE the stripe/suppression call — the new texture should already have the desired look baked in. The shader patch is a transitional tool, not a permanent system.",
+    ],
+    files: [
+      "js/v2/WorldStructures.js",
+    ],
+  },
+  {
+    id: "pond-with-waterfalls-landmark",
+    learnedAt: "2026-05",
+    title: "Pond asset rejected and REMOVED — procedural stylized replacement pending",
+    summary:
+      "A prior turn authored js/v2/WorldPond.js to load a pond+waterfalls GLB authored in Z-up Blender (404 meshes / 4 materials / ~9 MB textures). Visual evaluation rejected the asset on four grounds: (1) ZERO animations — water doesn't ripple, waterfalls don't flow, reading as 'frozen' next to breathing fire smoke / hopping rabbits / walking NPC; (2) 404 draw calls ≈ ½ of the entire instanced forest — too expensive for a decoration that doesn't sell its own quality; (3) photoreal Blender style fighting the stylized hex shader / neumorphic UI vocabulary — material reads as 'cloud / fog patch' from above rather than 'water'; (4) waterfalls not visibly rendering from ground-level POVs (suspected backface culling post Z-up flip even with DoubleSide). Originally the WorldPondModule file was PARKED on disk for educational reference (Z-up → Y-up handling, DoubleSide flip post-rotation, terrain-snap pattern). The user subsequently REMOVED the `Assets/pond_with_waterfalls/` folder to source a better asset, and the parked loader was deleted in the same commit (along with its `check:v2` entry in package.json) to keep the strict asset gate green. The educational patterns are documented inline in this card so the procedural replacement has the blueprint.",
+    mitigations: [
+      "If a future contributor wants a pond, the right path is a NEW procedural module (e.g. js/v2/WorldPondStylized.js) that matches the warren's vocabulary: CircleGeometry water with a shader-animated UV scroll, a cylindrical basin depression, ~5-8 rock instances around the rim, and one or two waterfall ribbons with scrolling UVs. Target ≤ 15 draw calls vs the rejected asset's 404.",
+      "Patterns to reuse from the deleted WorldPond.js (preserved here as the blueprint): for any Z-up Blender export, apply `rotateX(-π/2)` BEFORE other transforms so Z becomes world-Y; force `material.side = THREE.DoubleSide` on basin / ribbon meshes because the flip exposes back-faces; snap to terrain by reading `WorldPhysics.getGroundY(x, z) + 5 mm lift` to prevent shoreline z-fighting.",
+      "If the asset is ever revisited, do NOT trust bbox-only inspection — render from ground-level POV first. The bbox said the rejected asset would look right; the visual probe said otherwise.",
+      "If a NEW pond asset arrives (the user said 'I will get a better one'), evaluate it from ground POV BEFORE writing a loader module. Don't repeat the WorldPond.js rewrite-then-delete cycle.",
+    ],
+    files: [
+      "js/v2/AnuModule.js",
+      "package.json",
+    ],
+  },
+  {
     id: "phase-8-docs-and-dx",
     learnedAt: "2026-05",
     title: "Phase 8 — repo entry points: README, CONTRIBUTING, AnuUniverse cheatsheet",
@@ -429,6 +578,19 @@ export const ANU_PIPELINE_MEMORY = [
       "Assets/README.md",
       "index.v2.html",
     ],
+  },
+  {
+    id: "empathy-engine-product-name",
+    learnedAt: "2026-05",
+    title: "Product identity — The Empathy Engine v1.0a",
+    summary:
+      "The governed Sacred Adventures v2 stack (AnuUniverse + SacredOrchestrator shell + js/v2 modules) is referred to as **The Empathy Engine v1.0a**. The string is the single source of truth in `ANU_EMPATHY_ENGINE_NAME`; `AnuUniverse.engineName` mirrors it for DevTools and tooling. Bump the suffix (e.g. v1.0b) only when the user or release process explicitly renames the product — do not drift the label from marketing copy.",
+    mitigations: [
+      "AnuModule.js — export ANU_EMPATHY_ENGINE_NAME; buildPublicApi exposes engineName.",
+      "Boot console line in AnuModule.load() appends the label so first open sees it next to AnuUniverse.report().",
+      "When publishing release notes or CONTRIBUTING invariants, cite ANU_EMPATHY_ENGINE_NAME instead of duplicating the string.",
+    ],
+    files: ["js/v2/AnuModule.js"],
   },
 ];
 
@@ -544,6 +706,7 @@ function evaluateLivePipelineRisk(opts = {}) {
 function buildPublicApi(moduleRef) {
   const api = {
     version: "2.0.0",
+    engineName: ANU_EMPATHY_ENGINE_NAME,
     memory: ANU_PIPELINE_MEMORY,
     EVENTS: ANU_EVENTS,
 
@@ -557,6 +720,7 @@ function buildPublicApi(moduleRef) {
 
     report() {
       console.group("%c[Anu Universe] Pipeline memory", "color:#fbc02d;font-weight:bold;");
+      console.log(`${ANU_EMPATHY_ENGINE_NAME} · AnuUniverse.version ${api.version}`);
       console.log(`Recorded incidents: ${ANU_PIPELINE_MEMORY.length}`);
       for (const m of ANU_PIPELINE_MEMORY) {
         console.log(`— ${m.id}: ${m.title}`);
@@ -585,7 +749,12 @@ function buildPublicApi(moduleRef) {
      */
     help() {
       const index = Object.freeze({
-        boot: Object.freeze(["isLiveSacredOrchestratorBound", "anuOrchestrator", "version"]),
+        boot: Object.freeze([
+          "isLiveSacredOrchestratorBound",
+          "anuOrchestrator",
+          "version",
+          "engineName",
+        ]),
         audit: Object.freeze(["audit", "report", "resetAlerts", "memory", "EVENTS"]),
         rendering: Object.freeze([
           "rendering.getRenderingSnapshot",
@@ -820,6 +989,8 @@ export const AnuModule = {
 
     console.log(
       "%c[Anu / SacredOrchestrator] Online — " +
+        ANU_EMPATHY_ENGINE_NAME +
+        " — " +
         (ok
           ? "AnuUniverse.anuOrchestrator === window.anuOrchestrator (verified shell)"
           : "AnuUniverse.anuOrchestrator bound — verify isLiveSacredOrchestratorBound()") +

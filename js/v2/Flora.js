@@ -8,7 +8,7 @@
  */
 
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { GLTFLoaderWithDraco } from "./gltfLoaderSetup.js";
 import {
   ANU_INTERACTION_VERB,
   ANU_SIMULATION_DOMAIN,
@@ -115,7 +115,7 @@ const TreesForestModule = {
 
     const foliageColors = FOLIAGE_HEXES.map((h) => new THREE.Color(h));
 
-    const gltf = await new GLTFLoader().loadAsync(TREE_URL);
+    const gltf = await new GLTFLoaderWithDraco().loadAsync(TREE_URL);
     const template = gltf.scene;
 
     const origBox = new THREE.Box3().setFromObject(template);

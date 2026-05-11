@@ -190,6 +190,52 @@ export const V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M =
   V2_NPC_YB_TIPI1_VERTICAL_TRIM_M +
   V2_AVATAR_TRAVEL_CIRCLE_LIFT_M;
 
+// ── Tipi 2 — Brings Happiness Girl (NPC.BHG) ──────────────────────────────
+//
+// Placement: "to the right of tipi 1, skip 1 tile" — i.e. with one full empty
+// tile of grass between the two tipi centres. World +X is the natural read
+// of "right" for a player who spawns looking north. Centre = +2 × tile width
+// so the gap is exactly 1 tile.
+//
+// Tipi 2 reuses tipi 1's visual asset (Tipi.yellowbutterfly.glb) and platform
+// dimensions on purpose — same tipi shape, same yaw, same scale — so the
+// scene reads as two members of the same village rather than two unrelated
+// structures. If/when a unique tipi GLB is sourced for BHG (e.g. a re-baked
+// `tipi.bringshappiness.glb`), only `TIPI_2_URL` in WorldStructures.js
+// changes.
+//
+// NPC.BHG seated tuning constants mirror YB — both rigs share author scale
+// and humanoid proportions so the YB-tuned offsets sit her correctly on the
+// same platform model. Keeping them as DISTINCT exported constants (rather
+// than aliases) leaves room to detune later without touching YB.
+
+export const V2_TIPI_2_CENTER_X_M = V2_TILE_WORLD * 2;
+export const V2_TIPI_2_CENTER_Z_M = 0;
+export const V2_TIPI_2_YAW_RAD = -Math.PI / 2;
+
+export const V2_NPC_BHG_TIPI2_LOCAL_X_M = V2_NPC_YB_TIPI1_LOCAL_X_M;
+export const V2_NPC_BHG_TIPI2_LOCAL_Z_M = V2_NPC_YB_TIPI1_LOCAL_Z_M;
+export const V2_NPC_BHG_TIPI2_TARGET_HEIGHT_M = V2_NPC_YB_TIPI1_TARGET_HEIGHT_M;
+/**
+ * BHG renders significantly larger than YB on-screen despite identical
+ * V2_NPC_*_TARGET_HEIGHT_M / SIZE_MULTIPLIER math, because NPC.BHG.glb has
+ * different rig proportions / bind pose than NPC.YB.glb (~1.6× wider in X)
+ * — `setFromObject` reads the static-geometry bbox before skinning, so the
+ * computed scale factor doesn't account for her larger silhouette. Halving
+ * the size multiplier brings her perceived volume close to YB's. Adjust
+ * here if she still reads too large/small; do NOT touch YB's multiplier.
+ */
+export const V2_NPC_BHG_TIPI2_SIZE_MULTIPLIER =
+  V2_NPC_YB_TIPI1_SIZE_MULTIPLIER * 0.5;
+export const V2_NPC_BHG_TIPI2_MODEL_YAW_RAD = V2_NPC_YB_TIPI1_MODEL_YAW_RAD;
+export const V2_NPC_BHG_TIPI2_PLAYER_AIM_YAW_BIAS_RAD = 0;
+export const V2_NPC_BHG_TIPI2_VERTICAL_TRIM_M = V2_NPC_YB_TIPI1_VERTICAL_TRIM_M;
+export const V2_NPC_BHG_TIPI2_SEAT_LOWER_M = V2_NPC_YB_TIPI1_SEAT_LOWER_M;
+export const V2_NPC_BHG_TIPI2_GOLD_CIRCLE_RADIUS_M =
+  V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M;
+export const V2_NPC_BHG_TIPI2_GOLD_CIRCLE_LIFT_M =
+  V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M;
+
 /** Max horizontal speed from World steering when movement keys / autowalk are active (m/s). */
 export const V2_PLAYER_MOVE_SPEED_MPS = 7.0;
 

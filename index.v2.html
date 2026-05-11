@@ -13,7 +13,10 @@
       color: white;
       font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
     }
-    canvas {
+    /* Main game canvas only — runtime-added canvases (#pipCanvas, #pipOverlay,
+       #v2-frame-graph) carry their own scoped styling. A bare `canvas { ... }`
+       selector orphaned the HUD frame-time equalizer at viewport (0,0). */
+    #v2-canvas {
       position: fixed;
       inset: 0;
       display: block;
@@ -131,6 +134,10 @@
     import { TreesModule }  from './js/v2/Trees.js';
     import { UIModule }     from './js/v2/UIModule.js';
     import { V2PanelModule } from './js/v2/V2Panel.js';
+    import { FaunaModule }   from './js/v2/Fauna.js';
+    // Pond landmark: rejected third-party GLB (no animation, high draw cost,
+    // style mismatch). No WorldPond module in boot — see ANU card
+    // `pond-with-waterfalls-landmark` for the procedural replacement plan.
 
     const loadingIframe = document.getElementById('v2-loading-iframe');
 
@@ -196,6 +203,7 @@
     orc.register(TreesModule);
     orc.register(UIModule);
     orc.register(V2PanelModule);
+    orc.register(FaunaModule);
 
     v2LoadLog('Modules registered', 100, 18, 12, 8);
 
@@ -227,6 +235,9 @@
 
     v2LoadLog('Activating Panels & minimap PiP', 100, 100, 100, 88);
     await orc.activate('PanelsPIP');
+
+    v2LoadLog('Activating Fauna — rabbit family warren', 100, 100, 100, 94);
+    await orc.activate('Fauna');
     v2LoadLog('Enter world', 100, 100, 100, 100);
 
     // Guides / neumorphic control deck + ThreeIcons (heavy second WebGL pass) — off for perf.

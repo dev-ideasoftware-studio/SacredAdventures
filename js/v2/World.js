@@ -16,6 +16,7 @@ import {
   V2_AVATAR_GROUNDED_FEET_OFFSET_M,
   V2_PLAYER_MOVE_SPEED_MPS,
   V2_TILE_WORLD,
+  V2_TIPI_2_CENTER_X_M,
 } from "./constants.js";
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
@@ -41,6 +42,8 @@ import {
 } from "./WorldPlayerController.js";
 import {
   loadCenterTipi,
+  loadTipi2WithBhg,
+  updateBringsHappinessPlayerAim,
   updateYellowButterflyPlayerAim,
 } from "./WorldStructures.js";
 
@@ -91,6 +94,8 @@ export const WorldModule = {
   },
   _keyDownAt: {},
   _tipi: null,
+  /** Tipi 2 — Brings Happiness Girl's tipi, +2 tile widths east of tipi 1. */
+  _tipi2: null,
   /** FPV chase / idle forward vs top-down map on main canvas (PiP shows the other). */
   _mainCanvasMapView: false,
 
@@ -266,10 +271,27 @@ export const WorldModule = {
     window.WorldPhysics = WorldPhysics;
 
     // ── Player physics body ───────────────────────────────────────────────
-    this._playerPos.set(0, terrainY(0, 0) + PLAYER_HEIGHT, 8);
+    /**
+     * Spawn: **3 tiles in front of tipi 1**.
+     *   • Tipi 1 sits at world origin; the NPCBehaviour entranceLocalXZ for
+     *     tipi 1 is { x: 0, z: -2.6 } — the doorway is on the −Z (south)
+     *     side of the model. "In front" therefore means −Z.
+     *   • 3 tiles = 3 × V2_TILE_WORLD (≈ 32.58 m), measured to the player,
+     *     so the platform's south edge (4.7 m radius) is still ~28 m away.
+     *   • Yaw = π flips `_fwd` from (0,0,−1) to (0,0,+1), so the player
+     *     faces north toward the tipi the moment the scene boots.
+     * Far enough from the warren at (V2_TILE_WORLD, 0) (~34 m) that the
+     * rabbit family stays out of FLEE range; far enough from tipi 1 that
+     * the NPC.YB rising-edge gate sees the player as "outside zone" and
+     * stays seated until the player demonstrably approaches.
+     */
+    const spawnX = 0;
+    const spawnZ = -3 * V2_TILE_WORLD;
+    this._playerPos.set(spawnX, terrainY(spawnX, spawnZ) + PLAYER_HEIGHT, spawnZ);
     camera.position.copy(this._playerPos);
     camera.rotation.order = "YXZ"; // set ONCE — never reset in update()
     this._playerBody = WorldPhysics.createBody(this._playerPos, PLAYER_HEIGHT);
+    this._yaw = Math.PI;
     this._walkDistance = 0;
     this._lastWalkX = this._playerPos.x;
     this._lastWalkZ = this._playerPos.z;
@@ -279,11 +301,13 @@ export const WorldModule = {
     // ── Input ─────────────────────────────────────────────────────────────
     this._setupInput();
 
-    const [tipi] = await Promise.all([
+    const [tipi, tipi2] = await Promise.all([
       loadCenterTipi({ scene, objects: this._objects, worldPhysics: WorldPhysics }),
+      loadTipi2WithBhg({ scene, objects: this._objects, worldPhysics: WorldPhysics }),
       this._avatar.load(scene, this._objects),
     ]);
     this._tipi = tipi;
+    this._tipi2 = tipi2;
 
     console.log(
       "%c[World] ✅ Phase 1 loaded — terrain + physics + neumorphic hex shader",
@@ -318,12 +342,28 @@ export const WorldModule = {
 
     const physicalMovingKeys =
       k["w"] || k["s"] || k["arrowup"] || k["arrowdown"] || k["a"] || k["d"];
+
+    // Long-hold autowalk must not stomp NPC greet poses — suppress it inside
+    // one tile of either tipi centre (tipi 1 at origin, tipi 2 at +X).
+    const px = body.position.x;
+    const pz = body.position.z;
+    const r1 = Math.sqrt(px * px + pz * pz);
+    const dx2 = px - V2_TIPI_2_CENTER_X_M;
+    const r2 = Math.sqrt(dx2 * dx2 + pz * pz);
+    const nearTipi = r1 < V2_TILE_WORLD || r2 < V2_TILE_WORLD;
+    if (nearTipi && this._autoWalk.active) {
+      this._autoWalk.active = false;
+      this._autoWalk.key = null;
+      this._autoWalk.startedByHoldAt = 0;
+    }
+
     if (physicalMovingKeys) {
-      syncAutowalkFromHeldKeys(this, now, dir);
-    } else if (this._autoWalk.active) {
+      if (!nearTipi) syncAutowalkFromHeldKeys(this, now, dir);
+    } else if (this._autoWalk.active && !nearTipi) {
       dir.set(this._autoWalk.dirX, 0, this._autoWalk.dirZ);
     }
-    const movingKeys = physicalMovingKeys || this._autoWalk.active;
+    const movingKeys =
+      physicalMovingKeys || (this._autoWalk.active && !nearTipi);
 
     const turnOnly = (k["arrowleft"] || k["arrowright"]) && !movingKeys;
     const turnRate = turnOnly ? 2.85 : 1.72;
@@ -426,8 +466,33 @@ export const WorldModule = {
     }
 
     this._tipi?.userData?.ybNpcMixer?.update?.(delta);
-    updateYellowButterflyPlayerAim(this._tipi, body.position.x, body.position.z);
+    const _ybBehaviour = this._tipi?.userData?.ybBehaviour ?? null;
+    _ybBehaviour?.update?.(delta, body.position.x, body.position.z);
+    /**
+     * Seated player-aim helper writes `ybFacingGroup.rotation.y`. While the
+     * tipi-owner behaviour controller is in motion (wave / walk / turnaround)
+     * it owns the body yaw, so skip the seated aim until she's seated again.
+     * Seated state has `suppressPlayerAim === false`, so the helper still
+     * tracks the player in the default case.
+     */
+    if (!_ybBehaviour?.suppressPlayerAim) {
+      updateYellowButterflyPlayerAim(this._tipi, body.position.x, body.position.z);
+    }
     this._tipi?.userData?.tipiAmbientEffectsUpdate?.(delta);
+
+    /**
+     * Tipi 2 — Brings Happiness Girl. Same shape as the tipi-1 update path:
+     * advance her animation mixer, tick the proximity behaviour FSM, then
+     * write the seated player-aim yaw unless the controller is owning her
+     * body during a wave / walk / sit cycle. Tipi 2 has no fire / smoke
+     * effects yet, so no ambient-effects callback to drain.
+     */
+    this._tipi2?.userData?.bhgNpcMixer?.update?.(delta);
+    const _bhgBehaviour = this._tipi2?.userData?.bhgBehaviour ?? null;
+    _bhgBehaviour?.update?.(delta, body.position.x, body.position.z);
+    if (!_bhgBehaviour?.suppressPlayerAim) {
+      updateBringsHappinessPlayerAim(this._tipi2, body.position.x, body.position.z);
+    }
 
     const headY = body.position.y;
 

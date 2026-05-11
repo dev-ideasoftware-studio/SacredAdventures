@@ -1,7 +1,7 @@
 {
   "scripts": {
     "dev": "live-server",
-    "check:v2": "node --input-type=module --check < js/v2/Orchestrator.js && node --input-type=module --check < js/v2/World.js && node --input-type=module --check < js/v2/WorldTerrain.js && node --input-type=module --check < js/v2/WorldPhysics.js && node --input-type=module --check < js/v2/WorldPlayerController.js && node --input-type=module --check < js/v2/WorldAvatar.js && node --input-type=module --check < js/v2/WorldStructures.js && node --input-type=module --check < js/v2/TipiCampfire.js && node --input-type=module --check < js/v2/WorldCelestial.js && node --input-type=module --check < js/v2/FloraLegacyTreeLayout.js && node --input-type=module --check < js/v2/Flora.js && node --input-type=module -e \"import('./js/v2/anu/PipOrthoRingDiskClip.js')\" && node --input-type=module --check < js/v2/Trees.js && node --input-type=module --check < js/v2/AnuModule.js && node --input-type=module --check < js/v2/UIModule.js && node --input-type=module --check < js/v2/V2Panel.js && node --input-type=module --check < js/v2/RuntimeServices.js && node --input-type=module --check < js/v2/anu/PipRenderStrategy.js",
+    "check:v2": "node --input-type=module --check < js/v2/Orchestrator.js && node --input-type=module --check < js/v2/World.js && node --input-type=module --check < js/v2/WorldTerrain.js && node --input-type=module --check < js/v2/WorldPhysics.js && node --input-type=module --check < js/v2/WorldPlayerController.js && node --input-type=module --check < js/v2/WorldAvatar.js && node --input-type=module --check < js/v2/WorldStructures.js && node --input-type=module --check < js/v2/TipiCampfire.js && node --input-type=module --check < js/v2/WorldCelestial.js && node --input-type=module --check < js/v2/FloraLegacyTreeLayout.js && node --input-type=module --check < js/v2/Flora.js && node --input-type=module -e \"import('./js/v2/anu/PipOrthoRingDiskClip.js')\" && node --input-type=module --check < js/v2/Trees.js && node --input-type=module --check < js/v2/AnuModule.js && node --input-type=module --check < js/v2/UIModule.js && node --input-type=module --check < js/v2/V2Panel.js && node --input-type=module --check < js/v2/Fauna.js && node --input-type=module --check < js/v2/NPCBehaviour.js && node --input-type=module --check < js/v2/RuntimeServices.js && node --input-type=module --check < js/v2/anu/PipRenderStrategy.js",
     "playwright:install-chromium": "PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium",
     "check:assets": "node scripts/check-assets.mjs",
     "test:v2": "playwright test tests/v2-smoke.spec.js",
@@ -9,7 +9,9 @@
     "test": "npm run check:v2 && npm run check:assets && npm run test:v2 && npm run test:fidelity"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.3.0",
     "@playwright/test": "^1.58.2",
+    "draco3dgltf": "^1.5.7",
     "live-server": "^1.2.2",
     "three": "^0.184.0"
   }

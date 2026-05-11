@@ -181,6 +181,13 @@ export const UIModule = {
           -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-moon-track) + 4px), black calc(100% - var(--pip-moon-track) + 5px));
           mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-moon-track) + 4px), black calc(100% - var(--pip-moon-track) + 5px));
         }
+        /**
+         * Lunar phase slots — kept crisp so they don't read as fuzzed
+         * when the crystal-dome glass reaches the rim. Heavy drop-shadow
+         * filter + 0.82 opacity were the source of the soft/blurry look:
+         * dropped to full opacity with a thin text-shadow that only carries
+         * legibility, not a blur halo. Active + hover states still glow.
+         */
         .lunar-phase-slot {
           position: absolute;
           pointer-events: auto;
@@ -197,23 +204,19 @@ export const UIModule = {
           justify-content: center;
           padding: 0;
           text-shadow:
-            0 1px 2px rgba(0, 0, 0, 0.65),
-            0 0 1px rgba(0, 0, 0, 0.4);
-          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
-          opacity: 0.82;
+            0 1px 1px rgba(0, 0, 0, 0.8),
+            0 0 2px rgba(0, 0, 0, 0.55);
+          opacity: 1;
           transition:
             transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-            opacity 0.28s ease,
             filter 0.28s ease,
             box-shadow 0.28s ease;
         }
         .lunar-phase-slot:hover {
-          opacity: 1;
-          filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 12px rgba(198, 160, 53, 0.35));
+          filter: drop-shadow(0 0 10px rgba(198, 160, 53, 0.45));
         }
         .lunar-phase-slot.active-phase {
-          opacity: 1;
-          filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 16px rgba(198, 160, 53, 0.55));
+          filter: drop-shadow(0 0 14px rgba(198, 160, 53, 0.65));
           box-shadow:
             0 0 0 2px rgba(198, 160, 53, 0.45),
             0 4px 14px rgba(0, 0, 0, 0.35);
@@ -399,6 +402,15 @@ export const UIModule = {
           pointer-events: none;
           filter: contrast(1.025) saturate(1.06) brightness(1.015);
         }
+        /**
+         * PiP crystal dome — extends 1:1 with the legacy Component.MoonDial
+         * #pip-lens::after formula (radial highlight at 34/26, dark seat
+         * at 50/88, mix-blend soft-light). Mask was tightened so the glass
+         * surface reaches out to the inner edge of the moonphase track
+         * (var(--pip-moon-track)). Moon-phase slots sit on a higher z-layer
+         * (lunar-radial-ring z:7) so the glass NEVER overlays them — only
+         * lifts the dome over the WebGL map area.
+         */
         .pip-optics-stack {
           position: absolute;
           inset: 0;
@@ -406,21 +418,28 @@ export const UIModule = {
           pointer-events: none;
           z-index: 1;
           overflow: hidden;
-          -webkit-mask-image: radial-gradient(circle closest-side, black 0%, black calc(100% - clamp(36px, 14.5%, 52px)), transparent calc(100% - clamp(34px, 14%, 50px)));
-          mask-image: radial-gradient(circle closest-side, black 0%, black calc(100% - clamp(36px, 14.5%, 52px)), transparent calc(100% - clamp(34px, 14%, 50px)));
+          -webkit-mask-image: radial-gradient(circle closest-side, black 0%, black calc(100% - var(--pip-moon-track) - 1px), transparent calc(100% - var(--pip-moon-track)));
+          mask-image: radial-gradient(circle closest-side, black 0%, black calc(100% - var(--pip-moon-track) - 1px), transparent calc(100% - var(--pip-moon-track)));
         }
+        /**
+         * .pip-optics-shade ports the legacy iframe's lens-bottom seat:
+         * a soft dark wash at 50%/88% reading as the lower meniscus of the
+         * crystal. Top-edge inset highlight is kept but the bottom inset
+         * shadow is softened (was 40px / 0.20 → pulled to 28px / 0.14) so
+         * the moonphase ring at the rim no longer reads as dimmed.
+         */
         .pip-optics-shade {
           position: absolute;
           inset: 0;
           border-radius: 50%;
           background:
-            radial-gradient(ellipse 125% 92% at 50% 108%, rgba(12, 24, 36, 0.18) 0%, transparent 50%),
-            radial-gradient(circle at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.11) 100%),
-            radial-gradient(ellipse 70% 55% at 28% 22%, rgba(255, 255, 255, 0.07) 0%, transparent 45%);
+            radial-gradient(circle at 50% 88%, rgba(0, 15, 30, 0.18) 0%, transparent 42%),
+            radial-gradient(circle at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.09) 100%),
+            radial-gradient(ellipse 70% 55% at 28% 22%, rgba(255, 255, 255, 0.06) 0%, transparent 48%);
           box-shadow:
-            inset 0 2px 4px rgba(255, 255, 255, 0.2),
-            inset 0 -18px 40px rgba(0, 0, 0, 0.2),
-            inset 5px 8px 18px rgba(255, 255, 255, 0.03);
+            inset 0 2px 4px rgba(255, 255, 255, 0.22),
+            inset 0 -10px 28px rgba(0, 0, 0, 0.14),
+            inset 5px 8px 18px rgba(255, 255, 255, 0.04);
         }
         .pip-optics-shade::after {
           content: '';
@@ -432,18 +451,21 @@ export const UIModule = {
             inset 0 1px 3px rgba(255, 255, 255, 0.05);
           pointer-events: none;
         }
+        /**
+         * .pip-optics-glaze is the legacy #pip-lens::after formula
+         * verbatim: highlight ellipse 92% 74% at 34/26 → rgba(255,255,255,0.22)
+         * + dark anchor at 50/88 → rgba(0,15,30,0.18), mix-blend-mode
+         * soft-light, opacity 0.88. Reproduced 1:1 from the iframe.
+         */
         .pip-optics-glaze {
           position: absolute;
           inset: 0;
           border-radius: 50%;
-          background: radial-gradient(
-            ellipse 98% 74% at 30% 22%,
-            rgba(255, 253, 248, 0.26) 0%,
-            rgba(255, 255, 255, 0.04) 32%,
-            transparent 54%
-          );
+          background:
+            radial-gradient(ellipse 92% 74% at 34% 26%, rgba(255, 255, 255, 0.22) 0%, transparent 52%),
+            radial-gradient(circle at 50% 88%, rgba(0, 15, 30, 0.18) 0%, transparent 42%);
           mix-blend-mode: soft-light;
-          opacity: 0.62;
+          opacity: 0.88;
         }
         .pip-optics-glaze::after {
           content: '';
@@ -451,10 +473,10 @@ export const UIModule = {
           inset: 0;
           border-radius: 50%;
           background:
-            radial-gradient(ellipse 52% 32% at 70% 76%, rgba(255, 255, 255, 0.09) 0%, transparent 62%),
-            linear-gradient(158deg, transparent 38%, rgba(255, 255, 255, 0.025) 52%, transparent 68%);
+            radial-gradient(ellipse 52% 32% at 70% 76%, rgba(255, 255, 255, 0.10) 0%, transparent 62%),
+            linear-gradient(158deg, transparent 38%, rgba(255, 255, 255, 0.03) 52%, transparent 68%);
           mix-blend-mode: overlay;
-          opacity: 0.55;
+          opacity: 0.58;
           pointer-events: none;
         }
         .pip-lens-legacy {
@@ -715,9 +737,23 @@ export const UIModule = {
   },
 
   _syncCompass(yaw) {
+    /**
+     * Rotate the cardinal-marker ring so the letter for the player's heading
+     * lands at the **top** of the bezel. CSS `rotate()` is CW positive; markers
+     * sit at N=top (0°), E=right (90°), S=bottom (180°), W=left (270°). World
+     * yaw convention: yaw=0 → facing -Z (south), yaw=π → facing +Z (north),
+     * yaw=π/2 → -X (west), yaw=-π/2 → +X (east). Mapping verified:
+     *   yaw=π  → rotate 0°   → N stays at top (player facing north). ✓
+     *   yaw=0  → rotate 180° → S marker comes to top.                ✓
+     *   yaw=π/2  → rotate 90° → W marker comes to top.                  ✓
+     *   yaw=-π/2 → rotate 270° → E marker comes to top.                 ✓
+     * Equivalent to `(180 - yawDeg) mod 360`. The previous formula
+     * (`rotate(${yawDeg}deg)` directly) painted the dial 180° upside-down at
+     * spawn because the new spawn yaw is π, not 0.
+     */
     const deg = (yaw * 180) / Math.PI;
     if (this._compassRing)
-      this._compassRing.style.transform = `rotate(${deg}deg)`;
+      this._compassRing.style.transform = `rotate(${180 - deg}deg)`;
   },
 
   _syncLunarRadialPhase() {
