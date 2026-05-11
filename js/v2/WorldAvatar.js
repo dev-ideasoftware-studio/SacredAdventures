@@ -88,6 +88,7 @@ export function createWorldAvatarController() {
         disc.userData.anuId = "player.avatar.travel_circle";
         disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
         disc.userData.anuKind = "avatar_travel_circle";
+        disc.renderOrder = 8;
         root.add(disc);
 
         const innerR = AVATAR_CIRCLE_RADIUS * 0.92;
@@ -106,6 +107,7 @@ export function createWorldAvatarController() {
         ring.userData.anuId = "player.avatar.travel_circle_outline";
         ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
         ring.userData.anuKind = "avatar_travel_circle_outline";
+        ring.renderOrder = 9;
         root.add(ring);
 
         const arrowShape = new THREE.Shape()
@@ -120,6 +122,8 @@ export function createWorldAvatarController() {
             transparent: true,
             opacity: 0.96,
             side: THREE.DoubleSide,
+            depthTest: false,
+            depthWrite: false,
           }),
         );
         arrow.name = "player_avatar_facing_arrow";
@@ -128,6 +132,7 @@ export function createWorldAvatarController() {
         arrow.userData.anuId = "player.avatar.facing_arrow";
         arrow.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
         arrow.userData.anuKind = "avatar_facing_arrow";
+        arrow.renderOrder = 10;
         root.add(arrow);
 
         root.add(model);

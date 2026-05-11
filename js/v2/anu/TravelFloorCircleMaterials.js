@@ -3,6 +3,7 @@ import * as THREE from "three";
 /**
  * Horizontal travel decals (CircleGeometry / RingGeometry with rotation.x = −π/2).
  * Uses vertex radial distance — correct for Three.js ring UV layout.
+ * depthTest off so rings stay visible over uneven terrain / nearby meshes (decal-style read).
  */
 export function createPhotorealTravelDiscMaterial(kind, outerRadius) {
   const isNpc = kind === "npc";
@@ -76,6 +77,7 @@ void main() {
     vertexShader: vs,
     fragmentShader: fs,
     transparent: true,
+    depthTest: false,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
@@ -142,6 +144,7 @@ void main() {
     vertexShader: vs,
     fragmentShader: fs,
     transparent: true,
+    depthTest: false,
     depthWrite: false,
     side: THREE.DoubleSide,
   });

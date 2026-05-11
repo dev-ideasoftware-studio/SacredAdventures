@@ -59,7 +59,7 @@ function addGoldTravelFloorDecalAtFeet(group, radius, liftY) {
   disc.userData.anuId = "population.npc.yellow_butterfly.gold_disc";
   disc.rotation.x = -Math.PI / 2;
   disc.position.y = lift;
-  disc.renderOrder = 1;
+  disc.renderOrder = 8;
   group.add(disc);
 
   const ringMat = createPhotorealTravelRingMaterial("npc", innerR, R);
@@ -73,7 +73,7 @@ function addGoldTravelFloorDecalAtFeet(group, radius, liftY) {
   ring.userData.anuId = "population.npc.yellow_butterfly.gold_ring";
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = lift + 0.008;
-  ring.renderOrder = 2;
+  ring.renderOrder = 9;
   group.add(ring);
 
   return [discMat, ringMat];
