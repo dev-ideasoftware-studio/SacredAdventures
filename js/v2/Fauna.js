@@ -209,12 +209,16 @@ function buildWarren(xM, zM, terrainY) {
   group.position.set(xM, terrainY, zM);
   group.name = "fauna_warren";
 
+  // Bigger mouth + deeper throat so the hole reads as a "real hole with
+  // depth" from the player's spawn vantage (~32 m away, looking down ~5°).
+  // At that oblique angle a flush flat ring is invisible — the throat
+  // needs visible depth and the rim needs contrast.
   const Y_LIFT = 0.005;
-  const PATCH_RADIUS = 1.05;
+  const PATCH_RADIUS = 1.25;
   const PATCH_THICKNESS = 0.03;
-  const HOLE_RADIUS_TOP = 0.38;
-  const HOLE_RADIUS_BOTTOM = 0.22;
-  const HOLE_DEPTH = 0.95;
+  const HOLE_RADIUS_TOP = 0.55;
+  const HOLE_RADIUS_BOTTOM = 0.20;
+  const HOLE_DEPTH = 1.35;
   const HOLE_TOP_Y = Y_LIFT + PATCH_THICKNESS;
 
   // ── A. Disturbed-earth ring (flush with grass) ───────────────────────
@@ -232,6 +236,25 @@ function buildWarren(xM, zM, terrainY) {
   dirtPatch.receiveShadow = true;
   dirtPatch.name = "fauna_warren_dirt_ring";
   group.add(dirtPatch);
+
+  // ── A2. Bright fresh-soil rim (defines the hole edge from distance) ──
+  // A thin (~6 cm) lighter ring hugging the mouth so the contrast between
+  // grass → soil → black throat is sharp enough to read as a hole from
+  // 30+ m away. Lifted a few mm above the patch to avoid z-fighting.
+  const rimMat = new THREE.MeshStandardMaterial({
+    color: 0x6b4530,
+    roughness: 0.95,
+    metalness: 0,
+  });
+  const rim = new THREE.Mesh(
+    new THREE.RingGeometry(HOLE_RADIUS_TOP * 0.985, HOLE_RADIUS_TOP + 0.06, 40),
+    rimMat,
+  );
+  rim.rotation.x = -Math.PI / 2;
+  rim.position.y = Y_LIFT + PATCH_THICKNESS + 0.004;
+  rim.receiveShadow = true;
+  rim.name = "fauna_warren_rim";
+  group.add(rim);
 
   // ── B. Tapering throat with rim → black vertex-colour gradient ───────
   /**
@@ -325,6 +348,7 @@ function buildWarren(xM, zM, terrainY) {
   return {
     group,
     dirtPatch,
+    rim,
     throat,
     throatCap,
     pocket,
@@ -401,15 +425,28 @@ export const FaunaModule = {
       const prof = ROLE_PROFILE[r.role];
       const inst = buildRabbitInstance(template, prof.height, gltf.animations);
       tintRabbitMesh(inst.root, prof.color);
-      // Initial scatter in a tight ring at the burrow lip so the family is
-      // obviously visible next to the hole (not 1.5–2 m away where framing
-      // can miss them).
-      const angle = (i / roster.length) * Math.PI * 2;
-      const startR = 0.55 + (i % 3) * 0.16;
-      const sx = WARREN_X + Math.cos(angle) * startR;
-      const sz = WARREN_Z + Math.sin(angle) * startR;
+      // Initial scatter in a tight arc on the **south-facing grass** just
+      // outside the dirt patch (PATCH_RADIUS ≈ 1.25 m). The family reads as
+      // a tableau **beside** the hole — clearly above ground, not on the
+      // disturbed soil. The arc is biased toward the player's spawn vantage
+      // (south, −Z) so all five rabbits are silhouetted against grass.
+      // The 130° spread (−65° → +65°, measured from south) keeps mom on the
+      // east side, dad on the west, with babies between — close enough that
+      // a 4–7 px sprite cluster reads as a family from 30+ m.
+      const minA = -Math.PI * 0.36;
+      const maxA = Math.PI * 0.36;
+      const t = roster.length === 1 ? 0.5 : i / (roster.length - 1);
+      const angleFromSouth = minA + (maxA - minA) * t;
+      // Convert "angle from south (−Z)" into XZ unit vector.
+      const dirX = Math.sin(angleFromSouth);
+      const dirZ = -Math.cos(angleFromSouth);
+      const startR = 1.55 + (i % 2) * 0.18; // 1.55–1.73 m: outside dirt patch
+      const sx = WARREN_X + dirX * startR;
+      const sz = WARREN_Z + dirZ * startR;
       const sy = physics.getGroundY(sx, sz);
       inst.root.position.set(sx, sy, sz);
+      // Face the hole at boot — gives a "we're hanging out next to home"
+      // posture rather than facing random directions.
       inst.root.rotation.y = Math.atan2(WARREN_X - sx, WARREN_Z - sz);
       scene.add(inst.root);
 
@@ -446,6 +483,11 @@ export const FaunaModule = {
         canPeek: prof.canPeek,
         lookoutBias: prof.lookoutBias,
       });
+      // Boot grace: hold all five in a calm IDLE pose for ~6–9 s so the
+      // user sees a stationary family-by-the-hole tableau the moment the
+      // scene appears, before the FSM kicks in with hop/chase/graze. After
+      // the timer expires the normal idle-tier rolls run as usual.
+      state.stateTimer = 6 + i * 0.6;
       this._rabbits.push(state);
       if (r.role === "mom") this._mom = state;
       if (r.role === "dad") this._dad = state;

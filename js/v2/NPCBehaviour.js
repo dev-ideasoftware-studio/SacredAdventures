@@ -5,20 +5,22 @@
  * controller is designed so future tipi owners can drop in without changing
  * World.js (one update-call per frame is already there for each tipi).
  *
- * Behaviour spec (matches the user request verbatim):
+ * Behaviour spec (May-2026 user request — wave moved from approach to depart):
  *
  *   when player is within 1 tile of tipi  →
- *      NPC plays wave clip, then walks 1 foot in front of the tipi
- *      (a point on the radial from tipi-centre toward the player, at
- *      `platformRadius + 1 foot`); on arrival, swap to idle clip.
+ *      NPC stands up and walks to a fixed entrance point in front of
+ *      the tipi (no wave on approach). On arrival, swap to idle clip
+ *      and watch the player.
  *
  *   while player is closer than (tile + 1)  →
- *      remain standing/idle, smoothly tracking the player with the
- *      seated `ybFacingGroup` aim pivot.
+ *      remain standing/idle in front of the tipi, body yaw tracking
+ *      the player so she's always watching.
  *
  *   when player passes (tile + 1)         →
- *      NPC plays walk clip, walks back to her original seat position,
- *      turns around, plays the sit clip and is seated again.
+ *      NPC turns to face the player and plays the wave clip once
+ *      (farewell gesture). When the wave finishes she walks back to
+ *      her original seat position, turns around, plays the sit clip
+ *      and is seated again.
  *
  * Animation clip mapping (NPC.YB.glb): every clip in the asset is named
  * `NlaTrack[.NNN]` so name-search returns nothing. The legacy
@@ -42,10 +44,15 @@ const TURN_RATE_RAD_PER_S = Math.PI * 1.6;
 /** Behaviour state names — also published in ANU_EVENTS.PLAYER_NPC_GREETING. */
 export const NPC_BEHAVIOUR_STATES = Object.freeze({
   SEATED: "seated",
-  EXITING_WAVE: "exiting_wave",
+  /** Standing up + walking out to entrance (no wave — silent approach greet). */
   EXITING_WALK: "exiting_walk",
+  /** Standing in front of tipi, body tracking player. */
   STANDING_IDLE: "standing_idle",
+  /** Face player + play wave clip once as farewell, before walking back. */
+  FAREWELL_WAVE: "farewell_wave",
+  /** Walking back to original seat XZ + Y. */
   RETURNING: "returning",
+  /** Turning back to neutral seat yaw, crossfading to sit clip. */
   TURNAROUND_SIT: "turnaround_sit",
 });
 
@@ -251,22 +258,18 @@ export function createTipiOwnerBehaviour(args) {
     // ── State transitions ──
     if (state === NPC_BEHAVIOUR_STATES.SEATED) {
       if (distToPlayer <= APPROACH_DIST_M && playerHasLeftZone) {
-        state = NPC_BEHAVIOUR_STATES.EXITING_WAVE;
-        stateTimer = actions.wave?.getClip()?.duration ?? 1.4;
-        crossfadeTo("wave", 0.18);
+        // Approach: skip the wave (per the user spec), stand up and walk
+        // straight out to the entrance. Crossfade from sit → walk; the
+        // mixer blends the rigs (no dedicated "stand up" clip exists).
+        state = NPC_BEHAVIOUR_STATES.EXITING_WALK;
+        crossfadeTo("walk", 0.3);
         suppressPlayerAim = true;
-        // Face the player while waving from the seat.
-        desiredYaw = Math.atan2(ddx, ddz);
+        desiredYaw = Math.atan2(
+          entranceWorldX - root.position.x,
+          entranceWorldZ - root.position.z,
+        );
         playerHasLeftZone = false; // next cycle requires another rising edge
         _emit("approach", distToPlayer);
-      }
-    } else if (state === NPC_BEHAVIOUR_STATES.EXITING_WAVE) {
-      stateTimer -= delta;
-      desiredYaw = Math.atan2(playerX - root.position.x, playerZ - root.position.z);
-      if (stateTimer <= 0) {
-        state = NPC_BEHAVIOUR_STATES.EXITING_WALK;
-        crossfadeTo("walk", 0.2);
-        desiredYaw = Math.atan2(entranceWorldX - root.position.x, entranceWorldZ - root.position.z);
       }
     } else if (state === NPC_BEHAVIOUR_STATES.EXITING_WALK) {
       desiredYaw = Math.atan2(entranceWorldX - root.position.x, entranceWorldZ - root.position.z);
@@ -286,9 +289,29 @@ export function createTipiOwnerBehaviour(args) {
     } else if (state === NPC_BEHAVIOUR_STATES.STANDING_IDLE) {
       desiredYaw = Math.atan2(playerX - root.position.x, playerZ - root.position.z);
       if (distToPlayer >= DEPART_DIST_M) {
+        // Depart: face the player and play the wave clip once as a
+        // farewell gesture, BEFORE walking back to the seat. The user
+        // wording was "wave while walking back" — implemented as
+        // sequential (wave → walk) for clean animation read.
+        state = NPC_BEHAVIOUR_STATES.FAREWELL_WAVE;
+        stateTimer = actions.wave?.getClip()?.duration ?? 1.4;
+        crossfadeTo("wave", 0.2);
+        desiredYaw = Math.atan2(
+          playerX - root.position.x,
+          playerZ - root.position.z,
+        );
+        _emit("depart", distToPlayer);
+      }
+    } else if (state === NPC_BEHAVIOUR_STATES.FAREWELL_WAVE) {
+      // Stationary, facing player, wave clip running on a LoopOnce.
+      stateTimer -= delta;
+      desiredYaw = Math.atan2(
+        playerX - root.position.x,
+        playerZ - root.position.z,
+      );
+      if (stateTimer <= 0) {
         state = NPC_BEHAVIOUR_STATES.RETURNING;
         crossfadeTo("walk", 0.2);
-        _emit("depart", distToPlayer);
       }
     } else if (state === NPC_BEHAVIOUR_STATES.RETURNING) {
       desiredYaw = Math.atan2(seatPos.x - root.position.x, seatPos.z - root.position.z);

@@ -740,16 +740,24 @@ export const UIModule = {
     /**
      * Rotate the cardinal-marker ring so the letter for the player's heading
      * lands at the **top** of the bezel. CSS `rotate()` is CW positive; markers
-     * sit at N=top (0°), E=right (90°), S=bottom (180°), W=left (270°). World
-     * yaw convention: yaw=0 → facing -Z (south), yaw=π → facing +Z (north),
-     * yaw=π/2 → -X (west), yaw=-π/2 → +X (east). Mapping verified:
-     *   yaw=π  → rotate 0°   → N stays at top (player facing north). ✓
-     *   yaw=0  → rotate 180° → S marker comes to top.                ✓
-     *   yaw=π/2  → rotate 90° → W marker comes to top.                  ✓
-     *   yaw=-π/2 → rotate 270° → E marker comes to top.                 ✓
-     * Equivalent to `(180 - yawDeg) mod 360`. The previous formula
-     * (`rotate(${yawDeg}deg)` directly) painted the dial 180° upside-down at
-     * spawn because the new spawn yaw is π, not 0.
+     * sit at N=top (0°), E=right (90°), S=bottom (180°), W=left (270°).
+     *
+     * World yaw convention (post the May-2026 input-axis fix in World.js):
+     *   yaw=0    → facing -Z (south)
+     *   yaw=π    → facing +Z (north)   ← spawn
+     *   yaw=π/2  → facing -X (west)
+     *   yaw=-π/2 → facing +X (east)
+     * ArrowLeft DECREMENTS yaw (player turns left toward W when facing N);
+     * ArrowRight INCREMENTS yaw (player turns right toward E). The previous
+     * inverted bindings made the compass *look* backwards even though this
+     * formula was right; the dial is the truth-teller, not the bug.
+     *
+     * Mapping verified end-to-end:
+     *   yaw=π    → rotate 0°   → N stays at top (player facing north). ✓
+     *   yaw=π/2  → rotate 90°  → W marker comes to top.                ✓
+     *   yaw=-π/2 → rotate 270° → E marker comes to top.                ✓
+     *   yaw=0    → rotate 180° → S marker comes to top.                ✓
+     * Equivalent to `(180 - yawDeg) mod 360`.
      */
     const deg = (yaw * 180) / Math.PI;
     if (this._compassRing)

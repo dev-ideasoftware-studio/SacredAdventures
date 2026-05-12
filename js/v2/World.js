@@ -334,11 +334,21 @@ export const WorldModule = {
     const now = typeof performance !== "undefined" ? performance.now() : 0;
 
     // ── Horizontal movement intention ─────────────────────────────────────
+    // Local XZ frame matches CAMERA-relative semantics, not world XYZ.
+    // After the rotation on lines 380–381 the world dir becomes:
+    //   wx = dir.x·cos(yaw) + dir.z·sin(yaw)
+    //   wz = -dir.x·sin(yaw) + dir.z·cos(yaw)
+    // At spawn yaw=π (facing +Z / north), pressing 'a' should strafe to
+    // the player's LEFT (= world -X / west). Solving wx=-1 at yaw=π gives
+    // dir.x = +1. Pressing 'd' (strafe right, world +X / east) → dir.x = -1.
+    // The legacy `a: dir.x -= 1 / d: dir.x += 1` was inverted because the
+    // rotation matrix uses an unsigned `cos+sin/-sin+cos` convention
+    // (Y-axis negative rotation) rather than the textbook `cos-sin/sin+cos`.
     dir.set(0, 0, 0);
     if (k["w"] || k["arrowup"]) dir.z -= 1;
     if (k["s"] || k["arrowdown"]) dir.z += 1;
-    if (k["a"]) dir.x -= 1;
-    if (k["d"]) dir.x += 1;
+    if (k["a"]) dir.x += 1;
+    if (k["d"]) dir.x -= 1;
 
     const physicalMovingKeys =
       k["w"] || k["s"] || k["arrowup"] || k["arrowdown"] || k["a"] || k["d"];
@@ -369,6 +379,14 @@ export const WorldModule = {
     const turnRate = turnOnly ? 2.85 : 1.72;
 
     // ── Turn (after movement keys known — faster when rotating in place) ───
+    // Per explicit user request (May 2026): ArrowLeft INCREMENTS yaw and
+    // ArrowRight DECREMENTS yaw. Under the engine's `_fwd = (-sin yaw, 0,
+    // -cos yaw)` convention, increasing yaw rotates forward from +Z toward
+    // +X (CW from above) — i.e. pressing ArrowLeft physically turns the
+    // player toward +X / east. This is intentional: the user prefers this
+    // mapping for their muscle memory even though it inverts the heading
+    // dial's "letter at top" relative to the labelled key. The compass
+    // still tells physical truth (W formula in `_syncCompass` unchanged).
     if (k["arrowleft"]) this._yaw += turnRate * delta;
     if (k["arrowright"]) this._yaw -= turnRate * delta;
 

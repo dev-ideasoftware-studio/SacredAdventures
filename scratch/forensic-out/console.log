@@ -1,0 +1,48 @@
+[log] %c[Monitor] Detected refresh rate: ~58fps → snapped to 60hz color:#fbc02d;
+[log] %c[SacredOrchestrator] 🚀 Sacred Adventures v2 — Engine Online color:#fbc02d;font-weight:bold;font-size:14px;
+[log] [SacredOrchestrator] Renderer: {frame: 0, calls: 0, triangles: 0, points: 0, lines: 0}
+[log] [SacredOrchestrator] anuOrchestrator.report() — engine HUD · AnuUniverse.report() — governance + sensors (after activate('Anu')).
+[log] %c[SacredOrchestrator] 📦 Registered: Anu color:#81d4fa;
+[log] %c[SacredOrchestrator] 📦 Registered: World color:#81d4fa;
+[log] %c[SacredOrchestrator] 📦 Registered: Trees color:#81d4fa;
+[log] %c[SacredOrchestrator] 📦 Registered: PanelsPIP color:#81d4fa;
+[log] %c[SacredOrchestrator] 📦 Registered: V2Panel color:#81d4fa;
+[log] %c[SacredOrchestrator] 📦 Registered: Fauna color:#81d4fa;
+[log] %c[SacredOrchestrator] ▶ Activating: Anu (baseline FPS: 0.0) color:#a5d6a7;
+[log] %c[Anu / SacredOrchestrator] Online — The Empathy Engine v1.0a — AnuUniverse.anuOrchestrator === window.anuOrchestrator (verified shell) · AnuUniverse.report() color:#fbc02d;font-weight:bold;
+[log] %c[SacredOrchestrator] FPS warmup — benchmarks queued until EMA stabilizes (smoothFPS ≥ 8). color:#81d4fa;
+[log] %c[SacredOrchestrator] ▶ Activating: World (baseline FPS: 0.0) color:#a5d6a7;
+[log] %c[World] NPC.YB seated at tipi 1 (minimal load) color:#ce93d8;
+[log] %c[World] Tipi 1 + sacred platform — legacy 1:1 (7.2m tipi, 4.7m platform) color:#d7ccc8;
+[log] %c[World] Avatar3.glb installed as governed player avatar color:#90caf9;
+[table] [Object, Object, Object, Object, Object, Object, Object, Object, Object]
+[log] %c[World] NPC.BHG seated at tipi 2 color:#ce93d8;
+[log] %c[World] Tipi 2 + BHG seated at (21.72, 0.00) — 1 tile gap east of tipi 1 color:#d7ccc8;
+[log] %c[World] ✅ Phase 1 loaded — terrain + physics + neumorphic hex shader color:#a5d6a7;font-weight:bold;
+[log] [World] WASD/arrows = move | SPACE = jump | window.WorldPhysics = physics API
+[log] [World] Physics: {gravity: -18, jumpImpulse: 7, playerHeight: 1.7}
+[warning] %c[SacredOrchestrator] Runtime service contract issue after activate:World color:#ffab91;font-weight:bold; [Object]
+[log] %c[SacredOrchestrator] ▶ Activating: Trees (baseline FPS: 0.0) color:#a5d6a7;
+[log] %c[Trees / ANU] Flora instance cap applied color:#fbc02d;font-weight:bold; — 204 layouts → 155 (nearest-origin priority; tweak constants.js V2_FLORA_MAX_TREE_INSTANCES).
+[log] %c[Trees] ✅ 155 × Assets/tree.glb — legacy-quality multipart forest; heights 4.86…32.12 m — ANU tracks 155 instances per drawable color:#81c784;font-weight:bold;
+[warning] %c[SacredOrchestrator] Runtime service contract issue after activate:Trees color:#ffab91;font-weight:bold; [Object]
+[log] %c[SacredOrchestrator] ▶ Activating: PanelsPIP (baseline FPS: 0.0) color:#a5d6a7;
+[log] %c[PanelsPIP] Compass + radial lunar dial · legacy center glass · view swap on lens color:#81d4fa;font-weight:bold;
+[warning] %c[SacredOrchestrator] Runtime service contract issue after activate:PanelsPIP color:#ffab91;font-weight:bold; [Object]
+[log] %c[SacredOrchestrator] ▶ Activating: Fauna (baseline FPS: 0.0) color:#a5d6a7;
+[log] %c[Fauna] Rabbit family warren online color:#ce93d8;font-weight:bold; — 5 rabbits + simple burrow hole at (10.86, 0) (empty tile right of tipi 1). Anim gate: hop-clip runs only while locomoting.
+[warning] %c[SacredOrchestrator] Runtime service contract issue after activate:Fauna color:#ffab91;font-weight:bold; [Object]
+[log] %c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ color:#fbc02d;
+[log] %c  Sacred Adventures v2 — Phase 2: World + forest   color:#fbc02d;font-weight:bold;font-size:13px;background:#111;padding:4px 8px;
+[log] %c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ color:#fbc02d;
+[log] 
+[log] %cAnu (orchestrator module) → World + Trees + PanelsPIP. V2Panel off — anuOrchestrator.activate("V2Panel") to restore. color:#a5d6a7;
+[log] %cStart here →  AnuUniverse.help()   color:#fbc02d;font-weight:bold;background:#1a1108;padding:2px 6px;border-radius:3px;
+[log] %cWait ~3s for the FPS benchmark to complete, then call: color:#aaa;
+[log] %c  anuOrchestrator.report() color:#ce93d8;font-weight:bold;
+[log] 
+[log] %cTo toggle forest: color:#aaa;
+[log] %c  anuOrchestrator.toggle("Trees") color:#81d4fa;
+[log] 
+[log] %c[SacredOrchestrator] PiP WebGL pipeline — ortho map / persp spirit (swapped vs main view) color:#81d4fa;font-weight:bold;
+[log] %c[SacredOrchestrator] ⏱ Benchmarking Anu (baseline 48.2 FPS) color:#fbc02d;font-weight:bold;

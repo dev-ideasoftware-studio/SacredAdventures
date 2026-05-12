@@ -380,16 +380,12 @@ async function attachYellowButterflySeatedTipi1(scene, objects, platMesh, tipi) 
               clips,
               tipiCenter: { x: 0, z: 0 },
               /**
-               * Tipi 1 has yaw `-π/2` and its scaled cone footprint is
-               * ~5.5 m × 6.4 m. The doorway flap projects in the local +Z /
-               * world -X direction post-yaw, but the *seated* pose anchors
-               * her slightly south of the tipi axis (seat at z ≈ -0.7), so
-               * a south-of-centre exit is what reads as "stepping out the
-               * doorway" in-engine. Placing her at z = -2.6 plants her just
-               * outside the tipi cone's south flare, on the platform deck,
-               * facing the player. This intentionally replaces the previous
-               * radial-to-player exit so she always emerges from the same
-               * spot — like a real one-door tipi.
+               * Entrance position is provisional pending the May-11 2026
+               * tipi-orientation forensic. The NPC walks from her seat to
+               * `(0, ?, -2.6)` regardless of where the GLB's doorway flap
+               * is actually sculpted — this lands her 2.6 m south of
+               * centre, on the platform deck, between the tipi and the
+               * approaching player.
                */
               entranceLocalXZ: { x: 0, z: -2.6 },
               getGroundY,
@@ -465,7 +461,11 @@ export async function loadCenterTipi({ scene, objects, worldPhysics }) {
     const sf = targetH / Math.max(size.y, 0.1);
     tipi.scale.set(sf, sf, sf);
 
-    tipi.rotation.y = -Math.PI / 2;
+    // NOTE: this yaw is currently UNDER FORENSIC REVIEW (May-11 2026).
+    // The user reports the tipi visually faces east despite the math
+    // implying south. Treat this value as provisional until the
+    // ground-truth GLB orientation is empirically pinned down.
+    tipi.rotation.y = Math.PI;
     tipi.updateMatrixWorld(true);
 
     box.setFromObject(tipi);

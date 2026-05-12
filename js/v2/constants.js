@@ -115,11 +115,14 @@ export const V2_TIPI_NPC_CEREMONIAL_FIRE_SCALE = 0.3;
 /** `Assets/NPC.YB.glb` — seated beside / inside tipi 1 (world metres, relative to hex center). */
 export const V2_NPC_YB_TIPI1_LOCAL_X_M = 0.28;
 /**
- * Z position of the seated host. Moved 1 imperial foot **north** (−Z is
- * world-north for this scene; matches `V2_NPC_YB_TIPI1_MODEL_YAW_RAD`
- * comment "her forward stance faces world −Z") so she sits further into
- * the tipi and the small ceremonial fire (V2_TIPI_NPC_CEREMONIAL_FIRE_*)
- * reads cleanly in front of her. Was -0.4 prior.
+ * Z position of the seated host inside tipi 1. The world coordinate
+ * convention used by the rest of the engine is **+Z = north** (the
+ * player spawns at z = -3 * V2_TILE_WORLD, i.e. south of the village,
+ * and faces +Z toward the tipis). The seat is at z ≈ -0.7 — slightly
+ * south of the tipi centre, just *inside* the doorway (which now points
+ * world -Z / south after the May-2026 tipi reorientation). The small
+ * ceremonial fire (V2_TIPI_NPC_CEREMONIAL_FIRE_*) sits in front of her,
+ * even further south. Was -0.4 prior.
  */
 export const V2_NPC_YB_TIPI1_LOCAL_Z_M = -0.4 - 0.3048;
 /** Nominal seated rig height **before** `V2_NPC_YB_TIPI1_SIZE_MULTIPLIER`. */
@@ -127,11 +130,21 @@ export const V2_NPC_YB_TIPI1_TARGET_HEIGHT_M = 1.52;
 /** Additional uniform scale vs target (e.g. `0.5` → half previous on-screen height). */
 export const V2_NPC_YB_TIPI1_SIZE_MULTIPLIER = 0.5;
 /**
- * `NPC.YB.glb` only — −X bind in-world after tipi **`rotation.y = −π/2`** and hex placement.
- * Base fix was **+90° Y** (`π/2`); she is spun **+180°** on top so her forward stance faces **world −Z**
- * (entrance / approach from +Z sees her turned to match revised GLB forward).
+ * `NPC.YB.glb` rig forward in model-local space is **-X**. The
+ * `ybFacingGroup` aim helper writes `rotation.y = atan2(dx, dz)` so it
+ * aligns the facingGroup's local **+Z** with the vector to the player.
+ * For this to make the *model* face the player, the model's effective
+ * forward inside the facingGroup must also be +Z — so we rotate the
+ * model by **+π/2** (90° Y) which maps -X → +Z. The earlier `+ π` "spin
+ * on top" left her facing 180° away from the player and was the source
+ * of the May-2026 "alignments are backwards" report.
+ *
+ * NOTE: at the very first frame (before update() runs) `facingGroup`
+ * defaults to rotation 0, so she briefly reads as facing world +Z
+ * (north). After the first update tick (16 ms) the aim helper snaps
+ * her to face the player. This flicker is imperceptible in practice.
  */
-export const V2_NPC_YB_TIPI1_MODEL_YAW_RAD = Math.PI / 2 + Math.PI;
+export const V2_NPC_YB_TIPI1_MODEL_YAW_RAD = Math.PI / 2;
 
 /**
  * Optional yaw bias on the live player-aim pivot (`ybFacingGroup`).
@@ -211,7 +224,13 @@ export const V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M =
 
 export const V2_TIPI_2_CENTER_X_M = V2_TILE_WORLD * 2;
 export const V2_TIPI_2_CENTER_Z_M = 0;
-export const V2_TIPI_2_YAW_RAD = -Math.PI / 2;
+/**
+ * Tipi 2 yaw matches Tipi 1. Currently `π` while under forensic review
+ * (May-11 2026). The user reports tipi visually faces east despite the
+ * math implying south; treat as provisional until the ground-truth GLB
+ * orientation is pinned down empirically.
+ */
+export const V2_TIPI_2_YAW_RAD = Math.PI;
 
 export const V2_NPC_BHG_TIPI2_LOCAL_X_M = V2_NPC_YB_TIPI1_LOCAL_X_M;
 export const V2_NPC_BHG_TIPI2_LOCAL_Z_M = V2_NPC_YB_TIPI1_LOCAL_Z_M;
