@@ -208,7 +208,9 @@ export function createTipiSmokePlume({ scene, objects, x, y, z }) {
 
   const uTime = { value: 0 };
 
-  const nSmoke = 720;
+  // 70% visual-volume reduction: fewer particles plus lower per-sprite
+  // footprint/alpha below so the plume no longer reads as an opaque column.
+  const nSmoke = 216;
   const smokePos = new Float32Array(nSmoke * 3);
   const smokeSeed = new Float32Array(nSmoke * 3);
   for (let i = 0; i < nSmoke; i++) {
@@ -243,8 +245,8 @@ export function createTipiSmokePlume({ scene, objects, x, y, z }) {
         float s2 = seed.z;
         float life = mod(uTime * (0.068 + s0 * 0.04) + s2 * 63.791, 1.0);
         vLife = life;
-        float rise = life * (58.0 + s0 * 48.0);
-        float widen = 0.18 + life * life * 5.2;
+        float rise = life * (34.0 + s0 * 28.0);
+        float widen = 0.08 + life * life * 2.1;
         float wobble =
           sin(uTime * 0.68 + s1 * 24.1 + rise * 0.05) * widen * 1.15 +
           sin(uTime * 0.31 + s2 * 17.3 + rise * 0.035) * widen * 0.68;
@@ -255,15 +257,15 @@ export function createTipiSmokePlume({ scene, objects, x, y, z }) {
           widen *
           0.85;
         // Mild drift with prevailing direction (+Z) for outdoor billow
-        float wind = life * life * (1.85 + s1 * 2.1);
+        float wind = life * life * (0.82 + s1 * 0.95);
         p.y = rise + p.y * 0.055;
         p.x += wobble + gust * 0.34;
         p.z += gust + sway + wind;
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
-        float sz = mix(32.0, 138.0, life * life * 0.68 + life * 0.32)
+        float sz = mix(18.0, 68.0, life * life * 0.68 + life * 0.32)
           * (0.88 + s1 * 0.34);
-        gl_PointSize = clamp(sz * (180.0 / max(-mv.z, 0.3)), 12.0, 185.0);
+        gl_PointSize = clamp(sz * (180.0 / max(-mv.z, 0.3)), 7.0, 92.0);
         float fadeIn = smoothstep(0.0, 0.14, life);
         float fadeOut = 1.0 - smoothstep(0.36, 0.99, life);
         vAlpha =
@@ -297,7 +299,7 @@ export function createTipiSmokePlume({ scene, objects, x, y, z }) {
         vec3 col = mix(ash, mid, lum);
         col = mix(col, mist, white * 0.92);
         col *= mix(1.02, 0.9, fluff * 0.22);
-        float alpha = vAlpha * core * core * fluff * 0.98;
+        float alpha = vAlpha * core * core * fluff * 0.38;
         gl_FragColor = vec4(col, alpha);
       }
     `,

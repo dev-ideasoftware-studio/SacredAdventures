@@ -1,383 +1,425 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logbook Component - Master UI Hybrid</title>
+    <meta name="color-scheme" content="dark only">
+    <title>Sacred Journal</title>
+
     <script>
-        const originalWarn = console.warn;
+        const _origWarn = console.warn;
         console.warn = (...args) => {
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
-            originalWarn(...args);
+            _origWarn(...args);
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet" />
 
-    <!-- THREE.js for the 3D Background Engine -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <!-- Consolidated & Cleaned Tailwind / Custom CSS -->
     <style>
-        /* <!-- DO NOT ADD YELLOW CIRCLES --> */
-        /* This is a strict constraint to prevent any absolute positioned 50% border radius yellow elements. */
         :root {
-            --book-bg: transparent;
-            --page-bg: #fdfbf7;
-            --page-texture: url('vendor/textures/cream-paper.png');
-            --tab-inactive: rgba(35, 23, 17, 0.95);
-            --text-main: #000000;
-            --text-heading: #000000;
-            --accent-gold: #fde047;
-            /* Brightened for AAA 7:1 contrast on dark bg */
+            color-scheme: dark only;
+            --ink: #f4e7d2;
+            --ink-dim: #cdbfa3;
+            --gold: #cda434;
+            --tab-bg: rgba(35, 23, 17, 0.92);
+            --hud-bg: rgba(35, 23, 17, 0.92);
+            --panel-bg: rgba(20, 12, 8, 0.55);
+            --panel-border: rgba(205, 164, 52, 0.35);
+            /* Subtle parchment grain tiled on `.page` (no extra asset fetch). */
+            --paper-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='pn' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23pn)' opacity='0.07'/%3E%3C/svg%3E");
         }
 
-        ::-webkit-scrollbar {
-            display: none !important;
-        }
-
-        * {
-            -ms-overflow-style: none !important;
-            scrollbar-width: none !important;
-        }
-
-        html,
-        body {
+        html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            background: transparent;
+            background: transparent !important;
+            background-color: transparent !important;
+            color: var(--ink);
+            font-family: 'Fredoka', system-ui, sans-serif;
             overflow: hidden;
-            font-family: 'Fredoka', sans-serif;
         }
 
-        /* WCAG 2.2 AAA Focus Indicator */
+        ::-webkit-scrollbar { display: none !important; }
+        * { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+
         *:focus-visible {
-            outline: 3px solid var(--accent-gold);
+            outline: 3px solid var(--gold);
             outline-offset: 3px;
             border-radius: 4px;
         }
 
-        @keyframes input-bloom {
-            0%, 100% { box-shadow: 0 0 5px 0px rgba(251, 192, 45, 0.2); border-color: rgba(255,255,255,0.25); }
-            50% { box-shadow: 0 0 20px 5px rgba(251, 192, 45, 0.8); border-color: rgba(251, 192, 45, 0.8); }
-        }
-        .bloom-input {
-            animation: input-bloom 2s infinite ease-in-out;
-        }
-
         .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
-        }
-
-        /* --- HYBRID LAYERS --- */
-        #webgl-container {
-            position: absolute;
-            inset: 0;
-            z-index: 10;
-            cursor: pointer;
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
         }
 
         #sacred-logbook-engine {
             position: absolute;
             inset: 0;
-            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.4s ease-out;
+            background: transparent;
+        }
+        #sacred-logbook-engine.open {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        #book-wrapper {
-            position: absolute;
-            inset: 0;
+        .journal-column {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            align-items: stretch;
+            gap: 10px;
+            width: min(94vw, calc(92vh * 1.25));
+            max-width: 94vw;
+            max-height: 92vh;
+            padding: 44px 4px 4px 4px;
+            background: transparent;
         }
 
-        /* MATHEMATICALLY LOCKED ASPECT RATIO */
         .book {
+            position: relative;
             width: 100%;
-            max-width: calc(93.5vh * 1.136);
-            height: auto;
-            aspect-ratio: 1.136;
-            position: relative;
-            background: transparent !important;
-            box-shadow: none !important;
-            margin: auto;
+            aspect-ratio: 1.25;
+            max-height: 78vh;
+            background: transparent;
         }
 
-        /* --- UNIFIED HTML BLOCK --- */
-        .book-interior-container {
-            position: absolute;
-            top: 4%;
-            bottom: 4%;
-            left: 3%;
-            right: 3%;
-            display: flex;
-            flex-direction: column;
-            z-index: 10;
-            border-radius: 12px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
-        }
-
-        /* --- PAGES WRAPPER --- */
-        .pages-wrapper {
-            height: 88%;
-            /* Leaves 12% for HUD to allow 44px target heights */
-            display: flex;
-            position: relative;
-            border-radius: 12px 12px 0 0;
-            border-top: 1px solid rgba(0, 0, 0, 0.15);
-            overflow: hidden;
-            background-color: var(--page-bg);
-        }
-
-        /* --- PHOTOREALISTIC CONNECTED TABS --- */
         .book-tabs {
             position: absolute;
-            bottom: 100%;
-            right: 4%;
+            top: -38px;
+            left: 4%;
             display: flex;
+            flex-wrap: wrap;
             gap: 4px;
-            z-index: 5;
+            z-index: 25;
             align-items: flex-end;
+            pointer-events: auto;
         }
-
-        /* WCAG AAA: min-height 44px, min-width 44px */
         .book-tab {
-            min-height: 44px;
+            min-height: 40px;
             min-width: 44px;
-            padding: 0 16px;
-            background: var(--tab-inactive);
-            color: #f5f5f4;
-            /* AAA contrast */
+            padding: 0 14px;
+            background: var(--tab-bg);
+            color: rgba(244, 231, 210, 0.78);
+            border: 1px solid rgba(0, 0, 0, 0.6);
+            border-bottom: none;
             border-radius: 8px 8px 0 0;
             cursor: pointer;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 6px;
             font-family: 'Fredoka', sans-serif;
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 1px;
             text-transform: uppercase;
-            transition: all 0.2s ease;
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), 0 -2px 6px rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(0, 0, 0, 0.9);
-            border-bottom: none;
+            transition: color 0.2s, background 0.2s;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.4);
             position: relative;
             z-index: 10;
         }
-
-        .book-tab:hover {
-            background: #3e2723;
-            color: #ffffff;
-        }
-
+        .book-tab:hover { color: var(--ink); background: rgba(58, 38, 27, 0.95); }
         .book-tab.active {
-            background-color: var(--page-bg);
-            background-image: var(--page-texture);
-            color: #1c100b;
-            min-height: 48px;
+            color: var(--gold);
+            background: rgba(35, 23, 17, 0.95);
+            border-top: 3px solid var(--gold);
+            min-height: 44px;
             z-index: 30;
-            margin-bottom: -2px;
-            border-top: 4px solid var(--accent-gold);
-            border-left: 1px solid rgba(0, 0, 0, 0.15);
-            border-right: 1px solid rgba(0, 0, 0, 0.15);
-            border-bottom: 2px solid var(--page-bg);
-            box-shadow: 2px -2px 6px rgba(0, 0, 0, 0.15);
         }
 
-        /* --- 2D PAPER SURFACES --- */
-        .page-static {
+        .pages-wrapper {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+            min-height: 0;
+        }
+
+        .page {
+            --page-ink: #2a2319;
+            --page-ink-dim: #5a4f42;
+            flex: 1;
             width: 50%;
+            min-width: 0;
             height: 100%;
             position: relative;
-            padding: 5% 6%;
-            overflow: hidden;
-            background-color: var(--page-bg);
-            background-image: var(--page-texture);
-        }
-
-        .page-static.left {
-            border-radius: 12px 0 0 0;
-            border-left: 1px solid rgba(0, 0, 0, 0.1);
-            box-shadow: inset -25px 0 30px -20px rgba(0, 0, 0, 0.6);
-            border-right: 1px solid rgba(0, 0, 0, 0.2);
-            background-image: linear-gradient(to left, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 6%), var(--page-texture);
-        }
-
-        .page-static.right {
-            border-radius: 0 12px 0 0;
-            border-right: 1px solid rgba(0, 0, 0, 0.1);
-            box-shadow: inset 25px 0 30px -20px rgba(0, 0, 0, 0.6);
-            border-left: 1px solid rgba(255, 255, 255, 0.7);
-            background-image: linear-gradient(to right, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 6%), var(--page-texture);
+            padding: 22px 20px 50px 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            color: var(--page-ink);
+            background-color: #f9f7f1;
+            background-image:
+                linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, 0.97) 0%,
+                    rgba(248, 244, 234, 0.99) 55%,
+                    rgba(239, 233, 219, 1) 100%
+                ),
+                var(--paper-noise);
+            background-size: auto, 180px 180px;
+            border: 1px solid rgba(55, 44, 32, 0.22);
+            border-radius: 12px;
+            box-shadow:
+                0 10px 28px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.82);
+            backdrop-filter: none;
         }
 
         .page-content {
-            height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-right: 4px;
-            padding-bottom: 50px;
-            /* Buffer for pagination targets */
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            padding-right: 2px;
+            padding-bottom: 0;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
+            align-items: stretch;
+            gap: 0;
         }
 
         .page-title {
             font-family: 'Fredoka', sans-serif;
             font-weight: 700;
-            color: var(--text-heading);
+            color: var(--gold);
             margin: 0;
-            line-height: 1.2;
-            font-size: clamp(22px, 3vw, 36px);
+            line-height: 1.18;
+            font-size: clamp(17px, 2.35vw, 26px);
             text-align: center;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55), 0 2px 4px rgba(0, 0, 0, 0.12);
         }
 
         .book-text {
-            font-family: 'Fredoka', sans-serif;
-            font-size: var(--logbook-font-size, 18px);
-            line-height: 1.6;
-            color: var(--text-main);
+            font-family: 'Lora', Georgia, serif;
+            font-size: var(--logbook-font-size, 14px);
+            line-height: 1.42;
+            color: var(--page-ink);
             display: block;
-            overflow: visible;
         }
-
-        .book-text p {
-            margin-bottom: 0.7em;
-        }
-
-        .book-text p:last-child {
-            margin-bottom: 0;
-        }
+        .book-text p { margin-bottom: 0.45em; }
+        .book-text p:last-child { margin-bottom: 0; }
 
         .toy-divider {
             width: 70%;
-            margin: 14px auto;
-            height: 2px;
-            background: linear-gradient(to right, transparent, rgba(44, 26, 20, 0.3), transparent);
+            margin: 8px auto;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(80, 64, 48, 0.28), transparent);
             position: relative;
         }
-
         .toy-divider::after {
             content: "✦";
             position: absolute;
-            left: 50%;
-            top: 50%;
+            left: 50%; top: 50%;
             transform: translate(-50%, -50%);
-            color: rgba(44, 26, 20, 0.6);
-            font-size: 10px;
-            padding: 0 10px;
+            color: var(--gold);
+            font-size: 11px;
+            padding: 0 8px;
+            background: rgba(249, 247, 241, 0.94);
         }
 
-        .page-body-container {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-        }
-
-        /* WCAG AAA: Close Button touch target */
-        .close-btn-wrapper {
+        .page-num {
             position: absolute;
-            top: 1.5%;
-            right: 1.5%;
-            z-index: 100;
+            bottom: 12px;
+            font-family: ui-monospace, monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--page-ink-dim);
+            opacity: 0.88;
         }
+        .page-num.left { left: 24px; }
+        .page-num.right { right: 24px; }
 
-        .glass-btn {
+        .nav-hitbox {
             width: 44px;
             height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--page-ink-dim);
             border-radius: 50%;
-            background: rgba(28, 16, 11, 0.95);
-            color: #fafaf9;
-            /* High contrast white */
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: color 0.2s, background 0.2s, transform 0.2s;
+        }
+        .nav-hitbox:hover {
+            background: rgba(205, 164, 52, 0.14);
+            color: var(--gold);
+            transform: scale(1.1);
+        }
+
+        .page-nav {
+            position: absolute;
+            bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 5;
+        }
+        .page-nav.left { left: 14px; }
+        .page-nav.right { right: 14px; }
+
+        .close-btn-wrapper {
+            position: absolute;
+            top: -28px;
+            right: 6px;
+            z-index: 100;
+        }
+        .glass-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(35, 20, 14, 0.85);
+            color: #e8dec5;
+            border: 1px solid rgba(205, 164, 52, 0.45);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
         }
-
         .glass-btn:hover {
-            background: #000;
-            transform: scale(1.1);
+            background: #1a0f0c;
+            transform: scale(1.08);
             color: #fff;
-            border-color: var(--accent-gold);
+            border-color: var(--gold);
         }
 
-        /* WCAG AAA: Page Nav Targets */
-        .nav-hitbox {
-            width: 44px;
+        .integrated-hud {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 52px;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            column-gap: 10px;
+            row-gap: 6px;
+            background: var(--hud-bg);
+            background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.4));
+            border-radius: 10px;
+            border: 1px solid rgba(0, 0, 0, 0.7);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+            padding: 8px 12px;
+            color: var(--ink);
+            z-index: 60;
+            flex-shrink: 0;
+        }
+        .journal-hud-fonttools {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-right: 10px;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            min-height: 44px;
+        }
+        .journal-hud-middle {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+        }
+        .journal-hud-input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            min-height: 44px;
+        }
+        .journal-hud-input-leading {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--ink-dim);
+        }
+        .journal-hud-input {
+            flex: 1 1 0;
+            min-width: 0;
             height: 44px;
-            z-index: 50;
-            cursor: pointer;
+            box-sizing: border-box;
+            background-color: rgba(20, 12, 8, 0.85);
+            border: 1px solid rgba(205, 164, 52, 0.25);
+            border-radius: 7px;
+            color: #f5f5f4;
+            font-size: 14px;
+            padding: 0 12px;
+            color-scheme: dark;
+        }
+        .journal-hud-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px rgba(205, 164, 52, 0.25);
+        }
+        .journal-hud-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 10px;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            min-height: 44px;
+        }
+        .hud-tool-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 1;
-            transition: all 0.3s;
-            color: #44403c;
-            /* AAA contrast against light page */
-            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fde047;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
+        .hud-tool-btn:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
+        .hud-tool-btn:disabled { cursor: not-allowed; opacity: 0.5; }
 
-        .nav-hitbox:hover {
-            background: rgba(0, 0, 0, 0.05);
-            color: #1c1917;
-            transform: scale(1.1);
+        #parser-feedback {
+            color: var(--ink-dim);
+            font-size: 11px;
+            line-height: 16px;
+            margin-top: 4px;
+            padding-left: 4px;
+            font-family: ui-monospace, monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        #parser-feedback:empty { display: none; margin: 0; padding: 0; min-height: 0; }
+        #parser-feedback:not(:empty) { min-height: 16px; }
 
-        /* ---- PIP Circle + Bloom Ring ---- */
         .pip-circle-wrap {
             position: relative;
             width: 140px;
             height: 140px;
             border-radius: 50%;
-            border: 4px solid rgba(60,40,20,0.45);
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+            border: 4px solid rgba(205, 164, 52, 0.55);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(0, 0, 0, 0.4);
             overflow: hidden;
             transition: transform 0.15s ease;
         }
-        .pip-circle-wrap:hover {
-            transform: scale(1.04);
-        }
-        .pip-circle-wrap:active {
-            transform: scale(0.97);
-        }
+        .pip-circle-wrap:hover { transform: scale(1.04); }
+        .pip-circle-wrap:active { transform: scale(0.97); }
         .pip-bloom-ring {
             position: absolute;
             inset: -6px;
             border-radius: 50%;
-            border: 4px solid rgba(251, 192, 45, 0.0);
             box-shadow:
                 0 0 14px 4px rgba(251, 192, 45, 0.7),
-                0 0 28px 8px rgba(251, 192, 45, 0.35),
-                inset 0 0 10px 2px rgba(251, 192, 45, 0.2);
+                0 0 28px 8px rgba(251, 192, 45, 0.35);
             animation: pip-bloom-pulse 2.2s ease-in-out infinite;
             pointer-events: none;
             z-index: 5;
@@ -396,7 +438,7 @@
             font-size: 11px;
             font-weight: 700;
             color: #fde047;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
             pointer-events: none;
             z-index: 6;
             animation: pip-hint-fade 2.2s ease-in-out infinite;
@@ -406,117 +448,7 @@
             50%  { opacity: 1.0; }
             100% { opacity: 0.6; }
         }
-        /* --------------------------------- */
 
-        .page-flipper {
-            position: absolute;
-            inset: 0;
-            left: 50%;
-            width: 50%;
-            transform-origin: left;
-            z-index: 60;
-            transform-style: preserve-3d;
-            pointer-events: none;
-            transition: transform 0.25s ease-in-out;
-        }
-
-        .page-face {
-            position: absolute;
-            inset: 0;
-            background-color: var(--page-bg);
-            background-image: var(--page-texture);
-            padding: 5% 6%;
-            backface-visibility: hidden;
-            border-top: 1px solid rgba(0, 0, 0, 0.15);
-        }
-
-        .page-face.back {
-            transform: rotateY(180deg);
-            box-shadow: inset -20px 0 40px -20px rgba(0, 0, 0, 0.6);
-            border-left: 1px solid rgba(0, 0, 0, 0.1);
-            border-bottom: 2px solid #1a0a06;
-        }
-
-        .page-face.front {
-            box-shadow: inset 20px 0 40px -20px rgba(0, 0, 0, 0.6);
-            border-right: 1px solid rgba(0, 0, 0, 0.1);
-            border-bottom: 2px solid #1a0a06;
-        }
-
-        /* --- EXTERNAL LEATHER HUD --- */
-        .integrated-hud {
-            width: 100%;
-            height: 12%;
-            /* Expanded for WCAG target spacing */
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 50;
-            pointer-events: auto;
-            background: #110603;
-            background-image: linear-gradient(to bottom, #1a0a06, #0a0301);
-            border-radius: 0 0 12px 12px;
-            box-shadow: inset 0px 4px 10px rgba(0, 0, 0, 0.9), 0px 1px 1px rgba(255, 255, 255, 0.05);
-            border-top: 2px solid #000;
-            padding: 0 15px;
-        }
-
-        /* WCAG AAA Touch Targets */
-        .hud-tool-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 44px;
-            height: 44px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.05);
-            color: #fde047;
-            /* AAA */
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .hud-tool-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
-        }
-
-        /* Responsive Resizing */
-        @media (max-width: 860px) {
-            #book-wrapper {
-                padding: 10px;
-            }
-
-            .book {
-                width: 100%;
-                max-width: none;
-                height: auto;
-                aspect-ratio: 1.136;
-            }
-
-            .book-tabs {
-                right: 3%;
-                gap: 2px;
-            }
-
-            .book-tab {
-                min-height: 44px;
-                font-size: 10px;
-                padding: 0 12px;
-            }
-
-            .page-static {
-                padding: 5%;
-            }
-
-            .integrated-hud {
-                padding: 0 8px;
-            }
-        }
-
-        /* Purple Toy Button (48px) */
         .toy-btn-purple {
             background-color: #6a1b9a;
             color: #ffffff;
@@ -524,834 +456,283 @@
             padding: 0 24px;
             border-radius: 24px;
             font-family: 'Fredoka', sans-serif;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 600;
             border: 3px solid #4a148c;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 0 #4a148c, 0 8px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 0 #4a148c, 0 8px 10px rgba(0, 0, 0, 0.3);
             transition: all 0.1s;
         }
         .toy-btn-purple:active {
             transform: translateY(4px);
-            box-shadow: 0 0 0 #4a148c, 0 4px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 0 0 #4a148c, 0 4px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 860px) {
+            .journal-column {
+                width: 96vw;
+                padding-top: 40px;
+            }
+            .pages-wrapper { flex-direction: column; gap: 6px; }
+            .page { width: 100%; height: 50%; padding: 16px 14px 44px 14px; }
+            .book-tabs { left: 2%; gap: 2px; }
+            .book-tab { font-size: 10px; padding: 0 10px; }
+            .integrated-hud {
+                grid-template-columns: 1fr;
+                justify-items: stretch;
+            }
+            .journal-hud-fonttools {
+                justify-content: center;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                padding-right: 0;
+                padding-bottom: 6px;
+            }
+            .journal-hud-right {
+                justify-content: center;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+                padding-left: 0;
+                padding-top: 6px;
+            }
         }
     </style>
 </head>
 
 <body>
+    <div id="sr-announcer" class="sr-only" aria-live="polite">Sacred Journal loaded.</div>
 
-    <div id="sr-announcer" class="sr-only" aria-live="polite">Logbook loaded. Press Enter to open.</div>
-
-    <!-- THE 3D WEBGL ENGINE LAYER -->
-    <div id="webgl-container" tabindex="0" role="button" aria-expanded="false" aria-label="Open 3D Logbook"
-        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.initiateOpenSequence();}"
-        title="Click to open journal"></div>
-
-    <!-- THE 2D DOM ENGINE LAYER -->
-    <div id="sacred-logbook-engine" class="w-full h-full relative" aria-hidden="true">
-        <div id="book-wrapper">
-
+    <div id="sacred-logbook-engine" aria-hidden="true">
+        <div class="journal-column">
             <div class="book" id="page-content-wrapper">
 
                 <div class="close-btn-wrapper">
-                    <button type="button" class="glass-btn" onclick="initiateCloseSequence()" title="Close Journal"
-                        aria-label="Close Journal">
+                    <button type="button" class="glass-btn" onclick="initiateCloseSequence()" title="Close Journal" aria-label="Close Journal">
                         <i class="fa-solid fa-xmark text-[18px]" aria-hidden="true"></i>
                     </button>
                 </div>
 
-                <div class="book-interior-container">
-
-                    <div class="book-tabs" role="tablist" aria-label="Journal Sections">
-                        <div class="book-tab active" role="tab" tabindex="0" id="tab-log" aria-selected="true"
-                            onclick="switchBookTab('log')"
-                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('log');}">
-                            <i class="fa-solid fa-feather-pointed" aria-hidden="true"></i> <span
-                                class="hidden sm:inline">Journal</span><span class="sm:hidden">Log</span>
-                        </div>
-                        <div class="book-tab" role="tab" tabindex="0" id="tab-quests" aria-selected="false"
-                            onclick="switchBookTab('quests')"
-                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('quests');}">
-                            <i class="fa-solid fa-scroll" aria-hidden="true"></i> Quests
-                        </div>
-                        <div class="book-tab" role="tab" tabindex="0" id="tab-bestiary" aria-selected="false"
-                            onclick="switchBookTab('bestiary')"
-                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('bestiary');}">
-                            <i class="fa-solid fa-dragon" aria-hidden="true"></i> Bestiary
-                        </div>
-                        <div class="book-tab" role="tab" tabindex="0" id="tab-buildings" aria-selected="false"
-                            onclick="switchBookTab('buildings')"
-                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('buildings');}">
-                            <i class="fa-solid fa-campground" aria-hidden="true"></i> Buildings
-                        </div>
+                <div class="book-tabs" role="tablist" aria-label="Journal Sections">
+                    <div class="book-tab active" role="tab" tabindex="0" id="tab-log" aria-selected="true"
+                        onclick="switchBookTab('log')"
+                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('log');}">
+                        <i class="fa-solid fa-feather-pointed" aria-hidden="true"></i>
+                        <span>Journal</span>
                     </div>
-
-                    <div class="pages-wrapper relative">
-                        <!-- LEFT PAGE -->
-                        <div class="page-static left">
-                            <div id="page-content-left" class="page-content"></div>
-
-                            <!-- BEST PRACTICE: Left page pagination on bottom-left -->
-                            <div
-                                class="absolute bottom-4 left-6 flex items-center justify-start gap-4 text-stone-600 font-mono tracking-widest opacity-100 z-50">
-                                <span id="page-num-left" class="text-[14px] font-bold text-[#1c100b]"
-                                    aria-hidden="true">1</span>
-                                <div class="nav-hitbox" tabindex="0" role="button" aria-label="Previous Page"
-                                    onclick="turnPage('prev')"
-                                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); turnPage('prev');}">
-                                    <i class="fa-solid fa-chevron-left text-lg" aria-hidden="true"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- RIGHT PAGE -->
-                        <div class="page-static right">
-                            <div id="page-content-right" class="page-content"></div>
-
-                            <!-- BEST PRACTICE: Right page pagination on bottom-right -->
-                            <div
-                                class="absolute bottom-4 right-6 flex items-center justify-end gap-4 text-stone-600 font-mono tracking-widest opacity-100 z-50">
-                                <div class="nav-hitbox" tabindex="0" role="button" aria-label="Next Page"
-                                    onclick="turnPage('next')"
-                                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); turnPage('next');}">
-                                    <i class="fa-solid fa-chevron-right text-lg" aria-hidden="true"></i>
-                                </div>
-                                <span id="page-num-right" class="text-[14px] font-bold text-[#1c100b]"
-                                    aria-hidden="true">2</span>
-                            </div>
-                        </div>
-
-                        <div id="flipper" class="page-flipper hidden" aria-hidden="true">
-                            <div class="page-face front">
-                                <div id="flipper-content-front" class="page-content"></div>
-                            </div>
-                            <div class="page-face back">
-                                <div id="flipper-content-back" class="page-content"></div>
-                            </div>
-                        </div>
+                    <div class="book-tab" role="tab" tabindex="0" id="tab-quests" aria-selected="false"
+                        onclick="switchBookTab('quests')"
+                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('quests');}">
+                        <i class="fa-solid fa-scroll" aria-hidden="true"></i> Quests
                     </div>
-
-                    <!-- HUD anchored to bottom -->
-                    <div class="integrated-hud"
-                        style="display: flex; align-items: center; justify-content: space-between; padding: 0 12px;">
-
-                        <!-- LEFT: Font Size Controls -->
-                        <div class="shrink-0"
-                            style="display: flex; align-items: center; gap: 6px; padding-right: 12px; height: 100%; border-right: 1px solid rgba(255,255,255,0.1);">
-                            <button type="button" class="hud-tool-btn" aria-label="Decrease Font Size"
-                                onclick="adjustJournalFontSize(1)">
-                                <i class="fa-solid fa-minus text-[12px]" aria-hidden="true"></i>
-                            </button>
-                            <span id="font-size-display"
-                                class="font-bold text-[13px] tracking-widest uppercase text-center"
-                                style="color: #f5f5f4; width: 24px;" aria-live="polite">14</span>
-                            <button type="button" class="hud-tool-btn" aria-label="Increase Font Size"
-                                onclick="adjustJournalFontSize(-1)">
-                                <i class="fa-solid fa-plus text-[12px]" aria-hidden="true"></i>
-                            </button>
-                        </div>
-
-                        <!-- MIDDLE: Unified Flex-Grow Column Input Field -->
-                        <div class="flex-grow relative mx-4"
-                            style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
-
-                            <!-- 44px WCAG Input Row -->
-                            <div class="relative w-full" style="height: 44px;">
-                                <!-- Audio Icons Inside Left -->
-                                <div class="absolute left-2 top-0 bottom-0 z-10"
-                                    style="display: flex; align-items: center; gap: 8px; color: #d6d3d1;">
-                                    <button type="button" class="cursor-not-allowed transition-colors hover:text-white"
-                                        style="width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; opacity: 0.7;"
-                                        disabled aria-label="Audio disabled">
-                                        <i class="fa-solid fa-volume-xmark text-sm" title="Audio disabled"
-                                            aria-hidden="true"></i>
-                                    </button>
-                                    <button type="button" class="cursor-not-allowed transition-colors hover:text-white"
-                                        style="width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; opacity: 0.7;"
-                                        disabled aria-label="Microphone disabled">
-                                        <i class="fa-solid fa-microphone-slash text-sm" title="Microphone disabled"
-                                            aria-hidden="true"></i>
-                                    </button>
-                                </div>
-
-                                <!-- Input Box (WCAG AAA Contrast > 7:1 for text/bg) -->
-                                <input type="text" id="llm-input"
-                                    class="w-full h-full font-medium transition-all shadow-inner focus:outline-none bloom-input"
-                                    style="background-color: #2b1a10; border: 0.25px solid rgba(255,255,255,0.25); border-radius: 7px; color: #f5f5f4; font-size: 14px; padding-left: 90px; padding-right: 140px; color-scheme: dark;"
-                                    placeholder="Ask or Interact with the world..." autocomplete="off"
-                                    onkeydown="if(event.key==='Enter'){event.preventDefault(); submitLogbookChat();}">
-
-                                <!-- Action Inside Right -->
-                                <div class="absolute right-2 top-0 bottom-0 z-10"
-                                    style="display: flex; align-items: center; gap: 8px;">
-                                    <!-- Viewport Resolution -->
-                                    <div id="res-indicator"
-                                        style="font-size: 11px; font-family: monospace; color: rgba(255, 255, 255, 0.7); text-transform: uppercase; letter-spacing: 0.05em; font-weight: bold; pointer-events: none; margin-right: 4px;"
-                                        aria-hidden="true"></div>
-
-                                    <!-- Submit (44px target) -->
-                                    <button type="button" class="transition-all"
-                                        style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: #fde047; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer;"
-                                        aria-label="Submit Command" onclick="submitLogbookChat()"
-                                        onmouseover="this.style.borderColor='#fde047'; this.style.backgroundColor='rgba(253, 224, 71, 0.1)';"
-                                        onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'; this.style.backgroundColor='transparent';">
-                                        <i class="fa-solid fa-arrow-turn-down text-sm" style="transform: rotate(90deg);"
-                                            aria-hidden="true"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- PARSER FEEDBACK / NLP OUTPUT (directly below input) -->
-                            <div id="parser-feedback" aria-live="polite"
-                                class="font-mono whitespace-nowrap overflow-hidden text-ellipsis"
-                                style="color: #d6d3d1; font-size: 11px; line-height: 16px; height: 16px; margin-top: 4px; padding-left: 4px;">
-                                System loaded and awaiting input.
-                            </div>
-                        </div>
-
+                    <div class="book-tab" role="tab" tabindex="0" id="tab-bestiary" aria-selected="false"
+                        onclick="switchBookTab('bestiary')"
+                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('bestiary');}">
+                        <i class="fa-solid fa-dragon" aria-hidden="true"></i> Bestiary
+                    </div>
+                    <div class="book-tab" role="tab" tabindex="0" id="tab-buildings" aria-selected="false"
+                        onclick="switchBookTab('buildings')"
+                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchBookTab('buildings');}">
+                        <i class="fa-solid fa-campground" aria-hidden="true"></i> Buildings
                     </div>
                 </div>
 
+                <div class="pages-wrapper">
+                    <div class="page page-left">
+                        <div id="page-content-left" class="page-content"></div>
+                        <div class="page-nav left">
+                            <span id="page-num-left" class="page-num left" aria-hidden="true">1</span>
+                            <div class="nav-hitbox" tabindex="0" role="button" aria-label="Previous Page"
+                                onclick="turnPage('prev')"
+                                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); turnPage('prev');}">
+                                <i class="fa-solid fa-chevron-left text-lg" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="page page-right">
+                        <div id="page-content-right" class="page-content"></div>
+                        <div class="page-nav right">
+                            <div class="nav-hitbox" tabindex="0" role="button" aria-label="Next Page"
+                                onclick="turnPage('next')"
+                                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); turnPage('next');}">
+                                <i class="fa-solid fa-chevron-right text-lg" aria-hidden="true"></i>
+                            </div>
+                            <span id="page-num-right" class="page-num right" aria-hidden="true">2</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="integrated-hud">
+                <div class="journal-hud-fonttools">
+                    <button type="button" class="hud-tool-btn" aria-label="Decrease Font Size" onclick="adjustJournalFontSize(1)">
+                        <i class="fa-solid fa-minus text-[12px]" aria-hidden="true"></i>
+                    </button>
+                    <span id="font-size-display" class="font-bold text-[13px] tracking-widest uppercase text-center"
+                        style="color: #f5f5f4; width: 24px;" aria-live="polite">14</span>
+                    <button type="button" class="hud-tool-btn" aria-label="Increase Font Size" onclick="adjustJournalFontSize(-1)">
+                        <i class="fa-solid fa-plus text-[12px]" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="journal-hud-middle">
+                    <div class="journal-hud-input-row">
+                        <div class="journal-hud-input-leading">
+                            <button type="button" disabled aria-label="Audio disabled"
+                                style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;opacity:0.55;color:var(--ink-dim);">
+                                <i class="fa-solid fa-volume-xmark text-sm" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" disabled aria-label="Microphone disabled"
+                                style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;opacity:0.55;color:var(--ink-dim);">
+                                <i class="fa-solid fa-microphone-slash text-sm" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <input type="text" id="llm-input" class="journal-hud-input w-full font-medium"
+                            placeholder="Ask or Interact with the world..." autocomplete="off"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); submitLogbookChat();}">
+                    </div>
+                    <div id="parser-feedback" aria-live="polite"></div>
+                </div>
+
+                <div class="journal-hud-right">
+                    <div id="res-indicator" aria-hidden="true"
+                        style="font-size:11px;font-family:monospace;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.05em;font-weight:bold;pointer-events:none;"></div>
+                    <button type="button" aria-label="Submit Command" onclick="submitLogbookChat()"
+                        style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;color:#fde047;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;"
+                        onmouseover="this.style.borderColor='#fde047'; this.style.backgroundColor='rgba(253,224,71,0.1)';"
+                        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)'; this.style.backgroundColor='transparent';">
+                        <i class="fa-solid fa-arrow-turn-down text-sm" style="transform: rotate(90deg);" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- --- WEBGL ENGINE SCRIPT --- -->
     <script>
-        // Safe global fallbacks
-        window.journal3D = null;
-        window.update3DPages = function () { };
-        window.initiateOpenSequence = function () { };
-        window.initiateCloseSequence = function () { };
-        window._hasNotifiedClose = true;
-
-        window._currentCW = 0;
-        window._currentPW = 0;
-
-        // Auto-update Resolution Viewport indicator
-        function updateResIndicator() {
-            const ind = document.getElementById('res-indicator');
-            if (ind) {
-                const w = window.innerWidth;
-                let vpType = 'Desktop';
-                if (w < 640) vpType = 'Mobile';
-                else if (w < 1024) vpType = 'Tablet';
-                ind.textContent = `${vpType} [${w}x${window.innerHeight}]`;
-            }
-        }
-        window.addEventListener('resize', updateResIndicator);
-        document.addEventListener('DOMContentLoaded', updateResIndicator);
-
-        function run3DEngine() {
-            if (typeof THREE === 'undefined') {
-                setTimeout(run3DEngine, 50);
-                return;
-            }
-
-            const container = document.getElementById('webgl-container');
-            const scene = new THREE.Scene();
-            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x000000, 0);
-            container.appendChild(renderer.domElement);
-
-            const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-            scene.add(new THREE.AmbientLight(0xffeedd, 0.45));
-
-            const mainLight = new THREE.SpotLight(0xfff0dd, 1.4);
-            mainLight.position.set(10, 20, 15);
-            mainLight.angle = Math.PI / 4;
-            mainLight.penumbra = 0.6;
-            scene.add(mainLight);
-
-            const fillLight = new THREE.DirectionalLight(0x4a2c20, 0.4);
-            fillLight.position.set(-10, -5, -10);
-            scene.add(fillLight);
-
-            const centerLight = new THREE.SpotLight(0xffffff, 2.5);
-            centerLight.position.set(0, 5, 2);
-            centerLight.target.position.set(0, 0, 0);
-            centerLight.angle = Math.PI / 5;
-            centerLight.penumbra = 0.4;
-            centerLight.distance = 20;
-            centerLight.castShadow = true;
-            scene.add(centerLight);
-            scene.add(centerLight.target);
-
-            const darkLeatherColor = '#24140e';
-
-            function createLeatherTexture() {
-                const cvs = document.createElement('canvas');
-                cvs.width = 1024; cvs.height = 1024;
-                const ctx = cvs.getContext('2d');
-
-                ctx.fillStyle = darkLeatherColor;
-                ctx.fillRect(0, 0, 1024, 1024);
-
-                for (let i = 0; i < 3000; i++) {
-                    ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`;
-                    ctx.beginPath();
-                    ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 30 + 10, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = `rgba(80,40,25,${Math.random() * 0.04})`;
-                    ctx.beginPath();
-                    ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 20 + 5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                const grad = ctx.createRadialGradient(512, 512, 350, 512, 512, 750);
-                grad.addColorStop(0, 'rgba(0,0,0,0)');
-                grad.addColorStop(1, 'rgba(0,0,0,0.5)');
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, 1024, 1024);
-
-                const tex = new THREE.CanvasTexture(cvs);
-                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-                return tex;
-            }
-
-            function createLeatherBumpMap() {
-                const cvs = document.createElement('canvas');
-                cvs.width = 1024; cvs.height = 1024;
-                const ctx = cvs.getContext('2d');
-                ctx.fillStyle = '#888'; ctx.fillRect(0, 0, 1024, 1024);
-
-                for (let i = 0; i < 60000; i++) {
-                    ctx.fillStyle = `rgba(${136 + Math.random() * 40}, ${136 + Math.random() * 40}, ${136 + Math.random() * 40}, 0.5)`;
-                    ctx.beginPath();
-                    ctx.arc(Math.random() * 1024, Math.random() * 1024, Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                return new THREE.CanvasTexture(cvs);
-            }
-
-            function createPageEdgeTexture() {
-                const cvs = document.createElement('canvas');
-                cvs.width = 256; cvs.height = 256;
-                const ctx = cvs.getContext('2d');
-                ctx.fillStyle = '#e8dec5'; ctx.fillRect(0, 0, 256, 256);
-                ctx.fillStyle = '#c8b699';
-                for (let i = 0; i < 256; i += 1.5) {
-                    ctx.fillRect(0, i, 256, 0.5);
-                }
-                const tex = new THREE.CanvasTexture(cvs);
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-                return tex;
-            }
-
-            function createDynamicPageTexture(pageData, isLeft, pageNum) {
-                const cvs = document.createElement('canvas');
-                cvs.width = 512;
-                cvs.height = 768;
-                const ctx = cvs.getContext('2d');
-
-                ctx.fillStyle = '#fdfbf7';
-                ctx.fillRect(0, 0, cvs.width, cvs.height);
-
-                const grad = ctx.createLinearGradient(0, 0, 60, 0);
-                grad.addColorStop(0, 'rgba(0,0,0,0.1)');
-                grad.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = grad;
-                if (isLeft) {
-                    ctx.translate(512, 0); ctx.scale(-1, 1);
-                    ctx.fillRect(0, 0, 60, 768);
-                    ctx.translate(512, 0); ctx.scale(-1, 1);
-                } else {
-                    ctx.fillRect(0, 0, 60, 768);
-                }
-
-                if (pageData) {
-                    ctx.fillStyle = '#1e293b';
-                    ctx.font = 'bold 36px sans-serif';
-                    ctx.textAlign = 'center';
-                    const title = (pageData.title || '').replace(/<[^>]*>?/gm, '');
-                    ctx.fillText(title, 256, 120);
-
-                    ctx.strokeStyle = 'rgba(44, 26, 20, 0.2)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(128, 140); ctx.lineTo(384, 140); ctx.stroke();
-
-                    ctx.fillStyle = '#2c1a14';
-                    ctx.font = '22px sans-serif';
-                    ctx.textAlign = 'left';
-
-                    let rawText = (pageData.text || '').replace(/<[^>]*>?/gm, '');
-                    let y = 200;
-
-                    const words = rawText.split(' ');
-                    let line = '';
-                    for (let n = 0; n < words.length; n++) {
-                        const testLine = line + words[n] + ' ';
-                        if (ctx.measureText(testLine).width > 360 && n > 0) {
-                            ctx.fillText(line, 76, y);
-                            line = words[n] + ' ';
-                            y += 32;
-                        } else {
-                            line = testLine;
-                        }
-                    }
-                    ctx.fillText(line, 76, y);
-                }
-
-                const tex = new THREE.CanvasTexture(cvs);
-                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-                return tex;
-            }
-
-            function getBookShape(w, l, r) {
-                const s = new THREE.Shape();
-                s.moveTo(-w / 2, -l / 2);
-                s.lineTo(w / 2 - r, -l / 2);
-                s.absarc(w / 2 - r, -l / 2 + r, r, -Math.PI / 2, 0, false);
-                s.lineTo(w / 2, l / 2 - r);
-                s.absarc(w / 2 - r, l / 2 - r, r, 0, Math.PI / 2, false);
-                s.lineTo(-w / 2, l / 2);
-                s.lineTo(-w / 2, -l / 2);
-                return s;
-            }
-
-            function createBookGeo(w, l, d, r) {
-                const shape = getBookShape(w, l, r);
-                const geo = new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.04, bevelThickness: 0.04 });
-                geo.center(); geo.rotateX(-Math.PI / 2); return geo;
-            }
-
-            // --- THE CALCULATOR ENGINE (+20px Perfect Alignment) ---
-            function getCalculatedDimensions() {
-                const domBook = document.querySelector('.book');
-                const interior = document.querySelector('.book-interior-container');
-
-                // Base 3D book vertical dimension length
-                const cL = 14.0;
-
-                const h = domBook ? domBook.clientHeight : window.innerHeight * 0.85;
-                const pxPerUnit = h / cL;
-
-                // X-Axis Width calculations
-                // The interior wrapper leaves 3% margin on both left and right: (1.0 - 0.03*2) = 0.94
-                const interiorW_Px = interior ? interior.clientWidth : h * 1.25 * 0.94;
-
-                // One physical 3D page maps exactly to half the interior CSS pixel width
-                const singlePageW_Px = interiorW_Px / 2;
-
-                // Convert CSS Pixels to 3D Scene Units
-                const calcPW = singlePageW_Px / pxPerUnit;
-
-                // CALCULATOR REQUIREMENT: Cover width = open pages width + 20px on the free edge
-                const calcCW = (singlePageW_Px + 20) / pxPerUnit;
-
-                // Y-Axis Height calculations
-                // The interior wrapper leaves 4% top and 4% bottom margin: (1.0 - 0.04*2) = 0.92
-                const interiorH_Px = interior ? interior.clientHeight : h * 0.92;
-                const calcPL = interiorH_Px / pxPerUnit;
-
-                // Margins are perfectly symmetrical (top: 4%, bottom: 4%), meaning the center remains Z=0
-                const pageCenterZ = 0;
-
-                return { cW: calcCW, pW: calcPW, pL: calcPL, pageCenterZ: pageCenterZ, cL: cL };
-            }
-
-            const cT = 0.15;
-            const pT = 0.25;
-            const coverRadius = 0.4;
-            const pageRadius = 0.3;
-            const spineRadius = pT + cT / 2;
-
-            const leatherMat = new THREE.MeshStandardMaterial({ map: createLeatherTexture(), roughness: 0.85, metalness: 0.05, bumpMap: createLeatherBumpMap(), bumpScale: 0.015 });
-            const edgeMat = new THREE.MeshStandardMaterial({ map: createPageEdgeTexture(), roughness: 0.9, metalness: 0.05 });
-            const coverMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.1 });
-
-            const coverMatArray = [leatherMat, leatherMat, leatherMat, leatherMat, leatherMat, leatherMat];
-
-            const texLoader = new THREE.TextureLoader();
-            const liveUrl = './Assets/Journal.Cover.png';
-
-            texLoader.load(liveUrl,
-                (tex) => {
-                    tex.encoding = THREE.sRGBEncoding;
-                    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-                    tex.minFilter = THREE.LinearFilter;
-                    tex.generateMipmaps = false;
-                    coverMat.map = tex;
-                    coverMat.needsUpdate = true;
-                },
-                undefined,
-                (err) => { console.warn("Failed to load local cover image."); }
-            );
-
-            class SacredJournal {
-                constructor() {
-                    this.group = new THREE.Group();
-                    this.isOpen = false;
-                    this.currentAngle = 0;
-                    this.targetAngle = 0;
-
-                    this.currentRotX = 0.35;
-                    this.targetRotX = 0.35;
-                    this.currentRotY = -0.2;
-                    this.targetRotY = -0.2;
-
-                    // Engage the dynamic calculator
-                    const dims = getCalculatedDimensions();
-                    window._currentCW = dims.cW;
-                    window._currentPW = dims.pW;
-
-                    this.targetPosX = -dims.cW / 2;
-
-                    this.rightCover = new THREE.Mesh(createBookGeo(dims.cW, dims.cL, cT, coverRadius), coverMatArray);
-                    this.rightCover.position.set(dims.cW / 2, -pT - cT / 2, 0);
-                    this.group.add(this.rightCover);
-
-                    this.rightPageMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                    const rightPagesMatArray = [edgeMat, edgeMat, this.rightPageMat, edgeMat, edgeMat, edgeMat];
-                    this.rightPages = new THREE.Mesh(createBookGeo(dims.pW, dims.pL, pT, pageRadius), rightPagesMatArray);
-                    this.rightPages.position.set(dims.pW / 2, -pT / 2, dims.pageCenterZ);
-                    this.group.add(this.rightPages);
-
-                    this.spine = new THREE.Mesh(new THREE.CylinderGeometry(spineRadius, spineRadius, dims.cL, 32, 1, false, Math.PI / 2, Math.PI), leatherMat);
-                    this.spine.rotation.x = Math.PI / 2;
-                    this.spine.position.set(0, -pT / 2, 0);
-                    this.group.add(this.spine);
-
-                    this.hinge = new THREE.Group();
-                    this.hinge.position.set(0, 0, 0);
-                    this.group.add(this.hinge);
-
-                    this.leftCover = new THREE.Mesh(createBookGeo(dims.cW, dims.cL, cT, coverRadius), coverMatArray);
-                    this.leftCover.position.set(dims.cW / 2, pT + cT / 2, 0);
-                    this.hinge.add(this.leftCover);
-
-                    const decalShape = getBookShape(dims.cW - 0.2, dims.cL - 0.2, coverRadius);
-                    const decalGeo = new THREE.ShapeGeometry(decalShape);
-
-                    decalGeo.computeBoundingBox();
-                    const min = decalGeo.boundingBox.min;
-                    const max = decalGeo.boundingBox.max;
-                    const uvAttr = decalGeo.attributes.uv;
-                    for (let i = 0; i < uvAttr.count; i++) {
-                        uvAttr.setXY(i, (decalGeo.attributes.position.getX(i) - min.x) / (max.x - min.x), (decalGeo.attributes.position.getY(i) - min.y) / (max.y - min.y));
-                    }
-
-                    decalGeo.center();
-                    decalGeo.rotateX(-Math.PI / 2);
-                    this.decal = new THREE.Mesh(decalGeo, coverMat);
-                    this.decal.position.set(dims.cW / 2, pT + cT + 0.05, 0);
-                    this.hinge.add(this.decal);
-
-                    this.leftPageMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                    const leftPagesMatArray = [edgeMat, edgeMat, edgeMat, this.leftPageMat, edgeMat, edgeMat];
-                    this.leftPages = new THREE.Mesh(createBookGeo(dims.pW, dims.pL, pT, pageRadius), leftPagesMatArray);
-                    this.leftPages.position.set(dims.pW / 2, pT / 2, dims.pageCenterZ);
-
-                    this.leftPages.scale.set(-1, 1, 1);
-                    this.hinge.add(this.leftPages);
-
-                    this.group.rotation.x = this.currentRotX;
-                    this.group.rotation.y = this.currentRotY;
-                }
-
-                update() {
-                    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                    const speed = prefersReducedMotion ? 1.0 : (this.isOpen ? 0.2 : 0.35);
-
-                    this.currentAngle += (this.targetAngle - this.currentAngle) * speed;
-                    this.hinge.rotation.z = this.currentAngle;
-
-                    this.group.position.x += (this.targetPosX - this.group.position.x) * speed;
-
-                    this.currentRotX += (this.targetRotX - this.currentRotX) * speed;
-                    this.group.rotation.x = this.currentRotX;
-                    this.currentRotY += (this.targetRotY - this.currentRotY) * speed;
-                    this.group.rotation.y = this.currentRotY;
-
-                    const progress = this.currentAngle / Math.PI;
-                    this.spine.scale.x = 1.0 - progress * (1.0 - (cT / spineRadius));
-                    this.spine.position.y = -pT / 2 - progress * (pT / 2 + cT / 2);
-                }
-            }
-
-            const journal3D = new SacredJournal();
-            window.journal3D = journal3D;
-            scene.add(journal3D.group);
-
-            window.update3DPages = function () {
-                if (window.game && game.pages && journal3D) {
-                    try {
-                        journal3D.leftPageMat.map = createDynamicPageTexture(game.pages[game.currentPageIdx], true);
-                        journal3D.rightPageMat.map = createDynamicPageTexture(game.pages[game.currentPageIdx + 1], false);
-                        journal3D.leftPageMat.needsUpdate = true;
-                        journal3D.rightPageMat.needsUpdate = true;
-                    } catch (e) { console.warn(e); }
-                }
-            };
-
-            function rebuildBookGeometry() {
-                if (!window.journal3D) return;
-                const dims = getCalculatedDimensions();
-
-                if (Math.abs(dims.cW - window._currentCW) < 0.05 && Math.abs(dims.pW - window._currentPW) < 0.05) return;
-
-                window._currentCW = dims.cW;
-                window._currentPW = dims.pW;
-
-                window.journal3D.rightCover.geometry.dispose();
-                window.journal3D.rightCover.geometry = createBookGeo(dims.cW, dims.cL, cT, coverRadius);
-                window.journal3D.rightCover.position.set(dims.cW / 2, -pT - cT / 2, 0);
-
-                window.journal3D.leftCover.geometry.dispose();
-                window.journal3D.leftCover.geometry = createBookGeo(dims.cW, dims.cL, cT, coverRadius);
-                window.journal3D.leftCover.position.set(dims.cW / 2, pT + cT / 2, 0);
-
-                const decalShape = getBookShape(dims.cW - 0.2, dims.cL - 0.2, coverRadius);
-                const decalGeo = new THREE.ShapeGeometry(decalShape);
-                decalGeo.computeBoundingBox();
-                const min = decalGeo.boundingBox.min;
-                const max = decalGeo.boundingBox.max;
-                const uvAttr = decalGeo.attributes.uv;
-                for (let i = 0; i < uvAttr.count; i++) {
-                    uvAttr.setXY(i, (decalGeo.attributes.position.getX(i) - min.x) / (max.x - min.x), (decalGeo.attributes.position.getY(i) - min.y) / (max.y - min.y));
-                }
-                decalGeo.center();
-                decalGeo.rotateX(-Math.PI / 2);
-                window.journal3D.decal.geometry.dispose();
-                window.journal3D.decal.geometry = decalGeo;
-                window.journal3D.decal.position.set(dims.cW / 2, pT + cT + 0.05, 0);
-
-                const pagesGeo = createBookGeo(dims.pW, dims.pL, pT, pageRadius);
-                window.journal3D.rightPages.geometry.dispose();
-                window.journal3D.rightPages.geometry = pagesGeo;
-                window.journal3D.rightPages.position.set(dims.pW / 2, -pT / 2, dims.pageCenterZ);
-
-                window.journal3D.leftPages.geometry.dispose();
-                window.journal3D.leftPages.geometry = pagesGeo;
-                window.journal3D.leftPages.position.set(dims.pW / 2, pT / 2, dims.pageCenterZ);
-
-                if (!window.journal3D.isOpen) {
-                    window.journal3D.targetPosX = -dims.cW / 2;
-                }
-            }
-
-            function alignCameraToDOM() {
-                const domBook = document.querySelector('.book');
-                if (!domBook || domBook.clientHeight === 0) return;
-
-                const dims = getCalculatedDimensions();
-                const screenFraction = domBook.clientHeight / window.innerHeight;
-                const visibleLengthAtZ = dims.cL / screenFraction;
-                const distance = visibleLengthAtZ / (2 * Math.tan(Math.PI * camera.fov / 360));
-
-                const rect = domBook.getBoundingClientRect();
-                const domCenterY = rect.top + rect.height / 2;
-                const screenCenterY = window.innerHeight / 2;
-                const pixelsPerUnit = domBook.clientHeight / dims.cL;
-                const cameraZOffset = -(domCenterY - screenCenterY) / pixelsPerUnit;
-
-                camera.position.set(0, distance, -cameraZOffset);
-                camera.lookAt(0, 0, -cameraZOffset);
-            }
-
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-
-            container.addEventListener('pointerdown', (e) => {
-                if (window.isDOMActive) return;
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-                raycaster.setFromCamera(mouse, camera);
-                if (raycaster.intersectObjects(journal3D.group.children, true).length > 0) {
-                    window.initiateOpenSequence();
-                }
-            });
-
-            window.isDOMActive = false;
-
-            window.initiateOpenSequence = function () {
-                if (journal3D.isOpen) return;
-                journal3D.isOpen = true;
-                journal3D.targetAngle = Math.PI;
-                journal3D.targetPosX = 0;
-                journal3D.targetRotX = 0;
-                journal3D.targetRotY = 0;
-
-                container.setAttribute('aria-expanded', 'true');
-                const announcer = document.getElementById('sr-announcer');
-                if (announcer) announcer.textContent = "Logbook opened.";
-            }
-
-            window.initiateCloseSequence = function () {
-                journal3D.rightPages.visible = true;
-                journal3D.leftPages.visible = true;
-
-                document.getElementById('sacred-logbook-engine').style.opacity = '0';
-                document.getElementById('sacred-logbook-engine').style.pointerEvents = 'none';
-                document.getElementById('sacred-logbook-engine').setAttribute('aria-hidden', 'true');
-                window.isDOMActive = false;
-
-                journal3D.isOpen = false;
-                journal3D.targetAngle = 0;
-                journal3D.targetPosX = -window._currentCW / 2;
-                journal3D.targetRotX = 0.35;
-                journal3D.targetRotY = -0.2;
-
-                container.setAttribute('aria-expanded', 'false');
-                const announcer = document.getElementById('sr-announcer');
-                if (announcer) announcer.textContent = "Logbook closing. Returning to game.";
-            }
-
-            function animate() {
-                requestAnimationFrame(animate);
-
-                if (window._isBookVisibleOverride === false && journal3D.currentAngle < 0.05) { return; }
-
-                journal3D.update();
-                renderer.render(scene, camera);
-
-                if (journal3D.isOpen && !window.isDOMActive && (journal3D.currentAngle / Math.PI) > 0.85) {
-                    window.isDOMActive = true;
-                    alignCameraToDOM();
-                    document.getElementById('sacred-logbook-engine').style.opacity = '1';
-                    document.getElementById('sacred-logbook-engine').style.pointerEvents = 'auto';
-                    document.getElementById('sacred-logbook-engine').setAttribute('aria-hidden', 'false');
-                    document.getElementById('tab-log').focus();
-
-                    setTimeout(() => {
-                        if (journal3D.isOpen) {
-                            journal3D.rightPages.visible = false;
-                            journal3D.leftPages.visible = false;
-                        }
-                    }, 400);
-                }
-
-                if (!journal3D.isOpen && journal3D.currentAngle < 0.05 && !window.isDOMActive) {
-                    if (!window._hasNotifiedClose) {
-                        try {
-                            window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');
-                            window.parent.postMessage({ type: 'RETURN_TO_GAME' }, '*');
-                        } catch (e) { }
-                        window._hasNotifiedClose = true;
-                    }
-                } else {
-                    window._hasNotifiedClose = false;
-                }
-            }
-            animate();
-
-            setTimeout(alignCameraToDOM, 100);
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                if (window.isDOMActive) alignCameraToDOM();
-                rebuildBookGeometry();
-            });
-
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && window.isDOMActive) {
-                    window.initiateCloseSequence();
-                }
-            });
-        }
-
-        if (document.readyState === 'complete') {
-            run3DEngine();
-        } else {
-            window.addEventListener('load', run3DEngine);
-        }
-    </script>
-
-    <!-- --- DOM ENGINE SCRIPT (Your game logic) --- -->
-    <script>
-        const game = { pages: [], currentPageIdx: 0, isFlipping: false, currentTab: 'log', content: { log: [], quests: [], bestiary: [] } };
-        const journalFontSizes = ['18pt', '17pt', '16pt', '15pt', '14pt', '13pt', '12pt', '11pt', '10pt', '9pt'];
-        window.bookFontMemoryMap = {};
-        window.getPageFontIndex = (pageIdx) => window.bookFontMemoryMap[pageIdx] !== undefined ? window.bookFontMemoryMap[pageIdx] : 4;
-
-        window.adjustJournalFontSize = (dir) => {
-            const activePageIdx = game.currentPageIdx || 0;
-            let currentFontIndex = window.getPageFontIndex(activePageIdx);
-            let nextIdx = Math.max(0, Math.min(journalFontSizes.length - 1, currentFontIndex + dir));
-            if (nextIdx !== currentFontIndex) {
-                window.bookFontMemoryMap[activePageIdx] = nextIdx;
-                window.bookFontMemoryMap[activePageIdx + 1] = nextIdx;
-                adjustTextFit();
-                const displayEl = document.getElementById('font-size-display');
-                if (displayEl) displayEl.innerText = journalFontSizes[nextIdx].replace('pt', '');
-                const announcer = document.getElementById('sr-announcer');
-                if (announcer) announcer.textContent = "Font size changed to " + journalFontSizes[nextIdx];
-            }
+        /* ── Open/close lifecycle ──────────────────────────────────────────
+         * The 3D leather-book engine is gone. `isDOMActive` and the
+         * `journal3D` stub stay so existing parent-side handlers and the
+         * align-* helpers below keep working unchanged.
+         */
+        window.isDOMActive = false;
+        window._isBookVisibleOverride = undefined;
+        window._isClosingSequence = false;
+        window.journal3D = { isOpen: false };
+
+        window.initiateOpenSequence = function () {
+            if (window.journal3D.isOpen) return;
+            window.journal3D.isOpen = true;
+            window.isDOMActive = true;
+            const engine = document.getElementById('sacred-logbook-engine');
+            engine.classList.add('open');
+            engine.setAttribute('aria-hidden', 'false');
+            const announcer = document.getElementById('sr-announcer');
+            if (announcer) announcer.textContent = 'Logbook opened.';
+            const firstTab = document.getElementById('tab-log');
+            if (firstTab) firstTab.focus();
+            scheduleAlign();
         };
 
-        window.requestRestore = (state) => {
-            window.parent.postMessage({ type: 'RESTORE_STATE', state: state }, '*');
+        window.initiateCloseSequence = function () {
+            window.journal3D.isOpen = false;
+            window.isDOMActive = false;
+            const engine = document.getElementById('sacred-logbook-engine');
+            engine.classList.remove('open');
+            engine.setAttribute('aria-hidden', 'true');
+            const announcer = document.getElementById('sr-announcer');
+            if (announcer) announcer.textContent = 'Logbook closing. Returning to game.';
+            try {
+                window.parent.postMessage({ type: 'REQ_HIDE_TIPI' }, '*');
+                window.parent.postMessage({ type: 'REQ_HIDE_AXE' }, '*');
+                window.parent.postMessage({ type: 'REQ_HIDE_SELFIE' }, '*');
+                window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');
+                window.parent.postMessage({ type: 'RETURN_TO_GAME' }, '*');
+            } catch (e) { /* parent may not exist in standalone preview */ }
+        };
+
+        /* ── Game state ─────────────────────────────────────────────────── */
+        const game = {
+            pages: [],
+            currentPageIdx: 0,
+            isFlipping: false,
+            currentTab: 'log',
+            content: { log: [], quests: [], bestiary: [], buildings: [] },
+        };
+        const journalFontSizes = ['18pt', '17pt', '16pt', '15pt', '14pt', '13pt', '12pt', '11pt', '10pt', '9pt'];
+        window.bookFontMemoryMap = {};
+        window.getPageFontIndex = (pageIdx) =>
+            window.bookFontMemoryMap[pageIdx] !== undefined ? window.bookFontMemoryMap[pageIdx] : 6;
+
+        window.adjustJournalFontSize = function (dir) {
+            const activePageIdx = game.currentPageIdx || 0;
+            const cur = window.getPageFontIndex(activePageIdx);
+            const next = Math.max(0, Math.min(journalFontSizes.length - 1, cur + dir));
+            if (next === cur) return;
+            window.bookFontMemoryMap[activePageIdx] = next;
+            window.bookFontMemoryMap[activePageIdx + 1] = next;
+            applyFontSize();
+            const display = document.getElementById('font-size-display');
+            if (display) display.innerText = journalFontSizes[next].replace('pt', '');
+            const announcer = document.getElementById('sr-announcer');
+            if (announcer) announcer.textContent = 'Font size changed to ' + journalFontSizes[next];
+        };
+
+        function applyFontSize() {
+            const idx = window.getPageFontIndex(game.currentPageIdx || 0);
+            const size = journalFontSizes[idx];
+            document.documentElement.style.setProperty('--logbook-font-size', size);
+            let tag = document.getElementById('dynamic-font-override');
+            if (!tag) {
+                tag = document.createElement('style');
+                tag.id = 'dynamic-font-override';
+                document.head.appendChild(tag);
+            }
+            tag.innerHTML = '.book-text { font-size: ' + size + ' !important; }';
+        }
+
+        window.requestRestore = function (state) {
+            try { window.parent.postMessage({ type: 'RESTORE_STATE', state: state }, '*'); } catch (e) { }
             initiateCloseSequence();
         };
 
+        /* ── Page render ────────────────────────────────────────────────── */
         function renderContent(container, pageData) {
             if (!container) return;
-            if (!pageData) { container.innerHTML = ""; return; }
+            if (!pageData) { container.innerHTML = ''; return; }
 
             let html = `
-                <div class="flex items-center justify-center gap-2 mb-2 flex-shrink-0">
-                    ${pageData.icon ? `<i class="${pageData.icon} text-lg md:text-2xl text-[#8d6e63]" aria-hidden="true"></i>` : ''}
-                    <h2 class="page-title">${pageData.title}</h2>
+                <div class="flex items-center justify-center gap-2 mb-1 flex-shrink-0">
+                    ${pageData.icon ? `<i class="${pageData.icon} text-lg md:text-2xl" style="color: var(--gold);" aria-hidden="true"></i>` : ''}
+                    <h2 class="page-title">${pageData.title || ''}</h2>
                 </div>
                 <div class="toy-divider" aria-hidden="true"></div>
-            `;
-
-            if (pageData.videoUrl) {
-                html += `
-                    <div class="w-full flex justify-center mt-2 mb-3">
-                        <video muted playsinline autoplay class="rounded-md shadow-md max-w-[80%] max-h-[140px] cursor-pointer border border-[#2c1a14]/20"
-                            onended="this.currentTime=0; this.pause();"
-                            onclick="if(this.paused){this.play();}else{this.pause();}"
-                            title="Video for ${pageData.title}" aria-label="Video clip for ${pageData.title}">
-                            <source src="${pageData.videoUrl}" type="video/mp4">
-                        </video>
-                    </div>`;
-            } else if (pageData.imageUrl) {
-                html += `
-                    <div class="w-full flex justify-center mt-2 mb-3">
-                        <img src="${pageData.imageUrl}" class="rounded-md shadow-md max-w-[80%] max-h-[140px] border border-[#2c1a14]/20" alt="Illustration for ${pageData.title}">
-                    </div>`;
-            }
-
-            html += `
-                <div class="page-body-container">
-                    <div class="book-text">
-                        ${pageData.text}
-                    </div>
+                <div class="page-body-container" style="flex:1; min-height:0; display:flex; flex-direction:column;">
+                    <div class="book-text">${pageData.text || ''}</div>
             `;
 
             if (pageData.buttonLabel && pageData.buttonAction) {
-                const iconHTML = pageData.buttonAction.includes('fireWorldAction') ? '<i class="fa-solid fa-person-walking mr-2" aria-hidden="true"></i>' : '';
+                const ico = pageData.buttonAction.includes('startGameSequence') || pageData.buttonAction.includes('REQ_AUTOWALK_TO_ENTITY')
+                    ? '<i class="fa-solid fa-person-walking mr-2" aria-hidden="true"></i>' : '';
                 html += `
-                    <div class="action-button-container text-center mt-4">
-                        <button onclick="${pageData.buttonAction}" class="toy-btn-purple mt-2 shadow-md hover:scale-105 transition-transform" aria-label="${pageData.buttonLabel}">
-                            ${iconHTML}${pageData.buttonLabel}
+                    <div class="text-center mt-2">
+                        <button onclick="${pageData.buttonAction}" class="toy-btn-purple mt-1" aria-label="${pageData.buttonLabel}">
+                            ${ico}${pageData.buttonLabel}
                         </button>
-                    </div>
-                `;
+                    </div>`;
             } else if (pageData.state) {
-                const stateStr = JSON.stringify(pageData.state).replace(/"/g, '&quot;');
+                const s = JSON.stringify(pageData.state).replace(/"/g, '&quot;');
                 html += `
-                    <div class="action-button-container mt-4 pt-4 border-t border-stone-300/30 text-center">
-                        <button class="toy-btn-purple mx-auto mt-2 shadow-md hover:scale-105 transition-transform"
-                            onclick='requestRestore(${stateStr})' aria-label="Restore previous state">
+                    <div class="mt-2 pt-2 border-t border-stone-500/30 text-center">
+                        <button class="toy-btn-purple mx-auto mt-1"
+                            onclick='requestRestore(${s})' aria-label="Restore previous state">
                             <i class="fa-solid fa-clock-rotate-left mr-2" aria-hidden="true"></i> Restore
                         </button>
-                        <p class="text-[10px] md:text-xs italic mt-2 opacity-70 text-[#2c1a14]">Reverts current location & status.</p>
+                        <p class="text-[10px] italic mt-1 opacity-70" style="color: var(--page-ink-dim);">Reverts current location &amp; status.</p>
                     </div>`;
             }
-
-            html += `</div>`;
+            html += '</div>';
             container.innerHTML = html;
         }
 
@@ -1359,438 +740,484 @@
             renderContent(document.getElementById('page-content-left'), game.pages[game.currentPageIdx]);
             renderContent(document.getElementById('page-content-right'), game.pages[game.currentPageIdx + 1]);
             document.getElementById('page-num-left').innerText = game.currentPageIdx + 1;
-            document.getElementById('page-num-right').innerText = game.currentPageIdx + 2 <= game.pages.length ? game.currentPageIdx + 2 : '';
-            requestAnimationFrame(() => adjustTextFit());
-
-            if (typeof window.update3DPages === 'function') window.update3DPages();
-
+            document.getElementById('page-num-right').innerText =
+                game.currentPageIdx + 2 <= game.pages.length ? game.currentPageIdx + 2 : '';
+            applyFontSize();
+            scheduleAlign();
             const announcer = document.getElementById('sr-announcer');
-            if (announcer) announcer.textContent = "Viewing pages " + (game.currentPageIdx + 1) + " and " + (game.currentPageIdx + 2 <= game.pages.length ? game.currentPageIdx + 2 : '');
+            if (announcer) announcer.textContent = 'Viewing pages ' + (game.currentPageIdx + 1)
+                + ' and ' + (game.currentPageIdx + 2 <= game.pages.length ? game.currentPageIdx + 2 : '');
         }
 
-        function adjustTextFit() {
-            let bestIndex = window.getPageFontIndex(game.currentPageIdx || 0);
-            const newSize = journalFontSizes[bestIndex];
-            document.documentElement.style.setProperty('--logbook-font-size', newSize);
-            let styleTag = document.getElementById('dynamic-font-override');
-            if (!styleTag) { styleTag = document.createElement('style'); styleTag.id = 'dynamic-font-override'; document.head.appendChild(styleTag); }
-            styleTag.innerHTML = `.book-text { font-size: ${newSize} !important; }`;
-        }
-
-        window.turnPage = (dir) => {
+        window.turnPage = function (dir) {
             if (game.isFlipping) return;
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            const flipper = document.getElementById('flipper');
-            const animationTime = prefersReducedMotion ? 0 : 250;
-
             if (dir === 'next' && game.currentPageIdx < game.pages.length - 2) {
-                flipper.classList.remove('hidden'); game.isFlipping = true;
-                renderContent(document.getElementById('flipper-content-front'), game.pages[game.currentPageIdx + 1]);
-                renderContent(document.getElementById('flipper-content-back'), game.pages[game.currentPageIdx + 2]);
-                flipper.style.transition = prefersReducedMotion ? 'none' : 'transform 0.25s ease-in-out';
-                flipper.style.transform = 'rotateY(-180deg)';
-                setTimeout(() => { game.currentPageIdx += 2; updateBookView(); flipper.style.transition = 'none'; flipper.style.transform = 'rotateY(0deg)'; flipper.classList.add('hidden'); game.isFlipping = false; }, animationTime);
+                game.currentPageIdx += 2;
+                updateBookView();
             } else if (dir === 'prev' && game.currentPageIdx > 0) {
-                flipper.classList.remove('hidden'); game.isFlipping = true;
-                renderContent(document.getElementById('flipper-content-back'), game.pages[game.currentPageIdx]);
-                renderContent(document.getElementById('flipper-content-front'), game.pages[game.currentPageIdx - 1]);
-                flipper.style.transition = 'none'; flipper.style.transform = 'rotateY(-180deg)'; void flipper.offsetWidth;
-                flipper.style.transition = prefersReducedMotion ? 'none' : 'transform 0.25s ease-in-out';
-                flipper.style.transform = 'rotateY(0deg)';
-                setTimeout(() => { game.currentPageIdx -= 2; updateBookView(); flipper.classList.add('hidden'); game.isFlipping = false; }, animationTime);
+                game.currentPageIdx -= 2;
+                updateBookView();
             }
         };
 
-        window.switchBookTab = (tab) => {
-            document.querySelectorAll('.book-tab').forEach(el => {
+        window.switchBookTab = function (tab) {
+            document.querySelectorAll('.book-tab').forEach((el) => {
                 el.classList.remove('active');
                 el.setAttribute('aria-selected', 'false');
             });
-            const activeTab = document.getElementById(`tab-${tab}`);
+            const activeTab = document.getElementById('tab-' + tab);
             if (activeTab) {
                 activeTab.classList.add('active');
                 activeTab.setAttribute('aria-selected', 'true');
             }
-
             game.currentTab = tab;
-            game.pages = game.content[tab] ? [...game.content[tab]] : [];
-
+            game.pages = game.content[tab] ? game.content[tab].slice() : [];
             if (game.pages.length === 0) {
-                game.pages.push({ title: "Empty Section", text: "This section of the journal is currently empty." });
+                game.pages.push({ title: 'Empty Section', text: 'This section of the journal is currently empty.' });
             }
             if (game.pages.length % 2 !== 0) {
-                game.pages.push({ title: "", text: "" });
+                game.pages.push({ title: '', text: '' });
             }
-
             game.currentPageIdx = 0;
             updateBookView();
         };
 
-        window.addPage = (category, title, text, state = null, imageUrl = null, videoUrl = null, buttonLabel = null, buttonAction = null) => {
-            if (!text) { text = title; title = category; category = 'log'; }
-
-            let formattedText = text;
-            if (typeof text === 'string' && text.length > 0 && !text.startsWith('<')) {
-                // Let CSS handle drop cap
-            }
-
+        window.addPage = function (category, title, text, state, imageUrl, videoUrl, buttonLabel, buttonAction) {
+            // Legacy positional signature: (title, text) → defaults category 'log'.
+            if (text === undefined) { text = title; title = category; category = 'log'; }
             let icon = 'fa-solid fa-feather-pointed';
             if (category === 'quests') icon = 'fa-solid fa-scroll';
             if (category === 'bestiary') icon = 'fa-solid fa-dragon';
-
+            if (category === 'buildings') icon = 'fa-solid fa-campground';
             const entry = {
-                title, text: formattedText, state, icon, imageUrl, videoUrl, buttonLabel, buttonAction
+                title, text, state: state || null, icon,
+                imageUrl: imageUrl || null, videoUrl: videoUrl || null,
+                buttonLabel: buttonLabel || null, buttonAction: buttonAction || null,
             };
-
-            if (game.content[category]) {
-                game.content[category].push(entry);
-                if (game.currentTab === category) {
-                    window.switchBookTab(category);
-                }
-            }
+            if (!game.content[category]) game.content[category] = [];
+            game.content[category].push(entry);
+            if (game.currentTab === category) window.switchBookTab(category);
         };
 
-        /* --- INTERACTIVE 3D MODELS MANIFEST (For LLM/Rasa Context) --- */
-        window.INTERACTIVE_ENTITIES_MANIFEST = [
-            { id: "tipi", name: "Tipi", type: "building", interactable: true },
-            { id: "axe", name: "Stone Axe", type: "tool", interactable: true },
-            { id: "yellowbutterfly", name: "Yellow Butterfly", type: "creature", interactable: true },
-            { id: "campfire", name: "Campfire", type: "object", interactable: true },
-            { id: "fox", name: "Wild Fox", type: "creature", interactable: true },
-            { id: "bringshappinessgirl", name: "Brings Happiness Girl", type: "npc", interactable: true },
-            { id: "rabbit", name: "Wild Rabbit", type: "creature", interactable: true },
-            { id: "deer", name: "Deer", type: "creature", interactable: true },
-            { id: "naturespirit", name: "Nature Spirit", type: "npc", interactable: true }
-        ];
-
-        /* --- VALID GAME VERBS --- */
-        window.VALID_VERBS = [
-            "get", "fish", "chop", "eat", "help", "talk", "sleep", "gather",
-            "hide", "run", "walk", "look", "climb", "enter", "interact",
-            "use", "examine", "take", "go", "pick", "build", "craft", "start"
-        ];
-
-        /* --- START GAME SEQUENCE --- */
-        window.startGameSequence = () => {
-            console.log("[Journal] START GAME CTA clicked!");
-            const input = document.getElementById('llm-input');
-            if(input) input.classList.remove('bloom-input');
-            window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'yellowbutterfly' }, '*');
-            window.parent.postMessage({ type: 'CLOSE_LOGBOOK' }, '*');
-        };
-
-        function submitLogbookChat() {
-            const inputEl = document.getElementById('llm-input');
-            const feedbackEl = document.getElementById('parser-feedback');
-            const val = inputEl.value.trim().toLowerCase();
-
-            if (!val) return;
-
-            const cmd = val.toLowerCase();
-            const closeCommands = ['close', 'exit', 'exit journal', 'close journal', 'close book', 'exit book', 'quit', 'bye'];
-            if (closeCommands.includes(cmd)) {
-                inputEl.value = ''; inputEl.blur();
-                if (window.initiateCloseSequence) window.initiateCloseSequence();
-                return;
-            }
-
-            const cleanVal = val.replace(/[^\w\s]/gi, '');
-            const words = cleanVal.split(/\s+/);
-            const firstWord = words[0];
-
-            let matchedVerb = window.VALID_VERBS.find(v => words.includes(v));
-
-            if (!matchedVerb) {
-                matchedVerb = window.VALID_VERBS.find(v => firstWord.startsWith(v));
-            }
-
-            if (!matchedVerb) {
-                feedbackEl.textContent = `Parser: Unknown action "${firstWord}". Try gather, look, or enter.`;
-                feedbackEl.style.color = '#fca5a5';
-                inputEl.value = '';
-                inputEl.blur();
-                return;
-            }
-
-            let matchedEntity = null;
-            for (let entity of window.INTERACTIVE_ENTITIES_MANIFEST) {
-                if (val.includes(entity.name.toLowerCase()) || val.includes(entity.id.toLowerCase())) {
-                    matchedEntity = entity;
-                    break;
-                }
-            }
-
-            const displayVerb = matchedVerb.charAt(0).toUpperCase() + matchedVerb.slice(1);
-
-            if (matchedEntity) {
-                feedbackEl.textContent = `Executing (${displayVerb} + ${matchedEntity.name}) + moving to coordinates (${matchedEntity.id} location).`;
-                feedbackEl.style.color = '#86efac';
-            } else {
-                feedbackEl.textContent = `Executing (${displayVerb})...`;
-                feedbackEl.style.color = '#86efac';
-            }
-
-            try { window.top.postMessage({ type: 'PROCESS_INPUT', value: val, context: { currentTab: game.currentTab, currentPage: game.currentPageIdx, interactiveModels: window.INTERACTIVE_ENTITIES_MANIFEST, recognizedVerb: matchedVerb } }, '*'); } catch (e) { }
-
-            inputEl.classList.remove('bloom-input');
-            inputEl.value = ''; inputEl.blur();
-            const announcer = document.getElementById('sr-announcer');
-            if (announcer) announcer.textContent = feedbackEl.textContent;
-        }
-
-        /* --- JSON DATABASE --- */
-        window.LOGBOOK_DATA = {
-            log: [
-                {
-                    pageId: 1,
-                    title: "Welcome",
-                    icon: "fa-solid fa-gamepad",
-                    contentBlocks: [
-                        {
-                            type: "html-box", html: `
-                            <div class="w-full mb-4">
-                                <video autoplay loop muted playsinline preload="auto" tabindex="0" class="rounded-md shadow-md w-full aspect-video object-cover cursor-pointer border border-[#1c100b]/20 focus:outline-none focus:ring-2 focus:ring-[#cda434]"
-                                    onclick="if(this.paused){this.play();}else{this.pause();}">
-                                    <source src="./Assets/AnimatedOpening.mp4" type="video/mp4">
-                                </video>
-                            </div>
-                            <p class="book-text">Welcome to Sacred Adventures!<br><br>This game is connected to a real-world charity project to build the same buildings you will -- in the real world. This is a digital twin game, so the more you play, the more interest we get to help build our real Sioux Indian Village!</p>
-                        ` }
-                    ]
-                },
-                {
-                    pageId: 2,
-                    title: "The Map PIP",
-                    icon: "fa-solid fa-map",
-                    contentBlocks: [
-                        { type: "pip-box" },
-                        { type: "text-box", text: "Click the live viewfinder above to enter the Village View and start building. Click the button below to start playing." },
-                        { type: "text-box", text: "Use the text box below to interact with the game. You can interact with everything in the scene by typing if you would like. This is a real 3D Game for WCAG Accessibility." }
-                    ],
-                    button: { label: "Start Game", action: "window.startGameSequence();" }
-                },
-                {
-                    pageId: 3,
-                    title: "Yellow Butterfly",
-                    contentBlocks: [
-                        { type: "selfie-box", target: "yellowButterfly" },
-                        { type: "text-box", text: "Welcome to our village. You can learn to build your own village by first helping to build the digital twin. To build a tipi, you must first speak with my daughter." }
-                    ],
-                    button: { label: "Meet Her", style: "background-color: #6a1b9a; color: white;", action: "window.parent.postMessage({ type: 'REQ_AUTOWALK_TO_ENTITY', targetName: 'bringshappinessgirl' }, '*'); setTimeout(() => { window.parent.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*'); }, 300);" }
-                },
-                {
-                    pageId: 4,
-                    title: "Brings Happiness Girl",
-                    contentBlocks: [
-                        { type: "text-box", text: "Hello! I am Brings Happiness Girl. I will teach you the ways of building our home." }
-                    ]
-                }
-            ],
-            quests: [
-                {
-                    pageId: 1,
-                    title: "The Beginning",
-                    contentBlocks: [
-                        { type: "text-box", text: "Your journey starts here. Explore the world and discover your first quest." }
-                    ],
-                    button: { label: "Start Game", action: "window.startGameSequence();" }
-                }
-            ],
-            bestiary: [
-                {
-                    pageId: 1,
-                    title: "Creatures of the Valley",
-                    contentBlocks: [
-                        { type: "text-box", text: "You have not discovered any creatures yet." }
-                    ]
-                }
-            ],
-            buildings: [
-                {
-                    pageId: 1,
-                    title: "Village Architecture",
-                    contentBlocks: [
-                        { type: "text-box", text: "Select a building in Village View to see its details." }
-                    ]
-                }
-            ]
-        };
-
+        /* ── Content blocks compiler ────────────────────────────────────── */
         const JournalMasterAI = {
-            renderBox: (block) => {
+            renderBox: function (block) {
                 if (block.type === 'text-box') {
-                    let text = block.text;
-                    if (text.length > 0) {
-                        // Let CSS handle drop cap
-                    }
-                    return `<div class="book-text"><p>${text}</p></div>`;
+                    return '<div class="book-text"><p>' + (block.text || '') + '</p></div>';
                 }
                 if (block.type === 'html-box') {
-                    return `<div class="w-full text-left">${block.html}</div>`;
+                    return '<div class="w-full text-left">' + (block.html || '') + '</div>';
                 }
                 if (block.type === 'pip-box') {
                     const targetId = block.target || 'pip';
                     const isPip = targetId === 'pip';
                     const clickAction = isPip
-                        ? "window.parent.postMessage({type:'TOGGLE_VIEW_MODE'},'*'); this.closest('[data-pip-target]') && this.closest('[data-pip-target]').classList.add('pip-clicked');"
-                        : "";
-                    const cursorClass = isPip ? "cursor-pointer" : "";
-                    const bloomRing = isPip ? `
-                        <div class="pip-bloom-ring" aria-hidden="true"></div>
-                        <div class="pip-tap-hint" aria-hidden="true">👆 Tap to Switch View</div>
-                    ` : '';
-                    return `
-                        <div class="w-full flex justify-center mt-1 mb-2" style="position:relative;">
-                            <div onclick="${clickAction}" data-pip-target="${targetId}" class="pip-circle-wrap ${cursorClass}" style="background-image: url('Assets/PIP.SacredOnes.png'); background-size: cover; background-position: center;">
-                                ${bloomRing}
-                            </div>
-                        </div>
-                    `;
+                        ? "window.parent.postMessage({type:'TOGGLE_VIEW_MODE'},'*');"
+                        : '';
+                    const cursorClass = isPip ? 'cursor-pointer' : '';
+                    const ring = isPip
+                        ? '<div class="pip-bloom-ring" aria-hidden="true"></div>'
+                          + '<div class="pip-tap-hint" aria-hidden="true">👆 Tap to Switch View</div>'
+                        : '';
+                    return '<div class="w-full flex justify-center mt-1 mb-2" style="position:relative;">'
+                        + '<div onclick="' + clickAction + '" data-pip-target="' + targetId + '" '
+                        + 'class="pip-circle-wrap ' + cursorClass + '" '
+                        + 'style="background-image:url(\'Assets/PIP.SacredOnes.png\');background-size:cover;background-position:center;">'
+                        + ring
+                        + '</div></div>';
                 }
                 if (block.type === 'selfie-box') {
                     const targetId = block.target || 'selfie';
-                    return `
-                        <div class="w-full flex justify-center mt-1 mb-2">
-                            <div data-selfie-target="${targetId}" class="w-full aspect-[2/3] max-w-[180px] bg-stone-900 rounded-lg border-2 border-stone-600/40 shadow-inner flex flex-col items-center justify-center overflow-hidden relative" style="background-color: #000;">
-                            </div>
-                        </div>
-                    `;
+                    return '<div class="w-full flex justify-center mt-1 mb-1">'
+                        + '<div data-selfie-target="' + targetId + '" '
+                        + 'class="w-full aspect-[2/3] max-w-[150px] rounded-lg overflow-hidden relative" '
+                        + 'style="background-color:rgba(250,246,239,0.55); border:2px solid rgba(80,62,42,0.22); box-shadow: inset 0 2px 8px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.15);"></div></div>';
                 }
                 if (block.type === 'image-box') {
-                    return `
-                        <div class="w-full flex justify-center mt-2 mb-3">
-                            <img src="${block.url}" class="rounded-md shadow-md max-w-[80%] max-h-[140px] border border-[#1c100b]/20" alt="Illustration">
-                        </div>
-                    `;
+                    return '<div class="w-full flex justify-center mt-1 mb-2">'
+                        + '<img src="' + block.url + '" class="rounded-md shadow-md max-w-[82%] max-h-[118px] object-cover border border-stone-600/30" alt="Illustration"></div>';
                 }
                 if (block.type === 'video-box') {
-                    const vidSrc = window.parent && window.parent._cachedVideoBlobUrl ? window.parent._cachedVideoBlobUrl : block.url;
-                    return `
-                        <div class="w-full flex justify-center mt-2 mb-3">
-                            <video muted playsinline autoplay preload="auto" class="rounded-md shadow-md max-w-[80%] max-h-[140px] cursor-pointer border border-[#1c100b]/20"
-                                onended="this.pause();" onclick="if(this.paused){this.currentTime=0; this.play();}else{this.pause();}">
-                                <source src="${vidSrc}" type="video/mp4">
-                            </video>
-                        </div>
-                    `;
+                    const vidSrc = (window.parent && window.parent._cachedVideoBlobUrl) || block.url;
+                    return '<div class="w-full flex justify-center mt-1 mb-2">'
+                        + '<video muted playsinline autoplay loop preload="auto" '
+                        + 'class="rounded-md shadow-md max-w-[88%] max-h-[118px] object-cover cursor-pointer border border-stone-600/35" '
+                        + 'onended="this.pause();" onclick="if(this.paused){this.currentTime=0; this.play();}else{this.pause();}">'
+                        + '<source src="' + vidSrc + '" type="video/mp4"></video></div>';
                 }
                 return '';
             },
-
-            compilePage: (pageData) => {
+            compilePage: function (pageData) {
                 let html = '';
                 if (pageData.contentBlocks) {
-                    pageData.contentBlocks.forEach(block => {
-                        html += JournalMasterAI.renderBox(block);
-                    });
+                    pageData.contentBlocks.forEach((b) => { html += JournalMasterAI.renderBox(b); });
                 }
                 return html;
             },
-
-            initializeDatabase: () => {
-                game.content = { log: [], quests: [], bestiary: [] };
-                Object.keys(window.LOGBOOK_DATA).forEach(category => {
-                    window.LOGBOOK_DATA[category].forEach(page => {
-                        const compiledHTML = JournalMasterAI.compilePage(page);
+            initializeDatabase: function () {
+                game.content = { log: [], quests: [], bestiary: [], buildings: [] };
+                Object.keys(window.LOGBOOK_DATA).forEach((category) => {
+                    window.LOGBOOK_DATA[category].forEach((page) => {
+                        const compiled = JournalMasterAI.compilePage(page);
                         window.addPage(
-                            category, page.title, compiledHTML, page.state || null, null, null,
-                            page.button ? page.button.label : null, page.button ? page.button.action : null
+                            category, page.title, compiled, page.state || null, null, null,
+                            page.button ? page.button.label : null,
+                            page.button ? page.button.action : null,
                         );
                     });
                 });
                 window.switchBookTab('log');
-                if (typeof window.update3DPages === 'function') window.update3DPages();
-            }
+            },
         };
 
-        window.addEventListener('DOMContentLoaded', () => {
-            JournalMasterAI.initializeDatabase();
-        });
+        /* ── Interactive entities + verb manifest (used by parent) ──────── */
+        window.INTERACTIVE_ENTITIES_MANIFEST = [
+            { id: 'tipi',                name: 'Tipi',                  type: 'building',    anuDomain: 'structures',  interactable: true },
+            { id: 'campfire',            name: 'Campfire',              type: 'object',      anuDomain: 'structures',  interactable: true },
+            { id: 'axe', name: 'Stone Axe', aliases: ['stone axe', 'hand axe', 'quest axe'], type: 'tool',        anuDomain: 'items',       interactable: true },
+            { id: 'yellowbutterfly',     name: 'Yellow Butterfly',      type: 'creature',    anuDomain: 'fauna',       interactable: true },
+            { id: 'fox',                 name: 'Wild Fox',              type: 'creature',    anuDomain: 'fauna',       interactable: true },
+            { id: 'rabbit',              name: 'Wild Rabbit',           type: 'creature',    anuDomain: 'fauna',       interactable: true },
+            { id: 'deer',                name: 'Deer',                  type: 'creature',    anuDomain: 'fauna',       interactable: true },
+            { id: 'stag',                name: 'Stag',                  type: 'creature',    anuDomain: 'fauna',       interactable: true },
+            { id: 'bringshappinessgirl', name: 'Brings Happiness Girl', type: 'npc',         anuDomain: 'population',  interactable: true },
+            { id: 'naturespirit',        name: 'Nature Spirit',         type: 'npc',         anuDomain: 'population',  interactable: true },
+            { id: 'pond',                name: 'Sacred Pool',           type: 'water',       anuDomain: 'environment', interactable: true },
+            { id: 'fish',                name: 'Fish',                  type: 'creature',    anuDomain: 'fauna',       interactable: true },
+            { id: 'waterfall',           name: 'Waterfall',             type: 'water',       anuDomain: 'environment', interactable: true },
+            { id: 'stream',              name: 'Stream',                type: 'water',       anuDomain: 'environment', interactable: true },
+            { id: 'fishingspot',         name: 'Fishing Spot',          type: 'activity',    anuDomain: 'environment', interactable: true },
+            { id: 'sacredtree',          name: 'Sacred Tree',           type: 'flora',       anuDomain: 'flora',       interactable: true },
+            { id: 'forest',              name: 'Forest',                type: 'environment', anuDomain: 'flora',       interactable: false },
+            { id: 'village',             name: 'Village',               type: 'environment', anuDomain: 'structures',  interactable: false },
+        ];
 
-        function alignTipiCanvas() {
-            if (!window.isDOMActive) {
-                window.parent.postMessage({ type: 'REQ_HIDE_TIPI' }, '*');
+        window.VALID_VERBS = [
+            'goto', 'pickup', 'grab',
+            'go', 'walk', 'run', 'enter', 'approach', 'visit', 'move', 'find',
+            'look', 'examine', 'inspect', 'watch', 'see',
+            'fish', 'swim', 'feed', 'drink', 'rest', 'sit',
+            'talk', 'greet', 'meet', 'help', 'interact', 'use',
+            'gather', 'get', 'take', 'pick', 'chop', 'harvest',
+            'build', 'craft', 'start',
+            'eat', 'sleep', 'hide', 'climb',
+        ];
+
+        /* ── CTAs ───────────────────────────────────────────────────────── */
+        window.startGameSequence = function () {
+            try {
+                window.parent.postMessage({ type: 'JOURNAL_START_GAME_INTRO' }, '*');
+            } catch (e) { }
+        };
+
+        /* ── Chat / parser ──────────────────────────────────────────────── */
+        function submitLogbookChat() {
+            const inputEl = document.getElementById('llm-input');
+            const feedbackEl = document.getElementById('parser-feedback');
+            const val = (inputEl.value || '').trim().toLowerCase();
+            if (!val) return;
+
+            const closeCmds = ['close', 'exit', 'exit journal', 'close journal', 'close book', 'exit book', 'quit', 'bye'];
+            if (closeCmds.includes(val)) {
+                inputEl.value = ''; inputEl.blur();
+                initiateCloseSequence();
                 return;
             }
-            const feedImgs = document.querySelectorAll('[data-pip-target]');
-            let rects = [];
-            let targetId = 'tipi';
 
-            for (const img of feedImgs) {
-                if (!img.closest('.page-flipper') && window.getComputedStyle(img).display !== 'none') {
-                    const rect = img.getBoundingClientRect();
-                    if (rect.width > 0 && rect.height > 0) {
-                        targetId = img.getAttribute('data-pip-target');
-                        rects.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+            const clean = val.replace(/[^\w\s]/gi, '');
+            const words = clean.split(/\s+/);
+            const firstWord = words[0];
+
+            let matchedVerb = window.VALID_VERBS.find((v) => words.includes(v));
+            if (!matchedVerb) matchedVerb = window.VALID_VERBS.find((v) => firstWord.startsWith(v));
+
+            if (!matchedVerb) {
+                feedbackEl.textContent = `Parser: Unknown action "${firstWord}". Try goto, grab, look, gather, or move.`;
+                feedbackEl.style.color = '#fca5a5';
+                inputEl.value = ''; inputEl.blur();
+                return;
+            }
+
+            function journalManifestMatches(ent, valLower) {
+                const ids = [ent.name.toLowerCase(), ent.id.toLowerCase()];
+                if (Array.isArray(ent.aliases)) {
+                    for (let ai = 0; ai < ent.aliases.length; ai++) {
+                        ids.push(String(ent.aliases[ai]).toLowerCase());
                     }
                 }
+                for (let bi = 0; bi < ids.length; bi++) {
+                    const s = ids[bi].trim();
+                    if (s.length >= 2 && valLower.includes(s)) return true;
+                }
+                return false;
             }
-            if (rects.length > 0) {
-                window.parent.postMessage({ type: 'REQ_ALIGN_TIPI', target: targetId, rect: rects[0], rects: rects }, '*');
-            } else {
-                window.parent.postMessage({ type: 'REQ_HIDE_TIPI' }, '*');
+
+            let matchedEntity = null;
+            for (const ent of window.INTERACTIVE_ENTITIES_MANIFEST) {
+                if (journalManifestMatches(ent, val)) {
+                    matchedEntity = ent;
+                    break;
+                }
             }
+
+            const displayVerb = matchedVerb.charAt(0).toUpperCase() + matchedVerb.slice(1);
+            feedbackEl.textContent = matchedEntity
+                ? `Executing (${displayVerb} + ${matchedEntity.name}) + moving to coordinates (${matchedEntity.id} location).`
+                : `Executing (${displayVerb})...`;
+            feedbackEl.style.color = '#86efac';
+
+            try {
+                window.top.postMessage({
+                    type: 'PROCESS_INPUT',
+                    value: val,
+                    context: {
+                        currentTab: game.currentTab,
+                        currentPage: game.currentPageIdx,
+                        interactiveModels: window.INTERACTIVE_ENTITIES_MANIFEST,
+                        recognizedVerb: matchedVerb,
+                    },
+                }, '*');
+            } catch (e) { }
+
+            inputEl.value = ''; inputEl.blur();
+            const announcer = document.getElementById('sr-announcer');
+            if (announcer) announcer.textContent = feedbackEl.textContent;
+        }
+        window.submitLogbookChat = submitLogbookChat;
+
+        /* ── Content database ───────────────────────────────────────────── */
+        window.LOGBOOK_DATA = {
+            log: [
+                {
+                    pageId: 1,
+                    title: 'Welcome',
+                    icon: 'fa-solid fa-gamepad',
+                    contentBlocks: [
+                        { type: 'video-box', url: './Assets/landscape-scenes/cinematic/animated-opening.mp4' },
+                        {
+                            type: 'text-box',
+                            text: 'Sacred Adventures is a digital twin of our Sioux village build—playing here lifts visibility for the same structures we construct in the real world.',
+                        },
+                        {
+                            type: 'text-box',
+                            text: 'You can reach every landmark and tool by typing in the journal prompt below—a full keyboard path through the scene (WCAG-friendly). Turn the page to meet the Picture-in-Picture map and tap Start Game when you\'re ready to walk.',
+                        },
+                    ],
+                },
+                {
+                    pageId: 2,
+                    title: 'Introduction to the PIP',
+                    icon: 'fa-solid fa-map',
+                    contentBlocks: [
+                        { type: 'pip-box' },
+                        {
+                            type: 'text-box',
+                            text: 'Tap the living viewfinder to open Village View, place structures, and read each plot. Village View carries the blueprint layer; Village Walk is boots on the grass.',
+                        },
+                        {
+                            type: 'text-box',
+                            text: 'Use prompts like “gather wood near Sacred Tree”, “inspect fishingspot”, or “approach fox” whenever you\'d rather type than steer with keys.',
+                        },
+                    ],
+                    button: { label: 'Start Game', action: 'window.startGameSequence();' },
+                },
+                {
+                    pageId: 3,
+                    title: 'Yellow Butterfly',
+                    contentBlocks: [
+                        { type: 'selfie-box', target: 'yellowButterfly' },
+                        {
+                            type: 'text-box',
+                            text: 'Welcome to our village. You can learn to build your own village by first helping to build the digital twin. To build a tipi, you must first speak with my daughter.',
+                        },
+                    ],
+                    button: {
+                        label: 'GREET HER',
+                        action: "window.parent.postMessage({ type: 'JOURNAL_GREET_BHG' }, '*');",
+                    },
+                },
+                {
+                    pageId: 4,
+                    title: 'Brings Happiness Girl',
+                    icon: 'fa-solid fa-heart',
+                    contentBlocks: [
+                        {
+                            type: 'text-box',
+                            text: 'Brings Happiness Girl welcomes relatives beside her lodge fire. Her doorway opens toward the southern meadow — listen for laughter before you step inside.',
+                        },
+                    ],
+                },
+                {
+                    pageId: 5,
+                    title: 'Walking the Village',
+                    contentBlocks: [
+                        {
+                            type: 'image-box',
+                            url: './Assets/JournalHudDpadGuide.png',
+                        },
+                        {
+                            type: 'text-box',
+                            text: 'Press W and S — or ↑ and ↓ — to walk forward and back. Turn with A/D or ← and →. You can tap the HUD thumb pad below the compass (or use UP / DOWN / LEFT / RIGHT buttons) without the keyboard.',
+                        },
+                        {
+                            type: 'text-box',
+                            text: 'Click the grass anywhere you can stand: your avatar walks there with obstacle-aware pathing.',
+                        },
+                    ],
+                },
+                {
+                    pageId: 6,
+                    title: 'Get Axe',
+                    icon: 'fa-solid fa-hammer',
+                    contentBlocks: [
+                        {
+                            type: 'text-box',
+                            text: 'Her hand-carved stone axe rests in the grass just outside her doorway on the southeast side — past the deck lip toward the meadow, not on the sacred circle.',
+                        },
+                        {
+                            type: 'text-box',
+                            text: 'Walk up and click the slowly turning axe: a brief bloom of light lifts it into your inventory while the Event Log opens beside her profile.',
+                        },
+                    ],
+                },
+            ],
+            quests: [
+                {
+                    pageId: 1,
+                    title: 'The Beginning',
+                    contentBlocks: [
+                        {
+                            type: 'text-box',
+                            text: 'Explore the pastures, ponds, and tipi rings marked on your HUD. Completing errands here echoes the fundraisers that buy real lodges for families returning to ceremony.',
+                        },
+                    ],
+                    button: { label: 'Start Game', action: 'window.startGameSequence();' },
+                },
+            ],
+            bestiary: [
+                {
+                    pageId: 1,
+                    title: 'Wild Fox',
+                    contentBlocks: [
+                        { type: 'image-box', url: './Assets/Journal.Cover.png' },
+                        {
+                            type: 'text-box',
+                            text: 'A fast scout of the birch edge—kits train in briar tunnels while adults cache rabbits near the Sacred Pool outflow.',
+                        },
+                    ],
+                },
+            ],
+            buildings: [
+                {
+                    pageId: 1,
+                    title: 'Village Architecture',
+                    contentBlocks: [
+                        {
+                            type: 'text-box',
+                            text: 'Stand inside Village View and tap any foundation ring to inspect materials, timelines, stewards still raising funds.',
+                        },
+                    ],
+                },
+            ],
+        };
+
+        /* ── 3D canvas alignment messaging ──────────────────────────────── */
+        function alignTipiCanvas() {
+            if (!window.isDOMActive) {
+                try { window.parent.postMessage({ type: 'REQ_HIDE_TIPI' }, '*'); } catch (e) { }
+                return;
+            }
+            const imgs = document.querySelectorAll('[data-pip-target]');
+            const rects = [];
+            let targetId = 'tipi';
+            imgs.forEach((img) => {
+                if (window.getComputedStyle(img).display === 'none') return;
+                const r = img.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0) {
+                    targetId = img.getAttribute('data-pip-target');
+                    rects.push({ x: r.x, y: r.y, width: r.width, height: r.height });
+                }
+            });
+            try {
+                if (rects.length > 0) {
+                    window.parent.postMessage({ type: 'REQ_ALIGN_TIPI', target: targetId, rect: rects[0], rects: rects }, '*');
+                } else {
+                    window.parent.postMessage({ type: 'REQ_HIDE_TIPI' }, '*');
+                }
+            } catch (e) { }
         }
 
         function alignAxeCanvas() {
             if (!window.isDOMActive) {
-                window.parent.postMessage({ type: 'REQ_HIDE_AXE' }, '*');
+                try { window.parent.postMessage({ type: 'REQ_HIDE_AXE' }, '*'); } catch (e) { }
                 return;
             }
             const tgt = document.getElementById('axe-3d-target');
-            if (tgt && !tgt.closest('.page-flipper') && window.getComputedStyle(tgt).display !== 'none') {
-                const rect = tgt.getBoundingClientRect();
-                const isHidden = rect.width === 0 || rect.height === 0;
-                window.parent.postMessage({ type: isHidden ? 'REQ_HIDE_AXE' : 'REQ_ALIGN_AXE', rect: isHidden ? null : { x: rect.x, y: rect.y, width: rect.width, height: rect.height } }, '*');
-            } else {
-                window.parent.postMessage({ type: 'REQ_HIDE_AXE' }, '*');
-            }
+            try {
+                if (tgt && window.getComputedStyle(tgt).display !== 'none') {
+                    const r = tgt.getBoundingClientRect();
+                    const hidden = r.width === 0 || r.height === 0;
+                    window.parent.postMessage({
+                        type: hidden ? 'REQ_HIDE_AXE' : 'REQ_ALIGN_AXE',
+                        rect: hidden ? null : { x: r.x, y: r.y, width: r.width, height: r.height }
+                    }, '*');
+                } else {
+                    window.parent.postMessage({ type: 'REQ_HIDE_AXE' }, '*');
+                }
+            } catch (e) { }
         }
 
         function alignSelfieCanvas() {
             if (!window.isDOMActive) {
-                window.parent.postMessage({ type: 'REQ_HIDE_SELFIE' }, '*');
+                try { window.parent.postMessage({ type: 'REQ_HIDE_SELFIE' }, '*'); } catch (e) { }
                 return;
             }
-            const feedImgs = document.querySelectorAll('[data-selfie-target]');
-            let rects = [];
+            const imgs = document.querySelectorAll('[data-selfie-target]');
+            const rects = [];
             let targetId = 'selfie';
-
-            for (const img of feedImgs) {
-                if (!img.closest('.page-flipper') && window.getComputedStyle(img).display !== 'none') {
-                    const rect = img.getBoundingClientRect();
-                    if (rect.width > 0 && rect.height > 0) {
-                        targetId = img.getAttribute('data-selfie-target');
-                        rects.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-                    }
+            imgs.forEach((img) => {
+                if (window.getComputedStyle(img).display === 'none') return;
+                const r = img.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0) {
+                    targetId = img.getAttribute('data-selfie-target');
+                    rects.push({ x: r.x, y: r.y, width: r.width, height: r.height });
                 }
-            }
-            if (rects.length > 0) {
-                window.parent.postMessage({ type: 'REQ_ALIGN_SELFIE', target: targetId, rect: rects[0] }, '*');
-            } else {
-                window.parent.postMessage({ type: 'REQ_HIDE_SELFIE' }, '*');
-            }
+            });
+            try {
+                if (rects.length > 0) {
+                    window.parent.postMessage({ type: 'REQ_ALIGN_SELFIE', target: targetId, rect: rects[0] }, '*');
+                } else {
+                    window.parent.postMessage({ type: 'REQ_HIDE_SELFIE' }, '*');
+                }
+            } catch (e) { }
         }
 
         function scheduleAlign() {
             if (window._isBookVisibleOverride === false) return;
-            alignTipiCanvas();
-            alignAxeCanvas();
-            alignSelfieCanvas();
+            // Defer one frame so DOM has laid out before we measure rects.
+            requestAnimationFrame(() => {
+                alignTipiCanvas();
+                alignAxeCanvas();
+                alignSelfieCanvas();
+            });
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            if (window.ResizeObserver) {
-                const ro = new ResizeObserver(() => scheduleAlign());
-                ro.observe(document.body);
-            }
-            if (window.MutationObserver) {
-                const mo = new MutationObserver(() => scheduleAlign());
-                const container = document.querySelector('.book-content');
-                if (container) mo.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-            }
+        /* ── Resolution indicator ──────────────────────────────────────── */
+        function updateResIndicator() {
+            const ind = document.getElementById('res-indicator');
+            if (!ind) return;
+            const w = window.innerWidth;
+            let vp = 'Desktop';
+            if (w < 640) vp = 'Mobile';
+            else if (w < 1024) vp = 'Tablet';
+            ind.textContent = vp + ' [' + w + 'x' + window.innerHeight + ']';
+        }
+        window.addEventListener('resize', () => {
+            updateResIndicator();
+            scheduleAlign();
         });
 
+        /* ── Parent → iframe messages ──────────────────────────────────── */
         window.addEventListener('message', (e) => {
             const d = e.data;
             if (!d) return;
@@ -1799,69 +1226,157 @@
                 window.isLogbookVisible = d.isVisible;
                 window._isBookVisibleOverride = d.isVisible;
                 if (d.isVisible) {
-                    if (window._isClosingSequence) window._isClosingSequence = false;
-                    if (window.initiateOpenSequence && (!window.journal3D || !window.journal3D.isOpen)) window.initiateOpenSequence();
+                    window._isClosingSequence = false;
+                    if (!window.journal3D.isOpen) initiateOpenSequence();
                 } else {
                     window._isClosingSequence = true;
-                    if (window.initiateCloseSequence) window.initiateCloseSequence();
-                    try { window.parent.postMessage({ type: 'REQ_HIDE_TIPI' }, '*'); window.parent.postMessage({ type: 'REQ_HIDE_AXE' }, '*'); } catch (e) { }
+                    if (window.journal3D.isOpen) initiateCloseSequence();
                 }
+                return;
             }
 
-            if (d.type === 'DO_OPEN_FLIP') if (window.initiateOpenSequence) initiateOpenSequence();
-            if (d.type === 'GO_TO_PAGE') {
-                if (typeof d.pageIdx === 'number') {
-                    game.currentPageIdx = Math.min(game.pages.length - 1, Math.max(0, d.pageIdx));
-                    if (game.currentPageIdx % 2 !== 0) game.currentPageIdx--;
-                    if (typeof updateBookView === 'function') updateBookView();
-                }
+            if (d.type === 'DO_OPEN_FLIP') {
+                initiateOpenSequence();
+                return;
             }
-            if (d.type === 'SWITCH_TAB') if (typeof window.switchBookTab === 'function') window.switchBookTab(d.tab);
-            if (d.type === 'ADD_PAGE') window.addPage(d.category, d.title, d.text, d.state, d.imageUrl, d.videoUrl, d.buttonLabel, d.buttonAction);
+
+            if (d.type === 'GO_TO_PAGE' && typeof d.pageIdx === 'number') {
+                game.currentPageIdx = Math.min(game.pages.length - 1, Math.max(0, d.pageIdx));
+                if (game.currentPageIdx % 2 !== 0) game.currentPageIdx--;
+                updateBookView();
+                return;
+            }
+
+            if (d.type === 'SWITCH_TAB') {
+                switchBookTab(d.tab);
+                return;
+            }
+
+            if (d.type === 'INSERT_LOG_PAGE') {
+                const afterTitle = d.afterTitle || '';
+                const title = d.title || 'Event';
+                const rawText = d.text || '';
+                const icon = d.icon || 'fa-solid fa-feather-pointed';
+                const esc = rawText
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                const compiled = '<div class="book-text"><p>' + esc + '</p></div>';
+                const arr = game.content.log;
+                if (arr.some((p) => p.title === title)) return;
+                const entry = {
+                    title,
+                    text: compiled,
+                    state: null,
+                    icon,
+                    imageUrl: null,
+                    videoUrl: null,
+                    buttonLabel: null,
+                    buttonAction: null,
+                };
+                let ins = arr.length;
+                if (afterTitle) {
+                    const i = arr.findIndex((p) => p.title === afterTitle);
+                    if (i >= 0) ins = i + 1;
+                }
+                arr.splice(ins, 0, entry);
+
+                game.currentTab = 'log';
+                game.pages = game.content.log.slice();
+                if (game.pages.length % 2 !== 0) {
+                    game.pages.push({ title: '', text: '', icon: null });
+                }
+                const pageIdx = arr.findIndex((p) => p.title === title);
+                game.currentPageIdx =
+                    pageIdx <= 0 ? 0 : pageIdx % 2 === 0 ? pageIdx : pageIdx - 1;
+                updateBookView();
+                scheduleAlign();
+                if (!window.journal3D.isOpen) initiateOpenSequence();
+                return;
+            }
+
+            if (d.type === 'ADD_PAGE') {
+                window.addPage(d.category, d.title, d.text, d.state, d.imageUrl, d.videoUrl, d.buttonLabel, d.buttonAction);
+                return;
+            }
 
             if (d.type === 'NLP_RESPONSE') {
                 const logEl = document.getElementById('parser-feedback');
                 if (logEl) {
                     logEl.textContent = d.msg;
                     logEl.style.color = '#86efac';
-                    setTimeout(() => { if (logEl.textContent === d.msg) { logEl.textContent = 'System loaded and awaiting input.'; logEl.style.color = '#d6d3d1'; } }, 6000);
+                    setTimeout(() => {
+                        if (logEl.textContent === d.msg) {
+                            logEl.textContent = '';
+                            logEl.style.color = 'var(--ink-dim)';
+                        }
+                    }, 6000);
                 }
                 const announcer = document.getElementById('sr-announcer');
                 if (announcer) announcer.textContent = d.msg;
+                return;
+            }
+
+            if (d.type === 'ANU_SENSORIUM_SYNC') {
+                if (Array.isArray(d.entities)) {
+                    const existing = new Set(window.INTERACTIVE_ENTITIES_MANIFEST.map((x) => x.id));
+                    d.entities.forEach((inc) => {
+                        if (!existing.has(inc.id)) {
+                            window.INTERACTIVE_ENTITIES_MANIFEST.push(inc);
+                            existing.add(inc.id);
+                        }
+                    });
+                }
+                const logEl = document.getElementById('parser-feedback');
+                if (logEl) {
+                    logEl.textContent = 'ANU: ' + (d.domainSummary || 'World awareness updated.');
+                    logEl.style.color = '#86efac';
+                    setTimeout(() => {
+                        if (logEl.textContent.startsWith('ANU:')) {
+                            logEl.textContent = '';
+                            logEl.style.color = 'var(--ink-dim)';
+                        }
+                    }, 4000);
+                }
+                return;
             }
 
             if (d.type === 'SHOW_BUILDING_INFO') {
                 window.LOGBOOK_DATA.buildings = [{
                     pageId: 1,
-                    title: `Tipi ${d.tipiId}`,
-                    contentBlocks: [
-                        { type: "html-box", html: `<p class="book-text">${d.ownerText}</p>` }
-                    ]
+                    title: 'Tipi ' + d.tipiId,
+                    contentBlocks: [{ type: 'html-box', html: '<p class="book-text">' + d.ownerText + '</p>' }],
                 }];
-                if (typeof window.switchBookTab === 'function') window.switchBookTab('buildings');
-                if (window.initiateOpenSequence && (!window.journal3D || !window.journal3D.isOpen)) {
-                    window.initiateOpenSequence();
-                }
+                JournalMasterAI.initializeDatabase();
+                switchBookTab('buildings');
+                if (!window.journal3D.isOpen) initiateOpenSequence();
+                return;
             }
 
             if (d.type === 'YB_GREETING_ARRIVED' || d.type === 'BHG_GREETING_ARRIVED') {
-                // Remove all purple quest buttons from the log to permanently hide them
-                if (game.log) {
-                    game.log.forEach(page => {
-                        if (page.button) {
-                            delete page.button;
-                        }
-                    });
+                // Strip purple-quest CTAs from the log once a greeting fires.
+                if (game.content && Array.isArray(game.content.log)) {
+                    game.content.log.forEach((page) => { if (page.buttonLabel) { delete page.buttonLabel; delete page.buttonAction; } });
                 }
-                
-                if (typeof window.switchBookTab === 'function') window.switchBookTab('log');
-                if (typeof window.turnPage === 'function') {
-                    game.currentPageIdx = 2; // Fixed logic to point to the correct spread
-                    updateBookView();
-                }
+                switchBookTab('log');
+                game.currentPageIdx = Math.min(2, game.pages.length - 1);
+                if (game.currentPageIdx % 2 !== 0) game.currentPageIdx--;
+                updateBookView();
+                return;
+            }
+        });
+
+        /* ── Boot ──────────────────────────────────────────────────────── */
+        window.addEventListener('DOMContentLoaded', () => {
+            updateResIndicator();
+            JournalMasterAI.initializeDatabase();
+            applyFontSize();
+
+            if (window.ResizeObserver) {
+                const ro = new ResizeObserver(() => scheduleAlign());
+                ro.observe(document.body);
             }
         });
     </script>
 </body>
-
 </html>

@@ -68,18 +68,59 @@ const _tmpColliderPos = new THREE.Vector3();
 export const WorldPhysics = {
   _bodies: [],
   _colliders: [],
-  _getY: null,
+  /** Raw heightfield (`WorldTerrain.terrainY` / injected fn) — does not include dock decks. */
+  _terrainGetY: null,
+  /**
+   * Axis-aligned deck / platform rectangles (world XZ, surface Y).
+   * `getGroundY` and body stepping take `max(terrain, overlapping surfaces)`.
+   */
+  _deckSurfaces: [],
 
   _init(getY) {
-    this._getY = getY;
+    this._terrainGetY = getY;
+    this._deckSurfaces = [];
     this._bodies = [];
     this._colliders = [];
   },
 
   _reset() {
-    this._getY = null;
+    this._terrainGetY = null;
+    this._deckSurfaces = [];
     this._bodies = [];
     this._colliders = [];
+  },
+
+  /** @param {{ id?: string, minX: number, maxX: number, minZ: number, maxZ: number, y: number }} spec */
+  registerDeckSurface(spec) {
+    const s = {
+      id: spec.id || `deck.${this._deckSurfaces.length}`,
+      minX: spec.minX,
+      maxX: spec.maxX,
+      minZ: spec.minZ,
+      maxZ: spec.maxZ,
+      y: spec.y,
+    };
+    this._deckSurfaces.push(s);
+    return s;
+  },
+
+  unregisterDeckSurface(idOrRef) {
+    if (typeof idOrRef === "string") {
+      this._deckSurfaces = this._deckSurfaces.filter((s) => s.id !== idOrRef);
+    } else {
+      this._deckSurfaces = this._deckSurfaces.filter((s) => s !== idOrRef);
+    }
+  },
+
+  _sampleGroundY(x, z) {
+    if (!this._terrainGetY) return 0;
+    let y = this._terrainGetY(x, z);
+    for (const s of this._deckSurfaces) {
+      if (x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ) {
+        if (s.y > y) y = s.y;
+      }
+    }
+    return y;
   },
 
   createBody(position, eyeOffset = 0) {
@@ -136,7 +177,9 @@ export const WorldPhysics = {
       body.velocity.x *= 0.25;
       body.velocity.z *= 0.25;
     }
-    if (this._getY) p.y = Math.max(p.y, this._getY(p.x, p.z) + body.eyeOffset);
+    if (this._terrainGetY) {
+      p.y = Math.max(p.y, this._sampleGroundY(p.x, p.z) + body.eyeOffset);
+    }
   },
 
   steerAroundObstacles(position, velocity, bodyRadius = PLAYER_COLLISION_RADIUS, lookAhead = V2_TILE_WORLD * 0.55) {
@@ -173,36 +216,37 @@ export const WorldPhysics = {
   },
 
   stepAll(delta) {
-    if (!this._getY) return;
-    for (const body of this._bodies) body.step(delta, this._getY);
+    if (!this._terrainGetY) return;
+    const sample = this._sampleGroundY.bind(this);
+    for (const body of this._bodies) body.step(delta, sample);
   },
 
   getGroundY(x, z) {
-    return this._getY ? this._getY(x, z) : 0;
+    return this._terrainGetY ? this._sampleGroundY(x, z) : 0;
   },
 
   getGroundNormal(x, z, out = new THREE.Vector3()) {
-    if (!this._getY) return out.set(0, 1, 0);
+    if (!this._terrainGetY) return out.set(0, 1, 0);
     const d = 0.5;
-    const left = this._getY(x - d, z);
-    const right = this._getY(x + d, z);
-    const back = this._getY(x, z - d);
-    const forward = this._getY(x, z + d);
+    const left = this._sampleGroundY(x - d, z);
+    const right = this._sampleGroundY(x + d, z);
+    const back = this._sampleGroundY(x, z - d);
+    const forward = this._sampleGroundY(x, z + d);
     return out.set(left - right, 2 * d, back - forward).normalize();
   },
 
   isGrounded(position) {
-    if (!this._getY) return true;
-    return position.y <= this._getY(position.x, position.z) + EPSILON + 0.05;
+    if (!this._terrainGetY) return true;
+    return position.y <= this._sampleGroundY(position.x, position.z) + EPSILON + 0.05;
   },
 
   getAnuPhysicsSnapshot() {
     return Object.freeze({
       schemaVersion: "1.0",
       gravityEnabled: true,
-      elevationPhysicsEnabled: typeof this._getY === "function",
+      elevationPhysicsEnabled: typeof this._terrainGetY === "function",
       movementAxes: Object.freeze(["x", "y", "z"]),
-      terrainHeightSampling: typeof this._getY === "function",
+      terrainHeightSampling: typeof this._terrainGetY === "function",
       terrainNormalSampling: true,
       registeredBodyCount: this._bodies.length,
       registeredColliderCount: this._colliders.length,

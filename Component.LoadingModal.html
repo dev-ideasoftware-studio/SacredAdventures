@@ -119,6 +119,32 @@
             opacity: 0.8;
         }
         .diag-label span:last-child { font-variant-numeric: tabular-nums; }
+
+        /**
+         * Shared layout for every % cell — odometer well + GPU slot well.
+         *
+         * Eager-applying these to BOTH `[id^="p-"]` percentage spans AND the
+         * GPU slot container guarantees that the four rows sit on the same
+         * baseline before any update arrives. Earlier the layout was only
+         * applied inside `ensureOdometer` on first non-zero update, so a row
+         * still at 0 (e.g. Init before its first message) rendered as plain
+         * text "0%" with the default inline baseline while the row above it
+         * was already an inline-block clipped well — visibly different
+         * vertical positions per row. (May-14 2026 user fix.)
+         */
+        .diag-label .pct-cell,
+        .gpu-slot-container {
+            display: inline-block;
+            height: 1.2em;
+            line-height: 1.2em;
+            overflow: hidden;
+            vertical-align: bottom;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            min-width: 2.6em;
+        }
+        .diag-label .pct-cell .odo-strip { will-change: transform; }
+        .diag-label .pct-cell .odo-strip > div { height: 1.2em; line-height: 1.2em; text-align: right; }
         .loading-bar-container {
             width: 100%;
             height: 4px;
@@ -203,37 +229,37 @@
             <div class="loading-content-box">
                 <div>
                     <h1 class="loading-title">Sacred Adventures</h1>
-                    <p class="loading-subline">v2 engine · world &amp; Anu</p>
+                    <p class="loading-subline">v2 engine · world &amp; UNIVERSE.ANU</p>
                 </div>
 
                 <div class="diag-row">
-                    <div class="diag-label"><span>Downloading...</span><span id="p-video">0%</span></div>
+                    <div class="diag-label"><span>Downloading...</span><span id="p-video" class="pct-cell">0%</span></div>
                     <div class="loading-bar-container"><div id="bar-video" class="loading-bar"></div></div>
                 </div>
 
                 <div class="diag-row">
-                    <div class="diag-label"><span>Loading...</span><span id="p-assets">0%</span></div>
+                    <div class="diag-label"><span>Loading...</span><span id="p-assets" class="pct-cell">0%</span></div>
                     <div class="loading-bar-container"><div id="bar-assets" class="loading-bar"></div></div>
                 </div>
 
                 <div class="diag-row">
                     <div class="diag-label">
                         <span>Processing...</span>
-                        <span id="p-logic">0%</span>
+                        <span id="p-logic" class="pct-cell">0%</span>
                         <span id="p-logic-slot" class="gpu-slot-container" style="display:none;" aria-hidden="true"></span>
                     </div>
                     <div class="loading-bar-container"><div id="bar-logic" class="loading-bar"></div></div>
                 </div>
 
                 <div class="diag-row">
-                    <div class="diag-label"><span>Initializing...</span><span id="p-init">0%</span></div>
+                    <div class="diag-label"><span>Initializing...</span><span id="p-init" class="pct-cell">0%</span></div>
                     <div class="loading-bar-container"><div id="bar-init" class="loading-bar"></div></div>
                 </div>
 
                 <div id="loading-log" aria-live="polite" aria-relevant="additions"></div>
             </div>
 
-            <div class="copyright">Sacred Ones &bull; Est. 2026</div>
+            <div class="copyright">Idea Software Studio &copy; 2026</div>
         </div>
     </div>
 
@@ -312,6 +338,137 @@
                 return msg.includes('Avatar Loaded');
             }
 
+            /**
+             * Per-row odometer state — unified visual language for every row.
+             *
+             * Replaces the earlier two-stage `tweenPercentLabel` + `flipToHundred`
+             * pair (May-12 follow-up). All four rows now use the SAME mechanism
+             * as the Processing GPU slot: a vertical strip of "0%"…"100%" rows
+             * scrolled via a CSS `translateY` transition. Every update — small
+             * (5→8), medium (38→52), or final (98→100) — reads as a true
+             * odometer flip, not a numeric counter snapping through values.
+             *
+             * The strip is built lazily on first non-zero update for each row
+             * (101 rows). Subsequent updates animate `strip.style.transform`
+             * to `translateY(-target * 1.2em)` and the CSS transition handles
+             * the in-between frames smoothly.
+             *
+             * Two non-negotiable guards live in `applyRowUpdate`:
+             *
+             *   1. **NO BACKWARDS MOTION.** The host occasionally re-asserts
+             *      LOWER values after higher ones — most notably the async
+             *      VIDEO_READY → `v2LoadLog('Opening reel ready', 100, 8, 0, 0)`
+             *      message which fires when the opening reel finishes
+             *      buffering and can land AFTER later progress messages have
+             *      pushed pAssets/pLogic/pInit above 8/0/0. Without the
+             *      guard, `bar.style.transform = 'scaleX(0)'` runs through
+             *      the CSS 2.0 s transition and the user sees the bars
+             *      visibly EMPTY back to zero — the "bars start back over"
+             *      regression the user reported.
+             *
+             *   2. **NO RE-FLIP AFTER 100.** Once a row's odometer lands on
+             *      100 we set `flipped100 = true`; further updates are
+             *      no-ops. Belt-and-suspenders for the host repeatedly
+             *      asserting `pVideo=100` etc. on every later message.
+             */
+            /**
+             * Fixed odometer flip duration (May-14 2026 user spec: "make sure
+             * the numbers all flip up and have the same animation for each row
+             * of progress loading"). Single value used by every row — no
+             * delta-derived speed scaling, so a 5% bump on Init and a 92%
+             * bump on Video both take exactly this long.
+             */
+            const ODOMETER_FLIP_MS = 600;
+
+            const _odo = {
+                video:  { strip: null, current: 0, flipped100: false },
+                assets: { strip: null, current: 0, flipped100: false },
+                logic:  { strip: null, current: 0, flipped100: false },
+                init:   { strip: null, current: 0, flipped100: false },
+            };
+
+            /**
+             * Build the strip and inject it eagerly at boot so the four rows
+             * share an identical layout from the very first paint. Lazy init
+             * meant rows still at 0 rendered as plain inline text while
+             * updated rows were 1.2-em-clipped inline-blocks — the four
+             * percentages visibly sat on different baselines until each row
+             * got its first non-zero update. (.pct-cell now carries the
+             * shared layout via CSS; the script just appends the strip.)
+             */
+            function buildOdometerStrip(key, labEl) {
+                const state = _odo[key];
+                if (state.strip) return state.strip;
+                labEl.textContent = '';
+                const strip = document.createElement('div');
+                strip.className = 'odo-strip';
+                strip.style.cssText =
+                    'display:flex;flex-direction:column;' +
+                    'transform:translateY(0em);' +
+                    'transition:transform ' + ODOMETER_FLIP_MS + 'ms cubic-bezier(0.1,0.7,0.1,1);';
+                for (let i = 0; i <= 100; i++) {
+                    const row = document.createElement('div');
+                    row.textContent = i + '%';
+                    strip.appendChild(row);
+                }
+                labEl.appendChild(strip);
+                state.strip = strip;
+                void strip.offsetHeight;
+                return strip;
+            }
+
+            function initAllOdometers() {
+                const ids = { video: 'p-video', assets: 'p-assets', logic: 'p-logic', init: 'p-init' };
+                Object.keys(ids).forEach((k) => {
+                    const el = document.getElementById(ids[k]);
+                    if (el) buildOdometerStrip(k, el);
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initAllOdometers, { once: true });
+            } else {
+                initAllOdometers();
+            }
+
+            function animateOdometer(key, labEl, target) {
+                const state = _odo[key];
+                if (!state || !labEl) return;
+                if (state.flipped100) return;
+                const t = Math.max(0, Math.min(100, Number(target) || 0));
+                if (t <= state.current) return;
+
+                const strip = buildOdometerStrip(key, labEl);
+                // Fixed duration for every row, every update — uniform feel.
+                strip.style.transitionDuration = ODOMETER_FLIP_MS + 'ms';
+
+                state.current = t;
+                if (t >= 100) state.flipped100 = true;
+
+                requestAnimationFrame(() => {
+                    strip.style.transform =
+                        'translateY(-' + (t * 1.2).toFixed(2) + 'em)';
+                });
+            }
+
+            function applyRowUpdate(key, target, labId, barId) {
+                if (target === undefined) return;
+                const state = _odo[key];
+                // Once we've flipped to 100, every subsequent update is a
+                // no-op for BOTH the bar and the label.
+                if (state && state.flipped100) return;
+                const t = Math.max(0, Math.min(100, Number(target) || 0));
+                // Hard no-backwards guard — see _odo doc-comment above. This
+                // single line is what stops the late VIDEO_READY message
+                // from rewinding the bars at the end of loading.
+                if (state && t < state.current) return;
+
+                const bar = document.getElementById(barId);
+                if (bar) bar.style.transform = 'scaleX(' + (t / 100).toFixed(4) + ')';
+                const lab = document.getElementById(labId);
+                if (lab) animateOdometer(key, lab, t);
+            }
+
             window.addEventListener('message', (event) => {
                 const data = event.data;
                 if (!data || !data.type) return;
@@ -381,46 +538,85 @@
                             actualLogic = 100;
                         }
 
-                        if (actualVideo !== undefined) {
-                            const el = document.getElementById('bar-video');
-                            if (el) el.style.transform = 'scaleX(' + actualVideo / 100 + ')';
-                            const lab = document.getElementById('p-video');
-                            if (lab) lab.textContent = Math.round(actualVideo) + '%';
-                        }
-                        if (actualAssets !== undefined) {
-                            const el = document.getElementById('bar-assets');
-                            if (el) el.style.transform = 'scaleX(' + actualAssets / 100 + ')';
-                            const lab = document.getElementById('p-assets');
-                            if (lab) lab.textContent = Math.round(actualAssets) + '%';
-                        }
+                        applyRowUpdate('video', actualVideo, 'p-video', 'bar-video');
+                        applyRowUpdate('assets', actualAssets, 'p-assets', 'bar-assets');
+
                         if (actualLogic !== undefined) {
                             if (actualLogic === 100 || !window._gpuSlideStarted) {
+                                // Transitioning out of (or never entered) the
+                                // 25→99 GPU slot. Hide the slot, surface the
+                                // p-logic label, and run the same odometer
+                                // flip as the other rows. Seed
+                                // `_odo.logic.current` to 99 so the strip
+                                // initializes at 99 and flips just one row
+                                // (99→100) — without this the freshly-built
+                                // strip would render at 0 and scroll a long
+                                // 0→100 ramp the user reads as "starting
+                                // over" since the GPU slot already covered
+                                // 25→99.
                                 const pSlot = document.getElementById('p-logic-slot');
                                 if (pSlot) pSlot.style.display = 'none';
 
                                 const pLogicEl = document.getElementById('p-logic');
                                 if (pLogicEl) {
                                     pLogicEl.style.display = 'inline';
-                                    pLogicEl.textContent = Math.round(actualLogic) + '%';
+                                    if (actualLogic >= 100 && window._gpuSlideStarted) {
+                                        _odo.logic.current = 99;
+                                    }
+                                    applyRowUpdate('logic', actualLogic, 'p-logic', 'bar-logic');
+                                } else {
+                                    const logicBar = document.getElementById('bar-logic');
+                                    if (logicBar) logicBar.style.transform = 'scaleX(' + actualLogic / 100 + ')';
                                 }
-                                const logicBar = document.getElementById('bar-logic');
-                                if (logicBar) logicBar.style.transform = 'scaleX(' + actualLogic / 100 + ')';
                             }
                         }
-                        if (actualInit !== undefined) {
-                            const el = document.getElementById('bar-init');
-                            if (el) el.style.transform = 'scaleX(' + actualInit / 100 + ')';
-                            const lab = document.getElementById('p-init');
-                            if (lab) lab.textContent = Math.round(actualInit) + '%';
-                        }
+
+                        applyRowUpdate('init', actualInit, 'p-init', 'bar-init');
                         break;
                     }
                     case 'LOADING_COMPLETE': {
-                        const ld = document.getElementById('loading');
-                        if (ld) {
-                            ld.style.opacity = '0';
-                            ld.style.pointerEvents = 'none';
+                        // Defensive: force every row's odometer to land on
+                        // 100 if the host hasn't already asserted it.
+                        // Belt-and-suspenders for the perception "the bar
+                        // didn't say 100%". Rows already flipped100=true
+                        // are no-ops in applyRowUpdate.
+                        const rows = [
+                            { key: 'video',  lab: 'p-video',  bar: 'bar-video'  },
+                            { key: 'assets', lab: 'p-assets', bar: 'bar-assets' },
+                            { key: 'logic',  lab: 'p-logic',  bar: 'bar-logic'  },
+                            { key: 'init',   lab: 'p-init',   bar: 'bar-init'   },
+                        ];
+                        for (const r of rows) {
+                            // For logic specifically: if the GPU slot is still
+                            // showing, hide it and surface p-logic before the
+                            // flip — otherwise the user sees the slot snap
+                            // away to a static 100%.
+                            if (r.key === 'logic') {
+                                const pSlot = document.getElementById('p-logic-slot');
+                                if (pSlot) pSlot.style.display = 'none';
+                                const pLogicEl = document.getElementById(r.lab);
+                                if (pLogicEl) pLogicEl.style.display = 'inline';
+                                if (window._gpuSlideStarted) {
+                                    _odo.logic.current = Math.max(
+                                        _odo.logic.current, 99
+                                    );
+                                }
+                            }
+                            applyRowUpdate(r.key, 100, r.lab, r.bar);
                         }
+
+                        // Wait for the longest possible odometer flip
+                        // duration before fading. animateOdometer caps at
+                        // 720 ms and exits early once flipped100=true, so
+                        // 720 ms is the upper bound + a small breathing
+                        // margin.
+                        setTimeout(() => {
+                            const ld = document.getElementById('loading');
+                            if (ld) {
+                                ld.style.opacity = '0';
+                                ld.style.pointerEvents = 'none';
+                            }
+                        }, 720);
                         break;
                     }
                     default:

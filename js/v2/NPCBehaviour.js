@@ -5,18 +5,19 @@
  * controller is designed so future tipi owners can drop in without changing
  * World.js (one update-call per frame is already there for each tipi).
  *
- * Behaviour spec (May-2026 user request — wave moved from approach to depart):
+ * Behaviour spec (May-2026 user request — wave moved from approach to depart;
+ * May-12 follow-up widened the approach trigger from 1.0 → 1.5 tiles):
  *
- *   when player is within 1 tile of tipi  →
+ *   when player is within 1.5 tiles of tipi →
  *      NPC stands up and walks to a fixed entrance point in front of
  *      the tipi (no wave on approach). On arrival, swap to idle clip
  *      and watch the player.
  *
- *   while player is closer than (tile + 1)  →
+ *   while player is closer than 2 tiles      →
  *      remain standing/idle in front of the tipi, body yaw tracking
  *      the player so she's always watching.
  *
- *   when player passes (tile + 1)         →
+ *   when player passes 2 tiles               →
  *      NPC turns to face the player and plays the wave clip once
  *      (farewell gesture). When the wave finishes she walks back to
  *      her original seat position, turns around, plays the sit clip
@@ -34,8 +35,19 @@ import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { V2_TILE_WORLD } from "./constants.js";
 
-/** Player distance thresholds (m), keyed to the canonical hex tile. */
-const APPROACH_DIST_M = V2_TILE_WORLD;
+/**
+ * Player distance thresholds (m), keyed to the canonical hex tile.
+ *
+ * APPROACH_DIST_M was widened from 1.0 → 1.5 tiles per user request
+ * (May-12 follow-up to the tipi-1 proximity tuning). The same constant
+ * also gates the SPIRIT_WATCH → PLAYER_GREETING_WAVE transition
+ * (sit → wave → idle when the player interrupts a spirit visit), so
+ * both player-driven NPC triggers move together.
+ *
+ * DEPART_DIST_M stays at 2 tiles — hysteresis is now 0.5 tiles, which
+ * still safely prevents flicker at the boundary.
+ */
+const APPROACH_DIST_M = V2_TILE_WORLD * 1.5;
 const DEPART_DIST_M = V2_TILE_WORLD * 2;
 
 const WALK_SPEED_MPS = 1.2;
@@ -54,7 +66,51 @@ export const NPC_BEHAVIOUR_STATES = Object.freeze({
   RETURNING: "returning",
   /** Turning back to neutral seat yaw, crossfading to sit clip. */
   TURNAROUND_SIT: "turnaround_sit",
+  /**
+   * Externally-triggered: the nature-spirit stag has arrived in front of
+   * YB. She stays seated, faces the spirit's current XZ, and plays the wave
+   * clip for a fixed 3 seconds (per user spec — overrides the wave-clip's
+   * shorter native duration so the "greeting" reads clearly). Transitions
+   * to SPIRIT_WATCH afterward; entered only from SEATED via
+   * `playSpiritGreeting()`.
+   */
+  SPIRIT_WAVE: "spirit_wave",
+  /**
+   * Quiet watching pose: NPC stays seated, plays the idle clip, body yaw
+   * tracks the spirit as it walks away. Ends naturally when the spirit is
+   * more than 1 tile from YB (signalled via repeated `updateSpiritPos`
+   * calls from the spirit controller), at which point she drops back to
+   * SEATED. Can be interrupted by `notifyPlayerInterrupt()` if the player
+   * crosses into YB's approach zone mid-visit.
+   */
+  SPIRIT_WATCH: "spirit_watch",
+  /**
+   * Player approached YB while she was mid spirit-visit. Body pivots to
+   * face the player and plays the wave clip once. On clip end she drops
+   * into STANDING_IDLE so the existing player-FSM (depart wave + return
+   * to seat) takes over cleanly. Entered only from SPIRIT_WAVE / SPIRIT_WATCH
+   * via `notifyPlayerInterrupt()`.
+   */
+  PLAYER_GREETING_WAVE: "player_greeting_wave",
+  /**
+   * Tutorial intro: seated wave toward the halted player (`World.beginJournalStartGameIntro`).
+   * Blocks the normal seated→EXITING_WALK proximity path while `_skipProximityApproach`.
+   */
+  INTRO_TUTORIAL_GREET: "intro_tutorial_greet",
 });
+
+/**
+ * Per-user spec (May 12 2026): the wave the NPC plays when the spirit
+ * arrives must read as a clear 3-second greeting, longer than the native
+ * wave clip (~1.4 s). The state's timer is pinned to this constant, with
+ * the wave action looping during that window.
+ */
+/** May-14 2026 user spec: shorten the nature-spirit visit — YB's seated
+ *  wave clip during a spirit pass was holding 3.0 s; trimmed to 1.5 s so
+ *  her wave ends in step with the spirit's new shorter nod window. */
+const SPIRIT_WAVE_DURATION_S = 1.5;
+/** Seated greeting for journal “Start Game” — pinned like the spirit wave. */
+const INTRO_TUTORIAL_GREET_S = 3.0;
 
 /**
  * Legacy-derived clip-by-kind preference order:
@@ -181,6 +237,8 @@ export function createTipiOwnerBehaviour(args) {
   let suppressPlayerAim = false;
   /** Re-entry guard for greeting events. */
   let lastDispatchedState = null;
+  /** When true, seated YB ignores the proximity ring that pulls her toward the doorway. */
+  let skipProximityApproach = false;
 
   /**
    * Rising-edge gate on the SEATED → EXITING_WAVE transition. Initialized
@@ -198,6 +256,18 @@ export function createTipiOwnerBehaviour(args) {
   /** Always-active state machine. */
   let state = NPC_BEHAVIOUR_STATES.SEATED;
   let stateTimer = 0;
+
+  /**
+   * Last-known XZ for the nature-spirit (set by `playSpiritGreeting()`,
+   * refreshed each frame by `updateSpiritPos()` while she's in
+   * SPIRIT_WATCH). Used as both the yaw target and the distance reference
+   * for the SPIRIT_WATCH → SEATED transition.
+   */
+  let spiritX = 0;
+  let spiritZ = 0;
+  /** Last-known XZ for an interrupting player (filled by notifyPlayerInterrupt). */
+  let playerInterruptX = 0;
+  let playerInterruptZ = 0;
 
   function _emit(phase, distance) {
     if (lastDispatchedState === phase) return;
@@ -257,7 +327,11 @@ export function createTipiOwnerBehaviour(args) {
 
     // ── State transitions ──
     if (state === NPC_BEHAVIOUR_STATES.SEATED) {
-      if (distToPlayer <= APPROACH_DIST_M && playerHasLeftZone) {
+      if (
+        distToPlayer <= APPROACH_DIST_M &&
+        playerHasLeftZone &&
+        !skipProximityApproach
+      ) {
         // Approach: skip the wave (per the user spec), stand up and walk
         // straight out to the entrance. Crossfade from sit → walk; the
         // mixer blends the rigs (no dedicated "stand up" clip exists).
@@ -344,6 +418,96 @@ export function createTipiOwnerBehaviour(args) {
         _emit("returned", distToPlayer);
         lastDispatchedState = null; // ready for next approach cycle
       }
+    } else if (state === NPC_BEHAVIOUR_STATES.SPIRIT_WAVE) {
+      /**
+       * 3 seconds of wave clip while seated, body yaw tracking the spirit's
+       * current XZ (updated by the spirit controller each frame via
+       * `updateSpiritPos`). After 3 s, transition to SPIRIT_WATCH — drop the
+       * wave clip back to idle, keep body tracking the spirit.
+       */
+      stateTimer -= delta;
+      desiredYaw = Math.atan2(spiritX - root.position.x, spiritZ - root.position.z);
+      if (stateTimer <= 0) {
+        state = NPC_BEHAVIOUR_STATES.SPIRIT_WATCH;
+        crossfadeTo("idle", 0.35);
+        // Restore wave to LoopOnce so the next FAREWELL_WAVE / PLAYER_GREETING_WAVE
+        // pickup plays a single wave (we temporarily set LoopRepeat in
+        // playSpiritGreeting so the 3-s window survives the shorter native clip).
+        if (actions.wave) actions.wave.setLoop(THREE.LoopOnce, 1);
+        _emit("spirit-watch", distToPlayer);
+      }
+    } else if (state === NPC_BEHAVIOUR_STATES.SPIRIT_WATCH) {
+      /**
+       * Quiet seated watch: idle clip, body yaw tracks the spirit while it
+       * walks back to the forest. Two exits:
+       *   1. Spirit > 1 tile from YB ("return to seating after the
+       *      naturespirit leaves one tile" per user spec) → SEATED.
+       *   2. Player arrives within YB's approach zone → PLAYER_GREETING_WAVE
+       *      (self-promote — the spirit's player-priority check only covers
+       *      FACE_YB / NOD / POST_NOD_HOLD; by the time YB is in WATCH the
+       *      spirit is already leaving and won't call notifyPlayerInterrupt
+       *      again, so YB owns the player-detection here).
+       */
+      desiredYaw = Math.atan2(spiritX - root.position.x, spiritZ - root.position.z);
+      if (distToPlayer <= APPROACH_DIST_M) {
+        state = NPC_BEHAVIOUR_STATES.PLAYER_GREETING_WAVE;
+        playerInterruptX = playerX;
+        playerInterruptZ = playerZ;
+        desiredYaw = Math.atan2(playerX - root.position.x, playerZ - root.position.z);
+        if (actions.wave) {
+          actions.wave.setLoop(THREE.LoopOnce, 1);
+          actions.wave.reset();
+        }
+        stateTimer = actions.wave?.getClip()?.duration ?? 1.4;
+        crossfadeTo("wave", 0.2);
+        _emit("player-interrupt", distToPlayer);
+      } else {
+        const dxSpirit = spiritX - root.position.x;
+        const dzSpirit = spiritZ - root.position.z;
+        const distSpiritSq = dxSpirit * dxSpirit + dzSpirit * dzSpirit;
+        if (distSpiritSq > V2_TILE_WORLD * V2_TILE_WORLD) {
+          state = NPC_BEHAVIOUR_STATES.SEATED;
+          crossfadeTo("sit", 0.4);
+          suppressPlayerAim = false;
+          lastDispatchedState = null;
+          _emit("spirit-departed", distToPlayer);
+        }
+      }
+    } else if (state === NPC_BEHAVIOUR_STATES.INTRO_TUTORIAL_GREET) {
+      /**
+       * Journal Start Game cue: seated wave toward the halted player — fixed duration.
+       */
+      stateTimer -= delta;
+      desiredYaw = Math.atan2(playerX - root.position.x, playerZ - root.position.z);
+      suppressPlayerAim = true;
+      if (stateTimer <= 0) {
+        state = NPC_BEHAVIOUR_STATES.SEATED;
+        crossfadeTo("sit", 0.35);
+        suppressPlayerAim = false;
+        if (actions.wave) actions.wave.setLoop(THREE.LoopOnce, 1);
+        lastDispatchedState = null;
+      }
+    } else if (state === NPC_BEHAVIOUR_STATES.PLAYER_GREETING_WAVE) {
+      /**
+       * Player arrived during a spirit visit. Spirit has already been told
+       * to leave; YB faces the player and plays one wave. On clip end she
+       * drops into STANDING_IDLE so the existing player-FSM (FAREWELL_WAVE
+       * on depart → RETURNING → TURNAROUND_SIT) picks up cleanly. Note:
+       * YB stays at her seat XZ throughout — she never walks out for this
+       * path (per user spec: "face player and wave 1x animation and then
+       * idle").
+       */
+      stateTimer -= delta;
+      desiredYaw = Math.atan2(
+        playerInterruptX - root.position.x,
+        playerInterruptZ - root.position.z,
+      );
+      if (stateTimer <= 0) {
+        state = NPC_BEHAVIOUR_STATES.STANDING_IDLE;
+        crossfadeTo("idle", 0.25);
+        playerHasLeftZone = false;
+        _emit("player-greet", distToPlayer);
+      }
     }
 
     // ── Apply yaw (only when this controller owns the aim) ──
@@ -362,9 +526,101 @@ export function createTipiOwnerBehaviour(args) {
     }
   }
 
+  /**
+   * Externally driven greeting: the nature-spirit has arrived in front of
+   * YB. She stays seated, pivots her facing group toward the spirit's
+   * current XZ, and plays her wave clip for a fixed `SPIRIT_WAVE_DURATION_S`
+   * (3 s — overrides the wave clip's native duration so the greeting reads
+   * as a clear hello before she drops into SPIRIT_WATCH). The wave action
+   * is forced to LoopRepeat for this state so the clip survives the 3-s
+   * window even though it's shorter natively.
+   *
+   * Returns `true` if the trigger was accepted (NPC was SEATED), `false`
+   * if she's currently in another state (player-greeting cycle, etc.)
+   * — the spirit controller falls back to its non-greeting timing path.
+   */
+  function playSpiritGreeting(targetX, targetZ) {
+    if (state !== NPC_BEHAVIOUR_STATES.SEATED) return false;
+    state = NPC_BEHAVIOUR_STATES.SPIRIT_WAVE;
+    stateTimer = SPIRIT_WAVE_DURATION_S;
+    suppressPlayerAim = true;
+    spiritX = targetX;
+    spiritZ = targetZ;
+    desiredYaw = Math.atan2(targetX - root.position.x, targetZ - root.position.z);
+    // Wave clip is LoopOnce by default for the depart farewell; for the
+    // longer 3-s spirit greeting we want it to loop, then we crossfade
+    // back to idle on timer end.
+    if (actions.wave) actions.wave.setLoop(THREE.LoopRepeat, Infinity);
+    crossfadeTo("wave", 0.25);
+    return true;
+  }
+
+  /**
+   * Fed by the spirit controller each frame while the spirit is on stage —
+   * the SPIRIT_WATCH state uses this to track its target yaw and to detect
+   * when the spirit is more than 1 tile away (the natural end of the
+   * watching state, after which YB returns to her sit clip). No-op outside
+   * the spirit-visit states so the spirit can keep calling unconditionally.
+   */
+  function updateSpiritPos(x, z) {
+    spiritX = x;
+    spiritZ = z;
+  }
+
+  function notifyPlayerInterrupt(targetX, targetZ) {
+    if (
+      state !== NPC_BEHAVIOUR_STATES.SPIRIT_WAVE &&
+      state !== NPC_BEHAVIOUR_STATES.SPIRIT_WATCH
+    ) {
+      return false;
+    }
+    state = NPC_BEHAVIOUR_STATES.PLAYER_GREETING_WAVE;
+    playerInterruptX = targetX;
+    playerInterruptZ = targetZ;
+    desiredYaw = Math.atan2(targetX - root.position.x, targetZ - root.position.z);
+    suppressPlayerAim = true;
+    // For the 1× player greeting we want the original LoopOnce semantics
+    // back — one full wave then transition. Restore default on the action
+    // before crossfading in.
+    if (actions.wave) {
+      actions.wave.setLoop(THREE.LoopOnce, 1);
+      actions.wave.reset();
+    }
+    const waveDur = actions.wave?.getClip()?.duration ?? 1.4;
+    stateTimer = waveDur;
+    crossfadeTo("wave", 0.2);
+    _emit("player-interrupt", Math.hypot(targetX - tipiCenter.x, targetZ - tipiCenter.z));
+    return true;
+  }
+
+  /** Suppress the seated proximity pull that sends YB to the doorway (journal intro lane). */
+  function setIntroProximitySuppressed(flag) {
+    skipProximityApproach = !!flag;
+  }
+
+  /**
+   * Seated greeting for scripted journal Start Game — player halts south of rim.
+   * @returns {boolean}
+   */
+  function triggerIntroTutorialGreet(_playerX, _playerZ) {
+    if (state !== NPC_BEHAVIOUR_STATES.SEATED) return false;
+    state = NPC_BEHAVIOUR_STATES.INTRO_TUTORIAL_GREET;
+    stateTimer = INTRO_TUTORIAL_GREET_S;
+    suppressPlayerAim = true;
+    desiredYaw = Math.atan2(_playerX - root.position.x, _playerZ - root.position.z);
+    if (actions.wave) actions.wave.setLoop(THREE.LoopRepeat, Infinity);
+    crossfadeTo("wave", 0.2);
+    return true;
+  }
+
   return Object.freeze({
     update,
     getState,
+    playSpiritGreeting,
+    updateSpiritPos,
+    notifyPlayerInterrupt,
+    setIntroProximitySuppressed,
+    triggerIntroTutorialGreet,
     dispose,
     /**
      * Read whether the behaviour wants `updateYellowButterflyPlayerAim` to

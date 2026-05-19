@@ -26,6 +26,78 @@
       z-index: 1;
     }
 
+    /* ── Journal pocket overlay ─────────────────────────────────── */
+    /* When open the journal is the ONLY thing the user should see — it sits
+     * above the HUD (z-index 9999), the moondial, the v2 dock, and the dev
+     * hint. Only the loading iframe (100000) outranks it so a re-load still
+     * shows progress. */
+    #v2-journal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50000;
+      background: rgba(0, 0, 0, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      margin: 0;
+      backdrop-filter: blur(3px);
+      transition: opacity 0.25s ease;
+    }
+    #v2-journal-overlay.open {
+      display: flex;
+    }
+    /* Always above the iframe (nearly full viewport) so the modal can dismiss. */
+    #v2-journal-overlay-close {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 50001;
+      width: 46px;
+      height: 46px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 26px;
+      line-height: 1;
+      color: #1a1510;
+      background: rgba(255, 245, 220, 0.96);
+      box-shadow:
+        0 2px 10px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #v2-journal-overlay.open #v2-journal-overlay-close {
+      display: flex;
+    }
+    #v2-journal-overlay-close:hover {
+      transform: scale(1.06);
+      background: #fff8e7;
+    }
+    #v2-journal-overlay-close:focus-visible {
+      outline: 3px solid #fbc02d;
+      outline-offset: 3px;
+    }
+    #v2-journal-frame {
+      flex: 0 0 auto;
+      width: min(96vw, 980px);
+      height: min(94vh, 760px);
+      border: none;
+      border-radius: 0;
+      display: block;
+      background: transparent !important;
+      background-color: transparent !important;
+      box-shadow: none;
+    }
+    /* #v2-journal-btn (floating book emoji bottom-left) removed May-13 2026 —
+     * it duplicated the journal opener already provided by the v2-dock and
+     * was overlapping the on-screen keypad. The J key + the dock entry are
+     * the canonical openers now. */
+
     /* Full-screen loading modal (Component.LoadingModal.html) — above canvas until boot completes */
     #v2-loading-iframe {
       position: fixed;
@@ -69,6 +141,62 @@
       z-index: 8600;
       line-height: 1.8;
     }
+
+    /**
+     * Cinematic idle (World.js): tuck HUD chrome so the orbit shot reads clean.
+     * NEVER hide `#v2-orchestrator-hud` (FPS / LOAD / PiP stats for tests) or
+     * `#v2-loading-iframe` (boot progress).
+     */
+    body.v2-cinematic-ui-hidden #v2-panel-root,
+    /** Tier-B guide 3D icons — fullscreen WebGL overlay (Component.ThreeIcons.js). */
+    body.v2-cinematic-ui-hidden #v2-guide-icons-canvas,
+    body.v2-cinematic-ui-hidden #v2-panels-pip,
+    body.v2-cinematic-ui-hidden #v2-journal-overlay,
+    body.v2-cinematic-ui-hidden #v2-journal-overlay-close,
+    body.v2-cinematic-ui-hidden #v2-distance-pill,
+    body.v2-cinematic-ui-hidden #v2-banner,
+    body.v2-cinematic-ui-hidden #v2-hint {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /*
+     * Village / top-down map view: orchestrator HUD stays top-right; PiP /
+     * moondial keep the same top-left placement as FPV (`UIModule` defaults).
+     * Village Builder panels stack on the right rail under the HUD —
+     * `--v2-village-after-*` from OrchestratorHud.syncVillageViewRightStackCssVars()
+     * (ResizeObserver).
+     */
+    body.v2-village-view {
+      --v2-village-after-hud: 132px;
+      --v2-village-after-moondial: 430px;
+      --v2-village-after-builder: 720px;
+    }
+    body.v2-village-view #v2-orchestrator-hud {
+      left: auto !important;
+      right: 14px !important;
+      transform: none !important;
+      top: 12px !important;
+      width: min(300px, calc(100vw - 28px)) !important;
+      max-height: min(40vh, 380px) !important;
+      text-align: left !important;
+    }
+    body.v2-village-view #v2-village-builder .vb-merged {
+      top: var(--v2-village-after-moondial, 430px) !important;
+      left: auto !important;
+      right: 14px !important;
+      transform: none !important;
+      width: min(300px, calc(100vw - 28px)) !important;
+      max-height: min(52vh, calc(100vh - var(--v2-village-after-moondial, 430px) - 140px)) !important;
+    }
+    body.v2-village-view #v2-village-builder .vb-mapgen {
+      top: var(--v2-village-after-builder, 720px) !important;
+      right: 14px !important;
+      left: auto !important;
+      width: min(300px, calc(100vw - 28px)) !important;
+      max-height: calc(100vh - var(--v2-village-after-builder, 720px) - 14px) !important;
+    }
   </style>
 
   <!-- Detect real monitor refresh rate via rAF timing (runs before Three.js) -->
@@ -111,9 +239,33 @@
 
   <canvas id="v2-canvas"></canvas>
 
+  <!-- ── Pocket Journal overlay ────────────────────────────────────────── -->
+  <!-- Toggled by J key or the #v2-journal-btn button.                      -->
+  <!-- The iframe runs Component.NewJournal.html's own 3D + 2D engine;      -->
+  <!-- it sends PROCESS_INPUT → this page's ANU bridge, which replies with  -->
+  <!-- NLP_RESPONSE back via event.source so no cross-origin relay needed.  -->
+  <div id="v2-journal-overlay" role="dialog" aria-modal="true" aria-label="Sacred Journal">
+    <button
+      type="button"
+      id="v2-journal-overlay-close"
+      aria-label="Close Sacred Journal"
+      title="Close (Esc)"
+    >&times;</button>
+    <iframe
+      id="v2-journal-frame"
+      src="Component.NewJournal.html?v=quest-cinematic-2"
+      allowtransparency="true"
+      style="background: transparent; border: 0; display: block;"
+      title="Sacred Journal"
+    ></iframe>
+  </div>
+
+  <!-- Journal button removed — use the v2-dock entry or the J key. -->
+
+
   <div id="v2-banner">
     <b>Sacred Adventures v2</b> — Phase 2: World + forest
-    <small>W/S or ↑↓ = move · ←→ = turn in place · A/D = strafe · SPACE = jump</small>
+    <small>W/A or ↑↓ = move forward/back · ←→ or S/D = turn in place · SPACE = jump</small>
   </div>
 
   <div id="v2-hint">
@@ -134,10 +286,41 @@
     import { TreesModule }  from './js/v2/Trees.js';
     import { UIModule }     from './js/v2/UIModule.js';
     import { V2PanelModule } from './js/v2/V2Panel.js';
+    import { VillageBuilderModule } from './js/v2/VillageBuilder.js';
     import { FaunaModule }   from './js/v2/Fauna.js';
-    // Pond landmark: rejected third-party GLB (no animation, high draw cost,
-    // style mismatch). No WorldPond module in boot — see ANU card
-    // `pond-with-waterfalls-landmark` for the procedural replacement plan.
+    // POOL2: real 3D forest pool — organic basin, deep water, fish ramp,
+    // submerged bench, lily pads, single rainbow trout. Replaced the
+    // earlier PondEnclave path (`pond1.glb`) which was retired in May-14
+    // 2026; the standalone PondEnclave module was deleted in the May-17
+    // forensic cleanup since nothing imports it anymore.
+    import { WorldPool2Module } from './js/v2/WorldPool2.js';
+
+    // Fishing — the first "fun spot": player walks into the dock fishing
+    // circle, gets a procedural pole + line + bob + sinker + hook, plays
+    // a tension-meter mini-game when a fish bites, and accumulates trophy
+    // fish glued onto their belt.
+    import { WorldFishingModule } from './js/v2/WorldFishing.js';
+
+    // BuildMode — player creativity: press T to plant tree seeds that
+    // grow over 30s, press B to place tipi markers. Placements persist
+    // per-map in localStorage. See js/v2/BuildMode.js.
+    import { BuildModeModule } from './js/v2/BuildMode.js';
+
+    // QuietGlade — fully-procedural low-poly meditative scene SW of the
+    // village (~3k tris total). Counterweight to the million-tri Tripo
+    // tipi GLBs identified by Anu's `scene-triangles SEVERE` audit on
+    // May-17 2026. Pure primitives, no GLB fetch. See js/v2/WorldQuietGlade.js.
+    import { QuietGladeModule } from './js/v2/WorldQuietGlade.js';
+
+    // DistantPeaks — procedural snowcapped mountain ridge far north of
+    // the playable world. Decorative backdrop only (no physics, no GLBs,
+    // ~330 tris total). See js/v2/WorldDistantPeaks.js.
+    import { DistantPeaksModule } from './js/v2/WorldDistantPeaks.js';
+
+    // TraderJosh removed per May-17 2026 user spec ("remove josh model
+    // completely it will be rebuilt other time"). Module file
+    // `js/v2/WorldTraderJosh.js` and asset `Assets/TraderJosh3d.glb`
+    // (Draco-compressed) survive on disk for the future rebuild.
 
     const loadingIframe = document.getElementById('v2-loading-iframe');
 
@@ -178,6 +361,51 @@
       if (event.data.type === 'VIDEO_READY') {
         v2LoadLog('Opening reel ready', 100, 8, 0, 0);
       }
+      // ── ANU journal bridge ─────────────────────────────────────────────
+      // Journal iframe sends PROCESS_INPUT; we route it through AnuUniverse
+      // and reply with NLP_RESPONSE directly to event.source.
+      if (event.data.type === 'PROCESS_INPUT') {
+        window._v2HandleAnuInput(event.source, event.data.value, event.data.context);
+      }
+      // Journal close signals
+      if (
+        event.data.type === 'RETURN_TO_GAME'
+        || event.data.type === 'CLOSE_LOGBOOK'
+      ) {
+        window._v2CloseJournal();
+      }
+      /* Legacy iframe close path — paired with RETURN_TO_GAME; close-only so we never re-open */
+      /* when both messages arrive in-order (REQ_TOGGLE clears, RETURN_TO_GAME is idempotent). */
+      if (event.data.type === 'REQ_TOGGLE_LOGBOOK') {
+        if (window._v2JournalOpen) window._v2CloseJournal();
+      }
+      if (event.data.type === 'JOURNAL_START_GAME_INTRO') {
+        window._v2CloseJournal();
+        requestAnimationFrame(() => {
+          try {
+            window.anuOrchestrator?._activeModuleInstances?.World
+              ?.beginJournalStartGameIntro?.();
+          } catch (err) {
+            console.warn('[v2] Journal Start Game intro failed:', err);
+          }
+        });
+      }
+      if (event.data.type === 'JOURNAL_GREET_BHG') {
+        window._v2CloseJournal();
+        requestAnimationFrame(() => {
+          try {
+            window.anuOrchestrator?._activeModuleInstances?.World
+              ?.beginJournalGreetBhg?.();
+          } catch (err) {
+            console.warn('[v2] Journal Greet BHG failed:', err);
+          }
+        });
+      }
+      // Panel/journal navigation relays
+      if (event.data.type === 'REQ_AUTOWALK_TO_ENTITY') {
+        // Forward to the game module that owns player movement
+        window.anuOrchestrator?._activeModuleInstances?.World?.handleAutowalk?.(event.data.targetName);
+      }
     });
 
     await new Promise((resolve) => {
@@ -203,7 +431,13 @@
     orc.register(TreesModule);
     orc.register(UIModule);
     orc.register(V2PanelModule);
+    orc.register(VillageBuilderModule);
     orc.register(FaunaModule);
+    orc.register(WorldPool2Module);
+    orc.register(WorldFishingModule);
+    orc.register(BuildModeModule);
+    orc.register(QuietGladeModule);
+    orc.register(DistantPeaksModule);
 
     v2LoadLog('Modules registered', 100, 18, 12, 8);
 
@@ -229,26 +463,79 @@
     await orc.activate('World');
     v2LoadLog('Avatar Loaded — world scene ready', 100, 100, 100, 42);
 
-    v2LoadLog('Activating Trees — instanced forest', 100, 100, 100, 62);
-    await orc.activate('Trees');
-    v2LoadLog('Trees online', 100, 100, 100, 78);
+    // May-17 2026 user spec evolution:
+    //  • Earlier in the day: "remove all wildlife and all trees" →
+    //    both deactivated to chase 120 FPS.
+    //  • Later: "fix wildlife" → Fauna re-enabled. The rabbit warren
+    //    is the cheapest visual life in the scene (~45k tris total
+    //    across 9 rabbits, Anu-confirmed in May-12 baseline). Trees
+    //    stay off because the 260-instance forest was the main flora
+    //    cost driver (~3M tris) — re-enable with `anuOrchestrator
+    //    .activate('Trees')` in DevTools if you want them back.
+    // await orc.activate('Trees');
+    v2LoadLog('Activating Fauna — rabbit family warren', 100, 100, 100, 78);
+    await orc.activate('Fauna');
 
     v2LoadLog('Activating Panels & minimap PiP', 100, 100, 100, 88);
     await orc.activate('PanelsPIP');
 
-    v2LoadLog('Activating Fauna — rabbit family warren', 100, 100, 100, 94);
-    await orc.activate('Fauna');
-    v2LoadLog('Enter world', 100, 100, 100, 100);
+    // POOL2 activation — see WorldPool2.js for the module shape.
+    v2LoadLog('Activating POOL2 — Forest Deep Pool with rainbow trout', 100, 100, 100, 96);
+    await orc.activate('Pool2');
 
-    // Guides / neumorphic control deck + ThreeIcons (heavy second WebGL pass) — off for perf.
-    // await orc.activate('V2Panel');
-    // To re-enable:  await orc.activate('V2Panel');
+    // Fishing — first fun spot. Pool2 must be active first so the
+    // window._v2FishingPoint / _v2PoolFish globals are ready.
+    v2LoadLog('Activating Fishing — dock pole, tension meter, trophy belt', 100, 100, 100, 97);
+    await orc.activate('Fishing');
+
+    // BuildMode — player can plant tree seeds (T) + place tipi markers (B).
+    v2LoadLog('Activating BuildMode — plant seeds + place tipis', 100, 100, 100, 97);
+    await orc.activate('BuildMode');
+
+    // QuietGlade — procedural standing-stones scene. Disabled by May-17
+    // 2026 user spec ("remove ... stone henge"); reactivate via
+    // `anuOrchestrator.activate('QuietGlade')` in DevTools.
+    // await orc.activate('QuietGlade');
+
+    // DistantPeaks — snowcapped ridge backdrop. Disabled by May-17 2026
+    // user spec ("remove mountains in background"). Stays registered so
+    // `anuOrchestrator.activate('DistantPeaks')` brings it back.
+    // await orc.activate('DistantPeaks');
+
+    // TraderJosh deactivation per user spec — see import-block comment.
+
+    // Fluid HUD dock — left D-pad, 5 guide cards, right action ring on one
+    // baseline (#v2-hud-dock). ThreeIcons swapped for the Tier-B renderer
+    // (js/v2/V2IconRenderer.js): 20 fps cap + scissored per-icon clear,
+    // ~180× fill-rate reduction vs the legacy fullscreen-clear loop.
+    // See ANU_PIPELINE_MEMORY entry `v2-hud-icon-tier-b` for the
+    // regression-prevention contract.
+    v2LoadLog('Activating V2Panel — fluid HUD dock + guide icons', 100, 100, 100, 98);
+    await orc.activate('V2Panel');
+
+    // VillageBuilder — top-down village panels. Stays hidden until the
+    // player toggles map view via the PIP lens; load() just injects DOM.
+    v2LoadLog('Activating VillageBuilder — top-down BUILDINGS / SCENERY panels', 100, 100, 100, 99);
+    await orc.activate('VillageBuilder');
+
+    // Final loading message — every row at 100%. This MUST be the last
+    // v2LoadLog or the init row's odometer flip-to-100% in the modal
+    // (Component.LoadingModal.html → flipToHundred) gets clobbered by a
+    // backward 100→98 step. See ANU_PIPELINE_MEMORY entry
+    // `loading-modal-percent-tween-may-12` for the regression contract.
+    v2LoadLog('Enter world', 100, 100, 100, 100);
 
     // ── Start render loop (runs behind iframe until overlay tears down) ─
     orc.start();
 
+    // Give the modal's flip-to-100% odometer (~700 ms upper bound) time
+    // to play out before kicking off the fade. Without this, the final
+    // flip is interrupted mid-scroll and the user perceives "some rows
+    // never said 100%". The render loop is already running behind the
+    // fading modal, so this pause has zero impact on game responsiveness.
+    await new Promise((resolve) => setTimeout(resolve, 720));
     v2LoadingComplete();
-    setTimeout(teardownLoadingIframe, 480);
+    setTimeout(teardownLoadingIframe, 900);
 
     // ── Hide banner after 6 seconds ──────────────────────────────────────
     setTimeout(() => {
@@ -261,7 +548,7 @@
     console.log('%c  Sacred Adventures v2 — Phase 2: World + forest  ', 'color:#fbc02d;font-weight:bold;font-size:13px;background:#111;padding:4px 8px;');
     console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
     console.log('');
-    console.log('%cAnu (orchestrator module) → World + Trees + PanelsPIP. V2Panel off — anuOrchestrator.activate("V2Panel") to restore.', 'color:#a5d6a7;');
+    console.log('%cAnu (orchestrator module) → World + Trees + PanelsPIP + Fauna + V2Panel (fluid HUD dock, Tier-B icon renderer).', 'color:#a5d6a7;');
     console.log('%cStart here →  AnuUniverse.help()  ', 'color:#fbc02d;font-weight:bold;background:#1a1108;padding:2px 6px;border-radius:3px;');
     console.log('%cWait ~3s for the FPS benchmark to complete, then call:', 'color:#aaa;');
     console.log('%c  anuOrchestrator.report()', 'color:#ce93d8;font-weight:bold;');
@@ -269,6 +556,313 @@
     console.log('%cTo toggle forest:', 'color:#aaa;');
     console.log('%c  anuOrchestrator.toggle("Trees")', 'color:#81d4fa;');
     console.log('');
+  </script>
+
+  <!-- ── Sacred Journal / ANU bridge (non-module, runs after game boot) ── -->
+  <!-- Phase 1: toggle, PROCESS_INPUT → ANU dispatch, NLP_RESPONSE reply.   -->
+  <!-- Phase 2 (next pass): SCENE_INVENTORY_TICK → ANU_SENSORIUM_SYNC push. -->
+  <script>
+    // ── Journal toggle ────────────────────────────────────────────────────
+    window._v2JournalOpen = false;
+
+    window._v2ToggleJournal = function () {
+      const overlay = document.getElementById('v2-journal-overlay');
+      const frame   = document.getElementById('v2-journal-frame');
+      const btn     = document.getElementById('v2-journal-btn');
+      if (!overlay) return;
+
+      window._v2JournalOpen = !window._v2JournalOpen;
+      if (window._v2JournalOpen) {
+        overlay.classList.add('open');
+        btn?.setAttribute('aria-pressed', 'true');
+        // Kill long-hold autowalk the moment reading mode begins (proximity /
+        // quest balloon / HUD journal) so the avatar does not drift.
+        try {
+          window.anuOrchestrator?._activeModuleInstances?.World
+            ?.cancelAutowalkForJournalOverlay?.();
+        } catch (_e) { /* ignore */ }
+        // Suspend player movement while reading. WorldPlayerController's
+        // keydown/keyup listener short-circuits when this flag is true and
+        // flushes any in-flight key state so the avatar doesn't drift.
+        window._v2InputSuppressed = true;
+        // Tell the journal it is now visible → triggers its soft open animation
+        frame?.contentWindow?.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: true }, '*');
+        // Push a live ANU sensorium snapshot so the journal's entity manifest is current
+        setTimeout(window._v2PushSensoriumToJournal, 400);
+      } else {
+        window._v2CloseJournal();
+      }
+    };
+
+    window._v2CloseJournal = function () {
+      const overlay = document.getElementById('v2-journal-overlay');
+      const frame   = document.getElementById('v2-journal-frame');
+      const btn     = document.getElementById('v2-journal-btn');
+      if (!overlay) return;
+      window._v2JournalOpen = false;
+      window._v2InputSuppressed = false;
+      overlay.classList.remove('open');
+      btn?.setAttribute('aria-pressed', 'false');
+      frame?.contentWindow?.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: false }, '*');
+    };
+
+    /** World cinematic idle — hide dock + moondial PiP shell; keep orchestrator FPS HUD. */
+    window._v2SetCinematicUiHidden = function (hidden) {
+      document.body.classList.toggle('v2-cinematic-ui-hidden', !!hidden);
+    };
+
+    /**
+     * Click on the dark backdrop AROUND the journal iframe closes it
+     * (May-14 2026 user spec: "if user clicks away from journal - close
+     * it"). The overlay div is the full-viewport scrim; the iframe is
+     * its child. A click whose `target` is the overlay itself — not the
+     * iframe and not anything inside the iframe — means the user clicked
+     * on the dark margin, which is the "click away" gesture.
+     */
+    (function wireJournalClickAway() {
+      const overlay = document.getElementById('v2-journal-overlay');
+      if (!overlay) return;
+      overlay.addEventListener('mousedown', (event) => {
+        if (!window._v2JournalOpen) return;
+        if (event.target === overlay) {
+          window._v2CloseJournal();
+        }
+      });
+    })();
+
+    /** Open Sacred Journal once when entering Tipi 1 proximity (WorldModule edge trigger). */
+    window._v2OpenJournalFromProximity = function () {
+      if (!window._v2JournalOpen && typeof window._v2ToggleJournal === 'function') {
+        window._v2ToggleJournal();
+      }
+    };
+
+    /** Open log tab showing spread `evenPageIdx`/`evenPageIdx+1` (0-based; even only). */
+    window._v2OpenJournalLogAtPageEvenIdx = function (evenPageIdx) {
+      const frame = document.getElementById('v2-journal-frame');
+      if (!frame?.contentWindow) return;
+      if (!window._v2JournalOpen && typeof window._v2ToggleJournal === 'function') {
+        window._v2ToggleJournal();
+      }
+      const sendPages = () => {
+        frame.contentWindow.postMessage({ type: 'SWITCH_TAB', tab: 'log' }, '*');
+        frame.contentWindow.postMessage(
+          { type: 'GO_TO_PAGE', pageIdx: Math.max(0, evenPageIdx | 0) },
+          '*',
+        );
+      };
+      requestAnimationFrame(() => requestAnimationFrame(sendPages));
+    };
+
+    /** Insert a compiled Event Log page after `afterTitle`, switch to Log, open overlay if needed. */
+    window._v2JournalInsertLogPageAfterTitle = function (payload) {
+      const frame = document.getElementById('v2-journal-frame');
+      if (!frame?.contentWindow || !payload) return;
+      const send = () => {
+        try {
+          frame.contentWindow.postMessage(Object.assign({ type: 'INSERT_LOG_PAGE' }, payload), '*');
+        } catch (_e) {}
+      };
+      if (!window._v2JournalOpen && typeof window._v2ToggleJournal === 'function') {
+        window._v2ToggleJournal();
+        requestAnimationFrame(() => requestAnimationFrame(send));
+      } else {
+        send();
+      }
+    };
+
+    /** Click / keyboard on the overlay dismiss control (iframe is fullscreen). */
+    document.getElementById('v2-journal-overlay-close')
+      ?.addEventListener('click', () => window._v2CloseJournal());
+
+    window.addEventListener('v2-action', function (e) {
+      const a = e.detail && e.detail.action;
+      if (a === 'journal' || a === 'log') {
+        if (typeof window._v2ToggleJournal === 'function') {
+          window._v2ToggleJournal();
+        }
+      }
+    });
+
+    // J key toggle (skip when focus is inside an input)
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'j' || e.key === 'J') &&
+          document.activeElement?.tagName !== 'INPUT' &&
+          document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        window._v2ToggleJournal();
+      }
+      if (e.key === 'Escape' && window._v2JournalOpen) {
+        window._v2CloseJournal();
+      }
+    });
+
+    // Close overlay on backdrop click (not on the iframe itself)
+    document.getElementById('v2-journal-overlay')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('v2-journal-overlay')) {
+        window._v2CloseJournal();
+      }
+    });
+
+    // ── ANU sensorium push ────────────────────────────────────────────────
+    // Converts AnuUniverse.getWorldSensoriumSnapshot() into a lean manifest
+    // that the journal can merge into its INTERACTIVE_ENTITIES_MANIFEST.
+    window._v2PushSensoriumToJournal = function () {
+      const frame = document.getElementById('v2-journal-frame');
+      if (!frame?.contentWindow) return;
+      let domainSummary = 'Sacred village loaded.';
+      const entities = [];
+      try {
+        const s = window.AnuUniverse?.getWorldSensoriumSnapshot?.();
+        if (s?.domains) {
+          const d = s.domains;
+          const parts = [];
+          if (d.flora?.drawables   > 0) parts.push(`${d.flora.drawables} trees`);
+          if (d.fauna?.interactables > 0) parts.push(`${d.fauna.interactables} wildlife`);
+          if (d.population?.interactables > 0) parts.push(`${d.population.interactables} friends`);
+          if (d.structures?.interactables > 0) parts.push(`${d.structures.interactables} buildings`);
+          if (parts.length) domainSummary = parts.join(' · ') + ' are nearby.';
+        }
+      } catch (_) { /* AnuUniverse may not be ready yet */ }
+      frame.contentWindow.postMessage({
+        type: 'ANU_SENSORIUM_SYNC',
+        entities,
+        domainSummary,
+      }, '*');
+    };
+
+    // ── PROCESS_INPUT → ANU bridge ────────────────────────────────────────
+    // Called from the message handler in the module script above.
+    window._v2HandleAnuInput = function (sourceWindow, rawInput, ctx) {
+      const input = (rawInput || '').trim().toLowerCase();
+      if (!input) return;
+
+      const verb     = (ctx?.recognizedVerb || '').toLowerCase();
+      const entities = ctx?.interactiveModels || [];
+
+      /** Align with Sacred Journal manifest — supports optional `aliases[]`. */
+      function journalEntityMatch(ent, haystack) {
+        const ids = [ent.name, ent.id];
+        if (Array.isArray(ent.aliases)) ids.push(...ent.aliases);
+        for (let i = 0; i < ids.length; i++) {
+          const s = String(ids[i] || '').toLowerCase().trim();
+          if (s.length >= 2 && haystack.includes(s)) return true;
+        }
+        return false;
+      }
+
+      // --- 1. Entity match ---
+      let matched = null;
+      for (const ent of entities) {
+        if (journalEntityMatch(ent, input)) {
+          matched = ent;
+          break;
+        }
+      }
+
+      // --- 2. Pond/water shortcircuit (before generic match) ---
+      const pondWords   = ['pond', 'pool', 'sacred pool', 'water', 'waterfall', 'stream', 'fishing'];
+      const waterVerbs  = ['fish', 'swim', 'watch', 'look', 'inspect', 'feed', 'drink', 'visit', 'go'];
+      const isPondCmd   = pondWords.some(w => input.includes(w));
+      const isWaterVerb = waterVerbs.some(v => input.includes(v));
+
+      let feedback = '';
+      let autoWalkTarget = null;
+
+      if (isPondCmd || (isWaterVerb && !matched)) {
+        feedback = '🐟 Walking to the Sacred Pool… the water shimmers with hidden life.';
+        autoWalkTarget = 'pond';
+        _v2AnuDispatch('inspect', 'environment', 'pond', input);
+
+      } else if (matched) {
+        const displayVerb = verb
+          ? verb.charAt(0).toUpperCase() + verb.slice(1)
+          : 'Interacting with';
+
+        if (['talk', 'greet', 'speak', 'meet', 'find'].includes(verb)) {
+          feedback = `Walking to ${matched.name}… ✨`;
+          autoWalkTarget = matched.id;
+        } else if (['go', 'walk', 'run', 'enter', 'approach', 'visit', 'goto', 'move'].includes(verb)) {
+          feedback = `Moving to ${matched.name}…`;
+          autoWalkTarget = matched.id;
+        } else if (['look', 'inspect', 'examine', 'watch', 'see'].includes(verb)) {
+          feedback = `${matched.name}: ${_v2DescribeEntity(matched)}`;
+          if (matched.id === 'axe') {
+            feedback += ' Walking closer…';
+            autoWalkTarget = matched.id;
+          }
+        } else if (['fish', 'harvest', 'gather', 'get', 'take', 'pick', 'grab', 'pickup'].includes(verb)) {
+          feedback = `${displayVerb} near ${matched.name}… heading there now.`;
+          autoWalkTarget = matched.id;
+        } else {
+          feedback = `${displayVerb} ${matched.name}…`;
+          autoWalkTarget = matched.id;
+        }
+        _v2AnuDispatch(verb || 'inspect', matched.anuDomain || matched.type, matched.id, input);
+
+      } else {
+        // Fallback: pull a live scene hint from ANU
+        let hint = 'Try: "goto stone axe", "fish at the pond", or "talk to Brings Happiness Girl".';
+        try {
+          const s = window.AnuUniverse?.getWorldSensoriumSnapshot?.();
+          if (s?.domains?.population?.interactables > 0) {
+            hint = 'A village friend is nearby — try "talk to Brings Happiness Girl".';
+          } else if (s?.domains?.fauna?.interactables > 0) {
+            hint = 'Wildlife is close — try "look at the rabbit" or "fish at the pond".';
+          }
+        } catch (_) {}
+        feedback = hint;
+      }
+
+      // --- 3. Execute autowalk via World (journal suppresses movement while open) ---
+      if (autoWalkTarget) {
+        try {
+          if (window._v2JournalOpen && typeof window._v2CloseJournal === 'function') {
+            window._v2CloseJournal();
+          }
+          const tgt = autoWalkTarget;
+          requestAnimationFrame(() => {
+            window.anuOrchestrator?._activeModuleInstances?.World?.handleAutowalk?.(tgt);
+          });
+        } catch (_) {}
+      }
+
+      // --- 4. Reply NLP_RESPONSE to journal ---
+      try { sourceWindow.postMessage({ type: 'NLP_RESPONSE', msg: feedback }, '*'); } catch (_) {}
+    };
+
+    // Dispatch on ANU interaction bus (non-module scope helper)
+    function _v2AnuDispatch(verb, domain, targetId, rawInput) {
+      try {
+        window.AnuUniverse?.interactions?.dispatch('anu-journal-verb', {
+          verb, domain, targetId, rawInput,
+          t: performance.now(),
+        });
+      } catch (_) {}
+    }
+
+    // Kid-friendly entity descriptions
+    function _v2DescribeEntity(ent) {
+      const desc = {
+        tipi:              'a warm family home made of wood and hide.',
+        campfire:          'a dancing fire — warm and welcoming.',
+        axe:               'a stone axe, good for gathering wood.',
+        yellowbutterfly:   'a golden butterfly that loves sunny meadows.',
+        fox:               'a clever fox exploring the forest edge.',
+        rabbit:            'fluffy rabbits hopping near their warren.',
+        deer:              'a graceful deer grazing in the meadow.',
+        stag:              'a majestic stag glowing like a spirit.',
+        bringshappinessgirl: 'a kind girl who knows every story of the village.',
+        naturespirit:      'a gentle spirit that watches over all living things.',
+        pond:              'the Sacred Pool, alive with fish and flowing water.',
+        fish:              'silver fish weaving through the crystal-clear water.',
+        waterfall:         'a sparkling waterfall feeding the Sacred Pool.',
+        stream:            'a gentle stream carrying water to the pond.',
+        fishingspot:       'the best spot to cast a line and wait quietly.',
+        sacredtree:        'an ancient tree that has watched over the valley for centuries.',
+      };
+      return desc[ent.id] || `a ${ent.type} you can explore.`;
+    }
   </script>
 </body>
 </html>

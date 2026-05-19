@@ -1,7 +1,17 @@
 /**
- * Main-view celestial: procedural bright day sky + distant volumetric-style clouds;
- * night = additive starfield, synodic moon disc (matches PiP phase), additive moon beams.
- * Root follows camera; materials fog:false so world fog stays on terrain only.
+ * Main-view celestial: procedural sky shader that paints one of **five
+ * seasons** (`night | dawn | day | dusk | gray`) via `uZenithColor`,
+ * `uHorizonColor`, `uCloudColor`, `uCloudShadow`, and `uCloudIntensity`
+ * uniforms — same fbm cloud field everywhere, just re-coloured. The
+ * night season swaps in an additive starfield, a synodic moon disc
+ * (phase angle matches the PiP dial), and a moonbeam group that glows
+ * around the disc and gently rotates. Root follows camera, materials
+ * fog:false so world fog stays on terrain only.
+ *
+ * May-12 2026: wired to `ANU_EVENTS.SEASON_CHANGE` (UIModule's 5
+ * `data-season` PiP buttons), moon dir lowered so it sits a little
+ * below the top of the viewport over the horizon, beam plane count
+ * bumped 7→11 and beams enlarged. See Anu `seasons-atmosphere-may-12`.
  */
 
 import * as THREE from "three";
@@ -16,7 +26,13 @@ const STAR_COUNT = 3200;
 /** World +Y is up; celestial root is axis-aligned (no rotation) — only upper hemisphere avoids “stars on terrain”. */
 const STAR_MIN_ELEV_COS = 0.18;
 
-const MOON_WORLD_DIR = new THREE.Vector3(0.42, 0.5, -0.76).normalize();
+/**
+ * Moon direction in world space. Y was 0.5 (~30° above horizon, near
+ * straight-up from the player's POV); user spec May-12 2026 wants the
+ * moon "a little below the top of the viewport over the horizon" so it
+ * stays in frame at all times. Lowered y → 0.32 (~18° above horizon).
+ */
+const MOON_WORLD_DIR = new THREE.Vector3(0.46, 0.32, -0.82).normalize();
 
 function mulberry32(seed) {
   return function rng() {
@@ -28,7 +44,7 @@ function mulberry32(seed) {
 }
 
 /** Shader snippets are compiled by Three.js with a prelude (uniforms/attributes); not standalone GLSL. */
-const DAY_VERTEX = `
+const SKY_VERTEX = `
 varying vec3 vWorldPos;
 void main() {
   vec4 w = modelMatrix * vec4(position, 1.0);
@@ -37,11 +53,28 @@ void main() {
 }
 `;
 
-const DAY_FRAGMENT = `
+/**
+ * Season-aware sky shader. The fbm cloud field is unchanged from the
+ * legacy day sky — what changes per season is:
+ *   • uZenithColor / uHorizonColor — top vs bottom hemisphere mix
+ *   • uCloudColor / uCloudShadow   — lit and shadowed sides of the wisps
+ *   • uCloudIntensity              — how strongly clouds punch through
+ *   • uNightAmount                 — 0 day-tone, 1 night-tone (used only
+ *                                    for a soft moonlight-glow on the
+ *                                    cloud lit side; stars + moon disc
+ *                                    are separate `nightRoot` children)
+ */
+const SKY_FRAGMENT = `
 precision highp float;
 varying vec3 vWorldPos;
 uniform vec3 uCameraPos;
 uniform float uTime;
+uniform vec3 uZenithColor;
+uniform vec3 uHorizonColor;
+uniform vec3 uCloudColor;
+uniform vec3 uCloudShadow;
+uniform float uCloudIntensity;
+uniform float uNightAmount;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -73,9 +106,7 @@ void main() {
   vec3 rd = normalize(vWorldPos - uCameraPos);
   float h = clamp(rd.y, 0.0, 1.0);
 
-  vec3 zenith = vec3(0.05, 0.38, 1.0);
-  vec3 horizon = vec3(0.58, 0.78, 1.0);
-  vec3 sky = mix(zenith, horizon, pow(1.0 - h, 1.55));
+  vec3 sky = mix(uZenithColor, uHorizonColor, pow(1.0 - h, 1.55));
 
   vec2 cloudUv = rd.xz / max(0.09, rd.y) * 0.38;
   cloudUv += uTime * vec2(0.012, 0.006);
@@ -83,15 +114,77 @@ void main() {
   float n2 = fbm(cloudUv * 1.85 - uTime * vec2(0.008, 0.011));
   float layer = smoothstep(0.04, 0.65, rd.y);
   float wisp = clamp((n1 * 0.58 + n2 * 0.42 - 0.36) * 3.9 * layer, 0.0, 1.0);
-  vec3 cloudWhite = vec3(0.99, 0.995, 1.0);
-  vec3 cloudShadow = sky * vec3(0.88, 0.9, 0.98);
-  vec3 cloudy = mix(cloudShadow, cloudWhite, wisp);
+
+  vec3 cloudShadow = mix(uCloudShadow, sky * vec3(0.92, 0.94, 0.98), 0.35);
+  vec3 cloudy = mix(cloudShadow, uCloudColor, wisp);
+
+  // At night, give the lit side of the clouds a faint cool moonlight
+  // glow so they read as "softly lit from above" instead of black mush.
+  cloudy += vec3(0.06, 0.09, 0.14) * uNightAmount * wisp;
+
   float blend = wisp * smoothstep(0.0, 0.18, rd.y) * smoothstep(-0.04, 0.1, rd.y);
-  sky = mix(sky, cloudy, clamp(blend * 0.94, 0.0, 1.0));
+  sky = mix(sky, cloudy, clamp(blend * uCloudIntensity * 0.94, 0.0, 1.0));
 
   gl_FragColor = vec4(sky, 1.0);
 }
 `;
+
+/**
+ * Per-season sky presets — keys MUST match `UIModule._setSeason`'s
+ * `data-season` attribute (`night | dawn | day | dusk | gray`).
+ *
+ *   • day   — bright blue zenith, light-blue/green-grass-tinted horizon
+ *   • dawn  — cool periwinkle zenith, warm peach horizon
+ *   • dusk  — amber/orange (the "golden browns for autumn" look)
+ *   • gray  — overcast: desaturated, low cloud contrast, no zenith blue
+ *   • night — near-black blue, dark cool clouds, `nightAmount = 1`
+ *             which adds the moonlight glow tint to cloud lit side and
+ *             also gates star/moon/beam visibility (see setVisibility).
+ */
+const SEASON_SKY_PRESETS = Object.freeze({
+  day: Object.freeze({
+    zenith: [0.05, 0.38, 1.0],
+    horizon: [0.62, 0.82, 0.92],
+    cloud: [0.99, 0.995, 1.0],
+    cloudShadow: [0.78, 0.84, 0.94],
+    cloudIntensity: 1.0,
+    nightAmount: 0.0,
+  }),
+  dawn: Object.freeze({
+    zenith: [0.30, 0.36, 0.72],
+    horizon: [1.0, 0.78, 0.62],
+    cloud: [1.0, 0.92, 0.82],
+    cloudShadow: [0.72, 0.62, 0.66],
+    cloudIntensity: 0.95,
+    nightAmount: 0.0,
+  }),
+  dusk: Object.freeze({
+    // Golden-amber zenith fading to deep autumn-brown horizon. This is
+    // the button the user described as "golden browns for autumn".
+    zenith: [0.62, 0.36, 0.18],
+    horizon: [0.92, 0.62, 0.30],
+    cloud: [0.98, 0.78, 0.46],
+    cloudShadow: [0.55, 0.30, 0.16],
+    cloudIntensity: 0.85,
+    nightAmount: 0.0,
+  }),
+  gray: Object.freeze({
+    zenith: [0.62, 0.64, 0.66],
+    horizon: [0.78, 0.78, 0.80],
+    cloud: [0.85, 0.85, 0.86],
+    cloudShadow: [0.55, 0.55, 0.58],
+    cloudIntensity: 1.25,
+    nightAmount: 0.0,
+  }),
+  night: Object.freeze({
+    zenith: [0.012, 0.022, 0.060],
+    horizon: [0.060, 0.055, 0.105],
+    cloud: [0.18, 0.22, 0.30],
+    cloudShadow: [0.04, 0.05, 0.08],
+    cloudIntensity: 0.65,
+    nightAmount: 1.0,
+  }),
+});
 
 const MOON_VERTEX = `
 varying vec2 vUv;
@@ -166,22 +259,29 @@ export function attachWorldCelestial(scene) {
   root.name = "SacredCelestial_Root";
   root.renderOrder = -8;
 
-  const dayGeo = new THREE.SphereGeometry(SKY_RADIUS, 40, 20);
-  const daySkyMat = new THREE.ShaderMaterial({
+  const skyGeo = new THREE.SphereGeometry(SKY_RADIUS, 40, 20);
+  const dayPreset = SEASON_SKY_PRESETS.day;
+  const skyMat = new THREE.ShaderMaterial({
     uniforms: {
       uCameraPos: { value: new THREE.Vector3() },
       uTime: { value: 0 },
+      uZenithColor: { value: new THREE.Color().fromArray(dayPreset.zenith) },
+      uHorizonColor: { value: new THREE.Color().fromArray(dayPreset.horizon) },
+      uCloudColor: { value: new THREE.Color().fromArray(dayPreset.cloud) },
+      uCloudShadow: { value: new THREE.Color().fromArray(dayPreset.cloudShadow) },
+      uCloudIntensity: { value: dayPreset.cloudIntensity },
+      uNightAmount: { value: dayPreset.nightAmount },
     },
-    vertexShader: DAY_VERTEX,
-    fragmentShader: DAY_FRAGMENT,
+    vertexShader: SKY_VERTEX,
+    fragmentShader: SKY_FRAGMENT,
     depthWrite: false,
     depthTest: false,
     fog: false,
     side: THREE.BackSide,
   });
-  const daySky = new THREE.Mesh(dayGeo, daySkyMat);
-  daySky.name = "SacredCelestial_DaySky";
-  daySky.frustumCulled = false;
+  const skyDome = new THREE.Mesh(skyGeo, skyMat);
+  skyDome.name = "SacredCelestial_SkyDome";
+  skyDome.frustumCulled = false;
 
   const nightRoot = new THREE.Group();
   nightRoot.name = "SacredCelestial_Night";
@@ -267,12 +367,16 @@ export function attachWorldCelestial(scene) {
   raysGroup.name = "SacredCelestial_MoonRays";
   raysGroup.renderOrder = 1;
   if (rayMatBase) {
-    for (let i = -3; i <= 3; i++) {
+    // Beam plane count bumped 7 → 11 and beam geometry enlarged so the
+    // moon casts the "slight moonbeams + clouds glowing a little from
+    // the moon" feel the user spec'd. Beams are additive so doubling
+    // count adds a soft halo without saturating.
+    for (let i = -5; i <= 5; i++) {
       const rm = new THREE.Mesh(
-        new THREE.PlaneGeometry(102, 270),
+        new THREE.PlaneGeometry(132, 340),
         rayMatBase.clone(),
       );
-      rm.rotation.z = i * 0.22;
+      rm.rotation.z = i * 0.18;
       rm.position.z = -8;
       rm.renderOrder = 1;
       raysGroup.add(rm);
@@ -283,7 +387,7 @@ export function attachWorldCelestial(scene) {
   nightRoot.add(moonMesh);
   nightRoot.add(raysGroup);
 
-  root.add(daySky);
+  root.add(skyDome);
   root.add(nightRoot);
   scene.add(root);
 
@@ -292,6 +396,14 @@ export function attachWorldCelestial(scene) {
       lunarManualIndex =
         detail.manualIndex == null ? null : Number(detail.manualIndex) & 7;
       if (currentSeason === "night") syncMoonPhaseUniform();
+    }
+  });
+
+  /** Wire UIModule's 5 PiP season buttons (`data-season="..."`) directly
+   *  into the sky shader — see `js/v2/UIModule.js#_setSeason`. */
+  const unsubSeason = subscribeInteraction(ANU_EVENTS.SEASON_CHANGE, (detail) => {
+    if (detail && typeof detail.season === "string") {
+      applySeason(detail.season);
     }
   });
 
@@ -304,30 +416,44 @@ export function attachWorldCelestial(scene) {
     moonMat.uniforms.phaseAng.value = b / 8;
   }
 
-  function setVisibility() {
-    const dayOn = currentSeason === "day";
-    daySky.visible = dayOn;
-    nightRoot.visible = currentSeason === "night";
-    if (currentSeason === "night") {
-      syncMoonPhaseUniform();
+  function applySeason(seasonKey) {
+    const preset = SEASON_SKY_PRESETS[seasonKey];
+    if (!preset) return;
+    currentSeason = seasonKey;
+    skyMat.uniforms.uZenithColor.value.fromArray(preset.zenith);
+    skyMat.uniforms.uHorizonColor.value.fromArray(preset.horizon);
+    skyMat.uniforms.uCloudColor.value.fromArray(preset.cloud);
+    skyMat.uniforms.uCloudShadow.value.fromArray(preset.cloudShadow);
+    skyMat.uniforms.uCloudIntensity.value = preset.cloudIntensity;
+    skyMat.uniforms.uNightAmount.value = preset.nightAmount;
+    /** Stars + moon disc + beams only at night (`nightAmount > 0`). The
+     *  sky dome itself always renders — its uniforms now carry the
+     *  dark-blue / starless gradient for every other season. */
+    nightRoot.visible = preset.nightAmount > 0.5;
+    if (nightRoot.visible) syncMoonPhaseUniform();
+    /** Keep `scene.fog` (set up by World.js) tinted to match the horizon
+     *  so distant terrain blends into the chosen atmosphere instead of
+     *  fading into the previous season's cream-warm haze. World.js
+     *  retains ownership of fog density; we only touch `.color`. */
+    if (scene.fog && scene.fog.color) {
+      scene.fog.color.fromArray(preset.horizon);
     }
   }
 
-  setVisibility();
+  applySeason(currentSeason);
 
   const api = {
     root,
     setSeason(season) {
-      if (typeof season === "string") currentSeason = season;
-      setVisibility();
+      if (typeof season === "string") applySeason(season);
     },
     setLunarManual(manual) {
       lunarManualIndex = manual == null ? null : Number(manual) & 7;
       if (currentSeason === "night") syncMoonPhaseUniform();
     },
     update(cameraRef, delta) {
-      daySkyMat.uniforms.uCameraPos.value.copy(cameraRef.position);
-      daySkyMat.uniforms.uTime.value += delta;
+      skyMat.uniforms.uCameraPos.value.copy(cameraRef.position);
+      skyMat.uniforms.uTime.value += delta;
 
       root.position.copy(cameraRef.position);
 
@@ -337,20 +463,21 @@ export function attachWorldCelestial(scene) {
 
         raysGroup.position.copy(MOON_WORLD_DIR).multiplyScalar(MOON_DIST * 0.72);
         raysGroup.lookAt(cameraRef.position);
-        const t = daySkyMat.uniforms.uTime.value;
+        const t = skyMat.uniforms.uTime.value;
         raysGroup.rotateZ(t * 0.018);
       }
     },
     dispose(fromScene) {
       unsubLunar();
+      unsubSeason();
       fromScene.remove(root);
 
       moonGeom.dispose();
       moonMat.dispose();
       starGeom.dispose();
       starMat.dispose();
-      dayGeo.dispose();
-      daySkyMat.dispose();
+      skyGeo.dispose();
+      skyMat.dispose();
       raysGroup.children.forEach((ch) => {
         ch.geometry?.dispose();
         const m = ch.material;

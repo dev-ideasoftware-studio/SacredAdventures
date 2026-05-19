@@ -41,4 +41,10 @@ export const ANU_EVENTS = Object.freeze({
   WORLD_SENSORIUM: "anu-world-sensorium",
   /** Governance rules snapshot requested by AnuUniverse */
   GOVERNANCE_SNAPSHOT: "anu-governance-snapshot",
+  /** AnuAdaptiveDpr stepped the renderer pixel ratio — detail: { dpr, reason, stepCount, t } */
+  RENDERING_DPR_CHANGE: "anu-rendering-dpr-change",
+  /** Sanctuary mold action — detail: { tool, x, z, payload } */
+  SANCTUARY_MOLD: "anu-sanctuary-mold",
+  /** Sanctuary world saved / loaded — detail: { kind: 'save'|'load'|'reset', size } */
+  SANCTUARY_WORLD_STATE: "anu-sanctuary-world-state",
 });

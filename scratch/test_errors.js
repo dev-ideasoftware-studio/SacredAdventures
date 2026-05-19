@@ -1,1 +1,0 @@
-var fs = require('fs'); try { new Function(fs.readFileSync('js/EnvironmentBuilder.js', 'utf8')); console.log('EB OK'); } catch(e) { console.error('EB ERROR:', e); } try { new Function(fs.readFileSync('js/MasterNPCAI.js', 'utf8')); console.log('NPC OK'); } catch(e) { console.error('NPC ERROR:', e); }

@@ -1,3 +1,5 @@
+import { pipCompassRingRotationRadFromYawRad } from "../pipCompassMath.js";
+
 export const PipRenderStrategy = Object.freeze({
   FULL_SCENE_ORTHO: "full-scene-ortho",
   SURROGATE_2D: "surrogate-2d",
@@ -33,7 +35,7 @@ export function createSurrogatePipRenderStrategy() {
     const r = Math.min(_w, _h) * 0.45;
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(-yaw);
+    ctx.rotate(pipCompassRingRotationRadFromYawRad(yaw));
     ctx.strokeStyle = "rgba(255,255,255,0.22)";
     ctx.lineWidth = Math.max(1, _w * 0.004);
     for (let i = 0; i < 8; i++) {
@@ -88,7 +90,7 @@ export function createSurrogatePipRenderStrategy() {
 
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(-(worldPlayer.yaw || 0));
+      ctx.rotate(pipCompassRingRotationRadFromYawRad(worldPlayer.yaw || 0));
       ctx.fillStyle = "rgba(255,255,255,0.94)";
       ctx.beginPath();
       ctx.moveTo(0, -r * 0.15);

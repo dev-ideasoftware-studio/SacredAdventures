@@ -23,6 +23,8 @@ class ThreeIconManager {
         
         // Canvas Style (Fixed Background)
         const canvas = this.renderer.domElement;
+        canvas.id = 'v2-guide-icons-canvas';
+        canvas.setAttribute('aria-hidden', 'true');
         canvas.style.position = 'fixed';
         canvas.style.top = '0';
         canvas.style.left = '0';

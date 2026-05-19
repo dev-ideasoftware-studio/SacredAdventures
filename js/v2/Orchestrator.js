@@ -50,6 +50,19 @@ import {
   validateRuntimeServiceContracts,
 } from "./RuntimeServices.js";
 import { ensurePipOrthoRingClipRuntimeServiceRegistered } from "./anu/PipOrthoRingDiskClip.js";
+/**
+ * Side-effect import — registers `AnuNatureAwareness` on `RuntimeServices`
+ * at load time. The orchestrator pumps `.tick()` once per frame so the
+ * service's player-position cache stays one frame fresh. See its source
+ * for the rationale (May-16 2026 user spec on inter-animal awareness).
+ */
+import { AnuNatureAwareness } from "./anu/AnuNatureAwareness.js";
+import {
+  attachVillageViewRightStackLayout,
+  buildOrchestratorHud,
+  updateOrchestratorHudModules,
+  updateOrchestratorHudValues,
+} from "./OrchestratorHud.js";
 
 const _pipSpiritLook = new THREE.Vector3();
 
@@ -67,16 +80,61 @@ export class SacredOrchestrator {
     // ── Renderer ──────────────────────────────────────────────────────────
     this.renderer = new THREE.WebGLRenderer({
       canvas,
+      // MSAA OFF — May-19 2026 FPS pass. With DPR ≥ 1.25 the supersample
+      // implicit in upscaling already smooths edges; running MSAA on top
+      // doubled the cost without a meaningful visual gain on this
+      // stylised scene. The hex-seam stair-stepping that motivated MSAA
+      // earlier is gone now that DPR is the AA strategy.
       antialias: false,
       powerPreference: "high-performance",
     });
-    // Cap at 1.0 so high-DPI screens don't 4x the pixel fill and cap below 120
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
+    // Pixel ratio: previously hard-clamped at 1.0 to chase 120 FPS, but
+    // that left Retina-class displays rendering into a ¼-area buffer →
+    // the entire scene read as soft / pixelated. Cap at 2.0 instead so
+    // we get native Retina sharpness when available without paying for
+    // 3× DPR phones / kiosks. Adaptive policy still has the freedom to
+    // dial this back via `setPixelRatio` if FPS bends under load.
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = false;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Shadows enabled — flat black contact discs under trees / rabbits
+    // were the second-largest "ugly" read in the landscape screenshot.
+    // PCFSoftShadowMap softens the umbra so a single shadow pass adds
+    // depth across the whole scene; we leave per-mesh `castShadow` /
+    // `receiveShadow` flags on the modules that already opted in.
+    this.renderer.shadowMap.enabled = true;
+    // PCF (not PCFSoft) — Soft is 5-tap and dominated the frame on a
+    // scene with 16+ shadow casters and a 1024² shadow map. The visual
+    // diff at the sanctuary's camera distances is small; the perf diff
+    // is ~½ the shadow shader cost. Keeping shadows enabled is what
+    // separates the v4 look from a flat low-poly read.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
+
+    // ── Production shader-debug OFF (May-19 2026 FPS profile) ────────
+    // `gl.getProgramInfoLog` is a CPU↔GPU readback that Three.js fires
+    // after every shader compile to surface compile errors. The profile
+    // showed `onFirstUse` blocking the main thread for 403 ms (342 ms
+    // inside getProgramInfoLog). Disabling skips the readback; if a
+    // shader genuinely fails to compile we'll still see the WebGL
+    // console error from the browser. Saves ~340 ms on first-frame.
+    this.renderer.debug.checkShaderErrors = false;
+
+    // ── Warm up GPU extensions during boot, not first frame ──────────
+    // The profile flagged `getExtension('EXT_texture_filter_anisotropic')`
+    // taking 280 ms on first touch. Many Sanctuary textures set
+    // `tex.anisotropy = 4`, which triggers that query lazily during
+    // the first scene render — i.e. inside the user-visible frame
+    // budget. Forcing it here moves the stall behind the loading
+    // modal where the user is already waiting.
+    try {
+      const caps = this.renderer.capabilities;
+      const maxAniso = caps?.getMaxAnisotropy?.();
+      console.log(
+        `%c[SacredOrchestrator] GPU extensions warmed — maxAnisotropy=${maxAniso ?? "?"}`,
+        "color:#80deea;",
+      );
+    } catch (_) { /* best-effort warmup */ }
 
     // ── Scene & Camera ────────────────────────────────────────────────────
     this.scene = new THREE.Scene();
@@ -95,6 +153,49 @@ export class SacredOrchestrator {
     // Map<name, { module, active, fpsCost, benchFrames, benchTotal }>
     this._registry = new Map();
     this._activeModules = []; // ordered list of active module names
+
+    /**
+     * `_activeModuleInstances` — name → live module object shim.
+     *
+     * Multiple callers (the parent journal-postMessage bridge in
+     * index.v2.html, the START GAME / GREET HER intros in
+     * `World.beginJournalStartGameIntro`, the top-down map-view foliage
+     * hide in `World.update`, and the VillageBuilder building list) all
+     * read `window.anuOrchestrator._activeModuleInstances.<Name>` via
+     * optional chaining (`?.`). Until now nothing actually built that
+     * record — every callsite silently no-op'd because the property was
+     * undefined. That's why "START GAME does nothing" + "I don't see a
+     * single change you say you made to map view" both reproduced: the
+     * lookups were dead.
+     *
+     * This is a `Proxy` rather than a hand-maintained dict so we don't
+     * have to remember to update it on every register / activate /
+     * deactivate; each property access just reads from the live
+     * `_registry`. Returns the module itself (not the entry wrapper),
+     * so callers can keep writing `.World?.beginJournalStartGameIntro?.()`.
+     */
+    this._activeModuleInstances = new Proxy(
+      {},
+      {
+        get: (_t, prop) => {
+          if (typeof prop !== "string") return undefined;
+          const entry = this._registry?.get(prop);
+          return entry?.module;
+        },
+        has: (_t, prop) => {
+          if (typeof prop !== "string") return false;
+          return this._registry?.has(prop) === true;
+        },
+        ownKeys: () =>
+          this._registry ? Array.from(this._registry.keys()) : [],
+        getOwnPropertyDescriptor: (_t, prop) => {
+          if (typeof prop !== "string") return undefined;
+          const entry = this._registry?.get(prop);
+          if (!entry) return undefined;
+          return { enumerable: true, configurable: true, value: entry.module };
+        },
+      },
+    );
 
     // ── FPS tracking ──────────────────────────────────────────────────────
     this.smoothFPS = 0;
@@ -145,6 +246,7 @@ export class SacredOrchestrator {
 
     // ── HUD ───────────────────────────────────────────────────────────────
     this._hud = this._buildHUD();
+    attachVillageViewRightStackLayout();
 
     // ── Resize ────────────────────────────────────────────────────────────
     this._onResizeBound = () => this._onResize();
@@ -213,6 +315,20 @@ export class SacredOrchestrator {
       return;
     }
 
+    // ── Yield to main thread BEFORE heavy load() ────────────────────
+    // The Chrome perf trace flagged two giant blocking tasks (1348 ms
+    // + 1152 ms) during boot — caused by ~30 module load()s running
+    // back-to-back in a single task. Yielding before each load lets
+    // the browser paint the loading modal + LCP element between
+    // modules and slices long tasks into <50 ms segments.
+    // Prefers `scheduler.yield()` (Chrome 115+, keeps task priority);
+    // falls back to `setTimeout(0)` everywhere else.
+    if (typeof scheduler !== "undefined" && typeof scheduler.yield === "function") {
+      await scheduler.yield();
+    } else {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+
     const baselineFPS = this.smoothFPS;
     console.log(
       `%c[SacredOrchestrator] ▶ Activating: ${name} (baseline FPS: ${baselineFPS.toFixed(1)})`,
@@ -278,6 +394,7 @@ export class SacredOrchestrator {
     this._bench = {
       name,
       frames: 0,
+      totalFrames: BENCH_FRAMES,
       totalDelta: 0,
       baselineFPS,
     };
@@ -320,7 +437,107 @@ export class SacredOrchestrator {
   start() {
     this._disposed = false;
     this.clock.start();
+    /**
+     * Pre-compile every material program in the scene BEFORE the first
+     * frame so the player's first move isn't punctuated by GLSL
+     * compile-jank stalls. `index.v2.html` activates World/Trees/PanelsPIP
+     * /Fauna and only then calls `start()` — by this point the scene is
+     * fully populated and the warm-up touches the real meshes.
+     *
+     * Anu memory `boot-shader-warmup` records the rationale + cost shape.
+     */
+    this.precompileShaders();
     this._loop();
+  }
+
+  /**
+   * One-shot boot warm-up. Three stages, each addressing a different
+   * source of first-move stutter that Anu's `probe-boot-stutter.mjs`
+   * surfaced:
+   *
+   *   1. `renderer.compile(scene, camera)` — compiles every material's
+   *      GLSL program against the active camera + lights set. Catches
+   *      most shaders but DOES NOT upload textures or allocate GPU
+   *      geometry buffers.
+   *
+   *   2. 1×1 render-to-target pass — fires a real `renderer.render()`
+   *      into a 1×1 `WebGLRenderTarget`. The microscopic raster cost
+   *      is irrelevant; the side-effect is what we want:
+   *        • every visible material's textures get `texImage2D`'d
+   *        • every visible geometry gets its VBO/IBO uploaded
+   *        • any shader variant `renderer.compile()` missed (e.g.
+   *          `onBeforeCompile` hooks that mutate the program at first
+   *          use, like the leaf-wind shader in `Flora.js`) is compiled
+   *      Before May-11 2026 evening, this was deferred to the first
+   *      real frame after `_loop()` started, producing a single
+   *      2.5-second stall at the moment of player-control hand-off
+   *      (probe ledger: frame 691, `dTex=61, dGeo=90, dProg=24` in one
+   *      frame). Now it happens during boot, behind the loading iframe.
+   *
+   *   3. Frustum-cull bypass during stage 2 — temporarily disables
+   *      `frustumCulled` on every drawable so meshes outside the
+   *      initial camera frustum still get uploaded. Without this, a
+   *      tree behind the camera would stutter on first rotation.
+   *      Visibility flags are NOT changed (we honour intentionally
+   *      hidden meshes like the stag during `WAIT_TO_APPEAR`).
+   *
+   * Idempotent: subsequent calls compile + upload only resources added
+   * since the previous call. Cheap to call again after activating a
+   * module that brings new materials online mid-session.
+   */
+  precompileShaders() {
+    if (!this.renderer || !this.scene || !this.camera) return;
+    try {
+      const t0 = performance.now();
+      this.renderer.compile(this.scene, this.camera);
+      const compileMs = performance.now() - t0;
+
+      const tRender0 = performance.now();
+      this._performBootRenderWarmup(this.renderer, this.camera);
+      const renderMs = performance.now() - tRender0;
+
+      console.log(
+        `%c[SacredOrchestrator] 🔥 Boot warm-up complete (main pass): compile ${compileMs.toFixed(1)} ms · prime render ${renderMs.toFixed(1)} ms`,
+        "color:#9ccc65;font-weight:bold;",
+      );
+    } catch (err) {
+      console.warn("[SacredOrchestrator] Boot warm-up failed (continuing):", err);
+    }
+  }
+
+  /**
+   * Internal: render the scene to a 1×1 target so the GPU performs
+   * texture + geometry uploads + shader-variant finalisation for every
+   * visible mesh. Restores render-target + frustum-cull state on exit.
+   *
+   * @param {THREE.WebGLRenderer} renderer
+   * @param {THREE.Camera} camera
+   */
+  _performBootRenderWarmup(renderer, camera) {
+    if (!renderer || !camera || !this.scene) return;
+    const target = new THREE.WebGLRenderTarget(1, 1);
+    const savedRT = renderer.getRenderTarget();
+
+    /** Restore frustum-cull state after the warmup pass. */
+    const restore = [];
+    this.scene.traverse((o) => {
+      if (
+        (o.isMesh || o.isInstancedMesh || o.isSkinnedMesh) &&
+        o.frustumCulled === true
+      ) {
+        restore.push(o);
+        o.frustumCulled = false;
+      }
+    });
+
+    try {
+      renderer.setRenderTarget(target);
+      renderer.render(this.scene, camera);
+    } finally {
+      renderer.setRenderTarget(savedRT);
+      for (const o of restore) o.frustumCulled = true;
+      target.dispose();
+    }
   }
 
   _loop() {
@@ -347,6 +564,12 @@ export class SacredOrchestrator {
       if (this._fpsReady && this.smoothFPS > this._peakFPS) {
         this._peakFPS = this.smoothFPS;
       }
+
+      // ── Nature awareness tick — refresh player XZ cache before any
+      // animal FSM consults `senseThreat()`. Cheap (one Map read +
+      // two float assignments); must run BEFORE module updates so the
+      // values they see are this-frame fresh, not last-frame stale.
+      AnuNatureAwareness.tick();
 
       // ── Update active modules ─────────────────────────────────────────────
       for (const name of this._activeModules) {
@@ -529,267 +752,23 @@ export class SacredOrchestrator {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // HUD
+  // HUD — surface lives in js/v2/OrchestratorHud.js (Phase 9+ split). These
+  // methods are thin delegators so the call-sites in this file keep their
+  // `this._foo()` shape; the HUD module reads from `this`'s public surface
+  // (renderer.info, _activeModules, _hud, _bench, _pipRenderedLastFrame,
+  // _anuAuditAlerts, …).
   // ──────────────────────────────────────────────────────────────────────────
 
   _buildHUD() {
-    // Inject Google Font for the HUD
-    if (!document.getElementById('v2-font')) {
-      const lnk = document.createElement('link');
-      lnk.id = 'v2-font';
-      lnk.rel = 'stylesheet';
-      lnk.href = 'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap';
-      document.head.appendChild(lnk);
-    }
-
-    const hud = document.createElement('div');
-    hud.id = 'v2-orchestrator-hud';
-    hud.style.cssText = `
-      position: fixed;
-      top: 85px;
-      right: 20px;
-      z-index: 9999;
-      background: linear-gradient(160deg, #1c1208 0%, #2a1c08 100%);
-      border: 2px solid rgba(251,192,45,0.35);
-      border-radius: 14px;
-      padding: 14px 18px 12px;
-      font-family: 'Fredoka', 'Segoe UI', sans-serif;
-      font-size: 13px;
-      color: #fbc02d;
-      width: 240px;
-      box-sizing: border-box;
-      pointer-events: none;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,220,100,0.08);
-      user-select: none;
-      overflow: hidden;
-    `;
-    hud.innerHTML = this._hudHTML();
-    document.body.appendChild(hud);
-    return hud;
-  }
-
-  _hudHTML() {
-    return `
-      <div style="font-size:10px;letter-spacing:2px;color:rgba(251,192,45,0.5);margin-bottom:10px;font-weight:600;">SACRED ADV v2 · ORCHESTRATOR</div>
-      <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:6px;">-- FPS</div>
-      <div style="position:relative;width:204px;height:46px;margin-bottom:8px;border-radius:9px;padding:3px;box-sizing:border-box;background:linear-gradient(160deg, #0a0603 0%, #1a0f06 50%, #060300 100%);box-shadow:inset 2px 2px 5px rgba(0,0,0,0.95), inset -1px -1px 2px rgba(251,192,45,0.10), 0 1px 0 rgba(255,220,100,0.06), 0 -1px 0 rgba(0,0,0,0.6);">
-        <canvas id="v2-frame-graph" width="198" height="40" style="display:block;width:198px;height:40px;border-radius:6px;background:transparent;"></canvas>
-        <div id="v2-load" style="position:absolute;left:8px;top:5px;font-size:9px;letter-spacing:1.4px;color:rgba(255,248,220,0.92);font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7);pointer-events:none;">LOAD --%</div>
-        <div id="v2-load-detail" style="position:absolute;right:8px;top:5px;font-size:8px;letter-spacing:0.6px;color:rgba(255,248,220,0.62);text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.7);pointer-events:none;">--/--ms</div>
-      </div>
-      <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
-      <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:10px;letter-spacing:0.4px;">PiP …</div>
-      <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
-      <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">UNIVERSE</div>
-      <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
-      <div id="v2-bench" style="font-size:11px;color:#ce93d8;margin-top:10px;min-height:16px;"></div>
-    `;
+    return buildOrchestratorHud();
   }
 
   _updateHUD() {
-    if (!this._hud) return;
-    const modEl = this._hud.querySelector('#v2-modules');
-    if (!modEl) return;
-    if (this._activeModules.length === 0) {
-      modEl.textContent = 'none';
-      return;
-    }
-    modEl.innerHTML = this._activeModules.map(name => {
-      const entry = this._registry.get(name);
-      const cost  = entry && entry.fpsCost !== null ? ` <span style="color:#ef9a9a;">[${entry.fpsCost.toFixed(1)}fps]</span>` : '';
-      return `▶ ${name}${cost}`;
-    }).join('<br>');
+    updateOrchestratorHudModules(this);
   }
 
   _updateHUDValues() {
-    if (!this._hud) return;
-    const fpsEl   = this._hud.querySelector('#v2-fps');
-    const drawEl  = this._hud.querySelector('#v2-draws');
-    const benchEl = this._hud.querySelector('#v2-bench');
-    if (!fpsEl) return;
-
-    const fps = this._fpsReady ? this.smoothFPS : this.rawFPS;
-    const peak = this._peakFPS;
-    const col = fps >= 55 ? "#a5d6a7" : fps >= 30 ? "#fbc02d" : "#ef5350";
-    fpsEl.style.color = col;
-    if (fps > 0) {
-      const peakStr =
-        peak > 0
-          ? ` <span style="font-size:14px;color:rgba(255,255,255,0.3);font-weight:400;">(max ${Math.round(peak)})</span>`
-          : "";
-      fpsEl.innerHTML = `${Math.round(fps)} FPS${peakStr}`;
-    } else {
-      fpsEl.textContent = "Starting…";
-    }
-
-    const r = this.renderer.info.render;
-    if (drawEl) {
-      const pipLabel =
-        V2_PIP_RENDER_EVERY_N_FRAMES > 0 ? "WebGL swap" : "off";
-      drawEl.textContent = `draws: ${r.calls} | tris: ${(r.triangles / 1000).toFixed(1)}k · main · ${window._detectedHz || ".."}hz · PiP=${pipLabel}`;
-    }
-
-    // PiP status line — surfaces the second-context cost (Phase 4).
-    const pipEl = this._hud.querySelector("#v2-pip");
-    if (pipEl) {
-      if (V2_PIP_RENDER_EVERY_N_FRAMES <= 0) {
-        pipEl.textContent = "PiP=off  (V2_PIP_RENDER_EVERY_N_FRAMES = 0)";
-      } else {
-        const snap = getRenderingSnapshot();
-        pipEl.textContent =
-          `PiP=on  stride:${snap.pipEffectiveStride}  phase:${snap.pipPhase}  rendered:${this._pipRenderedLastFrame ? "✓" : "·"}`;
-      }
-    }
-
-    // LOAD% + frame-time sparkline (Phase 4.5). The proxy is wall-clock frame
-    // duration vs V2_FRAME_MS_BUDGET; WebGL does not expose true GPU load.
-    const loadEl = this._hud.querySelector("#v2-load");
-    const loadDetailEl = this._hud.querySelector("#v2-load-detail");
-    const graphEl = this._hud.querySelector("#v2-frame-graph");
-    if (loadEl || loadDetailEl || graphEl) {
-      const fb = getFrameBudgetSnapshot();
-      const samples = getFrameSamples();
-      const loadPct = Math.round(fb.loadPct);
-      const loadCol = loadPct < 75 ? "#a5d6a7" : loadPct < 105 ? "#fbc02d" : "#ef5350";
-      if (loadEl) {
-        loadEl.textContent = `LOAD ${loadPct}%`;
-        loadEl.style.color = loadCol;
-      }
-      if (loadDetailEl) {
-        loadDetailEl.textContent = `${fb.avgMs.toFixed(1)}/${fb.budgetMs.toFixed(1)}ms`;
-      }
-      if (graphEl) this._drawFrameGraph(graphEl, samples, fb.budgetMs);
-    }
-
-    if (benchEl) {
-      if (this._bench) {
-        const pct = Math.floor((this._bench.frames / BENCH_FRAMES) * 100);
-        benchEl.textContent = `⏱ Benchmarking ${this._bench.name}… ${pct}%`;
-      } else {
-        benchEl.textContent = '';
-      }
-    }
-  }
-
-  /**
-   * HUD frame-time equalizer.
-   *
-   * Renders the most recent N samples as discrete vertical bars in the
-   * neomorphic recessed wrapper. Each bar is coloured by its OWN load
-   * ratio (green / amber / red) with a vertical gradient (deeper base,
-   * brighter tip) and a 1px bright cap that reads as a peak indicator.
-   * A faint dashed reference line marks the 1.0× budget.
-   *
-   * Y axis: 0 ms at the bottom, 2× budget at the top (clamped).
-   */
-  _drawFrameGraph(canvasEl, samples, budgetMs) {
-    const ctx = canvasEl.getContext("2d");
-    if (!ctx) return;
-    const w = canvasEl.width;
-    const h = canvasEl.height;
-    ctx.clearRect(0, 0, w, h);
-    if (!(budgetMs > 0)) return;
-
-    // Inner well — extra depth on top of the wrapper's recessed shadow.
-    const wellGrad = ctx.createLinearGradient(0, 0, 0, h);
-    wellGrad.addColorStop(0, "rgba(0, 0, 0, 0.42)");
-    wellGrad.addColorStop(0.55, "rgba(20, 12, 4, 0.55)");
-    wellGrad.addColorStop(1, "rgba(0, 0, 0, 0.45)");
-    ctx.fillStyle = wellGrad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Faint baseline at y=0 ms.
-    ctx.strokeStyle = "rgba(251, 192, 45, 0.10)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, h - 0.5);
-    ctx.lineTo(w, h - 0.5);
-    ctx.stroke();
-
-    // Dashed budget reference line at 1.0× budget.
-    const span = 2 * budgetMs;
-    const yForMs = (ms) => h - Math.min(1, Math.max(0, ms) / span) * h;
-    const yBudget = yForMs(budgetMs);
-    ctx.strokeStyle = "rgba(251, 192, 45, 0.28)";
-    ctx.setLineDash([2, 3]);
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.moveTo(0, yBudget + 0.5);
-    ctx.lineTo(w, yBudget + 0.5);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const N = samples.length;
-    if (N === 0) return;
-
-    // Equalizer config: 32 bars (classic count). If the buffer holds more
-    // than 32 samples we render the most recent 32; if fewer, we render
-    // what we have left-aligned in the well.
-    const MAX_BARS = 32;
-    const visible = Math.min(N, MAX_BARS);
-    const startIdx = Math.max(0, N - visible);
-    const slotW = w / MAX_BARS;
-    const barW = Math.max(2, slotW - 1.2);
-    const radius = Math.min(1.6, barW * 0.32);
-
-    for (let i = 0; i < visible; i++) {
-      const ms = samples[startIdx + i];
-      if (!(ms > 0)) continue;
-      const ratio = ms / budgetMs;
-      const y = yForMs(ms);
-      const barH = h - y;
-      if (barH < 1) continue;
-
-      // Per-bar palette by its own load ratio (independent of LOAD% avg).
-      let baseCol;
-      let midCol;
-      let tipCol;
-      let capAlpha;
-      if (ratio < 0.7) {
-        baseCol = "#1b5e20";
-        midCol = "#66bb6a";
-        tipCol = "#c8e6c9";
-        capAlpha = 0.45;
-      } else if (ratio < 1.05) {
-        baseCol = "#e65100";
-        midCol = "#fbc02d";
-        tipCol = "#fff59d";
-        capAlpha = 0.6;
-      } else {
-        baseCol = "#7f0000";
-        midCol = "#ef5350";
-        tipCol = "#ffcdd2";
-        capAlpha = 0.85;
-      }
-
-      const grad = ctx.createLinearGradient(0, y, 0, h);
-      grad.addColorStop(0, tipCol);
-      grad.addColorStop(0.42, midCol);
-      grad.addColorStop(1, baseCol);
-      ctx.fillStyle = grad;
-
-      const x = Math.floor(i * slotW + (slotW - barW) * 0.5);
-      const bw = Math.floor(barW);
-
-      // Rounded-top bar (only the top corners rounded — base sits flush).
-      if (radius >= 0.5 && barH > radius) {
-        ctx.beginPath();
-        ctx.moveTo(x, h);
-        ctx.lineTo(x, y + radius);
-        ctx.quadraticCurveTo(x, y, x + radius, y);
-        ctx.lineTo(x + bw - radius, y);
-        ctx.quadraticCurveTo(x + bw, y, x + bw, y + radius);
-        ctx.lineTo(x + bw, h);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        ctx.fillRect(x, y, bw, barH);
-      }
-
-      // Bright cap line — peak indicator (slight glow on red bars).
-      ctx.fillStyle = `rgba(255, 255, 255, ${capAlpha})`;
-      ctx.fillRect(x, y, bw, 1);
-    }
+    updateOrchestratorHudValues(this);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -835,12 +814,25 @@ export class SacredOrchestrator {
     return 1;
   }
 
-  _ensurePipPipeline(canvasEl) {
-    if (this._pipRenderer) return;
+  /**
+   * PiP DPR + backing-size compute. Single source of truth shared by
+   * `_ensurePipPipeline` and `_resizePipIfNeeded` — the two sites used
+   * to inline the same `Math.min(devicePixelRatio, 1.25)` formula
+   * which made drift trivially easy. Returns `{ w, h }` for the canvas
+   * backing store (NOT CSS); CSS dimensions stay owned by the caller.
+   */
+  _computePipBackingSize(canvasEl) {
     const pr = Math.min(window.devicePixelRatio || 1, 1.25);
     const rect = canvasEl.getBoundingClientRect();
-    const w = Math.max(160, Math.floor(rect.width * pr));
-    const h = Math.max(160, Math.floor(rect.height * pr));
+    return {
+      w: Math.max(160, Math.floor(rect.width * pr)),
+      h: Math.max(160, Math.floor(rect.height * pr)),
+    };
+  }
+
+  _ensurePipPipeline(canvasEl) {
+    if (this._pipRenderer) return;
+    const { w, h } = this._computePipBackingSize(canvasEl);
     canvasEl.width = w;
     canvasEl.height = h;
     this._pipW = w;
@@ -859,6 +851,11 @@ export class SacredOrchestrator {
     }
     this._pipRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     this._pipRenderer.toneMappingExposure = this.renderer.toneMappingExposure;
+    // Kill shader debug readback on the PiP renderer too — main renderer
+    // already had this disabled, but the perf trace still showed 240 ms
+    // of onFirstUse because the PIP renderer keeps its own program cache
+    // and its own debug flag. (May-19 2026 perf trace finding.)
+    this._pipRenderer.debug.checkShaderErrors = false;
 
     // Frustum span = designer constant × per-user zoom (UIModule "+/−").
     const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM * this._pipUserZoom;
@@ -874,6 +871,33 @@ export class SacredOrchestrator {
       520,
     );
     this._pipPersp = new THREE.PerspectiveCamera(42, aspect, 0.12, 220);
+    // Enable layer 1 on both PiP cameras so they pick up the avatar's
+    // PiP-only marker (added in SanctuaryAvatar). Main camera stays on
+    // default (layer 0) and never sees the marker. (May-19 2026.)
+    this._pipOrtho.layers.enable(1);
+    this._pipPersp.layers.enable(1);
+
+    // Warm-up: the second WebGL context has its own program cache + own
+    // GPU buffer pool, so the *first* PiP render would otherwise compile
+    // every material AND re-upload every texture/geometry from scratch
+    // (same scene, different GL context — separate caches). We do both:
+    //  - `pipRenderer.compile(scene, pipOrtho)` for shaders
+    //  - 1×1 render-to-target through the SAME pipeline for textures + geos
+    // See Anu memory `boot-shader-warmup`.
+    try {
+      const t0 = performance.now();
+      this._pipRenderer.compile(this.scene, this._pipOrtho);
+      const compileMs = performance.now() - t0;
+      const tRender0 = performance.now();
+      this._performBootRenderWarmup(this._pipRenderer, this._pipOrtho);
+      const renderMs = performance.now() - tRender0;
+      console.log(
+        `%c[SacredOrchestrator] 🔥 Boot warm-up complete (PiP pass): compile ${compileMs.toFixed(1)} ms · prime render ${renderMs.toFixed(1)} ms`,
+        "color:#9ccc65;font-weight:bold;",
+      );
+    } catch (err) {
+      console.warn("[SacredOrchestrator] PiP boot warm-up failed (continuing):", err);
+    }
 
     console.log(
       "%c[SacredOrchestrator] PiP WebGL pipeline — ortho map / persp spirit (swapped vs main view)",
@@ -883,10 +907,7 @@ export class SacredOrchestrator {
 
   _resizePipIfNeeded(canvasEl) {
     if (!this._pipRenderer || !this._pipOrtho || !this._pipPersp) return;
-    const pr = Math.min(window.devicePixelRatio || 1, 1.25);
-    const rect = canvasEl.getBoundingClientRect();
-    const w = Math.max(160, Math.floor(rect.width * pr));
-    const h = Math.max(160, Math.floor(rect.height * pr));
+    const { w, h } = this._computePipBackingSize(canvasEl);
     if (w === this._pipW && h === this._pipH) return;
     this._pipW = w;
     this._pipH = h;

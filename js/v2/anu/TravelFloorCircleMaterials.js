@@ -3,22 +3,35 @@ import * as THREE from "three";
 /**
  * Horizontal travel decals (CircleGeometry / RingGeometry with rotation.x = −π/2).
  * Uses vertex radial distance — correct for Three.js ring UV layout.
- * depthTest off so rings stay visible over uneven terrain / nearby meshes (decal-style read).
+ * **`transparent: false`** so these draw in the opaque pass: fully transparent
+ * queue would always paint *after* the opaque player mesh, which made the
+ * selection disc read on top of the figurine (May-14 2026 user report).
+ * `depthTest` stays on (see `WorldAvatar`); `depthWrite: false` avoids
+ * carving bad depth into the buffer on slopes.
  */
 export function createPhotorealTravelDiscMaterial(kind, outerRadius) {
+  // NPC kind: natural wood-timber palette (May-13 2026 user pass — was gold).
+  // Aged oak shadow → cinnamon walnut → warm blonde pine highlight, with the
+  // metallic sheen (uSpec) dropped from 0.55 → 0.18 so it reads as matte
+  // timber, not foil. Grain bumped 0.14 → 0.20 so the fragment-shader noise
+  // reads as wood grain rather than a flat tint.
   const isNpc = kind === "npc";
   const uTime = { value: 0 };
   const uOuter = { value: outerRadius };
   const inner = isNpc
-    ? new THREE.Color(0x6b5218)
+    ? new THREE.Color(0x3a2412) // aged oak shadow
     : new THREE.Color(0x0d260d);
-  const mid = isNpc ? new THREE.Color(0xc9a227) : new THREE.Color(0x2e7d32);
-  const rim = isNpc ? new THREE.Color(0xfff2b8) : new THREE.Color(0x7cb342);
+  const mid = isNpc
+    ? new THREE.Color(0x8b5a2b) // walnut / cinnamon
+    : new THREE.Color(0x2e7d32);
+  const rim = isNpc
+    ? new THREE.Color(0xd4a574) // blonde pine highlight
+    : new THREE.Color(0x7cb342);
   const uInner = { value: inner };
   const uMid = { value: mid };
   const uRim = { value: rim };
-  const uSpec = { value: isNpc ? 0.55 : 0.22 };
-  const uGrain = { value: isNpc ? 0.14 : 0.09 };
+  const uSpec = { value: isNpc ? 0.18 : 0.22 };
+  const uGrain = { value: isNpc ? 0.20 : 0.09 };
 
   const vs = `
 uniform float uOuter;
@@ -49,7 +62,6 @@ void main() {
   float r = vRn;
   if (r > 1.001) discard;
   float edge = smoothstep(0.98, 0.72, r);
-  float core = smoothstep(0.95, 0.0, r);
   vec3 base = mix(uInner, uMid, pow(r, 0.85));
   base = mix(base, uRim, edge * edge * 0.85);
   vec2 gn = vHashUv * 96.0 + uTime * 0.08;
@@ -59,8 +71,7 @@ void main() {
   base += glint * mix(0.35, 1.0, edge);
   float ao = mix(1.0, 0.82, smoothstep(0.2, 1.0, r));
   base *= ao;
-  float a = mix(0.34, 0.42, edge) * (0.88 + 0.12 * core);
-  gl_FragColor = vec4(base, a);
+  gl_FragColor = vec4(base, 1.0);
 }
 `;
 
@@ -76,8 +87,8 @@ void main() {
     },
     vertexShader: vs,
     fragmentShader: fs,
-    transparent: true,
-    depthTest: false,
+    transparent: false,
+    depthTest: true,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
@@ -88,13 +99,17 @@ export function createPhotorealTravelRingMaterial(
   innerRadius,
   outerRadius,
 ) {
+  // NPC kind: natural wood-timber rim (May-13 2026 user pass — was gold).
+  // Walnut inner → blonde pine outer with the metallic sheen (uMetal) dropped
+  // from 0.62 → 0.10 so the rim reads as a soft carved-timber border, not a
+  // gilded ring.
   const isNpc = kind === "npc";
   const uTime = { value: 0 };
   const uInnerR = { value: innerRadius };
   const uOuterR = { value: outerRadius };
-  const uInner = { value: new THREE.Color(isNpc ? 0xa67c00 : 0xffffff) };
-  const uOuter = { value: new THREE.Color(isNpc ? 0xfff8dc : 0xffffff) };
-  const uMetal = { value: isNpc ? 0.62 : 0.08 };
+  const uInner = { value: new THREE.Color(isNpc ? 0x6b3e1f : 0xffffff) };
+  const uOuter = { value: new THREE.Color(isNpc ? 0xd4a574 : 0xffffff) };
+  const uMetal = { value: isNpc ? 0.10 : 0.08 };
 
   const vs = `
 uniform float uInnerR;
@@ -128,7 +143,7 @@ void main() {
   col += (sc - 0.5) * 0.04 * (1.0 + uMetal * 2.0);
   float glint = pow(max(0.0, vT), 5.0) * uMetal * 0.45;
   col += glint;
-  gl_FragColor = vec4(col, 0.94);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -143,8 +158,8 @@ void main() {
     },
     vertexShader: vs,
     fragmentShader: fs,
-    transparent: true,
-    depthTest: false,
+    transparent: false,
+    depthTest: true,
     depthWrite: false,
     side: THREE.DoubleSide,
   });

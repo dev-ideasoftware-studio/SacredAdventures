@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sacred Adventures v4 — Sanctuary</title>
+  <!--
+    Sanctuary build (May-17 2026). Per the user:
+
+      "use a multipart script to really create this brand new universe
+       scene. Let ANU construct this new beautiful sacred grove. Just
+       the 3d model and a nice rendering of THE POOL + FISH + FISH
+       DOCK + 3d CIRCLES … this will be our sanctuary."
+
+    Five focused parts (each in js/sanctuary/), each tagged for one Anu
+    domain from line one, each ≤ ~250 lines of clean code with no GLB
+    fetches and zero `window._v2*` baggage:
+
+      Part 1 — SanctuaryGround   · ENVIRONMENT
+                terrain + sky + lights + fog + pool basin carve.
+                Source of truth for `sanctuaryGroundY(x, z)`.
+
+      Part 2 — SanctuaryPool     · ENVIRONMENT
+                water surface (animated 3-wave shader) + basin floor +
+                moss rim + 14 lily pads (some with gold flowers).
+
+      Part 3 — SanctuaryDock     · STRUCTURES
+                planks + posts + rails + steps + endcap. Procedural
+                wood; ~500 tris. Publishes `__sanctuaryFishingSpot`.
+
+      Part 4 — SanctuaryFish     · FAUNA
+                12 low-poly trout, lazy orbital swim, tail wag, depth
+                drift. ~500 tris total.
+
+      Part 5 — SanctuaryCircles  · ENVIRONMENT (decorative)
+                fishing-spot gold ring + pool perimeter moonlight ring
+                + 6 reusable expanding ripples (auto-pulse + on-demand).
+
+    No GLBs. No legacy code. No `window._v2*` flags. Pure procedural.
+    Anu telemetry should read sub-30k tris total scene cost.
+  -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #c9def0;
+      color: #fff7d0;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    #v4-canvas {
+      position: fixed; inset: 0;
+      display: block;
+      width: 100vw; height: 100vh;
+      cursor: crosshair;
+      z-index: 1;
+    }
+    /* Full-screen loading modal iframe (Component.LoadingModal.html).
+       Mirrors v2's pattern: sits above the canvas until boot completes
+       and we send LOADING_COMPLETE + fade it out. */
+    #v4-loading-iframe {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      z-index: 100000;
+      background: #111;
+      transition: opacity 0.65s ease;
+    }
+
+    /* Pocket journal overlay (same pattern v2 used). Hidden until the
+       J key is pressed or the bottom controls open it. The iframe runs
+       its own scene; we just relay PROCESS_INPUT / RETURN_TO_GAME. */
+    #v4-journal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50000;
+      background: rgba(0, 0, 0, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(3px);
+      transition: opacity 0.25s ease;
+    }
+    #v4-journal-overlay.open { display: flex; }
+    #v4-journal-overlay-close {
+      position: fixed;
+      top: 12px; right: 12px;
+      z-index: 50001;
+      width: 46px; height: 46px;
+      border: none; border-radius: 50%;
+      cursor: pointer;
+      font-size: 26px; line-height: 1; color: #1a1510;
+      background: rgba(255, 245, 220, 0.96);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.85);
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 0;
+      transition: transform 0.15s ease;
+    }
+    #v4-journal-overlay.open #v4-journal-overlay-close { display: flex; }
+    #v4-journal-overlay-close:hover { transform: scale(1.06); }
+    #v4-journal-frame {
+      width: min(96vw, 980px);
+      height: min(94vh, 760px);
+      border: none;
+      background: transparent !important;
+      display: block;
+    }
+
+    /* Rich HUD panel iframe (SacredGame.Panel.html). The panel HTML
+       positions THREE sub-panels itself — #left-panel (movement,
+       bottom-left), #right-panel (actions, bottom-right), and
+       #guides-container (hints, centre). So the iframe spans the
+       full viewport; the panel's own `body { pointer-events: none }`
+       passes clicks through to the canvas, and each interactive
+       child enables pointer-events: auto on itself.
+       Visible by default — P key toggles it off for screenshots. */
+    #v4-panel-frame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      z-index: 3000;
+      background: transparent;
+      pointer-events: none; /* panel's body manages its own clicks */
+      transition: opacity 0.25s ease;
+    }
+    #v4-panel-frame.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #v4-banner {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.72);
+      border-left: 3px solid #fbc02d;
+      padding: 10px 22px;
+      color: #ffe9a8;
+      font-size: 12px;
+      letter-spacing: 1.8px;
+      text-align: center;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+      z-index: 8500;
+      transition: opacity 0.7s;
+    }
+    #v4-banner b { color: #a5d6a7; letter-spacing: 2.5px; font-weight: 800; }
+    #v4-banner small { display: block; color: #bbb; font-size: 10px; margin-top: 4px; letter-spacing: 1.4px; }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <iframe
+    id="v4-loading-iframe"
+    src="Component.LoadingModal.html?v=v4"
+    title="Sacred Sanctuary loading"
+    allow="autoplay"
+  ></iframe>
+
+  <canvas id="v4-canvas"></canvas>
+
+  <!-- ── Pocket Journal overlay ───────────────────────────────────── -->
+  <!-- Press J (or call window._v4ToggleJournal()) to open. The iframe -->
+  <!-- runs its own UI; we close on Esc or backdrop click. -->
+  <div id="v4-journal-overlay" role="dialog" aria-modal="true" aria-label="Sacred Journal">
+    <button
+      type="button"
+      id="v4-journal-overlay-close"
+      aria-label="Close Sacred Journal"
+      title="Close (Esc)"
+    >&times;</button>
+    <iframe
+      id="v4-journal-frame"
+      src="Component.NewJournal.html?v=v4"
+      allowtransparency="true"
+      title="Sacred Journal"
+    ></iframe>
+  </div>
+
+  <!-- ── Rich HUD Panel (SacredGame.Panel.html) ─────────────────────── -->
+  <!-- Sliding panel from the right edge. Toggle via P key, or call    -->
+  <!-- window._v4TogglePanel(). Uses the same postMessage protocol the -->
+  <!-- v2 panel + journal speak so events relay through `window`.       -->
+  <!-- Panel iframe is lazy-loaded — src is set the first time the player
+       opens it (P key / _v4TogglePanel). Before that the iframe has no
+       src and no JavaScript runs inside it, so Component.ThreeIcons.js's
+       unthrottled RAF loop does not compete with the main render loop. -->
+  <iframe
+    id="v4-panel-frame"
+    data-src="SacredGame.Panel.html?v=v4"
+    title="Sacred Panel"
+  ></iframe>
+
+  <div id="v4-banner">
+    <b>SANCTUARY · the sacred pool</b>
+    <small>click the ground to walk · the gold ring marks where to fish · W / arrows = move · S = turn left · D = turn right</small>
+  </div>
+
+  <script type="module">
+    import { SacredOrchestrator } from './js/v2/Orchestrator.js';
+    import { AnuModule } from './js/v2/AnuModule.js';
+
+    import { SanctuaryGroundModule       } from './js/sanctuary/SanctuaryGround.js';
+    import { SanctuaryPoolModule         } from './js/sanctuary/SanctuaryPool.js';
+    import { SanctuaryDockModule         } from './js/sanctuary/SanctuaryDock.js';
+    import { SanctuaryFishModule         } from './js/sanctuary/SanctuaryFish.js';
+    import { SanctuaryCirclesModule      } from './js/sanctuary/SanctuaryCircles.js';
+    import { SanctuaryAvatarModule       } from './js/sanctuary/SanctuaryAvatar.js';
+    import { SanctuaryClickToMoveModule  } from './js/sanctuary/SanctuaryClickToMove.js';
+    import { SanctuaryMutationsModule    } from './js/sanctuary/SanctuaryMutations.js';
+    import { MoldGrowHillModule          } from './js/sanctuary/MoldGrowHill.js';
+    import { MoldPlantTreeModule         } from './js/sanctuary/MoldPlantTree.js';
+    import { MoldPlantFlowerModule       } from './js/sanctuary/MoldPlantFlower.js';
+    import { MoldPlantBushModule         } from './js/sanctuary/MoldPlantBush.js';
+    import { MoldPlantLilyModule         } from './js/sanctuary/MoldPlantLily.js';
+    import { MoldPlantRockModule         } from './js/sanctuary/MoldPlantRock.js';
+    import { MoldPlaceTipiModule         } from './js/sanctuary/MoldPlaceTipi.js';
+    import { SanctuarySkyModule          } from './js/sanctuary/SanctuarySky.js';
+    import { SanctuaryButterfliesModule  } from './js/sanctuary/SanctuaryButterflies.js';
+    import { SanctuaryToolPaletteModule  } from './js/sanctuary/SanctuaryToolPalette.js';
+    import { SanctuaryKeyboardLookModule } from './js/sanctuary/SanctuaryKeyboardLook.js';
+    import { SanctuaryZoomModule         } from './js/sanctuary/SanctuaryZoom.js';
+    // PIP — 1:1 v2 port. May-18 2026 user spec: "fix pip by grabbing
+    // 1:1 my panels and pip and journal 3rd request". The v2 `UIModule`
+    // builds the full moondial (compass ring + lunar phase dial +
+    // 5-season buttons + bronze styling + lens toggle) in one shot.
+    // My earlier SanctuaryPip / SanctuaryPipOverlay placeholders are
+    // intentionally NOT imported here — they were the "cheap" versions.
+    import { UIModule as V2UIModule        } from './js/v2/UIModule.js';
+    import { SanctuaryVillagePadModule   } from './js/sanctuary/SanctuaryVillagePad.js';
+    import { SanctuaryFishJumpsModule    } from './js/sanctuary/SanctuaryFishJumps.js';
+    import { SanctuaryDayNightModule     } from './js/sanctuary/SanctuaryDayNight.js';
+    import { SanctuaryTipisModule        } from './js/sanctuary/SanctuaryTipis.js';
+    import { SanctuaryTipiNpcsModule     } from './js/sanctuary/SanctuaryTipiNpcs.js';
+    import { SanctuaryBraziersModule     } from './js/sanctuary/SanctuaryBraziers.js';
+    import { SanctuaryWeatherModule      } from './js/sanctuary/SanctuaryWeather.js';
+    import { SanctuaryCursorModule       } from './js/sanctuary/SanctuaryCursor.js';
+    import { SanctuaryAmbientModule      } from './js/sanctuary/SanctuaryAmbient.js';
+    import { SanctuaryInventoryModule    } from './js/sanctuary/SanctuaryInventory.js';
+    import { SanctuaryControlsModule     } from './js/sanctuary/SanctuaryControls.js';
+    import { SanctuaryFpsHudModule       } from './js/sanctuary/SanctuaryFpsHud.js';
+    import { SanctuaryFishingModule      } from './js/sanctuary/SanctuaryFishing.js';
+    import { SanctuaryWorldPlayerShimModule } from './js/sanctuary/SanctuaryWorldPlayerShim.js';
+
+    // Modal loader plumbing — same protocol v2 used (Component.LoadingModal
+    // listens for LOG_SYSTEM with msg + 4 progress %, LOADING_COMPLETE
+    // triggers its fade). v4 keeps the four lanes minimal: assets land
+    // fast because everything is procedural, so we mostly drive logic +
+    // init progress.
+    const loadingIframe = document.getElementById('v4-loading-iframe');
+    function postToLoadingModal(payload) {
+      try { loadingIframe?.contentWindow?.postMessage(payload, '*'); } catch (_) {}
+    }
+    function v4Log(msg, pVideo, pAssets, pLogic, pInit) {
+      postToLoadingModal({ type: 'LOG_SYSTEM', msg, pVideo, pAssets, pLogic, pInit });
+    }
+    function v4LoadingComplete() { postToLoadingModal({ type: 'LOADING_COMPLETE' }); }
+    function teardownLoadingIframe() {
+      const ifr = document.getElementById('v4-loading-iframe');
+      if (!ifr) return;
+      ifr.style.opacity = '0';
+      ifr.style.pointerEvents = 'none';
+      setTimeout(() => ifr.remove(), 700);
+    }
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'VIDEO_READY') {
+        v4Log('opening reel ready', 100, 8, 0, 0);
+      }
+    });
+    // Wait for the loading iframe to be ready before sending it messages.
+    await new Promise((resolve) => {
+      if (!loadingIframe) return resolve();
+      loadingIframe.addEventListener('load', resolve, { once: true });
+      setTimeout(resolve, 4000);
+    });
+    const setStep = (s) => v4Log(s, 100, 100, 0, 0);
+
+    v4Log('starting orchestrator', 100, 12, 4, 4);
+    const canvas = document.getElementById('v4-canvas');
+    const orc = new SacredOrchestrator(canvas);
+
+    // Rebrand the orchestrator HUD heading for v4 — the DOM element is
+    // created by `new SacredOrchestrator()` above, then we swap the
+    // header text before any user sees it.
+    requestAnimationFrame(() => {
+      const hud = document.getElementById('v2-orchestrator-hud');
+      if (hud) {
+        const head = hud.querySelector('div');
+        if (head && head.textContent.includes('SACRED ADV')) {
+          head.textContent = 'SACRED · SANCTUARY · v4 · ANU';
+        }
+      }
+    });
+
+    orc.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+
+    // The five parts of the sanctuary. Each is a self-contained Anu-
+    // governed module. Order is intentional: ground first (provides
+    // groundY + waterY anchors), then pool, dock, fish, circles.
+    orc.register(AnuModule);
+    orc.register(SanctuaryGroundModule);
+    orc.register(SanctuaryPoolModule);
+    orc.register(SanctuaryDockModule);
+    orc.register(SanctuaryFishModule);
+    orc.register(SanctuaryCirclesModule);
+    orc.register(SanctuaryAvatarModule);
+    orc.register(SanctuaryClickToMoveModule);
+    orc.register(SanctuarySkyModule);
+    orc.register(SanctuaryButterfliesModule);
+    orc.register(SanctuaryMutationsModule);
+    orc.register(MoldGrowHillModule);
+    orc.register(MoldPlantTreeModule);
+    orc.register(MoldPlantFlowerModule);
+    orc.register(MoldPlantBushModule);
+    orc.register(MoldPlantLilyModule);
+    orc.register(MoldPlantRockModule);
+    orc.register(MoldPlaceTipiModule);
+    orc.register(SanctuaryToolPaletteModule);
+    orc.register(SanctuaryKeyboardLookModule);
+    orc.register(SanctuaryZoomModule);
+    orc.register(V2UIModule); // creates the legacy moondial wayfinder
+    orc.register(SanctuaryVillagePadModule);
+    orc.register(SanctuaryTipisModule);
+    orc.register(SanctuaryTipiNpcsModule);
+    orc.register(SanctuaryBraziersModule);
+    orc.register(SanctuaryWeatherModule);
+    orc.register(SanctuaryFishJumpsModule);
+    orc.register(SanctuaryDayNightModule);
+    orc.register(SanctuaryCursorModule);
+    orc.register(SanctuaryAmbientModule);
+    orc.register(SanctuaryInventoryModule);
+    orc.register(SanctuaryControlsModule);
+    orc.register(SanctuaryFpsHudModule);
+    orc.register(SanctuaryFishingModule);
+    orc.register(SanctuaryWorldPlayerShimModule);
+
+    v4Log('Anu — opening her ear', 100, 22, 14, 10);
+    await orc.activate('Anu');
+
+    v4Log('part 1 / 5 — the ground that all bodies obey', 100, 35, 30, 22);
+    await orc.activate('SanctuaryGround');
+
+    v4Log('part 2 / 5 — the sacred pool', 100, 55, 52, 40);
+    await orc.activate('SanctuaryPool');
+
+    v4Log('part 3 / 5 — the fish dock', 100, 72, 68, 58);
+    await orc.activate('SanctuaryDock');
+
+    v4Log('part 4 / 5 — the school finds the water', 100, 88, 84, 75);
+    await orc.activate('SanctuaryFish');
+
+    v4Log('part 5 / 5 — circles of guiding light', 100, 96, 94, 88);
+    await orc.activate('SanctuaryCircles');
+
+    v4Log('Avatar3 — kid body, anti-transparency armour', 100, 97, 95, 90);
+    await orc.activate('SanctuaryAvatar');
+
+    v4Log('giving the player their feet', 100, 98, 97, 93);
+    await orc.activate('SanctuaryClickToMove');
+
+    v4Log('WorldPlayer shim — so PIP can find the avatar', 100, 98, 97, 93);
+    await orc.activate('SanctuaryWorldPlayerShim');
+
+    v4Log('sky · drifting clouds + distant birds', 100, 90, 88, 80);
+    await orc.activate('SanctuarySky');
+
+    v4Log('mutation registry — kids can shape this world', 100, 96, 95, 90);
+    await orc.activate('SanctuaryMutations');
+
+    v4Log('mold · grow_hill', 100, 97, 96, 92);
+    await orc.activate('MoldGrowHill');
+
+    v4Log('mold · plant_tree', 100, 97, 97, 93);
+    await orc.activate('MoldPlantTree');
+
+    v4Log('mold · plant_flower', 100, 98, 97, 94);
+    await orc.activate('MoldPlantFlower');
+
+    v4Log('mold · plant_bush · plant_lily · plant_rock · place_tipi', 100, 98, 98, 94);
+    await orc.activate('MoldPlantBush');
+    await orc.activate('MoldPlantLily');
+    await orc.activate('MoldPlantRock');
+    await orc.activate('MoldPlaceTipi');
+
+    v4Log('butterflies fluttering across the meadow', 100, 98, 98, 95);
+    await orc.activate('SanctuaryButterflies');
+
+    v4Log('tool palette — hill · tree · flower · bush · lily · rock', 100, 99, 98, 95);
+    await orc.activate('SanctuaryToolPalette');
+
+    v4Log('keyboard — WASD move · arrows turn · space jump', 100, 99, 99, 96);
+    await orc.activate('SanctuaryKeyboardLook');
+
+    v4Log('scroll-wheel zoom — FPV chase + top-down height', 100, 99, 99, 96);
+    await orc.activate('SanctuaryZoom');
+
+    v4Log('legacy v2 moondial PIP — compass + lunar dial + seasons', 100, 99, 99, 96);
+    await orc.activate('PanelsPIP');
+
+    v4Log('village build pad — sacred ground awaiting the tipis', 100, 99, 99, 97);
+    await orc.activate('SanctuaryVillagePad');
+
+    v4Log('tipi 1 + tipi 2 — phasing in onto the pad', 100, 99, 99, 97);
+    await orc.activate('SanctuaryTipis');
+
+    v4Log('seated NPCs — YB on tipi 1, BHG on tipi 2', 100, 99, 99, 97);
+    await orc.activate('SanctuaryTipiNpcs');
+
+    v4Log('braziers — fire + smoke at each tipi', 100, 99, 99, 97);
+    await orc.activate('SanctuaryBraziers');
+
+    v4Log('fish jumps — surprise breaks every 8–18 s', 100, 99, 99, 97);
+    await orc.activate('SanctuaryFishJumps');
+
+    v4Log('controls bar — top-down · reset · save', 100, 99, 99, 97);
+    await orc.activate('SanctuaryControls');
+
+    v4Log('day ↔ night toggle — moon button on controls bar', 100, 99, 99, 98);
+    await orc.activate('SanctuaryDayNight');
+
+    v4Log('tool cursor — follows mouse in top-down', 100, 99, 99, 98);
+    await orc.activate('SanctuaryCursor');
+
+    v4Log('ambient sound — wind + water + birds (after first click)', 100, 99, 99, 98);
+    await orc.activate('SanctuaryAmbient');
+
+    v4Log('harvest inventory — right-click flora to gather', 100, 99, 99, 99);
+    await orc.activate('SanctuaryInventory');
+
+    v4Log('weather — 🌧 toggle on the controls bar', 100, 99, 99, 99);
+    await orc.activate('SanctuaryWeather');
+
+    v4Log('FPS HUD — live counter top-right', 100, 100, 100, 97);
+    await orc.activate('SanctuaryFpsHud');
+
+    v4Log('fishing — cast · bite · catch · 🐟 inventory', 100, 100, 100, 98);
+    await orc.activate('SanctuaryFishing');
+
+    v4Log('breathing life into the loop', 100, 100, 100, 98);
+    orc.start();
+
+    // Place a still camera looking at the pool from the south bank —
+    // the dock juts into the pool from the south, so this puts the
+    // dock + the gold ring + the pool in a single composed shot.
+    // Initial camera: behind the avatar south of v2 Tipi 1 (0,0).
+    orc.camera.position.set(0, 4.8, -6.5);
+    orc.camera.lookAt(0, 1.2, 0);
+    orc.camera.fov = 52;
+    orc.camera.updateProjectionMatrix();
+
+    // First real-frame paint before we fade the loading veil.
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+    v4Log('the grove is open', 100, 100, 100, 100);
+
+    // Hold ~720 ms so the modal's flip-to-100 % odometer animation
+    // completes before we send the LOADING_COMPLETE fade signal — same
+    // pacing v2 used (Anu memory `loading-modal-percent-tween-may-12`).
+    await new Promise((resolve) => setTimeout(resolve, 720));
+    v4LoadingComplete();
+    setTimeout(teardownLoadingIframe, 900);
+
+    // Banner fade after 7s.
+    setTimeout(() => {
+      const b = document.getElementById('v4-banner');
+      if (b) b.style.opacity = '0';
+    }, 7000);
+
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
+    console.log('%c  SACRED · SANCTUARY · v4    ', 'color:#fff2c4;font-weight:bold;font-size:13px;background:#1a2018;padding:4px 8px;');
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
+    console.log('%c  ground   · sacred pool · fish dock · twelve fish · circles of light  ', 'color:#a5d6a7;');
+    console.log('%c  Anu telemetry → AnuUniverse.help()', 'color:#fbc02d;font-weight:bold;background:#1a1108;padding:2px 6px;border-radius:3px;');
+    console.log('%c  Send a ripple → sanctuaryPulse(0, -2)   (works anywhere on the pool)', 'color:#80deea;');
+    console.log('%c  Open the journal → press J  (or window._v4ToggleJournal())', 'color:#80deea;');
+    console.log('');
+  </script>
+
+  <!-- ── Sacred Journal toggle (non-module, after game boot) ────────── -->
+  <!-- Mirrors v2's pattern: J key + Esc + backdrop click toggle the    -->
+  <!-- overlay. While open we set `window._v4InputSuppressed = true` so -->
+  <!-- the keyboard module + click-to-move both freeze.                  -->
+  <script>
+    window._v4JournalOpen = false;
+    window._v4InputSuppressed = false;
+
+    function _v4SetJournalOpen(open) {
+      const overlay = document.getElementById('v4-journal-overlay');
+      const frame = document.getElementById('v4-journal-frame');
+      if (!overlay) return;
+      window._v4JournalOpen = !!open;
+      window._v4InputSuppressed = !!open;
+      overlay.classList.toggle('open', !!open);
+      try {
+        frame?.contentWindow?.postMessage(
+          { type: 'VISIBILITY_CHANGE', isVisible: !!open },
+          '*',
+        );
+      } catch (_) {}
+    }
+    window._v4ToggleJournal = () => _v4SetJournalOpen(!window._v4JournalOpen);
+    window._v4CloseJournal  = () => _v4SetJournalOpen(false);
+
+    // Close button + backdrop click + Esc.
+    document.getElementById('v4-journal-overlay-close')
+      ?.addEventListener('click', () => _v4SetJournalOpen(false));
+    document.getElementById('v4-journal-overlay')
+      ?.addEventListener('mousedown', (e) => {
+        if (window._v4JournalOpen && e.target === e.currentTarget) _v4SetJournalOpen(false);
+      });
+    window.addEventListener('keydown', (e) => {
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+      if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        _v4SetJournalOpen(!window._v4JournalOpen);
+      }
+      if (e.key === 'Escape' && window._v4JournalOpen) _v4SetJournalOpen(false);
+    });
+
+    // Listen for the journal's "close" signals.
+    window.addEventListener('message', (event) => {
+      const t = event.data?.type;
+      if (t === 'RETURN_TO_GAME' || t === 'CLOSE_LOGBOOK') _v4SetJournalOpen(false);
+      if (t === 'REQ_TOGGLE_LOGBOOK' && window._v4JournalOpen) _v4SetJournalOpen(false);
+    });
+
+    // ── Sacred Panel toggle (P key) ─────────────────────────────────
+    // Panel iframe is lazy-loaded — no src until first open, so the
+    // ThreeIconManager RAF loop doesn't run during gameplay.
+    window._v4PanelOpen = false;
+    function _v4SetPanelOpen(open) {
+      const frame = document.getElementById('v4-panel-frame');
+      if (!frame) return;
+      // Lazy-load: set src on first open.
+      if (open && !frame.src && frame.dataset.src) {
+        frame.src = frame.dataset.src;
+      }
+      window._v4PanelOpen = !!open;
+      frame.classList.toggle('hidden', !open);
+      try {
+        frame.contentWindow?.postMessage(
+          { type: 'VISIBILITY_CHANGE', isVisible: !!open },
+          '*',
+        );
+      } catch (_) {}
+    }
+    window._v4TogglePanel = () => _v4SetPanelOpen(!window._v4PanelOpen);
+    window._v4ClosePanel  = () => _v4SetPanelOpen(false);
+    window._v4SetPanelOpen = _v4SetPanelOpen;
+    window.addEventListener('keydown', (e) => {
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+      if ((e.key === 'p' || e.key === 'P') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        _v4SetPanelOpen(!window._v4PanelOpen);
+      }
+    });
+    // Forward panel postMessages of interest (journal triggers, etc.)
+    window.addEventListener('message', (event) => {
+      const t = event.data?.type;
+      if (t === 'REQ_OPEN_JOURNAL') _v4SetJournalOpen(true);
+      if (t === 'REQ_CLOSE_PANEL') _v4SetPanelOpen(false);
+    });
+
+    // ── Panel ACTION-button router ──────────────────────────────────
+    // SacredGame.Panel.html's right-panel action ring fires
+    //   emit('ACTION', verb)         — rest / eat / heal / track
+    //   emit('OPEN_SETTINGS')        — settings cog
+    //   emit('TOGGLE_VIEW_MODE')     — map / top-down toggle
+    // Until v4 has player-state systems for rest/eat/heal/track these
+    // are surfaced as banner + console feedback so the buttons visibly
+    // do something. OPEN_SETTINGS and TOGGLE_VIEW_MODE route to real
+    // v4 surfaces (the orchestrator HUD and the existing top-down
+    // toggle in SanctuaryControls).
+    function _v4FlashBanner(html, ms = 2200) {
+      const b = document.getElementById('v4-banner');
+      if (!b) return;
+      b.innerHTML = html;
+      b.style.opacity = '1';
+      clearTimeout(window.__v4BannerTimer);
+      window.__v4BannerTimer = setTimeout(() => { b.style.opacity = '0'; }, ms);
+    }
+    const _v4ActionVerbs = {
+      rest:  '<b>REST</b><small>the body settles · breath slows</small>',
+      heal:  '<b>HEAL</b><small>warmth gathers in the chest</small>',
+      track: '<b>TRACK</b><small>looking for sign on the ground</small>',
+    };
+    window.addEventListener('message', (event) => {
+      const d = event.data || {};
+      const t = d.type;
+      if (t === 'ACTION') {
+        const verb = String(d.data || '').toLowerCase();
+        if (verb === 'eat') {
+          // EAT button rewired (May-19 2026) — fires what the legacy
+          // PANEL chip used to do: toggle the right-side game HUD iframe.
+          if (typeof window._v4TogglePanel === 'function') window._v4TogglePanel();
+          _v4FlashBanner('<b>PANEL</b><small>chrome toggled — press P to bring it back</small>');
+          console.log('%c[v4] action · eat → toggle panel', 'color:#a5d6a7;font-weight:bold;');
+          return;
+        }
+        const msg = _v4ActionVerbs[verb] || `<b>${verb.toUpperCase()}</b>`;
+        _v4FlashBanner(msg);
+        console.log(`%c[v4] action · ${verb}`, 'color:#a5d6a7;font-weight:bold;');
+      } else if (t === 'OPEN_SETTINGS') {
+        const hud = document.getElementById('v2-orchestrator-hud');
+        if (hud) {
+          const hidden = hud.style.display === 'none';
+          hud.style.display = hidden ? '' : 'none';
+          _v4FlashBanner(hidden ? '<b>SETTINGS</b><small>Anu telemetry shown</small>'
+                                : '<b>SETTINGS</b><small>Anu telemetry hidden</small>');
+        }
+        console.log('%c[v4] action · settings', 'color:#a5d6a7;font-weight:bold;');
+      } else if (t === 'TOGGLE_VIEW_MODE') {
+        // MAP icon in the right-panel action ring → top-down toggle.
+        // SanctuaryControls exposes `window._v4ToggleTopDown()` so we
+        // can drive the toggle without the (now-hidden) legacy button.
+        if (typeof window._v4ToggleTopDown === 'function') window._v4ToggleTopDown();
+        console.log('%c[v4] action · toggle view mode', 'color:#a5d6a7;font-weight:bold;');
+      }
+    });
+
+    // ── PIP single-click → toggle top-down ──────────────────────────
+    // The v2 moondial PIP lives at `#moondial-wrapper` (built by
+    // V2UIModule after boot). A single click anywhere on it now also
+    // toggles top-down, matching the MAP icon in the action ring.
+    // Clicks on the moondial's own glass controls (+/-, lens toggle)
+    // and on its season-buttons ring are excluded so kids can still
+    // use them without flipping the view.
+    function _v4WirePipClick() {
+      const pip = document.getElementById('moondial-wrapper');
+      if (!pip) { setTimeout(_v4WirePipClick, 400); return; }
+      if (pip.dataset.v4ClickWired === '1') return;
+      pip.dataset.v4ClickWired = '1';
+      pip.addEventListener('click', (e) => {
+        const tgt = e.target;
+        if (tgt?.closest?.('.pip-glass-controls') || tgt?.closest?.('.season-outer-ring')) return;
+        if (typeof window._v4ToggleTopDown === 'function') window._v4ToggleTopDown();
+      });
+      console.log('%c[v4] PIP single-click wired → top-down toggle.', 'color:#a5d6a7;font-weight:bold;');
+    }
+    _v4WirePipClick();
+  </script>
+</body>
+</html>

@@ -56,12 +56,20 @@ export function shouldRenderPipSceneThisFrame() {
   return _pipPhase % n === 0;
 }
 
-/** Immutable blueprint — Orchestrator should match these defaults at construction. */
+/**
+ * Immutable blueprint — Orchestrator construction matches these values
+ * field-for-field at js/v2/Orchestrator.js:81-106. May-17 2026 sync
+ * after the forensic surfaced a drift (blueprint claimed AA off / DPR
+ * cap 1 / no shadows; live renderer ran AA on / DPR cap 2 / soft
+ * shadows). Update BOTH sides together if the orchestrator's renderer
+ * args change — Anu reads from here as the canonical source of truth.
+ */
 export const MAIN_RENDERER_BLUEPRINT = Object.freeze({
-  antialias: false,
+  antialias: true,
   powerPreference: "high-performance",
-  pixelRatioCap: 1.0,
-  shadowMapEnabled: false,
+  pixelRatioCap: 2.0,
+  shadowMapEnabled: true,
+  shadowMapType: "PCFSoftShadowMap",
   toneMapping: "ACESFilmicToneMapping",
   toneMappingExposure: 1.1,
 });

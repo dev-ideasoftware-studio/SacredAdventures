@@ -1,6 +1,7 @@
 import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { getRuntimeService } from "./RuntimeServices.js";
+import { pipCompassRingRotationDegFromYawRad } from "./pipCompassMath.js";
 
 const LUNAR_PHASE_EMOJI = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"];
 const LUNAR_PHASE_TITLE = [
@@ -221,14 +222,35 @@ export const UIModule = {
             0 0 0 2px rgba(198, 160, 53, 0.45),
             0 4px 14px rgba(0, 0, 0, 0.35);
         }
-        .lunar-phase-slot.slot-0 { top: 3.5%; left: 50%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-1 { top: 16.8%; left: 83.2%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-2 { top: 50%; left: 96.5%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-3 { top: 83.2%; left: 83.2%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-4 { top: 96.5%; left: 50%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-5 { top: 83.2%; left: 16.8%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-6 { top: 50%; left: 3.5%; transform: translate(-50%, -50%); }
-        .lunar-phase-slot.slot-7 { top: 16.8%; left: 16.8%; transform: translate(-50%, -50%); }
+        /*
+         * Moon-slot positions on the lunar track midline (May-14 2026 user
+         * fix: "align better the moon dial symbols in their own radial
+         * circles too, they too are off center a bit").
+         *
+         * Lunar track: .lunar-radial-ring has inset:-4px and a 22 px
+         * (--pip-moon-track) thickness; visible band midline therefore
+         * sits 11 px inside each outer edge of the ring's box. For a 258 px
+         * wrapper (the default 250-260 px target), 11 px is approx 4.26%,
+         * so the track midline radius is 50% - 4.26% = 45.74% of the
+         * parent's half-width. With 8 slots at 45 deg intervals:
+         *
+         *   - cardinal slots: 50% +/- 45.74% on one axis, 50% on the other
+         *     -> 4.26% and 95.74%
+         *   - diagonals:      50% +/- 45.74 * sin45 (approx 32.34%) on both
+         *     axes -> 17.66% and 82.34%
+         *
+         * Earlier positions (3.5% / 16.8% / 83.2% / 96.5%) parked the moon
+         * glyphs about 1 percent outside the midline toward the outer rim,
+         * the "off-centre" the user spotted.
+         */
+        .lunar-phase-slot.slot-0 { top:  4.26%; left: 50%;     transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-1 { top: 17.66%; left: 82.34%;  transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-2 { top: 50%;    left: 95.74%;  transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-3 { top: 82.34%; left: 82.34%;  transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-4 { top: 95.74%; left: 50%;     transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-5 { top: 82.34%; left: 17.66%;  transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-6 { top: 50%;    left:  4.26%;  transform: translate(-50%, -50%); }
+        .lunar-phase-slot.slot-7 { top: 17.66%; left: 17.66%;  transform: translate(-50%, -50%); }
         .lunar-phase-slot:hover.slot-0,
         .lunar-phase-slot:hover.slot-1,
         .lunar-phase-slot:hover.slot-2,
@@ -291,10 +313,39 @@ export const UIModule = {
             0 0 12px rgba(198, 160, 53, 0.2);
           line-height: 1;
         }
-        .compass-marker.n { top: 3px; left: 50%; transform: translateX(-50%); z-index: 2; color: #fffdf5; }
-        .compass-marker.s { bottom: 3px; left: 50%; transform: translateX(-50%); z-index: 2; }
-        .compass-marker.e { right: 5px; top: 50%; transform: translateY(-50%); z-index: 2; }
-        .compass-marker.w { left: 5px; top: 50%; transform: translateY(-50%); z-index: 2; }
+        /*
+         * Cardinal letters centred in the compass track midline (May-14 2026
+         * user fix: "N S E W should be centered in their dials, they are
+         * clipping the edges of it"). .compass-outer-ring has inset:-24px
+         * and its mask shows only the outer 20 px (var(--pip-compass-track))
+         * as the bronze band, so the visible track midline is 10 px inside
+         * each outer edge of the ring's box. Two-axis translate centres the
+         * letter glyph on that midline rather than parking its top/bottom
+         * edge against the rim.
+         */
+        .compass-marker.n { top: 10px;    left: 50%;   transform: translate(-50%, -50%); z-index: 11; }
+        .compass-marker.s { bottom: 10px; left: 50%;   transform: translate(-50%,  50%); z-index: 2; }
+        .compass-marker.e { right: 10px;  top: 50%;    transform: translate( 50%, -50%); z-index: 2; }
+        .compass-marker.w { left: 10px;   top: 50%;    transform: translate(-50%, -50%); z-index: 2; }
+        /*
+         * The "N" is the player's most-checked glyph (north anchor), and it
+         * sits under the season-bracket dome at the top of the dial. The
+         * dome used to blur it via backdrop-filter:blur(1px); with that
+         * filter dropped (below), the letter needs to read as crisp glass-
+         * magnified: bigger, bolder, pure white, with a sharp gold-tinted
+         * shadow ring so it pops against the bronze track + the dome
+         * highlight. Layered above the dome (z-index 11 > bracket z-10).
+         */
+        .compass-marker.n {
+          font-size: clamp(19px, 4.4vw, 23px);
+          font-weight: 900;
+          color: #ffffff;
+          letter-spacing: 0.04em;
+          text-shadow:
+            0 0 6px rgba(255, 252, 220, 0.55),
+            0 1px 2px rgba(0, 0, 0, 0.92),
+            0 0 14px rgba(198, 160, 53, 0.4);
+        }
         .season-bracket {
           position: absolute;
           top: -34px;
@@ -305,19 +356,26 @@ export const UIModule = {
           border-radius: 22px 22px 13px 13px;
           pointer-events: none;
           z-index: 10;
-          border: 1px solid rgba(255, 255, 255, 0.38);
+          border: 1px solid rgba(255, 255, 255, 0.55);
           background: linear-gradient(
             168deg,
-            rgba(255, 255, 255, 0.2) 0%,
-            rgba(255, 255, 255, 0.05) 42%,
-            rgba(200, 210, 220, 0.04) 100%
+            rgba(255, 255, 255, 0.12) 0%,
+            rgba(255, 255, 255, 0.02) 42%,
+            rgba(200, 210, 220, 0.02) 100%
           );
           box-shadow:
-            inset 0 1px 1px rgba(255, 255, 255, 0.65),
-            inset 0 -1px 8px rgba(40, 50, 60, 0.12),
-            0 4px 14px rgba(0, 0, 0, 0.28);
-          backdrop-filter: blur(1px) saturate(1.25);
-          -webkit-backdrop-filter: blur(1px) saturate(1.25);
+            inset 0 1px 1px rgba(255, 255, 255, 0.7),
+            inset 0 -1px 8px rgba(40, 50, 60, 0.10),
+            0 4px 14px rgba(0, 0, 0, 0.32);
+          /*
+           * backdrop-filter:blur(1px) was here — it fogged the compass-N
+           * underneath the dome into the "cloudy plastic" the user called
+           * out (May-14 2026: "should be a magnifying glass, not a cloudy
+           * piece of plastic"). Saturate-only retained for a subtle glass
+           * tint without softening the letter behind it.
+           */
+          backdrop-filter: saturate(1.18);
+          -webkit-backdrop-filter: saturate(1.18);
         }
         .season-bracket::before {
           content: '';
@@ -643,10 +701,37 @@ export const UIModule = {
     this._bindLensAndPhases();
     this._pipOverlayRing();
     queueMicrotask(() => this._syncPipOverlaySize());
+    /**
+     * Season buttons — fire on click, focus (keyboard tab-in / focus()
+     * call), and pointerenter (hover) so the PiP dial is fully responsive
+     * regardless of input mode. Adding `tabindex=0` makes the `<span>`
+     * focusable; `aria-label` carries the title for SR users.
+     *
+     * May-12 2026 user spec: "activate our seasons buttons onfocus in
+     * the pip" — focus + hover are now active alongside click. Repeat
+     * focus events on the same season are deduped by `_lastSeasonApplied`
+     * so tabbing around the dial doesn't thrash the sky shader.
+     */
     this._root.querySelectorAll(".season-btn").forEach((btn) => {
-      btn.addEventListener("click", (event) => {
+      btn.setAttribute("tabindex", "0");
+      if (!btn.getAttribute("aria-label")) {
+        btn.setAttribute("aria-label", btn.getAttribute("title") || btn.dataset.season || "season");
+      }
+      btn.setAttribute("role", "button");
+      const fire = (event) => {
         event.stopPropagation();
-        this._setSeason(btn.dataset.season);
+        const next = btn.dataset.season;
+        if (!next) return;
+        if (this._lastSeasonApplied === next) return;
+        this._setSeason(next);
+      };
+      btn.addEventListener("click", fire);
+      btn.addEventListener("focus", fire);
+      btn.addEventListener("pointerenter", fire);
+      btn.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          fire(event);
+        }
       });
     });
     this._onMessage = (event) => {
@@ -738,30 +823,13 @@ export const UIModule = {
 
   _syncCompass(yaw) {
     /**
-     * Rotate the cardinal-marker ring so the letter for the player's heading
-     * lands at the **top** of the bezel. CSS `rotate()` is CW positive; markers
-     * sit at N=top (0°), E=right (90°), S=bottom (180°), W=left (270°).
-     *
-     * World yaw convention (post the May-2026 input-axis fix in World.js):
-     *   yaw=0    → facing -Z (south)
-     *   yaw=π    → facing +Z (north)   ← spawn
-     *   yaw=π/2  → facing -X (west)
-     *   yaw=-π/2 → facing +X (east)
-     * ArrowLeft DECREMENTS yaw (player turns left toward W when facing N);
-     * ArrowRight INCREMENTS yaw (player turns right toward E). The previous
-     * inverted bindings made the compass *look* backwards even though this
-     * formula was right; the dial is the truth-teller, not the bug.
-     *
-     * Mapping verified end-to-end:
-     *   yaw=π    → rotate 0°   → N stays at top (player facing north). ✓
-     *   yaw=π/2  → rotate 90°  → W marker comes to top.                ✓
-     *   yaw=-π/2 → rotate 270° → E marker comes to top.                ✓
-     *   yaw=0    → rotate 180° → S marker comes to top.                ✓
-     * Equivalent to `(180 - yawDeg) mod 360`.
+     * Delegates to `pipCompassRingRotationDegFromYawRad` — **do not** duplicate
+     * the `180 − yawDeg` derivation here; see `js/v2/pipCompassMath.js` for the
+     * full four-cardinal proof and why this file exists (stops PiP vs
+     * surrogate-2D drift).
      */
-    const deg = (yaw * 180) / Math.PI;
-    if (this._compassRing)
-      this._compassRing.style.transform = `rotate(${180 - deg}deg)`;
+    const deg = pipCompassRingRotationDegFromYawRad(yaw);
+    if (this._compassRing) this._compassRing.style.transform = `rotate(${deg}deg)`;
   },
 
   _syncLunarRadialPhase() {
@@ -775,6 +843,11 @@ export const UIModule = {
     const times = { night: 0, dawn: 6, day: 12, dusk: 18, gray: 15 };
     if (!Object.prototype.hasOwnProperty.call(times, season)) return;
     this._season = season;
+    /** Tracks the last-applied season key so onfocus + pointerenter
+     *  + click can share a single dedupe path (see `.season-btn` wiring
+     *  in `load()`). Prevents the sky shader from being thrashed when
+     *  the user tabs through buttons without changing selection. */
+    this._lastSeasonApplied = season;
     this._gameTime = times[season];
     const rotation = { night: 0, dawn: -72, day: -144, dusk: -216, gray: -288 }[
       season

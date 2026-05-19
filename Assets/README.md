@@ -11,6 +11,8 @@ Assets/
 └── landscape-scenes/   # Terrain, ground, sky, water, rocks, hero scene frames, world-scale media
 ```
 
+> **Migration status (2026-05-16):** the five domain folders now exist, plus the first wave of moves is done — the orphan `Animated Animal Pack-glb 3/` (with spaces in the name) and the entire `landscape-scenes` domain (textures, audio, cinematic, presentation imgs) have been migrated. See *Migration status* at the bottom of this file for the per-file diff and what is still pending.
+
 ## Rules (short)
 
 1. **One primary domain per asset** — if it could fit two, pick the *gameplay* owner (e.g. ridable horse → `fauna`; same mesh as NPC mount in a cutscene → still `fauna` unless it is only used as an NPC rig).
@@ -104,3 +106,34 @@ node scripts/check-assets.mjs --json     # machine-readable summary on stdout
 3. Re-run `npm run check:assets`. If the gate fails with a STRICT missing entry, you missed a reference — fix it before commit.
 
 > The gate exists because today (`bush.glb` removal) showed how easy it is to leave a dangling loader after pulling a corrupted asset. This is the cheapest possible CI step that catches that exact regression.
+
+## Migration status (2026-05-16)
+
+### Done — wave 1
+| Old path | New path | Notes |
+|---|---|---|
+| `tipi.bringshappiness copy.obj` | *deleted* | Byte-identical duplicate of `tipi.bringshappiness.obj`, no code refs. ~93 MB freed. |
+| `Animated Animal Pack-glb 3/` (folder with spaces) | `fauna/animal-pack/` | All children kebab-cased (`Shiba Inu.glb` → `shiba-inu.glb`, etc.). Zero code refs — pack was orphan. |
+| `AxeData.js` | `buildings/props/AxeData.js` | 1.6 MB JS data file, no code refs anywhere. |
+| `SacredOnes.Avatar.B.jpg` | `landscape-scenes/presentation/sacred-ones-avatar-b.jpg` | Unreferenced. |
+| `modal.leather.png` | `landscape-scenes/presentation/modal-leather.png` | Unreferenced. |
+| `VillagePreview_New.png` | `landscape-scenes/presentation/village-preview.png` | Unreferenced. |
+| `Tipi.yellowbutterfly/` | *deleted* | Byte-identical to `BACKUP/draco-originals/tipi.yellowbutterfly.WORDPRESS.glb`. The live tipi loaded by `js/v2/**` is `WORDPRESS/Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb` (Draco-compressed). |
+| `grass_seamless.png`, `water.png`, `rock.png`, `bark.png` | `landscape-scenes/terrain/` | Renamed to kebab-case where applicable. |
+| `birdsong.mp3` | `landscape-scenes/audio/birdsong.mp3` |  |
+| `AnimatedOpening.mp4` | `landscape-scenes/cinematic/animated-opening.mp4` |  |
+| `pwa-icon.png`, `Journal.Cover.png`, `Journal.SacredOnes.png`, `JournalHudDpadGuide.png`, `PIP.SacredOnes.png`, `SacredOnes.Avatar.A.png` | `landscape-scenes/presentation/` | Kebab-cased (`Journal.Cover.png` → `journal-cover.png`, etc.). |
+
+**Wave 1 consequence on the gate:** every wave-1 file moved here was WARN-tier (referenced only in legacy code paths — `js/`, `dist/`, `WORDPRESS/`, `_legacy_archive/`, `scratch/`). The STRICT v2 tier (`js/v2/**`, `index.v2.html`) had no references to any of them, so no v2 code edits were needed. The legacy-tier refs now point at missing files and surface in the gate's WARN list — this is accepted debt per [`../docs/legacy-reconciliation.md`](../docs/legacy-reconciliation.md) (legacy trees are FROZEN; refs there are not chased one-by-one).
+
+### Pending — waves 2+
+
+Still at the root of `Assets/`, awaiting future migrations:
+
+- **fauna**: `Bird.glb`, `Buffalo.glb`, `Horse.glb`, `Rabbit.obj`, `rabbit.animated.glb`, `animated.stag.glb`, `animated.yellowbutterfly.glb`, `Fish/`, `animated.deer/`, `animated.rabbit/`, `rabbit_rigged/`, `little_pond__fish/`, `pond1.glb` (the pond GLB itself is more landscape-scenes/water/, the fish folder is fauna)
+- **flora**: `tree.glb`, `PineTree/`
+- **npc**: `NPC.BHG.glb`, `NPC.REG.glb`, `NPC.YB.glb`, `TraderJosh3d.glb`, `Avatar2.glb`, `Avatar3.glb`, `animated.avatar.glb`, `animated.bringshappiness.glb`
+- **buildings**: `tipi.bringshappiness.obj`, `tipi.player.glb`, `axe.glb`
+- **misc**: `Journal.Cover.png` was placed in `presentation/`; revisit if a dedicated `ui/` bucket is added later.
+
+Several of these (NPCs, Avatar3, animated.stag, tree, axe, rabbit.animated, Fish/fish.obj, little_pond__fish, pond1, animated.deer) are STRICT-tier (referenced from `js/v2/**`). Migrating them requires updating the v2 code refs in the same commit so the gate stays green.

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sacred Adventures v3 — Clean Boot</title>
+  <!--
+    Sacred Adventures v3 — minimal-scene boot (May-17 2026).
+
+    Scope — v3 landscape-only phase (May-17 2026, after Anu deep-dive).
+    Per user spec ("create new entire world fully rendered correctly
+    without junk models and code… remove BHG model. keep tipi2… create
+    a new map without these models for now, just the new landscape, we
+    will then phase in the models from v2"):
+
+      • Anu        — governance shell + telemetry surface (AnuUniverse).
+      • World      — terrain + Tipi 1 + Tipi 2 (structures only) +
+                      player avatar + click-to-move + camera.
+                      Gated OFF via window flags before World activates:
+                        - `_v3DisableNatureSpirit`   → skip 748k-tri stag
+                        - `_v3DisableSeatedNpcs`     → skip YB + BHG seated NPCs
+                      The tipis remain as `structures` domain objects;
+                      `population` domain stays empty until phased in.
+      • Pool2      — sacred forest pond with the rainbow-trout school,
+                      lily pads, dock, glass showcase, mossy banks.
+      • Fishing    — dock pole + fish-circles + tension-meter mini-game.
+
+    NOT activated (vs. v2, by design):
+      Trees, Fauna, QuietGlade, DistantPeaks, V2Panel, VillageBuilder,
+      BuildMode, TraderJosh. The modules still exist on disk; activate
+      any of them via `anuOrchestrator.activate('NAME')` in DevTools.
+
+    Phase-in plan when ready:
+      Step 1 — drop `window._v3DisableSeatedNpcs = true;` → YB + BHG
+               re-engage on the next reload.
+      Step 2 — drop `window._v3DisableNatureSpirit = true;` → stag returns.
+      Step 3 — `orc.activate('Fauna')` → rabbits.
+      Step 4 — `orc.activate('Trees')` → forest.
+      Step 5 — build the new Population module per Anu's domain plan.
+
+    Loading modal is intentionally inlined here so v3 has zero external
+    UI dependencies (the v2 path used a separate iframe).
+  -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #f9ebc3;
+      color: white;
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    }
+    #v3-canvas {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+      z-index: 1;
+    }
+    #v3-banner {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.78);
+      border: 1px solid rgba(251,192,45,0.5);
+      border-left: 3px solid #fbc02d;
+      padding: 10px 20px;
+      color: #fbc02d;
+      font-size: 13px;
+      text-align: center;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+      z-index: 8500;
+      transition: opacity 0.6s;
+    }
+    #v3-banner b { color: #a5d6a7; }
+    #v3-banner small { display: block; color: #aaa; font-size: 10px; margin-top: 3px; }
+    #v3-loading {
+      position: fixed; inset: 0;
+      background: #111;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 14px;
+      color: #fbc02d; z-index: 100000;
+      transition: opacity 0.6s ease;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    #v3-loading h1 { font-size: 18px; letter-spacing: 3px; font-weight: 700; }
+    #v3-loading .row { font-size: 12px; opacity: 0.7; letter-spacing: 2px; }
+    #v3-loading .pulse {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #fbc02d;
+      animation: v3pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes v3pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.85); }
+      50%      { opacity: 1.0; transform: scale(1.15); }
+    }
+  </style>
+
+  <!-- Three.js import map (local vendor — offline-capable, same as v2) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <div id="v3-loading">
+    <h1>SACRED ADVENTURES · v3</h1>
+    <div class="pulse"></div>
+    <div class="row" id="v3-loading-row">booting engine…</div>
+  </div>
+
+  <canvas id="v3-canvas"></canvas>
+
+  <div id="v3-banner">
+    <b>Sacred Adventures v3</b> — landscape phase (no NPCs yet)
+    <small>W = forward · A = back · S = turn left · D = turn right · Click ground = walk · SPACE = jump</small>
+  </div>
+
+  <script type="module">
+    // ── Minimal v3 boot ─────────────────────────────────────────────────
+    // Window flags MUST be set BEFORE we import World so its module-scope
+    // `load()` sees them. Each flag is the official phase-in switch —
+    // remove a `= true` assignment + reload to bring that group back.
+    window._v3DisableNatureSpirit = true;   // 748k-tri stag — phase 2
+    window._v3DisableSeatedNpcs   = true;   // YB + BHG NPCs   — phase 1
+
+    import { SacredOrchestrator } from './js/v2/Orchestrator.js';
+    import { AnuModule }    from './js/v2/AnuModule.js';
+    import { WorldModule }  from './js/v2/World.js';
+    import { WorldPool2Module } from './js/v2/WorldPool2.js';
+    import { WorldFishingModule } from './js/v2/WorldFishing.js';
+
+    const loadingEl = document.getElementById('v3-loading');
+    const loadingRow = document.getElementById('v3-loading-row');
+    const setStatus = (s) => { if (loadingRow) loadingRow.textContent = s; };
+
+    setStatus('engine init…');
+    const canvas = document.getElementById('v3-canvas');
+    const orc = new SacredOrchestrator(canvas);
+
+    orc.register(AnuModule);
+    orc.register(WorldModule);
+    orc.register(WorldPool2Module);
+    orc.register(WorldFishingModule);
+
+    setStatus('anu governance shell…');
+    await orc.activate('Anu');
+
+    setStatus('terrain · tipi 1 · tipi 2 · avatar (landscape phase, NPCs deferred)…');
+    await orc.activate('World');
+
+    setStatus('sacred pond · fish · lily pads…');
+    await orc.activate('Pool2');
+
+    setStatus('dock · fishing rig · fish circles…');
+    await orc.activate('Fishing');
+
+    setStatus('starting render loop…');
+    orc.start();
+
+    // Fade out the loading modal once the first real frame has rendered.
+    // We wait one rAF beyond `start()` so the user never sees the
+    // engine's pre-compile frame.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    setStatus('ready');
+    loadingEl.style.opacity = '0';
+    setTimeout(() => { loadingEl.remove(); }, 700);
+
+    // Tuck the controls banner away after 6 s.
+    setTimeout(() => {
+      const banner = document.getElementById('v3-banner');
+      if (banner) banner.style.opacity = '0';
+    }, 6000);
+
+    // ── Console welcome ──────────────────────────────────────────────────
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
+    console.log('%c  Sacred Adventures v3 — landscape phase             ', 'color:#fbc02d;font-weight:bold;font-size:13px;background:#111;padding:4px 8px;');
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
+    console.log('%cActive scene: terrain · tipi 1 · tipi 2 · sacred pool · fishing dock · player avatar', 'color:#a5d6a7;');
+    console.log('%cNPCs deferred (population domain empty). Phase in via the steps below.', 'color:#aaa;');
+    console.log('%cInspect anything → AnuUniverse.help()', 'color:#fbc02d;font-weight:bold;background:#1a1108;padding:2px 6px;border-radius:3px;');
+    console.log('');
+    console.log('%cPhase-in plan:', 'color:#aaa;');
+    console.log('%c  Edit index.v3.html → delete `window._v3DisableSeatedNpcs = true;`  (brings YB + BHG back)', 'color:#81d4fa;');
+    console.log('%c  Edit index.v3.html → delete `window._v3DisableNatureSpirit = true;` (brings the stag back)', 'color:#81d4fa;');
+    console.log('%c  anuOrchestrator.activate("Fauna")    — rabbit warren', 'color:#81d4fa;');
+    console.log('%c  anuOrchestrator.activate("Trees")    — instanced forest', 'color:#81d4fa;');
+    console.log('');
+  </script>
+</body>
+</html>
