@@ -73,19 +73,14 @@ function _injectStylesOnce() {
       pointer-events: auto;
       user-select: none;
       font-family: 'Fredoka', 'Segoe UI', sans-serif;
-      background:
-        radial-gradient(140% 80% at 50% 0%, rgba(255, 210, 120, 0.10) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(165deg, rgba(28, 18, 8, 0.82) 0%, rgba(38, 24, 10, 0.78) 50%, rgba(20, 14, 8, 0.82) 100%);
-      border: 1px solid rgba(251, 192, 45, 0.42);
-      border-top: 1px solid rgba(255, 220, 140, 0.55);
+      background: rgba(22, 16, 10, 0.32);
+      border: 1px solid rgba(251, 192, 45, 0.35);
       box-shadow:
-        0 12px 36px rgba(0,0,0,0.55),
-        0 2px 8px rgba(0,0,0,0.45),
-        inset 0 1px 0 rgba(255, 220, 100, 0.18),
-        inset 0 -1px 0 rgba(0,0,0,0.45),
-        0 0 28px rgba(251, 192, 45, 0.10);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+        0 12px 40px rgba(0,0,0,0.45),
+        inset 0 1px 0 rgba(255, 220, 140, 0.22),
+        inset 0 0 22px rgba(255, 200, 110, 0.06);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
       transition: opacity 0.35s ease, transform 0.35s ease;
       text-align: center;
     }
