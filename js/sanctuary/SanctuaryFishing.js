@@ -675,6 +675,10 @@ export const SanctuaryFishingModule = {
     this._fishingCamTimer = 0;
     this._poolCentre = new THREE.Vector3(SANCTUARY_POOL_CENTER_X, WATER_Y_M, SANCTUARY_POOL_CENTER_Z);
 
+    if (typeof window !== "undefined") {
+      window.__sanctuaryFishingSpawnRipple = (x, z) => this._spawnRipple(x, z);
+    }
+
     // ── Spot disc + fish glyph ────────────────────────────────────
     const spot = (typeof window !== "undefined") ? window.__sanctuaryFishingSpot : null;
     if (spot) {
@@ -1061,13 +1065,12 @@ export const SanctuaryFishingModule = {
     }
   },
 
-  _spawnRipple() {
+  _spawnRipple(x = SANCTUARY_POOL_CENTER_X, z = SANCTUARY_POOL_CENTER_Z) {
     const slot = this._ripples.find(r => r.age < 0);
     if (!slot) return;
-    // Slight random scatter around pool centre so multiple rings don't
-    // stack perfectly.
-    slot.mesh.position.x = SANCTUARY_POOL_CENTER_X + (Math.random() - 0.5) * 0.35;
-    slot.mesh.position.z = SANCTUARY_POOL_CENTER_Z + (Math.random() - 0.5) * 0.35;
+    // Slight random scatter so multiple rings don't stack perfectly.
+    slot.mesh.position.x = x + (Math.random() - 0.5) * 0.25;
+    slot.mesh.position.z = z + (Math.random() - 0.5) * 0.25;
     slot.mesh.scale.setScalar(0.1);
     slot.mesh.material.opacity = 0.68;
     slot.mesh.visible = true;
@@ -1756,6 +1759,9 @@ export const SanctuaryFishingModule = {
   },
 
   unload(scene) {
+    if (typeof window !== "undefined") {
+      delete window.__sanctuaryFishingSpawnRipple;
+    }
     if (this._playerFlatFish) {
       const parent = this._playerFlatFish.parent;
       if (parent) parent.remove(this._playerFlatFish);

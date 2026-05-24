@@ -260,8 +260,10 @@ export const SanctuaryFishModule = {
               fish.position.z += (dz / dist) * speed;
               fish.position.y += dy * 2.0 * delta;
               
-              const targetYaw = Math.atan2(dx, dz);
-              fish.rotation.set(0, targetYaw + Math.sin(t * 8.0) * 0.15, 0);
+              // Smoothly face the lure in 3D space
+              fish.lookAt(targetX, targetY, targetZ);
+              // Add a bit of realistic swimming wiggle around its local yaw axis
+              fish.rotateY(Math.sin(t * 8.0) * 0.15);
             } else {
               fish.position.set(targetX, targetY, targetZ);
               fish.rotation.set(0, t * 2.0, 0);
