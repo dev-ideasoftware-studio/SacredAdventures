@@ -65,8 +65,8 @@ import { getRuntimeService } from "./RuntimeServices.js";
 import { createTipiOwnerBehaviour } from "./NPCBehaviour.js";
 import { createTipiJournalQuestBalloon } from "./WorldTipiJournalBalloon.js";
 
-/** Legacy primary yellow butterfly tipi path — WORDPRESS bundle mirrors original Assets layout. */
-const TIPI_1_URL = "./WORDPRESS/Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb";
+/** Primary yellow butterfly tipi. */
+const TIPI_1_URL = "./Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb";
 /** Yellow Butterfly character — seated host at tipi 1 only (fresh minimal path; no proximity FSM). */
 const NPC_YB_URL = "./Assets/NPC.YB.glb";
 /**

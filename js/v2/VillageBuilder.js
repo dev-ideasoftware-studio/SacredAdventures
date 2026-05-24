@@ -39,7 +39,7 @@ import {
 import { terrainY } from "./WorldTerrain.js";
 
 const TIPI_GLB_URL =
-  "./WORDPRESS/Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb";
+  "./Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb";
 
 const TREE_ROW = [
   { id: "oak",     emoji: "🌳", label: "Oak"     },
