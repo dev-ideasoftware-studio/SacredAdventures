@@ -30,6 +30,7 @@
         import * as THREE_module from 'three';
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
         // 1. Expose to window for the classic component scripts to consume
         // We use Object.assign to create a mutable clone, as ES module namespaces are read-only
@@ -37,6 +38,7 @@
         window.OBJLoader = OBJLoader;
         window.THREE.OBJLoader = OBJLoader;
         window.THREE.GLTFLoader = GLTFLoader;
+        window.THREE.DRACOLoader = DRACOLoader;
 
         // 2.        // Load ThreeIcons dynamically to ensure THREE.js is ready
         const script = document.createElement('script');
@@ -1811,6 +1813,11 @@
 
             // Action Ring Icons (Journal on side panel)
             window.icons.createIcon('action-icon-journal', 'JOURNAL');
+
+            // 3D Avatar Icon inside #avatar-pip-target
+            window.icons.createIcon('avatar-pip-target', 'AVATAR');
+            const fallback = document.getElementById('avatar-static-fallback');
+            if (fallback) fallback.style.opacity = '0';
 
             // AUTO-OPEN LOGBOOK ON LOAD REMOVED
             // Will be triggered by EngineMain/EnvironmentBuilder when Nature Spirit walks

@@ -146,6 +146,8 @@ export const SanctuaryFishModule = {
           ((0.2 * speedMul * orbitDir) / Math.max(0.5, orbitR / 8)) *
           (0.55 + rng() * 0.5);
         fish.userData.fishMidY = this._fishCenterY;
+        fish.userData.baseScaleFactor = scale;
+        fish.userData.growthScale = 1.0;
 
         fish.position.set(this._cx, this._fishCenterY, this._cz);
         root.add(fish);
@@ -178,6 +180,16 @@ export const SanctuaryFishModule = {
     const tb = this._fishBioTime;
     const t = this._elapsed;
 
+    // 30-minute pool reset: resets all fish growth scale back to 1.0
+    this._poolResetTimer = (this._poolResetTimer || 0) + delta;
+    if (this._poolResetTimer >= 1800) {
+      this._poolResetTimer = 0;
+      for (const fish of this._fishMeshes) {
+        fish.userData.growthScale = 1.0;
+      }
+      console.log("%c[SanctuaryFish] 30-minute pool reset: all fish grown back to 100%!", "color:#4caf50;font-weight:bold;");
+    }
+
     const av =
       typeof window !== "undefined" ? window.__sanctuaryAvatar : null;
     let playerX = null;
@@ -191,59 +203,126 @@ export const SanctuaryFishModule = {
 
     for (const fish of this._fishMeshes) {
       const ud = fish.userData;
-      const R = ud.orbitR ?? SANCTUARY_POOL_RADIUS_M * 0.45;
-      const orbitPhase = ud.orbitPhase ?? 0;
-      const soloO = (ud.soloOmega ?? 0.16) * (ud.speedMul ?? 1);
-      const schOff = ud.schoolAngleOff ?? 0;
-      const omegaSchool = SWIM_RATE_RAD_S * 0.55 * schoolStr;
 
-      const soloA0 = tb * soloO + orbitPhase;
-      const soloA1 = (tb + LOOK_AHEAD_S) * soloO + orbitPhase;
-      const sx0 = R * Math.cos(soloA0);
-      const sz0 = R * Math.sin(soloA0);
-      const sx1 = R * Math.cos(soloA1);
-      const sz1 = R * Math.sin(soloA1);
-
-      const schA0 = tb * omegaSchool + schOff;
-      const schA1 = (tb + LOOK_AHEAD_S) * omegaSchool + schOff;
-      const scx0 = R * Math.cos(schA0);
-      const scz0 = R * Math.sin(schA0);
-      const scx1 = R * Math.cos(schA1);
-      const scz1 = R * Math.sin(schA1);
-
-      const oneMinus = 1 - schoolStr;
-      let lx = sx0 * oneMinus + scx0 * schoolStr;
-      let lz = sz0 * oneMinus + scz0 * schoolStr;
-      let vx = sx1 * oneMinus + scx1 * schoolStr - lx;
-      let vz = sz1 * oneMinus + scz1 * schoolStr - lz;
-
-      if (playerX !== null && playerZ !== null) {
-        const dxP = this._cx + lx - playerX;
-        const dzP = this._cz + lz - playerZ;
-        const dP = Math.hypot(dxP, dzP);
-        if (dP < PLAYER_AVOID_RADIUS_M && dP > 1e-3) {
-          const push = (PLAYER_AVOID_RADIUS_M - dP) / PLAYER_AVOID_RADIUS_M;
-          lx += (dxP / dP) * push * PLAYER_PUSH_GAIN;
-          lz += (dzP / dP) * push * PLAYER_PUSH_GAIN;
-          vx = dxP / dP;
-          vz = dzP / dP;
+      // Update growth scale: grow 1% per minute player is active
+      if (ud.growthScale === undefined) {
+        ud.growthScale = 1.0;
+      }
+      if (ud.growthScale < 1.0) {
+        ud.growthScale += delta * (0.01 / 60.0);
+        if (ud.growthScale > 1.0) {
+          ud.growthScale = 1.0;
         }
       }
 
-      const midY = ud.fishMidY ?? this._fishCenterY;
-      const bobY = Math.sin(t * 0.9 + orbitPhase * 2.17) * 0.14;
-      fish.position.set(
-        this._cx + lx,
-        midY + (ud.depthOffset ?? 0) + bobY,
-        this._cz + lz,
-      );
+      // Dynamic scale sizing
+      const baseScale = ud.baseScaleFactor || 1.0;
+      const currentScale = baseScale * ud.growthScale;
+      fish.scale.setScalar(currentScale);
 
-      if (vx * vx + vz * vz > 1e-8) {
-        const baseYaw = Math.atan2(-vz, vx) + Math.PI;
-        const wiggleAmp = 0.22;
-        const wiggle =
-          Math.sin(t * 6.5 + (ud.wigglePhase ?? 0) * 4.7) * wiggleAmp;
-        fish.rotation.set(0, baseYaw + wiggle, 0);
+      const isInterested = (typeof window !== "undefined" && window.__interestedFish === fish);
+
+      if (isInterested) {
+        const bPos = window.__sanctuaryBobberPos;
+        if (bPos) {
+          if (ud.isStruggling) {
+            // Rapid wiggle & shake during struggle at hook position
+            const shake = Math.sin(t * 45) * 0.04;
+            fish.position.set(
+              bPos.x + (Math.random() - 0.5) * 0.06,
+              bPos.y - 0.14 + shake,
+              bPos.z + (Math.random() - 0.5) * 0.06
+            );
+            fish.rotation.set(
+              Math.sin(t * 30) * 0.35,
+              Math.cos(t * 40) * 0.8,
+              Math.sin(t * 35) * 0.35
+            );
+            
+            // Spawn ripples as splash particles!
+            if (Math.random() < 0.25 && typeof window !== "undefined" && window.__sanctuaryFishingSpawnRipple) {
+              window.__sanctuaryFishingSpawnRipple(fish.position.x, fish.position.z);
+            }
+          } else {
+            // Swim towards the lure!
+            const targetX = bPos.x;
+            const targetZ = bPos.z;
+            const targetY = bPos.y - 0.14;
+            
+            const dx = targetX - fish.position.x;
+            const dy = targetY - fish.position.y;
+            const dz = targetZ - fish.position.z;
+            const dist = Math.hypot(dx, dz);
+            
+            if (dist > 0.05) {
+              const speed = 1.2 * delta;
+              fish.position.x += (dx / dist) * speed;
+              fish.position.z += (dz / dist) * speed;
+              fish.position.y += dy * 2.0 * delta;
+              
+              const targetYaw = Math.atan2(dx, dz);
+              fish.rotation.set(0, targetYaw + Math.sin(t * 8.0) * 0.15, 0);
+            } else {
+              fish.position.set(targetX, targetY, targetZ);
+              fish.rotation.set(0, t * 2.0, 0);
+            }
+          }
+        }
+      } else {
+        const R = ud.orbitR ?? SANCTUARY_POOL_RADIUS_M * 0.45;
+        const orbitPhase = ud.orbitPhase ?? 0;
+        const soloO = (ud.soloOmega ?? 0.16) * (ud.speedMul ?? 1);
+        const schOff = ud.schoolAngleOff ?? 0;
+        const omegaSchool = SWIM_RATE_RAD_S * 0.55 * schoolStr;
+
+        const soloA0 = tb * soloO + orbitPhase;
+        const soloA1 = (tb + LOOK_AHEAD_S) * soloO + orbitPhase;
+        const sx0 = R * Math.cos(soloA0);
+        const sz0 = R * Math.sin(soloA0);
+        const sx1 = R * Math.cos(soloA1);
+        const sz1 = R * Math.sin(soloA1);
+
+        const schA0 = tb * omegaSchool + schOff;
+        const schA1 = (tb + LOOK_AHEAD_S) * omegaSchool + schOff;
+        const scx0 = R * Math.cos(schA0);
+        const scz0 = R * Math.sin(schA0);
+        const scx1 = R * Math.cos(schA1);
+        const scz1 = R * Math.sin(schA1);
+
+        const oneMinus = 1 - schoolStr;
+        let lx = sx0 * oneMinus + scx0 * schoolStr;
+        let lz = sz0 * oneMinus + scz0 * schoolStr;
+        let vx = sx1 * oneMinus + scx1 * schoolStr - lx;
+        let vz = sz1 * oneMinus + scz1 * schoolStr - lz;
+
+        if (playerX !== null && playerZ !== null) {
+          const dxP = this._cx + lx - playerX;
+          const dzP = this._cz + lz - playerZ;
+          const dP = Math.hypot(dxP, dzP);
+          if (dP < PLAYER_AVOID_RADIUS_M && dP > 1e-3) {
+            const push = (PLAYER_AVOID_RADIUS_M - dP) / PLAYER_AVOID_RADIUS_M;
+            lx += (dxP / dP) * push * PLAYER_PUSH_GAIN;
+            lz += (dzP / dP) * push * PLAYER_PUSH_GAIN;
+            vx = dxP / dP;
+            vz = dzP / dP;
+          }
+        }
+
+        const midY = ud.fishMidY ?? this._fishCenterY;
+        const bobY = Math.sin(t * 0.9 + orbitPhase * 2.17) * 0.14;
+        fish.position.set(
+          this._cx + lx,
+          midY + (ud.depthOffset ?? 0) + bobY,
+          this._cz + lz,
+        );
+
+        if (vx * vx + vz * vz > 1e-8) {
+          const baseYaw = Math.atan2(-vz, vx) + Math.PI;
+          const wiggleAmp = 0.22;
+          const wiggle =
+            Math.sin(t * 6.5 + (ud.wigglePhase ?? 0) * 4.7) * wiggleAmp;
+          fish.rotation.set(0, baseYaw + wiggle, 0);
+        }
       }
     }
   },

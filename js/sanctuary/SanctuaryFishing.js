@@ -20,6 +20,150 @@ import {
 } from "./SanctuaryGround.js";
 import { V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M } from "../v2/constants.js";
 
+// ── Web Audio Procedural Synthesizer ──────────────────────────────────
+const _audioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext)
+  ? new (window.AudioContext || window.webkitAudioContext)()
+  : null;
+
+function playFishingTone(type) {
+  if (!_audioCtx) return;
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume();
+  }
+  const t = _audioCtx.currentTime;
+  
+  if (type === 'cast') {
+    const osc = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(140, t + 0.85);
+    gain.gain.setValueAtTime(0.1, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+    osc.start(t);
+    osc.stop(t + 0.9);
+  } 
+  else if (type === 'splash') {
+    const bufferSize = _audioCtx.sampleRate * 0.45;
+    const buffer = _audioCtx.createBuffer(1, bufferSize, _audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = _audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = _audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(550, t);
+    filter.frequency.exponentialRampToValueAtTime(70, t + 0.4);
+    const gain = _audioCtx.createGain();
+    gain.gain.setValueAtTime(0.12, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(_audioCtx.destination);
+    noise.start(t);
+    noise.stop(t + 0.45);
+  }
+  else if (type === 'bite') {
+    const playChime = (freq, startOffset, dur) => {
+      const osc = _audioCtx.createOscillator();
+      const gain = _audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(_audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + startOffset);
+      gain.gain.setValueAtTime(0.08, t + startOffset);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + startOffset + dur);
+      osc.start(t + startOffset);
+      osc.stop(t + startOffset + dur + 0.05);
+    };
+    playChime(523.25, 0, 0.22); // C5
+    playChime(659.25, 0.1, 0.32); // E5
+  }
+  else if (type === 'success') {
+    const playNote = (freq, start, duration, vol = 0.08) => {
+      const osc = _audioCtx.createOscillator();
+      const gain = _audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(_audioCtx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + start);
+      gain.gain.setValueAtTime(vol, t + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + start + duration);
+      osc.start(t + start);
+      osc.stop(t + start + duration + 0.05);
+    };
+    playNote(261.63, 0.0, 0.7);    // C4
+    playNote(329.63, 0.12, 0.7);   // E4
+    playNote(392.00, 0.24, 0.7);   // G4
+    playNote(523.25, 0.36, 1.1, 0.12);  // C5 (level-up victory arpeggio!)
+  }
+  else if (type === 'fail') {
+    const playNote = (freq, start, duration) => {
+      const osc = _audioCtx.createOscillator();
+      const gain = _audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(_audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + start);
+      gain.gain.setValueAtTime(0.08, t + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + start + duration);
+      osc.start(t + start);
+      osc.stop(t + start + duration + 0.05);
+    };
+    playNote(293.66, 0.0, 0.35); // D4
+    playNote(220.00, 0.18, 0.55); // A3
+  }
+  else if (type === 'struggle') {
+    const osc = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.linearRampToValueAtTime(180, t + 0.07);
+    gain.gain.setValueAtTime(0.04, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    osc.start(t);
+    osc.stop(t + 0.08);
+  }
+}
+
+// ── World of Warcraft Floating Combat Text ──────────────────────────
+function showWoWCombatText(text, isSuccess) {
+  const el = document.createElement("div");
+  el.textContent = text.toUpperCase();
+  Object.assign(el.style, {
+    position: "fixed",
+    left: "50%",
+    top: "42%",
+    transform: "translate(-50%, -50%) scale(0.6)",
+    zIndex: "100000",
+    pointerEvents: "none",
+    userSelect: "none",
+    font: "900 36px 'Fredoka One', 'Outfit', sans-serif",
+    color: isSuccess ? "#fbc02d" : "#ef4444", // Gold for success, Red for escape
+    textShadow: "0 0 8px rgba(0,0,0,0.9), 0 3px 10px rgba(0,0,0,0.95)",
+    letterSpacing: "0.06em",
+    opacity: "0",
+    transition: "all 1.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)",
+  });
+  document.body.appendChild(el);
+  
+  requestAnimationFrame(() => {
+    el.style.opacity = "1";
+    el.style.transform = "translate(-50%, -160%) scale(1.3)";
+  });
+  
+  setTimeout(() => {
+    el.style.opacity = "0";
+    setTimeout(() => el.remove(), 1300);
+  }, 1400);
+}
+
 // ── Physical ──────────────────────────────────────────────────────────
 const STAND_RADIUS_M     = V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M + 0.3048; // same compact size + 1 foot extra safety zone to trigger earlier and prevent falling off
 const SPOT_DISC_RADIUS_M = V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M; // exactly the same size as player circle!
@@ -124,7 +268,7 @@ function _makeStatusPill() {
   return pill;
 }
 
-// ── Stress gauge (neomorphic semicircle, PIP palette) ─────────────────
+// ── Stress gauge (chunky, colorful plastic toy dashboard casing) ───────
 function _buildGauge() {
   const wrap = document.createElement("div");
   wrap.id = "v4-stress-gauge";
@@ -132,14 +276,25 @@ function _buildGauge() {
     position: "fixed", left: "50%", top: "38%",
     transform: "translate(-50%, -50%)",
     zIndex: "9600", display: "none", pointerEvents: "none", userSelect: "none",
-    background: "rgba(10, 22, 38, 0.82)", // rich dark blue glass void background
-    backdropFilter: "blur(14px)",
-    webkitBackdropFilter: "blur(14px)",
-    borderRadius: "125px 125px 24px 24px",
-    border: "2px solid rgba(14, 165, 233, 0.75)", // Glowing sky blue border
-    boxShadow: "0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(14, 165, 233, 0.35)", // blue glow
-    padding: "8px",
+    background: "linear-gradient(135deg, #ffd166, #ff9f1c)", // vibrant retro toy yellow/orange plastic
+    borderRadius: "125px 125px 32px 32px",
+    border: "8px solid #ff4d6d", // thick red/pink chunky plastic toy border
+    boxShadow: "0 22px 50px rgba(0, 0, 0, 0.7), inset 0 4px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(0,0,0,0.18)", // glossy 3D plastic finish
+    padding: "10px",
   });
+  
+  // Specular glossy plastic overlay highlight
+  const gloss = document.createElement("div");
+  Object.assign(gloss.style, {
+    position: "absolute",
+    inset: "0",
+    borderRadius: "inherit",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 40%)",
+    pointerEvents: "none",
+    zIndex: "10",
+  });
+  wrap.appendChild(gloss);
+
   const canvas = document.createElement("canvas");
   canvas.width  = 240;
   canvas.height = 150;
@@ -163,10 +318,10 @@ function drawGaugeFish(ctx, cx, cy, time, frac, isReeling) {
   const scale = 1.0 + (isReeling ? Math.abs(Math.sin(time * 12)) * 0.08 : 0);
   ctx.scale(scale, scale);
  
-  // Draw tail fin
+  // Draw tail fin (matching blue/yellow trout)
   const tailGrd = ctx.createLinearGradient(-35, 0, -20, 0);
-  tailGrd.addColorStop(0, "#f43f5e"); // bright pink
-  tailGrd.addColorStop(1, "#3b82f6"); // neon blue
+  tailGrd.addColorStop(0, "#fbbf24"); // bright gold tail tips
+  tailGrd.addColorStop(1, "#1e88e5"); // royal blue base
   ctx.fillStyle = tailGrd;
   ctx.beginPath();
   ctx.moveTo(-15, 0);
@@ -179,19 +334,19 @@ function drawGaugeFish(ctx, cx, cy, time, frac, isReeling) {
   ctx.fill();
  
   // Draw dorsal fin
-  ctx.fillStyle = "#ec4899"; // neon pink
+  ctx.fillStyle = "#1565c0"; // deep royal blue
   ctx.beginPath();
   ctx.moveTo(-10, -8);
   ctx.quadraticCurveTo(-4, -22, 10, -6);
   ctx.closePath();
   ctx.fill();
  
-  // Draw main fish body with gorgeous photorealistic gradient
+  // Draw main fish body with gorgeous blue and gold plastic gradient
   const bodyGrd = ctx.createRadialGradient(8, -4, 4, 0, 0, 32);
-  bodyGrd.addColorStop(0, "#ffffff"); // glistening highlight
-  bodyGrd.addColorStop(0.3, "#f472b6"); // bright pink skin
-  bodyGrd.addColorStop(0.75, "#8b5cf6"); // violet scales
-  bodyGrd.addColorStop(1.0, "#4c1d95"); // deep dark indigo shadows
+  bodyGrd.addColorStop(0, "#ffffff"); // glistening white highlight
+  bodyGrd.addColorStop(0.3, "#29b6f6"); // bright sky blue skin
+  bodyGrd.addColorStop(0.7, "#1e88e5"); // royal blue scales
+  bodyGrd.addColorStop(1.0, "#0d47a1"); // deep dark blue shadows
   ctx.fillStyle = bodyGrd;
  
   // Gold metallic border/accent
@@ -759,9 +914,23 @@ export const SanctuaryFishingModule = {
       this._fishingCamTimer = 0;
     }
 
+    if (p === PHASE.REELING) {
+      this._reelProgress = 0.0;
+      this._miniGameNeedle = 0.5;
+      this._fishStruggleTimer = 0.0;
+      this._struggleSoundTimer = 0.0;
+      if (window.__interestedFish) {
+        window.__interestedFish.userData.isStruggling = true;
+      }
+    }
+
     if (p === PHASE.LANDING) {
       this._landingProgress = 0.0;
       this._dropDanger = 0.0;
+      this._struggleSoundTimer = 0.0;
+      if (window.__interestedFish) {
+        window.__interestedFish.userData.isStruggling = true;
+      }
     }
     
     if (typeof window !== "undefined") {
@@ -775,6 +944,7 @@ export const SanctuaryFishingModule = {
       this._turnCount   = 0;
       this._turnElapsed = 0;
       this._surgeEvery  = 1 + Math.floor(Math.random() * 3);  // 1, 2, or 3
+      this._interestCheckTimer = 10.0; // Force immediate check on entry
     }
     if (this._statusPill) {
       const label = {
@@ -858,6 +1028,7 @@ export const SanctuaryFishingModule = {
       this._castTarget.set(SANCTUARY_POOL_CENTER_X, WATER_Y_M, SANCTUARY_POOL_CENTER_Z);
       this._bobber.visible = true;
       this._rodGroup.visible = true;
+      playFishingTone('cast');
       this._setPhase(PHASE.CASTING);
     } else if (this._phase === PHASE.BITE) {
       this._setPhase(PHASE.REELING);
@@ -906,6 +1077,12 @@ export const SanctuaryFishingModule = {
   update(delta) {
     if (!this._scene) return;
     this._phaseT += delta;
+
+    if (this._bobber) {
+      window.__sanctuaryBobberPos = this._bobber.position;
+    } else {
+      window.__sanctuaryBobberPos = null;
+    }
 
     const avatar = (typeof window !== "undefined") ? window.__sanctuaryAvatar : null;
     const onDock = this._isPlayerOnDock();
@@ -1156,7 +1333,10 @@ export const SanctuaryFishingModule = {
         const baseY = this._castStart.y * (1 - t) + this._castTarget.y * t;
         this._bobberPos.set(x, baseY + 4.0 * t * (1 - t) * 1.8, z);
         this._bobber.position.copy(this._bobberPos);
-        if (t >= 1) this._setPhase(PHASE.WAITING);
+        if (t >= 1) {
+          playFishingTone('splash');
+          this._setPhase(PHASE.WAITING);
+        }
         break;
       }
 
@@ -1169,14 +1349,36 @@ export const SanctuaryFishingModule = {
           this._castTarget.z,
         );
 
-        // Turn-based bite roll.
-        this._turnElapsed += delta;
-        if (this._turnElapsed >= TURN_S) {
-          this._turnElapsed -= TURN_S;
-          this._turnCount++;
-          const isSurge = (this._turnCount % this._surgeEvery === 0);
-          const chance  = BITE_MIN_PCT + Math.random() * BITE_RANGE_PCT + (isSurge ? SURGE_BONUS : 0);
-          if (Math.random() < chance) this._setPhase(PHASE.BITE);
+        // Turn-based bite / interested fish check
+        this._interestCheckTimer = (this._interestCheckTimer || 0) + delta;
+        if (this._interestCheckTimer >= 10.0) {
+          this._interestCheckTimer = 0.0;
+          
+          if (typeof window !== "undefined" && !window.__interestedFish) {
+            const school = window.__sanctuaryFishSchool || [];
+            if (school.length > 0) {
+              const index = Math.floor(Math.random() * school.length);
+              window.__interestedFish = school[index];
+              window.__interestedFish.userData.interestTimer = 0.0;
+              window.__interestedFish.userData.isStruggling = false;
+              console.log(`%c[SanctuaryFishing] Selected fish "${window.__interestedFish.name}" as interested!`, "color:#0288d1;font-weight:bold;");
+            }
+          }
+        }
+
+        // Check if interested fish bites
+        if (typeof window !== "undefined" && window.__interestedFish) {
+          const fishMesh = window.__interestedFish;
+          fishMesh.userData.interestTimer = (fishMesh.userData.interestTimer || 0) + delta;
+          
+          const distToLure = fishMesh.position.distanceTo(this._bobber.position);
+          
+          // Chance increases every second. Once close enough, it takes the bait!
+          const biteChancePerSec = 0.08 + (fishMesh.userData.interestTimer * 0.15);
+          if (distToLure < 0.35 && Math.random() < biteChancePerSec * delta) {
+            playFishingTone('bite');
+            this._setPhase(PHASE.BITE);
+          }
         }
         break;
       }
@@ -1189,7 +1391,16 @@ export const SanctuaryFishingModule = {
           WATER_Y_M + dip,
           this._castTarget.z + (Math.random() - 0.5) * 0.04,
         );
-        if (this._phaseT >= BITE_WINDOW_S) this._endIdle(false);
+        if (this._phaseT >= BITE_WINDOW_S) {
+          playFishingTone('fail');
+          showWoWCombatText("It got away!", false);
+          if (window.__interestedFish) {
+            window.__interestedFish.userData.isStruggling = false;
+            window.__interestedFish.userData.interestTimer = 0;
+            window.__interestedFish = null;
+          }
+          this._endIdle(false);
+        }
         break;
       }
 
@@ -1200,13 +1411,19 @@ export const SanctuaryFishingModule = {
           this._fishDriftDir = Math.random() < 0.5 ? -1 : 1;
           this._fishDriftSpeed = 0.65 + Math.random() * 0.75;
         }
+
+        this._struggleSoundTimer = (this._struggleSoundTimer || 0) + delta;
+        if (this._struggleSoundTimer >= 0.25) {
+          this._struggleSoundTimer = 0.0;
+          playFishingTone('struggle');
+        }
         
         // Needle drifts gently and naturally for visual fun
         this._miniGameNeedle = 0.5 + Math.sin(this._phaseT * 2.5) * 0.22;
         this._miniGameNeedle = Math.max(0.02, Math.min(0.98, this._miniGameNeedle));
 
-        // Auto-reels smoothly over ~3 seconds for accessible, kids-friendly play
-        this._reelProgress += delta * 0.33;
+        // Auto-reels smoothly over 5 seconds (struggle part 1)
+        this._reelProgress += delta * 0.2;
         this._reelProgress = Math.max(0, Math.min(1, this._reelProgress));
 
         // Gentle jitter on bobber
@@ -1240,12 +1457,18 @@ export const SanctuaryFishingModule = {
           this._fishDriftSpeed = 1.0 + Math.random() * 1.5;
         }
 
+        this._struggleSoundTimer = (this._struggleSoundTimer || 0) + delta;
+        if (this._struggleSoundTimer >= 0.25) {
+          this._struggleSoundTimer = 0.0;
+          playFishingTone('struggle');
+        }
+
         // Gentle needle drift
         this._miniGameNeedle = 0.5 + Math.sin(this._phaseT * 3.5) * 0.28;
         this._miniGameNeedle = Math.max(0.02, Math.min(0.98, this._miniGameNeedle));
 
-        // Auto-lands smoothly over ~3.5 seconds with zero penalty/danger
-        this._landingProgress += delta * 0.28;
+        // Auto-lands smoothly over 5 seconds (struggle part 2)
+        this._landingProgress += delta * 0.2;
         this._landingProgress = Math.max(0, Math.min(1.0, this._landingProgress));
         this._dropDanger = 0.0; // Locked at zero to prevent frustrating failures
 
@@ -1276,17 +1499,40 @@ export const SanctuaryFishingModule = {
         }
 
         if (this._landingProgress >= 1.0) {
-          // Success! Attach fish to avatar side and grant reward!
-          this._attachFishToAvatarSide();
-          try { window.sanctuaryGrant?.("fish", 1); } catch (_) {}
-          
-          // Remove from hook as it's now glued to avatar
-          if (this._caughtFish3D && this._hookGroup) {
-            this._hookGroup.remove(this._caughtFish3D);
-          }
-          this._caughtFish3D = null;
+          // 15% escape roll
+          if (Math.random() < 0.15) {
+            playFishingTone('fail');
+            showWoWCombatText("It got away!", false);
+            if (window.__interestedFish) {
+              window.__interestedFish.userData.isStruggling = false;
+              window.__interestedFish.userData.interestTimer = 0;
+              window.__interestedFish = null;
+            }
+            this._endIdle(false);
+          } else {
+            // Success! Attach fish to avatar side and grant reward!
+            playFishingTone('success');
+            showWoWCombatText("You caught the fish!", true);
+            this._attachFishToAvatarSide();
+            
+            // Caught fish resets as 10% tiny baby
+            if (window.__interestedFish) {
+              window.__interestedFish.userData.growthScale = 0.1;
+              window.__interestedFish.userData.isStruggling = false;
+              window.__interestedFish.userData.interestTimer = 0;
+              window.__interestedFish = null;
+            }
+            
+            try { window.sanctuaryGrant?.("fish", 1); } catch (_) {}
+            
+            // Remove from hook as it's now glued to avatar
+            if (this._caughtFish3D && this._hookGroup) {
+              this._hookGroup.remove(this._caughtFish3D);
+            }
+            this._caughtFish3D = null;
 
-          this._setPhase(PHASE.REWARD);
+            this._setPhase(PHASE.REWARD);
+          }
         }
         break;
       }
@@ -1486,22 +1732,24 @@ export const SanctuaryFishingModule = {
     holderGroup.name = "avatar_glued_fish";
 
     // Wooden stick mesh:
-    const stickGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.6, 8);
-    stickGeo.rotateX(Math.PI / 2);
+    const stickGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.45, 8);
     const stickMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 });
     const stick = new THREE.Mesh(stickGeo, stickMat);
+    stick.position.set(0, 0.1, 0);
     holderGroup.add(stick);
 
     // The caught 3D fish (blue trout color matching the gauge theme)
     const fish = this._createFishMesh(0x29b6f6);
     fish.name = "wiggling_attached_fish";
-    fish.position.set(0, -0.06, 0.2); // hang from the stick
-    fish.scale.setScalar(0.9);
+    // Point fish vertically face-down (nose pointing to the ground)
+    fish.rotation.set(Math.PI / 2, 0, 0);
+    fish.position.set(0, -0.1, 0.0); // hang from the stick
+    fish.scale.setScalar(0.95);
     holderGroup.add(fish);
 
-    // Position on avatar's side/back tilt nicely
-    holderGroup.position.set(0.32, 0.78, -0.15);
-    holderGroup.rotation.set(0.35, -Math.PI / 4, 0.25);
+    // Position on the player's right leg, pointing vertically straight down to the ground
+    holderGroup.position.set(0.24, 0.36, -0.05); // right leg side
+    holderGroup.rotation.set(0, 0, 0); // strictly vertical!
     avatar.add(holderGroup);
 
     window.__sanctuaryHasFishCaught = true;

@@ -26,25 +26,31 @@ import { V2_PIP_RENDER_EVERY_N_FRAMES } from "./constants.js";
 import { getRenderingSnapshot } from "./anu/RenderingGovernor.js";
 import { getFrameBudgetSnapshot, getFrameSamples } from "./anu/FrameBudget.js";
 import { getActiveMapId, listMaps, setActiveMapId } from "./MapsConfig.js";
+import { getGovernanceSnapshot } from "./anu/AnuGovernanceRules.js";
 
 /** HUD HTML — kept as a constant so a future reskin doesn't have to rebuild the function. */
 export const ORCHESTRATOR_HUD_HTML = `
-      <div style="font-size:10px;letter-spacing:2px;color:rgba(251,192,45,0.5);margin-bottom:10px;font-weight:600;">SACRED ADV v2 · ORCHESTRATOR</div>
       <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:6px;">-- FPS</div>
-      <div style="position:relative;width:204px;height:46px;margin-bottom:8px;border-radius:9px;padding:3px;box-sizing:border-box;background:linear-gradient(160deg, #0a0603 0%, #1a0f06 50%, #060300 100%);box-shadow:inset 2px 2px 5px rgba(0,0,0,0.95), inset -1px -1px 2px rgba(251,192,45,0.10), 0 1px 0 rgba(255,220,100,0.06), 0 -1px 0 rgba(0,0,0,0.6);">
+      <div id="v2-frame-graph-wrap" style="position:relative;width:204px;height:46px;margin-bottom:8px;border-radius:9px;padding:3px;box-sizing:border-box;background:linear-gradient(160deg, #0a0603 0%, #1a0f06 50%, #060300 100%);box-shadow:inset 2px 2px 5px rgba(0,0,0,0.95), inset -1px -1px 2px rgba(251,192,45,0.10), 0 1px 0 rgba(255,220,100,0.06), 0 -1px 0 rgba(0,0,0,0.6);">
         <canvas id="v2-frame-graph" width="198" height="40" style="display:block;width:198px;height:40px;border-radius:6px;background:transparent;"></canvas>
         <div id="v2-load" style="position:absolute;left:8px;top:5px;font-size:9px;letter-spacing:1.4px;color:rgba(255,248,220,0.92);font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7);pointer-events:none;">LOAD --%</div>
         <div id="v2-load-detail" style="position:absolute;right:8px;top:5px;font-size:8px;letter-spacing:0.6px;color:rgba(255,248,220,0.62);text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.7);pointer-events:none;">--/--ms</div>
       </div>
       <div id="v2-anu-alert" title="UNIVERSE.ANU live audit — hover for full findings, or run AnuUniverse.audit() in DevTools" style="font-size:9.5px;letter-spacing:0.4px;color:rgba(165,214,167,0.55);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto;cursor:help;">UNIVERSE.ANU: warming up…</div>
       <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
-      <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:10px;letter-spacing:0.4px;">PiP …</div>
+      <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:6px;letter-spacing:0.4px;">PiP …</div>
+      <div id="v2-hud-title" style="font-size:9px;letter-spacing:2px;color:rgba(251,192,45,0.35);margin-bottom:10px;font-weight:600;text-align:right;">SACRED ADV v2 · ORCHESTRATOR</div>
       <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
-      <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">UNIVERSE</div>
-      <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
-      <div id="v2-bench" style="font-size:11px;color:#ce93d8;margin-top:10px;min-height:16px;"></div>
+      <div id="v2-hud-universe-label" role="button" tabindex="0" aria-expanded="false" aria-controls="v2-universe-accordion-body" title="Click to expand/collapse module list" style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;user-select:none;">
+        <span><span id="v2-universe-toggle-icon" style="display:inline-block;width:9px;transition:transform 0.15s;">▶</span> UNIVERSE <span id="v2-universe-pct" style="color:#a5d6a7;font-weight:700;letter-spacing:0;">--%</span></span>
+        <span id="v2-universe-count" style="color:rgba(255,255,255,0.4);font-size:9px;letter-spacing:0.2px;font-weight:500;">0 mods</span>
+      </div>
+      <div id="v2-universe-accordion-body" style="display:none;">
+        <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
+        <div id="v2-bench" style="font-size:11px;color:#ce93d8;margin-top:10px;min-height:16px;"></div>
+      </div>
       <div style="height:1px;background:rgba(251,192,45,0.15);margin:10px 0;"></div>
-      <div style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">MAP</div>
+      <div id="v2-hud-map-label" style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">MAP</div>
       <div id="v2-map-picker" style="display:flex;flex-direction:column;gap:5px;"></div>
       <div id="v2-hud-copyright" style="font-size:8px;line-height:1.35;color:rgba(255,255,255,0.28);margin-top:12px;padding-top:10px;border-top:1px solid rgba(251,192,45,0.08);letter-spacing:0.15px;text-align:center;">Idea Software Studio &copy; 2026</div>
     `;
@@ -58,6 +64,50 @@ export function buildOrchestratorHud() {
     lnk.href = 'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap';
     document.head.appendChild(lnk);
   }
+  // Mobile shrink (≤ 768 px): ~30% smaller + thinner + smaller fonts so
+  // the truncated "UNIVERSE.ANU: ✓ cle…" and "PiP=on stride:8 phas…"
+  // lines fit. Desktop is unchanged. `!important` is required because
+  // every styleable element below uses inline `style="…"`.
+  if (!document.getElementById('v2-orchestrator-hud-mobile-css')) {
+    const st = document.createElement('style');
+    st.id = 'v2-orchestrator-hud-mobile-css';
+    st.textContent = `
+      @media (max-width: 768px) {
+        #v2-orchestrator-hud {
+          width: min(196px, calc(100vw - 24px)) !important;
+          padding: 9px 12px 7px !important;
+          font-size: 9px !important;
+          border-radius: 11px !important;
+          max-height: min(380px, calc(100vh - 24px)) !important;
+        }
+        #v2-orchestrator-hud #v2-hud-title { font-size: 6.5px !important; letter-spacing: 1.4px !important; margin-bottom: 7px !important; }
+        #v2-orchestrator-hud #v2-fps { font-size: 21px !important; margin-bottom: 4px !important; }
+        #v2-orchestrator-hud #v2-frame-graph-wrap {
+          width: 142px !important; height: 32px !important;
+          padding: 2px !important; margin-bottom: 6px !important;
+          border-radius: 6px !important;
+        }
+        #v2-orchestrator-hud #v2-frame-graph {
+          width: 138px !important; height: 28px !important;
+          border-radius: 4px !important;
+        }
+        #v2-orchestrator-hud #v2-load        { font-size: 7px !important; left: 6px !important; top: 4px !important; letter-spacing: 1px !important; }
+        #v2-orchestrator-hud #v2-load-detail { font-size: 6.5px !important; right: 6px !important; top: 4px !important; }
+        #v2-orchestrator-hud #v2-anu-alert   { font-size: 7px !important; margin-bottom: 6px !important; }
+        #v2-orchestrator-hud #v2-draws       { font-size: 8px !important; margin-bottom: 4px !important; }
+        #v2-orchestrator-hud #v2-pip         { font-size: 7.5px !important; margin-bottom: 7px !important; }
+        #v2-orchestrator-hud #v2-hud-universe-label,
+        #v2-orchestrator-hud #v2-hud-map-label { font-size: 7px !important; margin-bottom: 4px !important; letter-spacing: 1px !important; }
+        #v2-orchestrator-hud #v2-modules     { font-size: 9px !important; line-height: 1.7 !important; }
+        #v2-orchestrator-hud #v2-bench       { font-size: 8px !important; margin-top: 7px !important; }
+        #v2-orchestrator-hud #v2-hud-copyright {
+          font-size: 6.5px !important; margin-top: 9px !important;
+          padding-top: 7px !important; line-height: 1.25 !important;
+        }
+      }
+    `;
+    document.head.appendChild(st);
+  }
   const hud = document.createElement('div');
   hud.id = 'v2-orchestrator-hud';
   /**
@@ -68,7 +118,7 @@ export function buildOrchestratorHud() {
   hud.style.cssText = `
       position: fixed;
       top: 12px;
-      right: 14px;
+      right: 0;
       left: auto;
       transform: none;
       z-index: 9999;
@@ -100,7 +150,40 @@ export function buildOrchestratorHud() {
   hud.innerHTML = ORCHESTRATOR_HUD_HTML;
   document.body.appendChild(hud);
   _renderMapPicker(hud);
+  _wireUniverseAccordion(hud);
   return hud;
+}
+
+/**
+ * UNIVERSE label is a clickable accordion header — click toggles the
+ * #v2-universe-accordion-body (which holds the modules list + bench).
+ * Default state: collapsed (set by inline `display:none` in HTML).
+ * Keyboard: Enter/Space also toggles. Persists across boots via localStorage.
+ */
+function _wireUniverseAccordion(hud) {
+  const header = hud.querySelector('#v2-hud-universe-label');
+  const body = hud.querySelector('#v2-universe-accordion-body');
+  const icon = hud.querySelector('#v2-universe-toggle-icon');
+  if (!header || !body || !icon) return;
+
+  const STORAGE_KEY = 'v2.hud.universe.expanded';
+  const setExpanded = (open) => {
+    body.style.display = open ? 'block' : 'none';
+    icon.textContent = open ? '▼' : '▶';
+    header.setAttribute('aria-expanded', open ? 'true' : 'false');
+    try { localStorage.setItem(STORAGE_KEY, open ? '1' : '0'); } catch (_e) {}
+  };
+
+  // Restore last state (default collapsed).
+  let initial = false;
+  try { initial = localStorage.getItem(STORAGE_KEY) === '1'; } catch (_e) {}
+  setExpanded(initial);
+
+  const toggle = () => setExpanded(body.style.display === 'none');
+  header.addEventListener('click', toggle);
+  header.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
 }
 
 /**
@@ -155,10 +238,16 @@ function _renderMapPicker(hud) {
   }
 }
 
-/** Refresh the active-modules block. Cheap; called on register/activate/deactivate. */
+/** Refresh the active-modules block. Cheap; called on register/activate/deactivate.
+ *  Also updates the universe header count badge (e.g. "36 mods"). */
 export function updateOrchestratorHudModules(orc) {
   if (!orc._hud) return;
   const modEl = orc._hud.querySelector('#v2-modules');
+  const countEl = orc._hud.querySelector('#v2-universe-count');
+  if (countEl) {
+    const n = orc._activeModules.length;
+    countEl.textContent = `${n} mod${n === 1 ? '' : 's'}`;
+  }
   if (!modEl) return;
   if (orc._activeModules.length === 0) {
     modEl.textContent = 'none';
@@ -263,6 +352,36 @@ export function updateOrchestratorHudValues(orc) {
       alertEl.title = alerts
         .map((a, i) => `${i + 1}. [${a.severity}] ${a.id}\n   ${a.text}`)
         .join("\n\n");
+    }
+  }
+
+  // Universe % complete — header summary computed from Anu's governance
+  // checks (passing / total). Shares the 2 Hz throttle with the audit read
+  // so we don't walk Anu twice per HUD tick. Color: green ≥90, amber 50–89,
+  // red <50, neutral while warming up.
+  const pctEl = orc._hud.querySelector("#v2-universe-pct");
+  if (pctEl) {
+    const nowMs = performance.now();
+    if (nowMs >= (orc._anuGovernanceNextAtMs || 0)) {
+      orc._anuGovernanceNextAtMs = nowMs + 500;
+      try {
+        const snap = getGovernanceSnapshot(orc);
+        const checks = Array.isArray(snap?.checks) ? snap.checks : [];
+        const total = checks.length;
+        const passing = checks.filter(c => c && c.ok === true).length;
+        orc._anuGovernancePct = total > 0 ? Math.round((passing / total) * 100) : null;
+        orc._anuGovernancePassing = passing;
+        orc._anuGovernanceTotal = total;
+      } catch (_e) { /* never throw from HUD */ }
+    }
+    const pct = orc._anuGovernancePct;
+    if (pct === null || pct === undefined) {
+      pctEl.textContent = "--%";
+      pctEl.style.color = "rgba(255,255,255,0.4)";
+    } else {
+      pctEl.textContent = `${pct}%`;
+      pctEl.style.color = pct >= 90 ? "#a5d6a7" : pct >= 50 ? "#fbc02d" : "#ef5350";
+      pctEl.title = `Anu governance: ${orc._anuGovernancePassing}/${orc._anuGovernanceTotal} checks healthy`;
     }
   }
 

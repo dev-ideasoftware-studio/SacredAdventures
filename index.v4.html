@@ -503,6 +503,7 @@
   <script>
     window._v4JournalOpen = false;
     window._v4InputSuppressed = false;
+    window.__sanctuaryJoystickInput = { x: 0, y: 0 };
 
     function _v4SetJournalOpen(open) {
       const overlay = document.getElementById('v4-journal-overlay');
@@ -637,6 +638,9 @@
         // can drive the toggle without the (now-hidden) legacy button.
         if (typeof window._v4ToggleTopDown === 'function') window._v4ToggleTopDown();
         console.log('%c[v4] action · toggle view mode', 'color:#a5d6a7;font-weight:bold;');
+      } else if (t === 'THUMB_MOVE') {
+        window.__sanctuaryJoystickInput.x = Number(d.x) || 0;
+        window.__sanctuaryJoystickInput.y = Number(d.y) || 0;
       }
     });
 

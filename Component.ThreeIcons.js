@@ -221,6 +221,7 @@ class ThreeIconManager {
         else if (type === 'LOG' || type === 'JOURNAL') updateFn = this.buildLog(scene);
         else if (type === 'GATHER') updateFn = this.buildGather(scene);
         else if (type === 'FISH') updateFn = this.buildFish(scene);
+        else if (type === 'AVATAR') updateFn = this.buildAvatar(scene);
 
         // Persistent heartbeat wrap
         const finalUpdate = (time, dt) => {
@@ -250,7 +251,58 @@ class ThreeIconManager {
         return item;
     }
 
-
+    buildAvatar(scene) {
+        const group = new THREE.Group();
+        group.scale.set(1.0, 1.0, 1.0);
+        scene.add(group);
+ 
+        // --- AVATAR (Clean 3D UI Render) ---
+        const avatarPivot = new THREE.Group();
+        avatarPivot.position.set(0, -0.92, 0); // Position to frame head/shoulders beautifully in the circle
+        group.add(avatarPivot);
+ 
+        const dracoLoader = new window.THREE.DRACOLoader();
+        dracoLoader.setDecoderPath("./vendor/three/examples/jsm/libs/draco/gltf/");
+        const loader = new window.THREE.GLTFLoader();
+        loader.setDRACOLoader(dracoLoader);
+ 
+        const AVATAR_URL = "./Assets/Avatar3.glb";
+ 
+        loader.load(AVATAR_URL, (gltf) => {
+            const avatar = gltf.scene;
+ 
+            // Standardize size to fit perfectly in the circular badge
+            const box = new THREE.Box3().setFromObject(avatar);
+            const size = box.getSize(new THREE.Vector3());
+            const sf = 1.9 / Math.max(size.y, 0.1); // Scale it beautifully
+            avatar.scale.set(sf, sf, sf);
+ 
+            // Re-center model visual origin so head/chest is focused
+            const scaledBox = new THREE.Box3().setFromObject(avatar);
+            const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+            avatar.position.set(-scaledCenter.x, -scaledCenter.y + 0.15, -scaledCenter.z);
+ 
+            // Glistening metallic plastic highlights
+            avatar.traverse(child => {
+                if (child.isMesh && child.material) {
+                    child.material.envMapIntensity = 1.2;
+                    child.material.roughness = 0.45;
+                }
+            });
+ 
+            avatarPivot.add(avatar);
+        }, undefined, (error) => {
+            console.warn('[ThreeIcons] Failed to load avatar in HUD:', error);
+        });
+ 
+        return (time, dt) => {
+            // Gentle UI bob
+            group.position.y = Math.sin(time * 1.5) * 0.05;
+            
+            // Slow, majestic rotating showcase
+            avatarPivot.rotation.y += dt * 0.45;
+        };
+     }
 
     buildGather(scene) {
         const group = new THREE.Group();

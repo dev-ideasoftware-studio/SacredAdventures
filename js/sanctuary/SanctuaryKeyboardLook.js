@@ -129,6 +129,15 @@ export const SanctuaryKeyboardLookModule = {
     if (k["q"] || k["arrowleft"])  this._yaw += TURN_RATE_RAD_PER_S * delta;
     if (k["e"] || k["arrowright"]) this._yaw -= TURN_RATE_RAD_PER_S * delta;
 
+    // Mobile Virtual Joystick Yaw Deflection (turn left/right)
+    if (typeof window !== "undefined" && window.__sanctuaryJoystickInput) {
+      const j = window.__sanctuaryJoystickInput;
+      if (Math.abs(j.x) > 0.05) {
+        if (typeof window._v4CancelClickToMove === "function") window._v4CancelClickToMove();
+        this._yaw -= j.x * TURN_RATE_RAD_PER_S * delta;
+      }
+    }
+
     // Sync yaw from click-to-move when active so the camera follows
     // behind the path direction instead of staying at a stale angle.
     if (typeof window !== "undefined" && Number.isFinite(window.__sanctuaryPlayerYaw)) {
@@ -153,6 +162,17 @@ export const SanctuaryKeyboardLookModule = {
                                     mvZ -= rightZ * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS); }
     if (k["d"])                   { mvX += rightX * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS);
                                     mvZ += rightZ * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS); }
+
+    // Mobile Virtual Joystick Vertical Deflection (walk forward/backward)
+    if (typeof window !== "undefined" && window.__sanctuaryJoystickInput) {
+      const j = window.__sanctuaryJoystickInput;
+      if (Math.abs(j.y) > 0.05) {
+        if (typeof window._v4CancelClickToMove === "function") window._v4CancelClickToMove();
+        mvX -= j.y * fwdX;
+        mvZ -= j.y * fwdZ;
+      }
+    }
+
     const mvLen = Math.hypot(mvX, mvZ);
     if (mvLen > 0) {
       const nx = mvX / mvLen;
