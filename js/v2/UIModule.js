@@ -651,7 +651,7 @@ export const UIModule = {
         }
       </style>
       <div id="v2-side-panel"><iframe id="panel-frame" title="Sacred Adventures Panel"></iframe></div>
-      <div id="v2-distance-pill">0 ft travelled</div>
+      <div id="v2-distance-pill">POS: 0.0, 0.0, 0.0 | YAW: 0.00</div>
       <div id="moondial-wrapper" title="Sacred Adventures v2 — moondial">
         <div class="season-outer-ring" id="season-ring">
           <div class="season-outer-bg pip-ring-bronze"></div>
@@ -792,8 +792,13 @@ export const UIModule = {
     if (!player) return;
     this._gameTime = (this._gameTime + _delta * 0.035) % 24;
     const pill = this._root && this._root.querySelector("#v2-distance-pill");
-    if (pill && frameCount % 10 === 0)
-      pill.textContent = `${Math.round(player.distanceFeet)} ft travelled`;
+    if (pill && frameCount % 10 === 0) {
+      const x = player.feet.x.toFixed(1);
+      const y = player.feet.y.toFixed(1);
+      const z = player.feet.z.toFixed(1);
+      const yaw = player.yaw.toFixed(2);
+      pill.textContent = `POS: ${x}, ${y}, ${z} | YAW: ${yaw}`;
+    }
     this._syncCompass(player.yaw);
     if (frameCount % 45 === 0) this._syncPipOverlaySize();
     if (frameCount - this._lastMoonUpdate >= 30) {
