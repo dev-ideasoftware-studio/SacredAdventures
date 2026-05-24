@@ -12,6 +12,7 @@ import { ANU_SIMULATION_DOMAIN, ANU_INTERACTION_VERB } from "../v2/anu/Simulatio
 import { createSacredCirclePlatform } from "../v2/WorldSacredPlatform.js";
 import { applyBhgStripeAndSuppressionShader } from "../v2/WorldStructures.js";
 import {
+  V2_TILE_WORLD,
   V2_TIPI_2_CENTER_X_M,
   V2_TIPI_2_CENTER_Z_M,
   V2_TIPI_2_YAW_RAD,
@@ -168,7 +169,7 @@ export const SanctuaryTipisModule = {
     this._root = root;
 
     const tipi1Hex = { ...TIPI_1_DEFAULT };
-    const tipi2Hex = { x: V2_TIPI_2_CENTER_X_M, z: V2_TIPI_2_CENTER_Z_M };
+    const tipi2Hex = { x: TIPI_1_DEFAULT.x + V2_TILE_WORLD * 2, z: TIPI_1_DEFAULT.z };
 
     try {
       const gltf = await new GLTFLoaderWithDraco().loadAsync(TIPI_GLB_URL);

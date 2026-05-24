@@ -21,8 +21,8 @@ const FISH_COUNT = 12;
 const FISH_TARGET_LENGTH_M = 0.44;
 const SWIM_DEPTH_CENTER_M = 0.55;
 const SWIM_DEPTH_SPREAD_M = 0.35;
-/** Base angular rate (rad/s) for school coherence. */
-const SWIM_RATE_RAD_S = 0.22;
+/** Base angular rate (rad/s) for school coherence. slowed down by 80% (0.22 * 0.2) */
+const SWIM_RATE_RAD_S = 0.044;
 const LOOK_AHEAD_S = 0.06;
 const PLAYER_AVOID_RADIUS_M = 3 * 0.3048 * 1.4;
 const PLAYER_PUSH_GAIN = 0.85;
@@ -143,7 +143,7 @@ export const SanctuaryFishModule = {
         fish.userData.schoolAngleOff = (i / FISH_COUNT) * Math.PI * 2 + rng() * 0.35;
         const speedMul = fish.userData.speedMul;
         fish.userData.soloOmega =
-          ((0.2 * speedMul * orbitDir) / Math.max(0.5, orbitR / 8)) *
+          ((0.04 * speedMul * orbitDir) / Math.max(0.5, orbitR / 8)) *
           (0.55 + rng() * 0.5);
         fish.userData.fishMidY = this._fishCenterY;
         fish.userData.baseScaleFactor = scale;
@@ -255,7 +255,7 @@ export const SanctuaryFishModule = {
             const dist = Math.hypot(dx, dz);
             
             if (dist > 0.05) {
-              const speed = 1.2 * delta;
+              const speed = 0.24 * delta; // slowed down by 80% (1.2 * 0.2)
               fish.position.x += (dx / dist) * speed;
               fish.position.z += (dz / dist) * speed;
               fish.position.y += dy * 2.0 * delta;
@@ -263,10 +263,10 @@ export const SanctuaryFishModule = {
               // Smoothly face the lure in 3D space
               fish.lookAt(targetX, targetY, targetZ);
               // Add a bit of realistic swimming wiggle around its local yaw axis
-              fish.rotateY(Math.sin(t * 8.0) * 0.15);
+              fish.rotateY(Math.sin(t * 1.6) * 0.15); // slowed down to match speed
             } else {
               fish.position.set(targetX, targetY, targetZ);
-              fish.rotation.set(0, t * 2.0, 0);
+              fish.rotation.set(0, t * 0.4, 0); // slowed down idle rotation
             }
           }
         }
@@ -322,7 +322,7 @@ export const SanctuaryFishModule = {
           const baseYaw = Math.atan2(-vz, vx) + Math.PI;
           const wiggleAmp = 0.22;
           const wiggle =
-            Math.sin(t * 6.5 + (ud.wigglePhase ?? 0) * 4.7) * wiggleAmp;
+            Math.sin(t * 1.3 + (ud.wigglePhase ?? 0) * 4.7) * wiggleAmp; // slowed down by 80% (6.5 * 0.2)
           fish.rotation.set(0, baseYaw + wiggle, 0);
         }
       }

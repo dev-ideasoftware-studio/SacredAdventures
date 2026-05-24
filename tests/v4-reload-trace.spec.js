@@ -42,7 +42,7 @@ test('v4 sanctuary — trace EVERY reload attempt', async ({ page }) => {
   await page.goto('http://127.0.0.1:5505/index.v4.html', {
     waitUntil: 'domcontentloaded',
   });
-  await page.waitForTimeout(30000);
+  await page.waitForTimeout(45000);
 
   console.log('\n╔══════════════════════════════════════════════════════╗');
   console.log('║  RELOAD TRACE — 30 s window                          ║');
