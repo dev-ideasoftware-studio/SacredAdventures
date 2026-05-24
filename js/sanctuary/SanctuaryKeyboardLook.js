@@ -32,6 +32,7 @@
 
 import * as THREE from "three";
 import { sanctuaryGroundY } from "./SanctuaryGround.js";
+import { SanctuaryClickToMoveModule } from "./SanctuaryClickToMove.js";
 
 const MOVE_SPEED_MPS = 5.0;
 const STRAFE_SPEED_MPS = 4.0;
@@ -127,6 +128,15 @@ export const SanctuaryKeyboardLookModule = {
     // Turn (yaw)
     if (k["q"] || k["arrowleft"])  this._yaw += TURN_RATE_RAD_PER_S * delta;
     if (k["e"] || k["arrowright"]) this._yaw -= TURN_RATE_RAD_PER_S * delta;
+
+    // Sync yaw from click-to-move when active so the camera follows
+    // behind the path direction instead of staying at a stale angle.
+    if (typeof window !== "undefined" && Number.isFinite(window.__sanctuaryPlayerYaw)) {
+      const clickActive = !!(SanctuaryClickToMoveModule && SanctuaryClickToMoveModule._goal);
+      if (clickActive) {
+        this._yaw = window.__sanctuaryPlayerYaw;
+      }
+    }
 
     // Movement vectors. Convention: forward = (-sin yaw, 0, -cos yaw),
     // matches three.js's right-hand Y-up + the engine's existing yaw
