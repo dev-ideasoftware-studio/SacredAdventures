@@ -22,3 +22,9 @@ Assets/tipi.bringshappiness.obj
 Assets/animated.avatar.glb
 npm-cache/
 
+# Read-only reference snapshot — search-only source for "how was this solved first?"
+# DO NOT TRACK. ~24 GB. See memory: feedback-sacred-adventures-bad-reference.
+Sacred.Adventures.BAD/
+
+# Live-server config (env-specific, can be committed if desired)
+# .live-server.json
