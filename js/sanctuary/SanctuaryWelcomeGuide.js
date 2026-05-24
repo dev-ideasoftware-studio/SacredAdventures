@@ -60,33 +60,43 @@ function _injectStylesOnce() {
   const st = document.createElement("style");
   st.id = "sanctuary-welcome-guide-css";
   st.textContent = `
-    /* ── Welcome Guide overlay ──────────────────────────────────── */
+    /* ── Welcome Guide overlay ──────────────────────────────────────
+     * Positioned in the gap BETWEEN the moondial PIP (left) and the
+     * OrchestratorHud (right), with a strict 30 px buffer on every
+     * side. CSS calc() honours the live PIP + HUD widths so the panel
+     * stays exactly centred between them regardless of viewport.
+     *   PIP right edge: 20 + clamp(200, 25vw, 300)
+     *   HUD left edge:  100vw − 280
+     * ──────────────────────────────────────────────────────────────── */
     #sanctuary-welcome-guide {
       position: fixed;
-      top: 18px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(640px, calc(100vw - 32px));
+      top: 30px;
+      left:  calc(20px + clamp(200px, 25vw, 300px) + 30px);
+      right: calc(280px + 30px);
       z-index: 9000;
-      padding: 18px 28px 22px;
+      padding: 28px 32px 24px;
       border-radius: 22px;
       pointer-events: auto;
       user-select: none;
       font-family: 'Fredoka', 'Segoe UI', sans-serif;
-      background: rgba(22, 16, 10, 0.32);
-      border: 1px solid rgba(251, 192, 45, 0.35);
+      /* Real glass: dark warm tint + heavy blur, scene reads through
+         but text contrast stays AAA against the blurred + darkened
+         backdrop. */
+      background: rgba(14, 10, 6, 0.62);
+      border: 1px solid rgba(251, 192, 45, 0.42);
       box-shadow:
-        0 12px 40px rgba(0,0,0,0.45),
-        inset 0 1px 0 rgba(255, 220, 140, 0.22),
-        inset 0 0 22px rgba(255, 200, 110, 0.06);
-      backdrop-filter: blur(18px) saturate(140%);
-      -webkit-backdrop-filter: blur(18px) saturate(140%);
+        0 16px 48px rgba(0,0,0,0.55),
+        0 2px 8px rgba(0,0,0,0.45),
+        inset 0 1px 0 rgba(255, 220, 140, 0.25),
+        inset 0 0 28px rgba(255, 200, 110, 0.06);
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
       transition: opacity 0.35s ease, transform 0.35s ease;
       text-align: center;
     }
     #sanctuary-welcome-guide.is-hidden {
       opacity: 0;
-      transform: translateX(-50%) translateY(-12px);
+      transform: translateY(-12px);
       pointer-events: none;
     }
 
@@ -211,11 +221,16 @@ function _injectStylesOnce() {
       transform: translateY(0);
     }
 
-    /* Mobile (≤ 768 px): shrink type + spacing so the guide fits on phones */
+    /* Mobile (≤ 768 px): no room between PIP and HUD — dock the guide
+     * to the BOTTOM of the viewport with the same 30 px buffer rule.
+     * Type + spacing also shrink so the panel fits comfortably. */
     @media (max-width: 768px) {
       #sanctuary-welcome-guide {
-        top: 12px;
-        padding: 14px 18px 16px;
+        top: auto;
+        bottom: 30px;
+        left: 30px;
+        right: 30px;
+        padding: 16px 20px 18px;
         border-radius: 16px;
       }
       #sanctuary-welcome-guide .swg-pill {

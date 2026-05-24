@@ -80,7 +80,7 @@ export const UIModule = {
           --pip-compass-track: 20px;
           --pip-outer-track: 16px;
           position: absolute;
-          top: 50px;
+          top: 0;
           left: 20px;
           width: clamp(200px, 25vw, 300px);
           height: clamp(200px, 25vw, 300px);
@@ -635,7 +635,7 @@ export const UIModule = {
         #v2-distance-pill {
           position: absolute;
           left: 28px;
-          top: calc(50px + clamp(200px, 25vw, 300px) + 34px);
+          top: calc(clamp(200px, 25vw, 300px) + 18px);
           padding: 9px 14px;
           border-radius: 999px;
           color: var(--pip-gold-soft);
@@ -668,7 +668,7 @@ export const UIModule = {
             font-size: 9.5px;
             padding: 6px 10px;
             letter-spacing: 0.04em;
-            top: calc(50px + clamp(200px, 25vw, 300px) + 18px);
+            top: calc(clamp(200px, 25vw, 300px) + 10px);
           }
         }
       </style>
