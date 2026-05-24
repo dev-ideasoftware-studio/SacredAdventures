@@ -117,7 +117,7 @@
        passes clicks through to the canvas, and each interactive
        child enables pointer-events: auto on itself.
        Visible by default — P key toggles it off for screenshots. */
-    #v4-panel-frame {
+    #panel-frame {
       position: fixed;
       inset: 0;
       width: 100%;
@@ -128,7 +128,7 @@
       pointer-events: none; /* panel's body manages its own clicks */
       transition: opacity 0.25s ease;
     }
-    #v4-panel-frame.hidden {
+    #panel-frame.hidden {
       opacity: 0;
       pointer-events: none;
     }
@@ -200,7 +200,7 @@
        src and no JavaScript runs inside it, so Component.ThreeIcons.js's
        unthrottled RAF loop does not compete with the main render loop. -->
   <iframe
-    id="v4-panel-frame"
+    id="panel-frame"
     data-src="SacredGame.Panel.html?v=v4"
     title="Sacred Panel"
   ></iframe>
@@ -545,7 +545,7 @@
     // ThreeIconManager RAF loop doesn't run during gameplay.
     window._v4PanelOpen = false;
     function _v4SetPanelOpen(open) {
-      const frame = document.getElementById('v4-panel-frame');
+      const frame = document.getElementById('panel-frame');
       if (!frame) return;
       // Lazy-load: set src on first open.
       if (open && !frame.src && frame.dataset.src) {

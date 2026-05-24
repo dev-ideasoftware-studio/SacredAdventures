@@ -829,7 +829,19 @@ export const UIModule = {
      * surrogate-2D drift).
      */
     const deg = pipCompassRingRotationDegFromYawRad(yaw);
-    if (this._compassRing) this._compassRing.style.transform = `rotate(${deg}deg)`;
+    if (this._compassRing) {
+      this._compassRing.style.transform = `rotate(${deg}deg)`;
+      const markers = this._compassRing.querySelectorAll(".compass-marker");
+      markers.forEach((marker) => {
+        let translate = "translate(-50%, -50%)";
+        if (marker.classList.contains("s")) {
+          translate = "translate(-50%, 50%)";
+        } else if (marker.classList.contains("e")) {
+          translate = "translate(50%, -50%)";
+        }
+        marker.style.transform = `${translate} rotate(${-deg}deg)`;
+      });
+    }
   },
 
   _syncLunarRadialPhase() {

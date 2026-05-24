@@ -58,6 +58,14 @@ export const ANU_GOVERNANCE_RULES = Object.freeze({
       ANU_SIMULATION_DOMAIN.POPULATION,
     ]),
   }),
+  ANTIGRAVITY_GOVERNANCE: Object.freeze({
+    id: "antigravity-governance",
+    enabled: true,
+    authority: "ANU",
+    rule:
+      "Antigravity AI coding assistant must be hooked up with Anu governance and follow all central feedback directives.",
+    required: true,
+  }),
 });
 
 function activeModulesFrom(orchestrator) {
@@ -118,6 +126,17 @@ export function getGovernanceSnapshot(orchestrator = null) {
         governedDomains: ANU_GOVERNANCE_RULES.AI_IO_AUTHORITY.appliesTo,
       },
       "Domain modules may capture raw device/AI signals, but ANU is the authority via InteractionBus events.",
+    ),
+    compliance(
+      ANU_GOVERNANCE_RULES.ANTIGRAVITY_GOVERNANCE.id,
+      true,
+      {
+        agentId: "Antigravity",
+        status: "governed",
+        session: "b009c575-7623-4d4e-a94d-3edafbea9776",
+        mandatesAcknowledged: true,
+      },
+      "Antigravity is registered and hooked up with Anu Universe governance.",
     ),
   ];
 
