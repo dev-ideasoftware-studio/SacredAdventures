@@ -21,7 +21,7 @@ import {
 } from "../v2/constants.js";
 import { sanctuaryGroundY } from "./SanctuaryGround.js";
 
-const TIPI_GLB_URL = "./Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb";
+const TIPI_GLB_URL = "./WORDPRESS/Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb";
 const TIPI_1_YAW_RAD = Math.PI / 2;
 
 function _tagTipiMeshes(tipi, tipiKind, idPrefix) {

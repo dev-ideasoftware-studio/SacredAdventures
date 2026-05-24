@@ -10,7 +10,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
 const DRACO_DECODER_PATH =
-  "./vendor/three/examples/jsm/libs/draco/gltf/";
+  "./WORDPRESS/vendor/three/examples/jsm/libs/draco/gltf/";
 
 let _dracoLoader = null;
 
