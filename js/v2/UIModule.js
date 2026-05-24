@@ -649,6 +649,28 @@ export const UIModule = {
             0 10px 28px rgba(0, 0, 0, 0.45),
             inset 0 1px 0 rgba(255, 255, 255, 0.07);
         }
+
+        /* ────────────────────────────────────────────────────────────
+         * MOBILE (≤ 768 px): shrink the 3 moondial dial tracks by 50 %
+         * so the central glass area gains ~58 px of diameter for the
+         * "show the cam" panel. Wrapper size stays the same; only the
+         * compass / lunar / season ring widths halve.
+         * ──────────────────────────────────────────────────────────── */
+        @media (max-width: 768px) {
+          #moondial-wrapper {
+            --pip-moon-track: 11px;
+            --pip-compass-track: 10px;
+            --pip-outer-track: 8px;
+          }
+          /* Distance/POS pill scales down too so it fits beside the
+             now-narrower right-edge HUD. */
+          #v2-distance-pill {
+            font-size: 9.5px;
+            padding: 6px 10px;
+            letter-spacing: 0.04em;
+            top: calc(50px + clamp(200px, 25vw, 300px) + 18px);
+          }
+        }
       </style>
       <div id="v2-side-panel"><iframe id="panel-frame" title="Sacred Adventures Panel"></iframe></div>
       <div id="v2-distance-pill">POS: 0.0, 0.0, 0.0 | YAW: 0.00</div>
