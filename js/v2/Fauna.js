@@ -50,7 +50,7 @@
  */
 
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { GLTFLoaderWithDraco } from "./gltfLoaderSetup.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { getRuntimeService } from "./RuntimeServices.js";
 import { terrainY as analyticTerrainY } from "./WorldTerrain.js";
@@ -1696,7 +1696,7 @@ export const FaunaModule = {
 
     let gltf;
     try {
-      gltf = await new GLTFLoader().loadAsync(RABBIT_URL);
+      gltf = await new GLTFLoaderWithDraco().loadAsync(RABBIT_URL);
     } catch (err) {
       console.warn("[Fauna] rabbit.animated.glb load failed:", err);
       return;
