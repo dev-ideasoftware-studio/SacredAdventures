@@ -255,6 +255,7 @@
     import { SanctuaryFpsHudModule       } from './js/sanctuary/SanctuaryFpsHud.js';
     import { SanctuaryFishingModule      } from './js/sanctuary/SanctuaryFishing.js';
     import { SanctuaryWorldPlayerShimModule } from './js/sanctuary/SanctuaryWorldPlayerShim.js';
+    import { SanctuaryWaterFootstepsModule } from './js/sanctuary/SanctuaryWaterFootsteps.js';
 
     // Modal loader plumbing — same protocol v2 used (Component.LoadingModal
     // listens for LOG_SYSTEM with msg + 4 progress %, LOADING_COMPLETE
@@ -347,6 +348,7 @@
     orc.register(SanctuaryFpsHudModule);
     orc.register(SanctuaryFishingModule);
     orc.register(SanctuaryWorldPlayerShimModule);
+    orc.register(SanctuaryWaterFootstepsModule);
 
     v4Log('Anu — opening her ear', 100, 22, 14, 10);
     await orc.activate('Anu');
@@ -371,6 +373,9 @@
 
     v4Log('giving the player their feet', 100, 98, 97, 93);
     await orc.activate('SanctuaryClickToMove');
+
+    v4Log('priming walking sound effects', 100, 98, 97, 93);
+    await orc.activate('SanctuaryWaterFootsteps');
 
     v4Log('WorldPlayer shim — so PIP can find the avatar', 100, 98, 97, 93);
     await orc.activate('SanctuaryWorldPlayerShim');
