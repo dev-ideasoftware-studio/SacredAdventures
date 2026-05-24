@@ -1014,12 +1014,21 @@ export const SanctuaryFishingModule = {
           window.__sanctuaryKeyboardLook._cameraYaw = targetYaw;
         }
 
-        const existing = avatar.getObjectByName("avatar_glued_fish");
-        if (existing) {
-          avatar.remove(existing);
-          existing.geometry?.dispose();
-          existing.material?.dispose();
+        // Clear all caught leg-attached fish when starting a new session
+        for (let i = 1; i <= 6; i++) {
+          const existing = avatar.getObjectByName(`glued_fish_${i}`);
+          if (existing) {
+            avatar.remove(existing);
+            existing.traverse((child) => {
+              if (child.geometry) child.geometry.dispose();
+              if (child.material) {
+                if (Array.isArray(child.material)) child.material.forEach((m) => m?.dispose?.());
+                else child.material?.dispose?.();
+              }
+            });
+          }
         }
+        this._caughtFishCount = 0;
       }
       if (this._caughtFish3D && this._hookGroup) {
         this._hookGroup.remove(this._caughtFish3D);
@@ -1091,24 +1100,31 @@ export const SanctuaryFishingModule = {
     const onDock = this._isPlayerOnDock();
     const isFishingActive = this._phase !== PHASE.IDLE;
 
-    // Wiggle caught fish attached to stick if present on avatar back/hip
-    if (window.__sanctuaryHasFishCaught && avatar) {
-      if (!this._gluedFishRef) {
-        this._gluedFishRef = avatar.getObjectByName("avatar_glued_fish");
-      }
-      if (this._gluedFishRef) {
-        if (!this._attachedFishRef) {
-          this._attachedFishRef = this._gluedFishRef.getObjectByName("wiggling_attached_fish");
-        }
-        if (this._attachedFishRef) {
-          const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
-          this._attachedFishRef.rotation.z = Math.sin(t * 22) * 0.35; // realistic trout wiggle
-          this._attachedFishRef.rotation.y = Math.cos(t * 12) * 0.18;
-        }
+    // Fully automated relaxed fishing: auto-casts after 3 seconds of standing idle on the dock
+    if (this._phase === PHASE.IDLE && onDock) {
+      this._autoCastTimer = (this._autoCastTimer || 0) + delta;
+      if (this._autoCastTimer >= 3.0) {
+        this._autoCastTimer = 0;
+        this._tryAction();
       }
     } else {
-      this._gluedFishRef = null;
-      this._attachedFishRef = null;
+      this._autoCastTimer = 0;
+    }
+
+    // Wiggle all caught fish attached to legs (up to 3 per side) with organic offsets
+    if (window.__sanctuaryHasFishCaught && avatar) {
+      const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+      for (let i = 1; i <= 6; i++) {
+        const gluedGroup = avatar.getObjectByName(`glued_fish_${i}`);
+        if (gluedGroup) {
+          const fishMesh = gluedGroup.getObjectByName("wiggling_attached_fish");
+          if (fishMesh) {
+            const phaseOffset = i * 0.73;
+            fishMesh.rotation.z = Math.sin(t * 18 + phaseOffset) * 0.32;
+            fishMesh.rotation.y = Math.cos(t * 10 + phaseOffset) * 0.15;
+          }
+        }
+      }
     }
 
     if (avatar && isFishingActive) {
@@ -1394,6 +1410,13 @@ export const SanctuaryFishingModule = {
           WATER_Y_M + dip,
           this._castTarget.z + (Math.random() - 0.5) * 0.04,
         );
+        
+        // Automated relaxed fishing: auto-hook and transition to REELING after 1.2 seconds of wiggling!
+        if (this._phaseT >= 1.2) {
+          this._setPhase(PHASE.REELING);
+          break;
+        }
+
         if (this._phaseT >= BITE_WINDOW_S) {
           playFishingTone('fail');
           showWoWCombatText("It got away!", false);
@@ -1515,7 +1538,7 @@ export const SanctuaryFishingModule = {
           } else {
             // Success! Attach fish to avatar side and grant reward!
             playFishingTone('success');
-            showWoWCombatText("You caught the fish!", true);
+            showWoWCombatText("You caught a fish!", true);
             this._attachFishToAvatarSide();
             
             // Caught fish resets as 10% tiny baby
@@ -1723,22 +1746,38 @@ export const SanctuaryFishingModule = {
   _attachFishToAvatarSide() {
     const avatar = window.__sanctuaryAvatar;
     if (!avatar) return;
-    
-    const existing = avatar.getObjectByName("avatar_glued_fish");
-    if (existing) {
-      avatar.remove(existing);
-      existing.geometry?.dispose();
-      existing.material?.dispose();
+
+    this._caughtFishCount = (this._caughtFishCount || 0) + 1;
+    if (this._caughtFishCount > 6) {
+      // Reset and clear all existing fish to start fresh
+      this._caughtFishCount = 1;
+      for (let i = 1; i <= 6; i++) {
+        const old = avatar.getObjectByName(`glued_fish_${i}`);
+        if (old) {
+          avatar.remove(old);
+          old.traverse((child) => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+              if (Array.isArray(child.material)) child.material.forEach((m) => m?.dispose?.());
+              else child.material?.dispose?.();
+            }
+          });
+        }
+      }
     }
 
-    const holderGroup = new THREE.Group();
-    holderGroup.name = "avatar_glued_fish";
+    const idx = this._caughtFishCount;
+    const isRight = (idx % 2 !== 0);
+    const slotIdx = Math.floor((idx - 1) / 2); // 0, 1, or 2
 
-    // Wooden stick mesh:
-    const stickGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.45, 8);
+    const holderGroup = new THREE.Group();
+    holderGroup.name = `glued_fish_${idx}`;
+
+    // Short wooden pin mesh:
+    const stickGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.20, 8);
     const stickMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 });
     const stick = new THREE.Mesh(stickGeo, stickMat);
-    stick.position.set(0, 0.1, 0);
+    stick.position.set(0, 0.05, 0);
     holderGroup.add(stick);
 
     // The caught 3D fish (blue trout color matching the gauge theme)
@@ -1746,12 +1785,17 @@ export const SanctuaryFishingModule = {
     fish.name = "wiggling_attached_fish";
     // Point fish vertically face-down (nose pointing to the ground)
     fish.rotation.set(Math.PI / 2, 0, 0);
-    fish.position.set(0, -0.1, 0.0); // hang from the stick
+    fish.position.set(0, -0.05, 0.0); // hang from the stick
     fish.scale.setScalar(0.95);
     holderGroup.add(fish);
 
-    // Position on the player's right leg, pointing vertically straight down to the ground
-    holderGroup.position.set(0.24, 0.36, -0.05); // right leg side
+    // Position on the legs vertically stacked (3 per side)
+    const sideSign = isRight ? 1 : -1;
+    const x = 0.24 * sideSign;
+    const y = 0.36 - slotIdx * 0.14; // stack down by 14 cm per slot
+    const z = -0.05 + slotIdx * 0.03; // stagger slightly back to front
+
+    holderGroup.position.set(x, y, z);
     holderGroup.rotation.set(0, 0, 0); // strictly vertical!
     avatar.add(holderGroup);
 

@@ -256,6 +256,7 @@
     import { SanctuaryFishingModule      } from './js/sanctuary/SanctuaryFishing.js';
     import { SanctuaryWorldPlayerShimModule } from './js/sanctuary/SanctuaryWorldPlayerShim.js';
     import { SanctuaryWaterFootstepsModule } from './js/sanctuary/SanctuaryWaterFootsteps.js';
+    import { SanctuaryWelcomeGuideModule }   from './js/sanctuary/SanctuaryWelcomeGuide.js';
 
     // Modal loader plumbing — same protocol v2 used (Component.LoadingModal
     // listens for LOG_SYSTEM with msg + 4 progress %, LOADING_COMPLETE
@@ -349,6 +350,7 @@
     orc.register(SanctuaryFishingModule);
     orc.register(SanctuaryWorldPlayerShimModule);
     orc.register(SanctuaryWaterFootstepsModule);
+    orc.register(SanctuaryWelcomeGuideModule);
 
     v4Log('Anu — opening her ear', 100, 22, 14, 10);
     await orc.activate('Anu');
@@ -454,6 +456,9 @@
 
     v4Log('fishing — cast · bite · catch · 🐟 inventory', 100, 100, 100, 98);
     await orc.activate('SanctuaryFishing');
+
+    v4Log('welcome guide — 5-step warm-tone tutorial', 100, 100, 100, 99);
+    await orc.activate('SanctuaryWelcomeGuide');
 
     v4Log('breathing life into the loop', 100, 100, 100, 98);
     orc.start();
