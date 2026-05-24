@@ -319,7 +319,7 @@ export const SanctuaryClickToMoveModule = {
     body.position.y = (_dockY !== null ? _dockY : sanctuaryGroundY(body.position.x, body.position.z)) + yLift;
 
     // Yaw matches the path so a future avatar will face forward.
-    this._yaw = Math.atan2(dx, dz);
+    this._yaw = Math.atan2(-dx, -dz);
     if (typeof window !== "undefined") window.__sanctuaryPlayerYaw = this._yaw;
 
     // Repaint the footprint trail. Prints start TRAIL_LEAD_M ahead of
