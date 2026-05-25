@@ -25,7 +25,7 @@
  * zero scene draw calls.
  */
 
-const STORAGE_KEY = "sanctuary.welcomeGuide.seenV1";
+const STORAGE_KEY = "sanctuary.welcomeGuide.seenV2";
 
 const STEPS = [
   {
@@ -34,24 +34,24 @@ const STEPS = [
       "You've arrived at the Sacred Sanctuary — a small grove around a quiet pool. Take a breath. There's nothing to rush.",
   },
   {
-    title: "Move with WASD or arrows.",
+    title: "Steer &amp; Move",
     body:
-      "Press <b>W</b> or <b>↑</b> to walk forward. <b>S</b> turns left, <b>D</b> turns right. <b>Space</b> is for the occasional jump.",
+      "Press <b>W</b> or <b>↑ / ↓</b> to walk forward or backward. Press <b>S</b> or <b>←</b> to turn left, and <b>D</b> or <b>→</b> to turn right.",
   },
   {
-    title: "Open the journal with J.",
+    title: "Click to Walk",
     body:
-      "Press <b>J</b> any time to open your Sacred Journal. The <b>P</b> key toggles the side panel with all the action chips.",
+      "You can also tap or click directly anywhere on the green grass or the shoreline of the pond to walk there directly!",
   },
   {
-    title: "Fish &amp; harvest.",
+    title: "The Gold Ring",
     body:
-      "Walk onto the gold ring by the dock to fish the pool. Right-click flowers, bushes, mushrooms and fish to gather them into your bag.",
+      "Walk onto the <b>gold ring</b> by the dock to fish the pool. Keep the needle in the yellow segment to catch the fish!",
   },
   {
-    title: "Click to Explore!",
+    title: "Open the Journal",
     body:
-      "You can also tap or click directly anywhere on the green grass or the shoreline of the pond to walk there directly! Let's explore the sanctuary!",
+      "Press <b>J</b> any time to open your Sacred Journal. Press <b>P</b> to toggle the side panel, and right-click to harvest flora/fauna.",
   },
 ];
 
@@ -79,10 +79,7 @@ function _injectStylesOnce() {
       pointer-events: auto;
       user-select: none;
       font-family: 'Fredoka', 'Segoe UI', sans-serif;
-      /* Real glass: dark warm tint + heavy blur, scene reads through
-         but text contrast stays AAA against the blurred + darkened
-         backdrop. */
-      background: rgba(14, 10, 6, 0.62);
+      background: linear-gradient(165deg, rgba(30, 20, 8, 0.72) 0%, rgba(44, 29, 9, 0.72) 55%, rgba(26, 17, 6, 0.72) 100%);
       border: 1px solid rgba(251, 192, 45, 0.42);
       box-shadow:
         0 16px 48px rgba(0,0,0,0.55),
@@ -156,6 +153,48 @@ function _injectStylesOnce() {
       display: flex;
       gap: 8px;
       align-items: center;
+    }
+
+    /* "[ ] don't show" opt-out — bottom-left corner of the panel */
+    #sanctuary-welcome-guide .swg-dontshow {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 10px;
+      color: rgba(255, 248, 220, 0.62);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      user-select: none;
+      width: max-content;
+    }
+    #sanctuary-welcome-guide .swg-dontshow:hover {
+      color: rgba(255, 248, 220, 0.92);
+    }
+    #sanctuary-welcome-guide .swg-dontshow input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1.5px solid rgba(251, 192, 45, 0.55);
+      background: rgba(14, 10, 6, 0.6);
+      cursor: pointer;
+      display: inline-grid;
+      place-content: center;
+      margin: 0;
+    }
+    #sanctuary-welcome-guide .swg-dontshow input[type="checkbox"]:checked::before {
+      content: "✓";
+      color: #fbc02d;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    #sanctuary-welcome-guide .swg-dontshow input[type="checkbox"]:focus-visible {
+      outline: 2px solid rgba(251, 192, 45, 0.7);
+      outline-offset: 2px;
     }
     #sanctuary-welcome-guide .swg-dot {
       width: 8px; height: 8px;
@@ -275,6 +314,10 @@ export const SanctuaryWelcomeGuideModule = {
         <button type="button" class="swg-skip" data-swg-skip>Skip</button>
         <button type="button" class="swg-next" data-swg-next>Next <span style="margin-left:4px">→</span></button>
       </div>
+      <label class="swg-dontshow" data-swg-dontshow-label>
+        <input type="checkbox" data-swg-dontshow aria-label="Don't show this welcome guide again">
+        <span>don't show</span>
+      </label>
     `;
     document.body.appendChild(root);
     this._root = root;
@@ -294,6 +337,15 @@ export const SanctuaryWelcomeGuideModule = {
     root.querySelector("[data-swg-next]")
       .addEventListener("click", () => this._next());
 
+    // "don't show" checkbox — initial state from localStorage, persist on change
+    const cb = root.querySelector("[data-swg-dontshow]");
+    let dontShow = false;
+    try { dontShow = localStorage.getItem(STORAGE_KEY) === "1"; } catch (_e) {}
+    cb.checked = dontShow;
+    cb.addEventListener("change", () => {
+      try { localStorage.setItem(STORAGE_KEY, cb.checked ? "1" : "0"); } catch (_e) {}
+    });
+
     // Keyboard
     window.addEventListener("keydown", (e) => {
       if (this._root?.classList.contains("is-hidden")) return;
@@ -312,10 +364,11 @@ export const SanctuaryWelcomeGuideModule = {
       currentStep: () => this._step,
     };
 
-    // Show ~1.8 s after boot if the player hasn't dismissed it before
-    let alreadySeen = false;
-    try { alreadySeen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (_e) {}
-    if (!alreadySeen) {
+    // Show ~1.8 s after boot. ALWAYS shows unless the player has ticked
+    // the "don't show" checkbox on a prior visit (which persists the flag).
+    let suppress = false;
+    try { suppress = localStorage.getItem(STORAGE_KEY) === "1"; } catch (_e) {}
+    if (!suppress) {
       this._showTimer = window.setTimeout(() => this._show(), 1800);
     }
 
@@ -366,6 +419,7 @@ export const SanctuaryWelcomeGuideModule = {
   _close() {
     if (!this._root) return;
     this._root.classList.add("is-hidden");
-    try { localStorage.setItem(STORAGE_KEY, "1"); } catch (_e) {}
+    // Note: closing alone does NOT persist a suppression flag — only the
+    // "don't show" checkbox controls whether the guide reappears next boot.
   },
 };
