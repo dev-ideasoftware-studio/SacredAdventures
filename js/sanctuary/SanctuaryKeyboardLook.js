@@ -183,7 +183,15 @@ export const SanctuaryKeyboardLookModule = {
 
     // Vertical — jump + gravity on the avatar; camera fall-through gets
     // the same to keep its feet on the heightfield.
-    const groundY = sanctuaryGroundY(body.position.x, body.position.z);
+    // Walkable-dock override (May-25 2026): if the player is standing
+    // over the dock footprint, lift to dock surface Y instead of the
+    // terrain Y. Matches the SanctuaryClickToMove per-frame override
+    // so kids can walk onto the dock with EITHER WASD or click-to-move.
+    const _dockSurf = typeof window !== "undefined" && window.__sanctuaryDockSurface;
+    const _dockY = _dockSurf ? _dockSurf.getY(body.position.x, body.position.z) : null;
+    const groundY = (_dockY !== null)
+      ? _dockY
+      : sanctuaryGroundY(body.position.x, body.position.z);
     if (k[" "] && this._grounded) {
       this._bodyVy = JUMP_VEL_MPS;
       this._grounded = false;
