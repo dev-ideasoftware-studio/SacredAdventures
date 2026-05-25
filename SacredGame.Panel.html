@@ -40,6 +40,30 @@
         window.THREE.GLTFLoader = GLTFLoader;
         window.THREE.DRACOLoader = DRACOLoader;
 
+        // ── Draco auto-wire (May-25 2026 fix) ─────────────────────────
+        // Most GLBs in /Assets/ are now Draco-compressed (Avatar3, NPC.*,
+        // tipi, etc.). Component.ThreeIcons.js + any classic script that
+        // does `new window.THREE.GLTFLoader()` would otherwise crash with
+        // "No DRACOLoader instance provided". We attach a SHARED DRACOLoader
+        // to every new GLTFLoader via a constructor wrapper — one decoder
+        // download, used by every loader instance.
+        const _sharedDraco = new DRACOLoader();
+        _sharedDraco.setDecoderPath('./vendor/three/examples/jsm/libs/draco/gltf/');
+        try {
+            // Use all logical cores (capped at 4 — matches gltfLoaderSetup.js)
+            const workers = Math.min(4, navigator.hardwareConcurrency || 2);
+            _sharedDraco.setWorkerLimit(workers);
+        } catch (_e) { /* old browsers */ }
+        const _OrigGLTFLoader = window.THREE.GLTFLoader;
+        function DracoAwareGLTFLoader(manager) {
+            const inst = new _OrigGLTFLoader(manager);
+            inst.setDRACOLoader(_sharedDraco);
+            return inst;
+        }
+        // Preserve prototype + static surface so instanceof still works.
+        DracoAwareGLTFLoader.prototype = _OrigGLTFLoader.prototype;
+        window.THREE.GLTFLoader = DracoAwareGLTFLoader;
+
         // 2.        // Load ThreeIcons dynamically to ensure THREE.js is ready
         const script = document.createElement('script');
         script.src = "Component.ThreeIcons.js?v=" + Date.now();
