@@ -85,7 +85,10 @@ export const UIModule = {
           --pip-lunar-inset: 0px;
           --pip-season-inset: 26px;
           position: absolute;
-          top: 0;
+          /* Top buffer = 20px breathing room (matches left:20px). With
+           * top:0 the N compass label + outer bezel shadow were clipping
+           * against the viewport top edge. */
+          top: 20px;
           left: 20px;
           width: clamp(200px, 25vw, 300px);
           height: clamp(200px, 25vw, 300px);
@@ -649,7 +652,8 @@ export const UIModule = {
         #v2-distance-pill {
           position: absolute;
           left: calc(20px + clamp(200px, 25vw, 300px) / 2);
-          top: calc(clamp(200px, 25vw, 300px) + 14px);
+          /* 20px PIP top buffer + moondial height + 14px gap */
+          top: calc(20px + clamp(200px, 25vw, 300px) + 14px);
           transform: translateX(-50%);
           padding: 8px 16px;
           border-radius: 999px;
@@ -689,7 +693,7 @@ export const UIModule = {
             font-size: 9px;
             padding: 5px 12px;
             letter-spacing: 0.06em;
-            top: calc(clamp(200px, 25vw, 300px) + 8px);
+            top: calc(20px + clamp(200px, 25vw, 300px) + 8px);
           }
         }
       </style>

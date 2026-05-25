@@ -61,19 +61,18 @@ function _injectStylesOnce() {
   st.id = "sanctuary-welcome-guide-css";
   st.textContent = `
     /* ── Welcome Guide overlay ──────────────────────────────────────
-     * Positioned in the gap BETWEEN the moondial PIP (left) and the
-     * OrchestratorHud (right), with a strict 30 px buffer on every
-     * side. CSS calc() honours the live PIP + HUD widths so the panel
-     * stays exactly centred between them regardless of viewport.
-     *   PIP right edge: 20 + clamp(200, 25vw, 300)
-     *   HUD left edge:  100vw − 280
+     * Centered horizontally on screen, anchored in the TOP THIRD of the
+     * viewport so it floats above the player model without ever covering
+     * the avatar. Highest practical z-index — must sit on top of every
+     * other HUD layer (PIP / OrchestratorHud / Panels / banner / etc.).
      * ──────────────────────────────────────────────────────────────── */
     #sanctuary-welcome-guide {
       position: fixed;
-      top: 30px;
-      left:  calc(20px + clamp(200px, 25vw, 300px) + 30px);
-      right: calc(280px + 30px);
-      z-index: 9000;
+      top: 350px;                               /* directly under PIP */
+      left: 50%;                                /* center anchor */
+      transform: translateX(-50%);
+      width: min(560px, calc(100vw - 60px));
+      z-index: 2147483600;                      /* near MAX_INT32 */
       padding: 28px 32px 24px;
       border-radius: 22px;
       pointer-events: auto;
@@ -93,7 +92,7 @@ function _injectStylesOnce() {
     }
     #sanctuary-welcome-guide.is-hidden {
       opacity: 0;
-      transform: translateY(-12px);
+      transform: translateX(-50%) translateY(-12px);
       pointer-events: none;
     }
 
@@ -260,17 +259,21 @@ function _injectStylesOnce() {
       transform: translateY(0);
     }
 
-    /* Mobile (≤ 768 px): no room between PIP and HUD — dock the guide
-     * to the BOTTOM of the viewport with the same 30 px buffer rule.
-     * Type + spacing also shrink so the panel fits comfortably. */
+    /* Mobile (≤ 768 px): top 1/3 viewport centered with calc width */
     @media (max-width: 768px) {
       #sanctuary-welcome-guide {
-        top: auto;
-        bottom: 30px;
-        left: 30px;
-        right: 30px;
-        padding: 16px 20px 18px;
+        top: 8vh;
+        bottom: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100vw - 60px);
+        padding: 14px 18px 16px;
         border-radius: 16px;
+      }
+      #sanctuary-welcome-guide.is-hidden {
+        transform: translateX(-50%) translateY(-12px);
+        opacity: 0;
+        pointer-events: none;
       }
       #sanctuary-welcome-guide .swg-pill {
         margin-top: -26px;
