@@ -27,6 +27,18 @@ const LOOK_AHEAD_S = 0.06;
 const PLAYER_AVOID_RADIUS_M = 3 * 0.3048 * 1.4;
 const PLAYER_PUSH_GAIN = 0.85;
 
+/**
+ * Shortest signed delta between two angles (rad), wrapped to ±π.
+ * Used by the smoothed-orientation low-pass so a fish turning past
+ * Math.PI doesn't sweep the long way around (visible as a 360° spin).
+ */
+function _shortAngleDelta(from, to) {
+  let d = to - from;
+  while (d > Math.PI)  d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
 function mulberry32(seed) {
   return function rng() {
     let t = (seed += 0x6d2b79f5);
@@ -148,6 +160,22 @@ export const SanctuaryFishModule = {
         fish.userData.fishMidY = this._fishCenterY;
         fish.userData.baseScaleFactor = scale;
         fish.userData.growthScale = 1.0;
+
+        // ── Realistic-motion state ────────────────────────────────────
+        // Trout swim with burst-and-glide phases (tail beats hard → coasts
+        // → beats again), bank into turns, pitch on depth change. We keep
+        // these as per-fish CSS variables so they read like persistent
+        // animal traits rather than uniform behaviour.
+        fish.userData.glidePhase   = rng() * Math.PI * 2; // burst-glide offset
+        fish.userData.gliderPeriod = 2.4 + rng() * 1.8;   // 2.4-4.2 s burst-glide cycle
+        fish.userData.dartCooldown = 4 + rng() * 8;        // s until next dart
+        fish.userData.dartT        = 0;                    // elapsed in current dart (0 = no dart)
+        // Smoothed orientation — eulers are LOW-PASS-filtered toward target
+        // angles each frame, otherwise yaw snaps look mechanical.
+        fish.userData.smoothYaw   = 0;
+        fish.userData.smoothPitch = 0;
+        fish.userData.smoothRoll  = 0;
+        fish.userData.prevY       = 0; // for pitch (depth-rate)
 
         fish.position.set(this._cx, this._fishCenterY, this._cz);
         root.add(fish);
@@ -273,9 +301,36 @@ export const SanctuaryFishModule = {
       } else {
         const R = ud.orbitR ?? SANCTUARY_POOL_RADIUS_M * 0.45;
         const orbitPhase = ud.orbitPhase ?? 0;
-        const soloO = (ud.soloOmega ?? 0.16) * (ud.speedMul ?? 1);
+
+        // ── Burst-and-glide speed modulation ───────────────────────────
+        // Real trout don't swim at constant speed — they push the tail
+        // for 0.5-1 s then coast for 1-2 s. Encoded as a smoothed sin +
+        // occasional 'dart' bursts when something startles them.
+        const gp = ud.glidePhase ?? 0;
+        const period = ud.gliderPeriod ?? 3.2;
+        // Burst pulse: sin² so the peak is sustained, troughs are short.
+        const burstRaw = Math.sin((tb * (Math.PI * 2)) / period + gp);
+        const burst = burstRaw * burstRaw;          // 0..1, peak-biased
+        const speedEnvelope = 0.55 + 0.85 * burst;   // 0.55..1.40
+
+        // Dart event — occasional sudden acceleration (e.g. 1.6× normal)
+        // that decays over ~1 s, then a cooldown of ~6-12 s.
+        ud.dartCooldown -= delta;
+        if (ud.dartCooldown <= 0 && ud.dartT <= 0) {
+          ud.dartT = 1.0;                            // 1-second burst
+          ud.dartCooldown = 6 + Math.random() * 6;
+        }
+        let dartK = 1;
+        if (ud.dartT > 0) {
+          ud.dartT -= delta;
+          if (ud.dartT < 0) ud.dartT = 0;
+          dartK = 1 + 0.6 * ud.dartT;                // 1.6 → 1.0
+        }
+
+        const speedMulNow = (ud.speedMul ?? 1) * speedEnvelope * dartK;
+        const soloO = (ud.soloOmega ?? 0.16) * speedMulNow;
         const schOff = ud.schoolAngleOff ?? 0;
-        const omegaSchool = SWIM_RATE_RAD_S * 0.55 * schoolStr;
+        const omegaSchool = SWIM_RATE_RAD_S * 0.55 * schoolStr * speedEnvelope * dartK;
 
         const soloA0 = tb * soloO + orbitPhase;
         const soloA1 = (tb + LOOK_AHEAD_S) * soloO + orbitPhase;
@@ -307,23 +362,55 @@ export const SanctuaryFishModule = {
             lz += (dzP / dP) * push * PLAYER_PUSH_GAIN;
             vx = dxP / dP;
             vz = dzP / dP;
+            // Startle → trigger dart if not already mid-dart
+            if (ud.dartT <= 0 && push > 0.4) ud.dartT = 0.8;
           }
         }
 
+        // ── Position with depth excursions ─────────────────────────────
+        // Two-frequency bob = lazy rise/fall + small ripple shimmer.
+        // Burst phase amplifies bob slightly (fish push deeper on bursts).
         const midY = ud.fishMidY ?? this._fishCenterY;
-        const bobY = Math.sin(t * 0.9 + orbitPhase * 2.17) * 0.14;
-        fish.position.set(
-          this._cx + lx,
-          midY + (ud.depthOffset ?? 0) + bobY,
-          this._cz + lz,
-        );
+        const lazyDip   = Math.sin(t * 0.22 + orbitPhase * 0.91) * 0.18;
+        const shimmer   = Math.sin(t * 0.9  + orbitPhase * 2.17) * 0.06;
+        const targetY   = midY + (ud.depthOffset ?? 0) + lazyDip + shimmer;
+        fish.position.set(this._cx + lx, targetY, this._cz + lz);
 
         if (vx * vx + vz * vz > 1e-8) {
+          // ── Yaw (direction of travel) with body S-curve wiggle ──────
           const baseYaw = Math.atan2(-vz, vx) + Math.PI;
-          const wiggleAmp = 0.22;
-          const wiggle =
-            Math.sin(t * 1.3 + (ud.wigglePhase ?? 0) * 4.7) * wiggleAmp; // slowed down by 80% (6.5 * 0.2)
-          fish.rotation.set(0, baseYaw + wiggle, 0);
+          // Tail wag freq + amp scale with speed (faster swim → faster
+          // wag, harder beats). Glide phase has lower amp.
+          const wagFreq = 4.2 + 6.0 * burst;          // 4-10 Hz
+          const wagAmp  = 0.10 + 0.18 * burst;        // 0.10-0.28 rad
+          const wiggle  = Math.sin(t * wagFreq + (ud.wigglePhase ?? 0) * 4.7) * wagAmp;
+          const targetYaw = baseYaw + wiggle;
+
+          // ── Pitch from vertical velocity ────────────────────────────
+          // Diving / rising tilts the nose. dy is per-frame so /delta gives
+          // m/s; clamp to ±0.35 rad (about 20°).
+          const dy = (ud.prevY !== undefined) ? (targetY - ud.prevY) : 0;
+          ud.prevY = targetY;
+          const verticalRate = delta > 0 ? dy / delta : 0;
+          const targetPitch = Math.max(-0.35, Math.min(0.35, -verticalRate * 1.2));
+
+          // ── Bank-into-the-turn roll ─────────────────────────────────
+          // yaw delta this frame → angular velocity → roll = -k * ω
+          // (positive yaw rate banks the fish to its inside, like a plane).
+          const yawDelta = _shortAngleDelta(ud.smoothYaw, targetYaw);
+          const yawRate  = delta > 0 ? yawDelta / delta : 0;
+          const targetRoll = Math.max(-0.45, Math.min(0.45, -yawRate * 0.55));
+
+          // ── Smooth (low-pass) toward target angles ──────────────────
+          // Higher gain → snappier; lower → glassier. Tuned by eye.
+          const yawGain   = 1 - Math.exp(-delta * 9);
+          const pitchGain = 1 - Math.exp(-delta * 5);
+          const rollGain  = 1 - Math.exp(-delta * 6);
+          ud.smoothYaw   = ud.smoothYaw   + _shortAngleDelta(ud.smoothYaw, targetYaw) * yawGain;
+          ud.smoothPitch = ud.smoothPitch + (targetPitch - ud.smoothPitch) * pitchGain;
+          ud.smoothRoll  = ud.smoothRoll  + (targetRoll  - ud.smoothRoll)  * rollGain;
+
+          fish.rotation.set(ud.smoothPitch, ud.smoothYaw, ud.smoothRoll);
         }
       }
     }
