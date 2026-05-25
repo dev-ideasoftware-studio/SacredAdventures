@@ -276,10 +276,11 @@ function _buildGauge() {
     position: "fixed", left: "50%", top: "38%",
     transform: "translate(-50%, -50%)",
     zIndex: "9600", display: "none", pointerEvents: "none", userSelect: "none",
-    background: "linear-gradient(135deg, #ffd166, #ff9f1c)", // vibrant retro toy yellow/orange plastic
+    background: "rgba(255, 255, 255, 0.16)", // clear frosted plastic
     borderRadius: "125px 125px 32px 32px",
-    border: "8px solid #ff4d6d", // thick red/pink chunky plastic toy border
-    boxShadow: "0 22px 50px rgba(0, 0, 0, 0.7), inset 0 4px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(0,0,0,0.18)", // glossy 3D plastic finish
+    border: "4px solid rgba(255, 255, 255, 0.45)", // clear plastic border
+    backdropFilter: "blur(14px)", // translucent glass/acrylic effect
+    boxShadow: "0 22px 50px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.15)", // glossy 3D plastic finish
     padding: "10px",
   });
   
@@ -303,104 +304,94 @@ function _buildGauge() {
   return { wrap, ctx: canvas.getContext("2d"), canvas };
 }
 
+/**
+ * Calm koi-style gauge fish (May-25 2026 rewrite per user spec):
+ *   "use the fish in the fish symbol, and dont jerk it around. its calm,
+ *    it only wiggles when the fish on the line is caught"
+ *
+ * Rules:
+ *   • DEFAULT (isReeling=false) → fish is COMPLETELY still. Zero wiggle,
+ *     zero pectoral flap, zero scale pulse, zero pupil dilation.
+ *   • REELING (isReeling=true)  → gentle slow wiggle (12 Hz × 0.18 rad)
+ *     to convey "the fish on the line is alive" without being jerky.
+ *   • Body is the fat-koi oval (was a skinny bezier shape — replaced).
+ */
 function drawGaugeFish(ctx, cx, cy, time, frac, isReeling) {
   ctx.save();
-  // Place the fish in the center of the inner void
   ctx.translate(cx, cy - 36);
-  
-  // Twist/rotate the fish based on the needle position (frac) + active struggle wiggles!
-  const targetAngle = (frac - 0.5) * 1.5; // up to ~45 degrees left or right
-  const wiggle = Math.sin(time * 24) * (isReeling ? 0.35 : 0.12);
-  const totalAngle = targetAngle + wiggle;
-  ctx.rotate(totalAngle);
- 
-  // Dynamic scale pulse on struggle
-  const scale = 1.0 + (isReeling ? Math.abs(Math.sin(time * 12)) * 0.08 : 0);
-  ctx.scale(scale, scale);
- 
-  // Draw tail fin (matching blue/yellow trout)
-  const tailGrd = ctx.createLinearGradient(-35, 0, -20, 0);
-  tailGrd.addColorStop(0, "#fbbf24"); // bright gold tail tips
-  tailGrd.addColorStop(1, "#1e88e5"); // royal blue base
+
+  // Static angle from gauge needle position (-π/4 to +π/4)
+  const targetAngle = (frac - 0.5) * 1.5;
+  // Wiggle ONLY when caught — calm otherwise.
+  const wiggle = isReeling ? Math.sin(time * 12) * 0.18 : 0;
+  ctx.rotate(targetAngle + wiggle);
+
+  // ── Tail (fan-shaped — koi proportions) ──────────────────────────
+  const tailGrd = ctx.createLinearGradient(-38, 0, -22, 0);
+  tailGrd.addColorStop(0, "#fbbf24");   // gold tail tips
+  tailGrd.addColorStop(1, "#1565c0");   // deep blue base
   ctx.fillStyle = tailGrd;
   ctx.beginPath();
-  ctx.moveTo(-15, 0);
-  const tailWiggle = Math.sin(time * 30) * 16;
-  ctx.quadraticCurveTo(-28, -6 + tailWiggle * 0.5, -42, -18 + tailWiggle);
-  ctx.lineTo(-34, tailWiggle);
-  ctx.lineTo(-42, 18 + tailWiggle);
-  ctx.quadraticCurveTo(-28, 6 + tailWiggle * 0.5, -15, 0);
+  ctx.moveTo(-22, -4);
+  // Tail only "breathes" when caught — static otherwise
+  const tailFlex = isReeling ? Math.sin(time * 10) * 5 : 0;
+  ctx.quadraticCurveTo(-30, -12 + tailFlex, -40, -22 + tailFlex);
+  ctx.quadraticCurveTo(-34, 0, -40, 22 + tailFlex);
+  ctx.quadraticCurveTo(-30, 12 + tailFlex, -22, 4);
   ctx.closePath();
   ctx.fill();
- 
-  // Draw dorsal fin
-  ctx.fillStyle = "#1565c0"; // deep royal blue
-  ctx.beginPath();
-  ctx.moveTo(-10, -8);
-  ctx.quadraticCurveTo(-4, -22, 10, -6);
-  ctx.closePath();
-  ctx.fill();
- 
-  // Draw main fish body with gorgeous blue and gold plastic gradient
-  const bodyGrd = ctx.createRadialGradient(8, -4, 4, 0, 0, 32);
-  bodyGrd.addColorStop(0, "#ffffff"); // glistening white highlight
-  bodyGrd.addColorStop(0.3, "#29b6f6"); // bright sky blue skin
-  bodyGrd.addColorStop(0.7, "#1e88e5"); // royal blue scales
-  bodyGrd.addColorStop(1.0, "#0d47a1"); // deep dark blue shadows
+
+  // ── Body (FAT oval — koi-cute, not skinny bezier) ───────────────
+  const bodyGrd = ctx.createRadialGradient(8, -6, 6, 0, 0, 32);
+  bodyGrd.addColorStop(0, "#ffffff");   // top-back highlight
+  bodyGrd.addColorStop(0.4, "#42a5f5"); // primary blue
+  bodyGrd.addColorStop(0.85, "#1565c0");// shadow side
+  bodyGrd.addColorStop(1.0, "#0d47a1"); // deep edge
   ctx.fillStyle = bodyGrd;
- 
-  // Gold metallic border/accent
   ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 1.8;
- 
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  // Head at (+26, 0), tail attachment at (-18, 0)
-  ctx.moveTo(-18, 0);
-  ctx.bezierCurveTo(-14, -14, 12, -18, 28, -2); // top half
-  ctx.bezierCurveTo(34, 0, 34, 2, 28, 4); // mouth / snout
-  ctx.bezierCurveTo(12, 18, -14, 14, -18, 0); // bottom half
-  ctx.closePath();
+  ctx.ellipse(0, 0, 30, 18, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
- 
-  // Draw gills and pectoral fin
-  ctx.strokeStyle = "rgba(251, 191, 36, 0.6)";
+
+  // ── Belly highlight ─────────────────────────────────────────────
+  ctx.fillStyle = "rgba(227, 242, 253, 0.85)";
   ctx.beginPath();
-  ctx.arc(8, 0, 8, -Math.PI / 3, Math.PI / 3, false);
+  ctx.ellipse(2, 7, 22, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Subtle gill arc ─────────────────────────────────────────────
+  ctx.strokeStyle = "rgba(251, 191, 36, 0.5)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(10, 0, 7, -Math.PI / 3, Math.PI / 3, false);
   ctx.stroke();
- 
-  // Pectoral fin flapping
-  ctx.fillStyle = "#fb923c"; // golden orange
+
+  // ── Side fin (static — no flapping unless caught) ──────────────
+  ctx.fillStyle = "#1976d2";
   ctx.save();
-  ctx.translate(2, 4);
-  ctx.rotate(Math.sin(time * 35) * 0.6);
+  ctx.translate(2, 8);
+  if (isReeling) ctx.rotate(Math.sin(time * 8) * 0.25);
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.quadraticCurveTo(12, 6, 8, 14);
-  ctx.quadraticCurveTo(2, 12, 0, 0);
-  ctx.closePath();
+  ctx.ellipse(0, 0, 9, 5, -0.4, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
- 
-  // Draw expressive eye (big and cute for kids to watch)
+
+  // ── Eye (calm, fixed pupil) ─────────────────────────────────────
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(18, -5, 5, 0, Math.PI * 2);
+  ctx.arc(19, -5, 5, 0, Math.PI * 2);
   ctx.fill();
- 
-  // Dilated pupil reacting to struggle
-  ctx.fillStyle = "#1e1b4b";
+  ctx.fillStyle = "#0d47a1";
   ctx.beginPath();
-  const pupilR = 2.5 + (isReeling ? Math.sin(time * 15) * 0.8 : 0);
-  ctx.arc(19, -5, pupilR, 0, Math.PI * 2);
+  ctx.arc(20, -5, 2.6, 0, Math.PI * 2);   // pupil — fixed size
   ctx.fill();
- 
-  // Shiny spark in eye
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(20.5, -6.5, 1.2, 0, Math.PI * 2);
+  ctx.arc(21, -6.2, 1.2, 0, Math.PI * 2);
   ctx.fill();
- 
+
   ctx.restore();
 }
 
@@ -412,21 +403,21 @@ function _drawGauge(ctx, frac, labelText = "WAITING...", isReeling = false, time
   const arcW = OR - IR;
   ctx.clearRect(0, 0, W, H);
 
-  // Outer void bezel (pip-bezel-dark) with premium gradient ring
+  // Outer void bezel with premium translucent glassmorphic ring
   ctx.beginPath();
   ctx.arc(cx, cy, OR + 10, Math.PI, 0, false);
   ctx.lineTo(cx + OR + 10, cy); ctx.lineTo(cx - OR - 10, cy);
   ctx.closePath();
-  ctx.fillStyle = "rgba(10, 22, 38, 0.75)";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.08)"; // see-through clear plastic void
   ctx.fill();
 
-  // Premium PIP glowing blue glass rim highlight
+  // Premium glowing rim highlight (frosted clear acrylic edge)
   ctx.beginPath();
   ctx.arc(cx, cy, OR + 7, Math.PI, 0, false);
   const rimGrd = ctx.createLinearGradient(cx - OR, cy, cx + OR, cy);
-  rimGrd.addColorStop(0,   "rgba(3, 105, 161, 0.45)"); // Deep Ocean Blue
-  rimGrd.addColorStop(0.5, "rgba(14, 165, 233, 0.95)"); // Glowing Sky Blue
-  rimGrd.addColorStop(1,   "rgba(3, 105, 161, 0.45)"); // Deep Ocean Blue
+  rimGrd.addColorStop(0,   "rgba(255, 255, 255, 0.15)");
+  rimGrd.addColorStop(0.5, "rgba(255, 255, 255, 0.5)"); 
+  rimGrd.addColorStop(1,   "rgba(255, 255, 255, 0.15)");
   ctx.strokeStyle = rimGrd;
   ctx.lineWidth = 3.5;
   ctx.stroke();
@@ -434,25 +425,23 @@ function _drawGauge(ctx, frac, labelText = "WAITING...", isReeling = false, time
   // Inner bezel ring
   ctx.beginPath();
   ctx.arc(cx, cy, OR + 3, Math.PI, 0, false);
-  ctx.strokeStyle = "rgba(14, 165, 233, 0.3)";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
   ctx.lineWidth = 6;
   ctx.stroke();
 
-  // Track (dark arc background)
+  // Track (semi-transparent arc background)
   ctx.beginPath();
   ctx.arc(cx, cy, arcR, Math.PI, 0, false);
   ctx.lineWidth = arcW - 2;
-  ctx.strokeStyle = "rgba(9, 18, 30, 0.85)";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
   ctx.lineCap = "butt";
   ctx.stroke();
 
-  // Draw arcade-style Red, Yellow, and Green zones on the track!
+  // Draw arcade-style RED, YELLOW, and RED zones on the track!
   const segments = [
-    { start: Math.PI, end: Math.PI - 0.22 * Math.PI, color: "#ef4444" },
-    { start: Math.PI - 0.22 * Math.PI, end: Math.PI - 0.4 * Math.PI, color: "#eab308" },
-    { start: Math.PI - 0.4 * Math.PI, end: Math.PI - 0.6 * Math.PI, color: "#22c55e" },
-    { start: Math.PI - 0.6 * Math.PI, end: Math.PI - 0.78 * Math.PI, color: "#eab308" },
-    { start: Math.PI - 0.78 * Math.PI, end: 0, color: "#ef4444" }
+    { start: Math.PI, end: Math.PI - 0.3 * Math.PI, color: "#ff4d4d" }, // RED
+    { start: Math.PI - 0.3 * Math.PI, end: Math.PI - 0.7 * Math.PI, color: "#ffd166" }, // YELLOW (sweet spot!)
+    { start: Math.PI - 0.7 * Math.PI, end: 0, color: "#ff4d4d" } // RED
   ];
 
   for (const seg of segments) {
@@ -469,7 +458,7 @@ function _drawGauge(ctx, frac, labelText = "WAITING...", isReeling = false, time
   ctx.arc(cx, cy, IR - 3, Math.PI, 0, false);
   ctx.lineTo(cx + IR - 3, cy); ctx.lineTo(cx - IR + 3, cy);
   ctx.closePath();
-  ctx.fillStyle = "rgba(8, 18, 32, 0.95)";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.04)"; // clear see-through inner void
   ctx.fill();
 
   // Draw wiggling struggling fish in the inner void!
@@ -483,8 +472,8 @@ function _drawGauge(ctx, frac, labelText = "WAITING...", isReeling = false, time
   ctx.closePath();
   ctx.clip();
   const glareGrd = ctx.createLinearGradient(cx - OR, cy - OR, cx + OR, cy);
-  glareGrd.addColorStop(0,   "rgba(255, 255, 255, 0.22)"); // glistening glass reflection
-  glareGrd.addColorStop(0.3, "rgba(255, 255, 255, 0.06)");
+  glareGrd.addColorStop(0,   "rgba(255, 255, 255, 0.3)"); // glistening glass reflection
+  glareGrd.addColorStop(0.3, "rgba(255, 255, 255, 0.1)");
   glareGrd.addColorStop(0.5, "rgba(255, 255, 255, 0)");
   ctx.fillStyle = glareGrd;
   ctx.fill();
@@ -498,27 +487,28 @@ function _drawGauge(ctx, frac, labelText = "WAITING...", isReeling = false, time
   ctx.beginPath();
   ctx.moveTo(cx + Math.cos(needleAngle + Math.PI) * 8, cy + Math.sin(needleAngle + Math.PI) * 8);
   ctx.lineTo(nx, ny);
-  ctx.lineWidth = 3.0;
-  ctx.strokeStyle = "#e0f2fe"; // bright sky-white
-  ctx.lineCap = "round";
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 3.5;
   ctx.stroke();
 
-  // Blue glass pivot
+  // Needle center cap (3D glossy gold bead)
   ctx.beginPath();
   ctx.arc(cx, cy, 7, 0, Math.PI * 2);
-  ctx.fillStyle = "#0ea5e9";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-  ctx.fillStyle = "#0369a1";
+  const capGrd = ctx.createRadialGradient(cx - 2, cy - 2, 1, cx, cy, 7);
+  capGrd.addColorStop(0, "#ffffff");
+  capGrd.addColorStop(0.4, "#ffd166");
+  capGrd.addColorStop(1, "#f78c6c");
+  ctx.fillStyle = capGrd;
   ctx.fill();
 
-  // Label with Outfit typography
-  ctx.font = "bold 11px Outfit,ui-monospace,Menlo,monospace";
+  // Label text (re-drawn in high-contrast glowing gold/white with drop shadow)
+  ctx.font = "800 11px ui-monospace, Menlo, Monaco, Consolas, monospace";
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+  ctx.shadowBlur = 4;
   ctx.textAlign = "center";
-  ctx.fillStyle = "#e0f2fe";
-  ctx.letterSpacing = "0.12em";
   ctx.fillText(labelText.toUpperCase(), cx, cy - 10);
+  ctx.shadowBlur = 0; // reset
 }
 
 // J-hook: shank (vertical) + half-torus curve + barb point.
@@ -556,52 +546,77 @@ function _buildHook() {
   return group;
 }
 
-function drawWigglingFish(ctx, time) {
+/**
+ * Calm koi-style gauge fish — replaces the old skinny "wiggling" sprite
+ * the user disliked. Per spec (May-25 2026):
+ *   • Use the proportions of the fish symbol (fat oval body, fan tail)
+ *   • DO NOT jerk it around — calm by default
+ *   • Wiggle ONLY when isCaught (the fish on the line is being reeled)
+ *
+ * Caller passes isCaught (was `isReeling` upstream) — when false, wiggle = 0.
+ */
+function drawWigglingFish(ctx, time, isCaught = false) {
   ctx.clearRect(0, 0, 128, 128);
-  
-  // Wiggle angle - sweeps between -0.38 and +0.38 rad at a happy, fast frequency
-  const wiggle = Math.sin(time * 22) * 0.38;
-  
+
+  // CALM by default — only wiggle when reeling/caught. Much smaller
+  // amplitude (0.18 vs 0.38) and lower frequency (12 Hz vs 22 Hz).
+  const wiggle = isCaught ? Math.sin(time * 12) * 0.18 : 0;
+
   ctx.save();
   ctx.translate(64, 64);
   ctx.rotate(-Math.PI / 4); // base orientation to align with decal direction
-  
-  // Draw tail first (so it renders behind the body)
-  ctx.fillStyle = "#1e88e5"; // cute bright blue fish tail
+
+  // ── Tail (fan-shaped — koi-cute, not skinny) ──────────────────────
+  ctx.fillStyle = "#1565c0"; // deeper blue accent
   ctx.beginPath();
-  ctx.moveTo(-16, 0); // tail base relative to body center
-  
-  // Tail sweeps back and forth
-  const tailX = -36 + Math.cos(wiggle) * -4;
-  const tailY = Math.sin(wiggle) * 14;
-  ctx.lineTo(tailX, tailY - 12);
-  ctx.lineTo(tailX, tailY + 12);
+  ctx.moveTo(-22, -4);
+  const tailSpread = 22;
+  const tailX = -38 + Math.sin(wiggle) * -6;
+  const tailY = Math.cos(wiggle) * 4;
+  ctx.lineTo(tailX, tailY - tailSpread);
+  ctx.quadraticCurveTo(tailX - 4, tailY, tailX, tailY + tailSpread);
   ctx.closePath();
   ctx.fill();
-  
-  // Draw body
-  ctx.fillStyle = "#42a5f5"; // gorgeous primary blue body
+
+  // ── Body (fat oval — koi proportions: wider + rounder) ────────────
+  ctx.fillStyle = "#42a5f5";  // primary blue body
   ctx.beginPath();
-  ctx.ellipse(0, 0, 24, 13, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, 28, 17, 0, 0, Math.PI * 2);
   ctx.fill();
-  
-  // Draw belly highlight
-  ctx.fillStyle = "#bbdefb";
+
+  // Soft top-shadow band (suggests rounded back, like a real koi)
+  ctx.fillStyle = "rgba(13, 71, 161, 0.35)";
   ctx.beginPath();
-  ctx.ellipse(2, 4, 16, 6, 0, 0, Math.PI * 2);
+  ctx.ellipse(-2, -8, 22, 7, 0, 0, Math.PI * 2);
   ctx.fill();
-  
-  // Draw eye
+
+  // ── Belly highlight ──────────────────────────────────────────────
+  ctx.fillStyle = "#e3f2fd";
+  ctx.beginPath();
+  ctx.ellipse(2, 6, 20, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Side fin (subtle, gives volume) ──────────────────────────────
+  ctx.fillStyle = "#1976d2";
+  ctx.beginPath();
+  ctx.ellipse(-6, 10, 7, 4, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Eye (slightly bigger for cute factor) ────────────────────────
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(12, -4, 4, 0, Math.PI * 2);
+  ctx.arc(15, -5, 5, 0, Math.PI * 2);
   ctx.fill();
-  
   ctx.fillStyle = "#0d47a1";
   ctx.beginPath();
-  ctx.arc(13, -4, 2, 0, Math.PI * 2);
+  ctx.arc(16, -5, 2.5, 0, Math.PI * 2);
   ctx.fill();
-  
+  // Catchlight
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(17, -6, 1, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.restore();
 }
 
@@ -641,6 +656,12 @@ export const SanctuaryFishingModule = {
   // Stress gauge
   _gaugeWrap:  null,
   _gaugeCtx:   null,
+
+  // Wiggling flying fish animation state
+  _flyingFish: null,
+  _flyingFishStartPos: null,
+  _flyingFishTime: 0.0,
+  _flyingFishDuration: 1.2,
 
   // Caught-fish attachment
   _caughtFish:   null,
@@ -1090,13 +1111,53 @@ export const SanctuaryFishingModule = {
     if (!this._scene) return;
     this._phaseT += delta;
 
+    const avatar = (typeof window !== "undefined") ? window.__sanctuaryAvatar : null;
+
+    // Update wiggling flying fish animation
+    if (this._flyingFish && avatar) {
+      this._flyingFishTime += delta;
+      const t = Math.min(1.0, this._flyingFishTime / this._flyingFishDuration);
+
+      // Compute local slot offset just like _attachFishToAvatarSide()
+      const nextIdx = (this._caughtFishCount || 0) + 1;
+      const idx = nextIdx > 6 ? 1 : nextIdx;
+      const isRight = (idx % 2 !== 0);
+      const slotIdx = Math.floor((idx - 1) / 2);
+      const sideSign = isRight ? 1 : -1;
+      const slotX = 0.24 * sideSign;
+      const slotY = 0.36 - slotIdx * 0.14;
+      const slotZ = -0.05 + slotIdx * 0.03;
+
+      // Project target slot world coordinate
+      const targetWorld = new THREE.Vector3(slotX, slotY, slotZ);
+      avatar.localToWorld(targetWorld);
+
+      // Interpolate position along parabolic arc (beautiful jumping leap!)
+      const x = this._flyingFishStartPos.x * (1 - t) + targetWorld.x * t;
+      const z = this._flyingFishStartPos.z * (1 - t) + targetWorld.z * t;
+      const y = this._flyingFishStartPos.y * (1 - t) + targetWorld.y * t + Math.sin(t * Math.PI) * 2.8;
+
+      this._flyingFish.position.set(x, y, z);
+
+      // Wiggle during flight!
+      const timeSec = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+      this._flyingFish.rotation.z = Math.sin(timeSec * 35) * 0.45;
+      this._flyingFish.rotation.y = Math.cos(timeSec * 22) * 0.25;
+
+      if (t >= 1.0) {
+        // Complete the flight - remove it from temporary scene group
+        this._scene.remove(this._flyingFish);
+        this._flyingFish = null;
+        this._attachFishToAvatarSide();
+      }
+    }
+
     if (this._bobber) {
       window.__sanctuaryBobberPos = this._bobber.position;
     } else {
       window.__sanctuaryBobberPos = null;
     }
 
-    const avatar = (typeof window !== "undefined") ? window.__sanctuaryAvatar : null;
     const onDock = this._isPlayerOnDock();
     const isFishingActive = this._phase !== PHASE.IDLE;
 
@@ -1539,7 +1600,22 @@ export const SanctuaryFishingModule = {
             // Success! Attach fish to avatar side and grant reward!
             playFishingTone('success');
             showWoWCombatText("You caught a fish!", true);
-            this._attachFishToAvatarSide();
+            
+            // Trigger 3D flying wiggling fish animation from water to avatar's leg
+            if (avatar && this._scene) {
+              const startPos = this._bobber.position.clone();
+              const flyFish = this._createFishMesh(0x29b6f6);
+              flyFish.name = "flying_wiggle_fish";
+              flyFish.position.copy(startPos);
+              this._scene.add(flyFish);
+              
+              this._flyingFish = flyFish;
+              this._flyingFishStartPos = startPos;
+              this._flyingFishTime = 0.0;
+              this._flyingFishDuration = 1.2;
+            } else {
+              this._attachFishToAvatarSide();
+            }
             
             // Caught fish resets as 10% tiny baby
             if (window.__interestedFish) {
@@ -1638,7 +1714,7 @@ export const SanctuaryFishingModule = {
           label = "BITE! CLICK!";
         } else if (this._phase === PHASE.REELING) {
           frac = this._miniGameNeedle;
-          label = `KEEP IN GREEN! (${Math.floor(this._reelProgress * 100)}%)`;
+          label = `KEEP IN YELLOW! (${Math.floor(this._reelProgress * 100)}%)`;
         } else if (this._phase === PHASE.LANDING) {
           frac = this._miniGameNeedle;
           label = `TAP TO LAND! (${Math.floor(this._landingProgress * 100)}%)`;

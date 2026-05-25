@@ -1,0 +1,36 @@
+[00:46:03] Draco sweep starting…
+[00:46:03] 16 candidates
+{"in":"Assets/Avatar2.glb","out":"Assets/Avatar2.glb.draco.tmp","inMB":10.29,"outMB":0.4,"ratio":0.039,"savedMB":9.88,"savedPct":96.1}
+  ✓ Avatar2.glb  10MB → 0MB  (-97%)
+{"in":"Assets/Avatar3.glb","out":"Assets/Avatar3.glb.draco.tmp","inMB":8.72,"outMB":0.4,"ratio":0.046,"savedMB":8.32,"savedPct":95.4}
+  ✓ Avatar3.glb  8MB → 0MB  (-96%)
+{"in":"Assets/Buffalo.glb","out":"Assets/Buffalo.glb.draco.tmp","inMB":3.08,"outMB":0,"ratio":0.001,"savedMB":3.08,"savedPct":99.9}
+  ✓ Buffalo.glb  3MB → 0MB  (-100%)
+{"in":"Assets/NPC.BHG.glb","out":"Assets/NPC.BHG.glb.draco.tmp","inMB":25.03,"outMB":0.26,"ratio":0.01,"savedMB":24.77,"savedPct":99}
+  ✓ NPC.BHG.glb  25MB → 0MB  (-99%)
+{"in":"Assets/NPC.REG.glb","out":"Assets/NPC.REG.glb.draco.tmp","inMB":25.64,"outMB":0.31,"ratio":0.012,"savedMB":25.33,"savedPct":98.8}
+  ✓ NPC.REG.glb  25MB → 0MB  (-99%)
+{"in":"Assets/NPC.YB.glb","out":"Assets/NPC.YB.glb.draco.tmp","inMB":3.02,"outMB":0.23,"ratio":0.077,"savedMB":2.79,"savedPct":92.3}
+  ✓ NPC.YB.glb  3MB → 0MB  (-93%)
+{"in":"Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb","out":"Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb.draco.tmp","inMB":1.45,"outMB":0,"ratio":0.002,"savedMB":1.45,"savedPct":99.8}
+  ✓ tipi.yellowbutterfly.glb  1MB → 0MB  (-100%)
+{"in":"Assets/TraderJosh3d.glb","out":"Assets/TraderJosh3d.glb.draco.tmp","inMB":3.25,"outMB":0,"ratio":0.001,"savedMB":3.24,"savedPct":99.9}
+  ✓ TraderJosh3d.glb  3MB → 0MB  (-100%)
+{"in":"Assets/animated.avatar.glb","out":"Assets/animated.avatar.glb.draco.tmp","inMB":5.3,"outMB":0.22,"ratio":0.041,"savedMB":5.08,"savedPct":95.9}
+  ✓ animated.avatar.glb  5MB → 0MB  (-96%)
+{"in":"Assets/animated.bringshappiness.glb","out":"Assets/animated.bringshappiness.glb.draco.tmp","inMB":5.5,"outMB":0.3,"ratio":0.054,"savedMB":5.21,"savedPct":94.6}
+  ✓ animated.bringshappiness.glb  5MB → 0MB  (-95%)
+{"in":"Assets/animated.deer/source/deer+3d+model.glb","out":"Assets/animated.deer/source/deer+3d+model.glb.draco.tmp","inMB":3.01,"outMB":0,"ratio":0.001,"savedMB":3.01,"savedPct":99.9}
+  ✓ deer+3d+model.glb  3MB → 0MB  (-100%)
+{"in":"Assets/animated.stag.glb","out":"Assets/animated.stag.glb.draco.tmp","inMB":2.32,"outMB":0.05,"ratio":0.023,"savedMB":2.26,"savedPct":97.7}
+  ✓ animated.stag.glb  2MB → 0MB  (-98%)
+{"in":"Assets/landscape-scenes/terrain/rock.mossy.glb","out":"Assets/landscape-scenes/terrain/rock.mossy.glb.draco.tmp","inMB":4.96,"outMB":0.01,"ratio":0.001,"savedMB":4.96,"savedPct":99.9}
+  ✓ rock.mossy.glb  4MB → 0MB  (-100%)
+{"in":"Assets/pond1.glb","out":"Assets/pond1.glb.draco.tmp","inMB":6.97,"outMB":0,"ratio":0,"savedMB":6.97,"savedPct":100}
+  ✓ pond1.glb  6MB → 0MB  (-100%)
+{"in":"Assets/tipi.player.glb","out":"Assets/tipi.player.glb.draco.tmp","inMB":5,"outMB":0,"ratio":0,"savedMB":4.99,"savedPct":100}
+  ✓ tipi.player.glb  4MB → 0MB  (-100%)
+{"in":"Assets/tree.glb","out":"Assets/tree.glb.draco.tmp","inMB":6.74,"outMB":0.03,"ratio":0.005,"savedMB":6.71,"savedPct":99.5}
+  ✓ tree.glb  6MB → 0MB  (-100%)
+
+[00:47:10] DONE  processed=16  skipped=0  failed=0  saved=118MB (-99%)

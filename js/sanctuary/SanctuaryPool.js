@@ -178,6 +178,139 @@ function mulberry32(seed) {
   };
 }
 
+/**
+ * Procedural lily-pad texture — 256×256 CanvasTexture.
+ * Radial veins from center + edge darkening + subtle water droplets
+ * give the pads a photo-real read without fetching any image asset.
+ * Built ONCE, shared across all 14 pad meshes.
+ */
+function _makeLilyPadTexture() {
+  const SZ = 256;
+  const cv = document.createElement("canvas");
+  cv.width = SZ; cv.height = SZ;
+  const ctx = cv.getContext("2d");
+  const cx = SZ / 2, cy = SZ / 2;
+
+  // Base — radial gradient (lighter center, darker edge)
+  const baseGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, SZ / 2);
+  baseGrad.addColorStop(0.00, "#7ea15a");      // sunlit center
+  baseGrad.addColorStop(0.55, "#4d6b34");      // mid green
+  baseGrad.addColorStop(0.85, "#33491f");      // outer band
+  baseGrad.addColorStop(1.00, "#1d2e10");      // dark edge
+  ctx.fillStyle = baseGrad;
+  ctx.beginPath(); ctx.arc(cx, cy, SZ / 2, 0, Math.PI * 2); ctx.fill();
+
+  // Radial veins (12 visible)
+  ctx.strokeStyle = "rgba(28, 42, 14, 0.55)";
+  ctx.lineWidth = 1.5;
+  const VEINS = 12;
+  for (let i = 0; i < VEINS; i++) {
+    const a = (i / VEINS) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * 8, cy + Math.sin(a) * 8);
+    ctx.lineTo(cx + Math.cos(a) * (SZ / 2 - 6), cy + Math.sin(a) * (SZ / 2 - 6));
+    ctx.stroke();
+  }
+
+  // Sub-veins (32 hairline)
+  ctx.strokeStyle = "rgba(30, 50, 18, 0.25)";
+  ctx.lineWidth = 0.8;
+  for (let i = 0; i < 32; i++) {
+    const a = (i / 32) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * (SZ * 0.18), cy + Math.sin(a) * (SZ * 0.18));
+    ctx.lineTo(cx + Math.cos(a) * (SZ / 2 - 8), cy + Math.sin(a) * (SZ / 2 - 8));
+    ctx.stroke();
+  }
+
+  // Central spot (vein convergence)
+  const spotGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 14);
+  spotGrad.addColorStop(0, "rgba(255, 240, 180, 0.6)");
+  spotGrad.addColorStop(1, "rgba(40, 60, 22, 0)");
+  ctx.fillStyle = spotGrad;
+  ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2); ctx.fill();
+
+  // Scattered water-droplet highlights
+  ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
+  for (let i = 0; i < 8; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = 20 + Math.random() * (SZ / 2 - 40);
+    const r = 2 + Math.random() * 3;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+/**
+ * Build a beautiful lotus flower from stacked layered petals.
+ * Three concentric rings, pink-to-white gradient. Casts shadow.
+ */
+function _buildLotusFlower(rng) {
+  const flower = new THREE.Group();
+
+  // Outer petal ring (8 petals, outer-most, deepest pink)
+  const outerMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0xf7c4d5),
+    emissive: new THREE.Color(0x331a23),
+    emissiveIntensity: 0.05,
+    roughness: 0.6,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  });
+  const outerGeo = new THREE.ConeGeometry(0.05, 0.13, 4);
+  for (let i = 0; i < 8; i++) {
+    const petal = new THREE.Mesh(outerGeo, outerMat);
+    const a = (i / 8) * Math.PI * 2;
+    petal.position.set(Math.cos(a) * 0.06, 0.045, Math.sin(a) * 0.06);
+    petal.rotation.z = Math.cos(a) * -0.6;
+    petal.rotation.x = Math.sin(a) *  0.6;
+    petal.castShadow = true;
+    petal.receiveShadow = true;
+    flower.add(petal);
+  }
+
+  // Inner petal ring (6 petals, lighter)
+  const innerMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0xfde6ef),
+    emissive: new THREE.Color(0x402028),
+    emissiveIntensity: 0.04,
+    roughness: 0.55,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  });
+  const innerGeo = new THREE.ConeGeometry(0.035, 0.10, 4);
+  for (let i = 0; i < 6; i++) {
+    const petal = new THREE.Mesh(innerGeo, innerMat);
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    petal.position.set(Math.cos(a) * 0.035, 0.075, Math.sin(a) * 0.035);
+    petal.rotation.z = Math.cos(a) * -0.35;
+    petal.rotation.x = Math.sin(a) *  0.35;
+    petal.castShadow = true;
+    flower.add(petal);
+  }
+
+  // Central pistil (gold/yellow)
+  const pistilMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0xf2c94c),
+    emissive: new THREE.Color(0x6b4a10),
+    emissiveIntensity: 0.4,
+    roughness: 0.4,
+    metalness: 0.1,
+  });
+  const pistil = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), pistilMat);
+  pistil.position.y = 0.09;
+  pistil.castShadow = true;
+  flower.add(pistil);
+
+  return flower;
+}
+
 function buildLilyPads(centerY) {
   const group = new THREE.Group();
   group.name = "sanctuary_lily_pads";
@@ -187,32 +320,19 @@ function buildLilyPads(centerY) {
 
   const rng = mulberry32(0xa55a55a5);
 
-  const padGeo = new THREE.CircleGeometry(0.45, 10);
-  // Bite a wedge out of each pad so it reads like a real lily pad (one
-  // straight edge, one rounded). We do this by re-indexing — skip the
-  // wedge triangles. Cheap; ~16 tris remains.
+  // Higher-res circle (24 segments vs 10) for round photo-real silhouette.
+  const padGeo = new THREE.CircleGeometry(0.45, 24);
+  const padTex = _makeLilyPadTexture();
   const padMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x4f6e3a),
-    roughness: 0.95,
-    metalness: 0.0,
-    flatShading: true,
+    map: padTex,
+    color: new THREE.Color(0xffffff),       // texture supplies all color
+    roughness: 0.75,                        // wet leaf — slightly glossy
+    metalness: 0.05,
     side: THREE.DoubleSide,
-  });
-
-  const flowerGeo = new THREE.ConeGeometry(0.085, 0.14, 6);
-  const flowerMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0xfff0c4),
-    emissive: new THREE.Color(0x55421f),
-    emissiveIntensity: 0.2,
-    roughness: 0.7,
-    metalness: 0.0,
-    flatShading: true,
   });
 
   const PADS = 14;
   for (let i = 0; i < PADS; i++) {
-    // Pick a random point inside 0.55 .. 0.92 of pool radius so pads
-    // never sit on the bank or the geometric centre.
     const ang = rng() * Math.PI * 2;
     const rNorm = 0.55 + rng() * 0.37;
     const r = rNorm * SANCTUARY_POOL_RADIUS_M;
@@ -221,19 +341,19 @@ function buildLilyPads(centerY) {
 
     const pad = new THREE.Mesh(padGeo, padMat);
     pad.rotation.x = -Math.PI / 2;
-    pad.rotation.z = rng() * Math.PI * 2;
+    pad.rotation.z = rng() * Math.PI * 2;     // random vein orientation
     pad.position.set(x, centerY + 0.02 + rng() * 0.01, z);
     pad.scale.setScalar(0.7 + rng() * 0.7);
     pad.name = `sanctuary_lily_pad_${i}`;
     pad.userData.anuKind = "sanctuary_lily_pad";
     pad.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+    pad.receiveShadow = true;                 // flower casts onto pad
     group.add(pad);
 
-    // Some pads carry a small gold lily flower.
+    // ~45% of pads carry a beautiful lotus flower.
     if (rng() < 0.45) {
-      const flower = new THREE.Mesh(flowerGeo, flowerMat);
-      flower.position.set(x, centerY + 0.07, z);
-      flower.castShadow = false;
+      const flower = _buildLotusFlower(rng);
+      flower.position.set(x, centerY + 0.025, z);
       flower.name = `sanctuary_lily_flower_${i}`;
       flower.userData.anuKind = "sanctuary_lily_flower";
       flower.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
