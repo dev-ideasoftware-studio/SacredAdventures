@@ -36,6 +36,15 @@ import {
 const GOLD = 0xfbc02d;
 const MOONLIGHT = 0xb6dff5;
 
+/**
+ * Fishing-spot ring — simplified per user spec (May-25 2026):
+ *   "remove yellow borders around fishing circle, just slowly pulse
+ *    the white border"
+ *
+ * Was: gold outer ring + gold inner ring + 4 gold tick marks (very busy)
+ * Now: ONE soft white ring that gently breathes opacity. Calm and clean.
+ */
+const FISHING_RING_WHITE = 0xfdf6e8;   // warm cream-white (not pure)
 function buildFishingSpotRing(spotX, spotY, spotZ) {
   const group = new THREE.Group();
   group.name = "sanctuary_fishing_spot_ring";
@@ -44,62 +53,25 @@ function buildFishingSpotRing(spotX, spotY, spotZ) {
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
   group.position.set(spotX, spotY + 0.03, spotZ);
 
-  // Outer ring — thick gold band.
-  const outerGeo = new THREE.RingGeometry(0.85, 1.05, 48);
-  const outerMat = new THREE.MeshBasicMaterial({
-    color: GOLD,
+  // Single thin white ring, slow opacity pulse driven from update().
+  const ringGeo = new THREE.RingGeometry(0.92, 0.99, 56);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: FISHING_RING_WHITE,
     transparent: true,
-    opacity: 0.88,
+    opacity: 0.62,
     depthWrite: false,
     side: THREE.DoubleSide,
     toneMapped: false,
   });
-  const outer = new THREE.Mesh(outerGeo, outerMat);
-  outer.rotation.x = -Math.PI / 2;
-  outer.renderOrder = 10;
-  outer.userData.anuKind = "sanctuary_fishing_spot_ring_outer";
-  outer.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
-  group.add(outer);
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.renderOrder = 10;
+  ring.userData.anuKind = "sanctuary_fishing_spot_ring_white";
+  ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  group.add(ring);
 
-  // Inner thin ring — hair-line accent that emphasises the "target".
-  const innerGeo = new THREE.RingGeometry(0.55, 0.62, 36);
-  const innerMat = new THREE.MeshBasicMaterial({
-    color: GOLD,
-    transparent: true,
-    opacity: 0.65,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    toneMapped: false,
-  });
-  const inner = new THREE.Mesh(innerGeo, innerMat);
-  inner.rotation.x = -Math.PI / 2;
-  inner.renderOrder = 10;
-  inner.userData.anuKind = "sanctuary_fishing_spot_ring_inner";
-  inner.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
-  group.add(inner);
-
-  // 4 short tick marks across the outer ring — 12 / 3 / 6 / 9 o'clock.
-  const tickMat = new THREE.MeshBasicMaterial({
-    color: GOLD,
-    transparent: true,
-    opacity: 0.95,
-    depthWrite: false,
-    toneMapped: false,
-  });
-  for (let i = 0; i < 4; i++) {
-    const ang = (i / 4) * Math.PI * 2;
-    const tickGeo = new THREE.PlaneGeometry(0.08, 0.22);
-    const tick = new THREE.Mesh(tickGeo, tickMat);
-    tick.rotation.x = -Math.PI / 2;
-    tick.position.set(Math.cos(ang) * 0.95, 0.01, Math.sin(ang) * 0.95);
-    tick.lookAt(group.position);
-    tick.rotation.x = -Math.PI / 2;
-    tick.rotation.z = -ang;
-    tick.renderOrder = 10;
-    tick.userData.anuKind = "sanctuary_fishing_spot_tick";
-    tick.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
-    group.add(tick);
-  }
+  // Stash the material so update() can pulse opacity.
+  group.userData._whiteRingMat = ringMat;
   return group;
 }
 
@@ -236,11 +208,12 @@ export const SanctuaryCirclesModule = {
     this._elapsed += delta;
     const t = this._elapsed;
 
-    // Fishing-spot ring — slow rotation + gentle scale pulse.
+    // Fishing-spot ring — slow OPACITY pulse only (no rotation, no scale).
+    // Single white ring breathes between ~0.32 and ~0.70 opacity over a
+    // ~5-second cycle (much slower than the old 1.7 Hz scale wiggle).
     if (this._fishingRing) {
-      this._fishingRing.rotation.y = t * 0.35;
-      const pulse = 1 + Math.sin(t * 1.7) * 0.04;
-      this._fishingRing.scale.set(pulse, 1, pulse);
+      const mat = this._fishingRing.userData?._whiteRingMat;
+      if (mat) mat.opacity = 0.32 + (Math.sin(t * 1.2) * 0.5 + 0.5) * 0.38;
     }
 
     // Perimeter ring — subtle opacity breathing.
@@ -263,16 +236,19 @@ export const SanctuaryCirclesModule = {
       slot.mat.opacity = (1 - slot.life) * 0.65;
     }
 
-    // Ambient auto-pulse — one ripple every ~5 s at a wandering point
-    // inside the pool. Sells "life under the surface" even before any
-    // fish-bite mini-game is wired.
+    // Ambient INSECT ripples (May-25 2026 spec: "subtle insect ripples
+    // in the pond"). Much more frequent than the old 5s auto-pulse —
+    // every 0.8-2.0s a random point on the pool surface gets a small
+    // pulse, like a water-strider or skitter-bug touching down.
     this._autoPulseT += delta;
-    if (this._autoPulseT > 4 + Math.sin(t * 0.13) * 1.5) {
+    const nextPulseIn = 0.8 + Math.random() * 1.2;
+    if (this._autoPulseT > nextPulseIn) {
       this._autoPulseT = 0;
-      const ang = t * 0.7;
-      const r = SANCTUARY_POOL_RADIUS_M * (0.35 + 0.4 * (0.5 + 0.5 * Math.sin(t * 0.21)));
-      const px = SANCTUARY_POOL_CENTER_X + Math.cos(ang) * r;
-      const pz = SANCTUARY_POOL_CENTER_Z + Math.sin(ang) * r;
+      // True random scatter (was deterministic spiral) — bugs aren't periodic
+      const ang = Math.random() * Math.PI * 2;
+      const r   = SANCTUARY_POOL_RADIUS_M * (0.15 + Math.random() * 0.75);
+      const px  = SANCTUARY_POOL_CENTER_X + Math.cos(ang) * r;
+      const pz  = SANCTUARY_POOL_CENTER_Z + Math.sin(ang) * r;
       this.pulseAt(px, pz);
     }
   },

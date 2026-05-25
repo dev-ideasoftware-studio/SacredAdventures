@@ -59,14 +59,18 @@ function buildWaterSurface(centerY) {
   }
   geo.computeVertexNormals();
 
+  // Water tint — May-25 2026 user spec: "darken the water 10% more
+  // greenish-blue water with soft waves as a pond would have".
+  // Base hex 0x0c3a36 (deep teal) → 0x0a3438 (10 % darker, slight blue
+  // shift), emissive 0x051d1c → 0x042022 (matches the darker base).
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x0c3a36),
-    emissive: new THREE.Color(0x051d1c),
-    emissiveIntensity: 0.18,
-    roughness: 0.22,
+    color: new THREE.Color(0x0a3438),
+    emissive: new THREE.Color(0x042022),
+    emissiveIntensity: 0.15,
+    roughness: 0.30,            // slightly less glossy → softer pond read
     metalness: 0.05,
     transparent: true,
-    opacity: 0.62,
+    opacity: 0.66,
     depthWrite: false,
     side: THREE.DoubleSide,
     defines: { USE_UV: "" },
@@ -89,16 +93,22 @@ function buildWaterSurface(centerY) {
       // Halved to 2 directional sins; sparkle dropped. Still reads as
       // sun-on-water from the camera angle; saves measurable shading
       // time at DPR=1.5.
-      vec2 pUv = vUv * 5.0;
+      // SOFTER POND waves (May-25 2026) — lower wave frequency + smaller
+      // amplitude for a tranquil koi-pond surface (vs the prior choppier
+      // 1.20/-0.45 spatial frequencies). Slower time multipliers too.
+      vec2 pUv = vUv * 4.0;
       float t = uTime;
-      float w1 = sin(pUv.x * 1.20 + pUv.y * 0.50 + t * 0.55);
-      float w2 = sin(pUv.x * -0.45 + pUv.y * 1.30 + t * 0.42);
+      float w1 = sin(pUv.x * 0.85 + pUv.y * 0.40 + t * 0.42);
+      float w2 = sin(pUv.x * -0.35 + pUv.y * 0.95 + t * 0.32);
       float ripple = (w1 + w2) * 0.5;
-      vec3 deep   = vec3(0.04, 0.16, 0.13);
-      vec3 mid    = vec3(0.09, 0.30, 0.24);
-      vec3 bright = vec3(0.28, 0.52, 0.42);
-      vec3 col = mix(deep, mid, 0.50 + ripple * 0.32);
-      col = mix(col, bright, smoothstep(0.55, 1.0, abs(ripple)) * 0.22);
+      // Color palette shifted 10 % darker + greenish-blue (more cyan,
+      // less olive). Old: (0.04,0.16,0.13) → (0.09,0.30,0.24) → (0.28,0.52,0.42).
+      // New: more blue channel, less green, all darker.
+      vec3 deep   = vec3(0.03, 0.14, 0.16);
+      vec3 mid    = vec3(0.07, 0.26, 0.28);
+      vec3 bright = vec3(0.22, 0.46, 0.50);
+      vec3 col = mix(deep, mid, 0.50 + ripple * 0.28);
+      col = mix(col, bright, smoothstep(0.60, 1.0, abs(ripple)) * 0.18);
       diffuseColor.rgb = col;
       `,
     );
@@ -139,6 +149,50 @@ function buildBasinFloor(centerY) {
   mesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
   return mesh;
 }
+
+function buildDrainHole(centerY) {
+  const group = new THREE.Group();
+  group.name = "sanctuary_pool_drain_hole";
+  group.userData.anuKind = "sanctuary_pool_drain_hole";
+  group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+  // Sits at the bottom center of the carved pool basin
+  const y = centerY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.005; // Elevated a tiny bit to prevent z-fighting with basin floor
+
+  // Outer bronze rustic ring
+  const ringGeo = new THREE.RingGeometry(0.35, 0.45, 32);
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0x4a3a2a), // dark rustic bronze/stone
+    roughness: 0.85,
+    metalness: 0.7,
+    flatShading: true,
+  });
+  const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+  ringMesh.rotation.x = -Math.PI / 2;
+  ringMesh.position.set(SANCTUARY_POOL_CENTER_X, y, SANCTUARY_POOL_CENTER_Z);
+  ringMesh.receiveShadow = true;
+  ringMesh.userData.anuKind = "sanctuary_pool_drain_ring";
+  ringMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  group.add(ringMesh);
+
+  // Inner deep obsidian black disc
+  const holeGeo = new THREE.CircleGeometry(0.35, 32);
+  const holeMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0x010305), // deep black hole
+    roughness: 1.0,
+    metalness: 0.05,
+  });
+  const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+  holeMesh.rotation.x = -Math.PI / 2;
+  holeMesh.position.set(SANCTUARY_POOL_CENTER_X, y + 0.001, SANCTUARY_POOL_CENTER_Z);
+  holeMesh.receiveShadow = true;
+  holeMesh.userData.anuKind = "sanctuary_pool_drain_depth";
+  holeMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  group.add(holeMesh);
+
+  return group;
+}
+
 
 function buildRim(centerY) {
   // Thin moss collar at the waterline — RingGeometry between water
@@ -392,6 +446,7 @@ export const SanctuaryPoolModule = {
     root.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
     root.add(buildBasinFloor(waterY));
+    root.add(buildDrainHole(waterY));
     root.add(buildWaterSurface(waterY));
     root.add(buildRim(waterY));
     root.add(buildLilyPads(waterY));

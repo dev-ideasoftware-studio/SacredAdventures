@@ -437,18 +437,38 @@ function _drawGauge(ctx, frac, labelText = "WAITING...", isReeling = false, time
   ctx.lineCap = "butt";
   ctx.stroke();
 
-  // Draw arcade-style RED, YELLOW, and RED zones on the track!
+  // ── Plastic-toy interest meter (May-25 2026 user spec) ──────────
+  // 3 equal sections sweeping left → right:
+  //   ORANGE  — no interest (fish ignoring lure)
+  //   YELLOW  — some interest (fish noticing)
+  //   GREEN   — fish IS interested (bite imminent)
+  // Translucent fills + bright top edge → reads as injection-moulded
+  // semi-transparent plastic, like a kids' toy gauge.
   const segments = [
-    { start: Math.PI, end: Math.PI - 0.3 * Math.PI, color: "#ff4d4d" }, // RED
-    { start: Math.PI - 0.3 * Math.PI, end: Math.PI - 0.7 * Math.PI, color: "#ffd166" }, // YELLOW (sweet spot!)
-    { start: Math.PI - 0.7 * Math.PI, end: 0, color: "#ff4d4d" } // RED
+    { start: Math.PI,           end: Math.PI - (Math.PI / 3),     color: "#ff8a3d", label: "orange" },
+    { start: Math.PI - (Math.PI / 3), end: Math.PI - (2 * Math.PI / 3), color: "#ffd166", label: "yellow" },
+    { start: Math.PI - (2 * Math.PI / 3), end: 0,                 color: "#5fd97a", label: "green"  },
   ];
 
+  // Translucent body of each segment (the "plastic" infill)
   for (const seg of segments) {
     ctx.beginPath();
-    ctx.arc(cx, cy, arcR, seg.start, seg.end, true); // draw clockwise (decreasing angle on top half)
+    ctx.arc(cx, cy, arcR, seg.start, seg.end, true);
     ctx.lineWidth = arcW - 4;
-    ctx.strokeStyle = seg.color;
+    // Convert hex to rgba @ 0.55 opacity for the plastic-clear read
+    const r = parseInt(seg.color.slice(1, 3), 16);
+    const g = parseInt(seg.color.slice(3, 5), 16);
+    const b = parseInt(seg.color.slice(5, 7), 16);
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.78)`;
+    ctx.lineCap = "butt";
+    ctx.stroke();
+  }
+  // Bright glossy top edge on each segment (the "moulded plastic" sheen)
+  for (const seg of segments) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, arcR + (arcW / 2) - 3, seg.start, seg.end, true);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
     ctx.lineCap = "butt";
     ctx.stroke();
   }
@@ -1450,14 +1470,31 @@ export const SanctuaryFishingModule = {
         if (typeof window !== "undefined" && window.__interestedFish) {
           const fishMesh = window.__interestedFish;
           fishMesh.userData.interestTimer = (fishMesh.userData.interestTimer || 0) + delta;
-          
+
           const distToLure = fishMesh.position.distanceTo(this._bobber.position);
-          
-          // Chance increases every second. Once close enough, it takes the bait!
-          const biteChancePerSec = 0.08 + (fishMesh.userData.interestTimer * 0.15);
-          if (distToLure < 0.35 && Math.random() < biteChancePerSec * delta) {
-            playFishingTone('bite');
-            this._setPhase(PHASE.BITE);
+
+          // ── Random "loses total interest" (May-25 2026 user spec) ──
+          // After at least 3 s of nibbling around, ~10 %/sec chance the
+          // fish just swims off. Spawns a ripple where it bailed +
+          // cute combat-text. The next interest pick can be any fish.
+          if (fishMesh.userData.interestTimer > 3.0 && Math.random() < 0.10 * delta) {
+            if (typeof window.__sanctuaryFishingSpawnRipple === 'function') {
+              window.__sanctuaryFishingSpawnRipple(fishMesh.position.x, fishMesh.position.z);
+            } else if (typeof window.sanctuaryPulse === 'function') {
+              window.sanctuaryPulse(fishMesh.position.x, fishMesh.position.z);
+            }
+            showWoWCombatText("💨 lost interest", false);
+            fishMesh.userData.interestTimer = 0;
+            fishMesh.userData.isStruggling = false;
+            window.__interestedFish = null;
+            this._interestCheckTimer = 8.0; // re-pick soon (cooldown ~2s)
+          } else {
+            // Chance increases every second. Once close enough, takes the bait.
+            const biteChancePerSec = 0.08 + (fishMesh.userData.interestTimer * 0.15);
+            if (distToLure < 0.35 && Math.random() < biteChancePerSec * delta) {
+              playFishingTone('bite');
+              this._setPhase(PHASE.BITE);
+            }
           }
         }
         break;
@@ -1707,8 +1744,19 @@ export const SanctuaryFishingModule = {
           frac = Math.min(1.0, this._phaseT / 1.0);
           label = "CASTING...";
         } else if (this._phase === PHASE.WAITING) {
-          frac = 0.0;
-          label = "NO BITE...";
+          // INTEREST METER (May-25 2026): map the interested fish's
+          // distance-to-lure to the orange/yellow/green needle sweep.
+          // Far / no fish → orange. Within 2 m → yellow. Within 0.5 m → green.
+          if (typeof window !== "undefined" && window.__interestedFish && this._bobber) {
+            const d = window.__interestedFish.position.distanceTo(this._bobber.position);
+            // 4 m → frac 0 (full orange) ; 0.2 m → frac 1 (full green)
+            const tNorm = Math.max(0, Math.min(1, (4.0 - d) / 3.8));
+            frac = tNorm;
+            label = tNorm > 0.66 ? "INTERESTED!" : tNorm > 0.33 ? "CURIOUS..." : "no bite...";
+          } else {
+            frac = 0.05;
+            label = "no bite...";
+          }
         } else if (this._phase === PHASE.BITE) {
           frac = 0.4 + 0.3 * Math.abs(Math.sin(this._phaseT * 12)) + 0.1 * Math.random();
           label = "BITE! CLICK!";

@@ -259,6 +259,7 @@
     import { SanctuaryWelcomeGuideModule }   from './js/sanctuary/SanctuaryWelcomeGuide.js';
     import { SanctuaryPanelsModule }         from './js/sanctuary/SanctuaryPanels.js';
     import { SanctuaryJournalBridgeModule }  from './js/sanctuary/SanctuaryJournalBridge.js';
+    import { SanctuaryDragonflyModule }      from './js/sanctuary/SanctuaryDragonfly.js';
 
     // Modal loader plumbing — same protocol v2 used (Component.LoadingModal
     // listens for LOG_SYSTEM with msg + 4 progress %, LOADING_COMPLETE
@@ -355,6 +356,7 @@
     orc.register(SanctuaryWelcomeGuideModule);
     orc.register(SanctuaryPanelsModule);
     orc.register(SanctuaryJournalBridgeModule);
+    orc.register(SanctuaryDragonflyModule);
 
     v4Log('Anu — opening her ear', 100, 22, 14, 10);
     await orc.activate('Anu');
@@ -469,6 +471,9 @@
 
     v4Log('journal ↔ Anu bridge — sensorium + audit replies', 100, 100, 100, 99);
     await orc.activate('SanctuaryJournalBridge');
+
+    v4Log('dragonfly — zips by every 12-30s', 100, 100, 100, 99);
+    await orc.activate('SanctuaryDragonfly');
 
     v4Log('breathing life into the loop', 100, 100, 100, 98);
     orc.start();
