@@ -2,6 +2,7 @@ import { dispatchInteraction } from "./anu/InteractionBus.js";
 import { ANU_EVENTS } from "./anu/anuEvents.js";
 import { getRuntimeService } from "./RuntimeServices.js";
 import { pipCompassRingRotationDegFromYawRad } from "./pipCompassMath.js";
+import { getFrameBudgetSnapshot } from "./anu/FrameBudget.js";
 
 const LUNAR_PHASE_EMOJI = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"];
 const LUNAR_PHASE_TITLE = [
@@ -46,7 +47,8 @@ export const UIModule = {
   /** If set 0–7, radial lunar dial uses manual phase; else real-world synodic approximation. */
   _lunarManualIndex: null,
 
-  load() {
+  load(scene, camera, _renderer, orchestrator) {
+    this._orc = orchestrator;
     if (!document.getElementById("v2-font-cinzel")) {
       const l = document.createElement("link");
       l.id = "v2-font-cinzel";
@@ -76,9 +78,12 @@ export const UIModule = {
           --pip-gold: #c6a035;
           --pip-gold-soft: rgba(232, 212, 148, 0.92);
           --pip-parchment: #f3ece3;
-          --pip-moon-track: 22px;
-          --pip-compass-track: 20px;
-          --pip-outer-track: 16px;
+          --pip-moon-track: 26px;
+          --pip-compass-track: 24px;
+          --pip-outer-track: 22px;
+          --pip-compass-inset: -24px;
+          --pip-lunar-inset: 0px;
+          --pip-season-inset: 26px;
           position: absolute;
           top: 0;
           left: 20px;
@@ -96,13 +101,12 @@ export const UIModule = {
             var(--pip-void);
           border: 1px solid rgba(230, 210, 175, 0.12);
           box-shadow:
+            12px 12px 24px rgba(0, 0, 0, 0.65),
+            -10px -10px 20px rgba(255, 250, 235, 0.08),
             0 0 0 4px var(--pip-bezel-dark),
-            0 0 0 5px rgba(0, 0, 0, 0.55),
-            0 1px 0 rgba(255, 250, 240, 0.1),
-            0 28px 56px rgba(0, 0, 0, 0.58),
-            0 10px 22px rgba(0, 0, 0, 0.38),
-            inset 0 2px 5px rgba(255, 255, 255, 0.05),
-            inset 0 -14px 32px rgba(0, 0, 0, 0.42);
+            0 0 0 5px rgba(18, 10, 8, 0.95),
+            inset 0 2px 5px rgba(255, 255, 255, 0.08),
+            inset 0 -14px 32px rgba(0, 0, 0, 0.55);
         }
         #moondial-wrapper::after {
           content: '';
@@ -137,7 +141,7 @@ export const UIModule = {
         }
         .lunar-radial-ring {
           position: absolute;
-          inset: -4px;
+          inset: var(--pip-lunar-inset);
           border-radius: 50%;
           pointer-events: none;
           z-index: 7;
@@ -146,15 +150,15 @@ export const UIModule = {
             transparent 0,
             transparent calc(100% - var(--pip-moon-track)),
             var(--pip-bronze-lo) calc(100% - var(--pip-moon-track) + 1px),
-            var(--pip-bronze-hi) calc(100% - 12px),
-            #4a362e calc(100% - 5px),
+            var(--pip-bronze-hi) calc(100% - calc(var(--pip-moon-track) * 0.54)),
+            #4a362e calc(100% - calc(var(--pip-moon-track) * 0.23)),
             var(--pip-bronze-lo) 100%
           );
           box-shadow:
-            inset 0 0 0 1px rgba(255, 248, 235, 0.1),
-            inset 0 3px 8px rgba(255, 248, 235, 0.08),
-            inset 0 -7px 12px rgba(0, 0, 0, 0.36),
-            0 0 0 1px rgba(20, 12, 9, 0.72);
+            inset 0 0 0 1px rgba(255, 248, 235, 0.12),
+            inset 0 3px 8px rgba(255, 248, 235, 0.12),
+            inset 0 -7px 12px rgba(0, 0, 0, 0.45),
+            0 4px 8px rgba(0, 0, 0, 0.4);
         }
         .lunar-radial-rim {
           position: absolute;
@@ -271,7 +275,7 @@ export const UIModule = {
         }
         .compass-outer-ring {
           position: absolute;
-          inset: -24px;
+          inset: var(--pip-compass-inset);
           border-radius: 50%;
           pointer-events: none;
           z-index: 6;
@@ -281,9 +285,9 @@ export const UIModule = {
           -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-compass-track)), black calc(100% - var(--pip-compass-track) + 1px));
           mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-compass-track)), black calc(100% - var(--pip-compass-track) + 1px));
           box-shadow:
-            inset 0 0 0 1px rgba(255, 248, 235, 0.08),
-            inset 0 -8px 16px rgba(0, 0, 0, 0.42),
-            0 0 0 1px rgba(18, 10, 8, 0.78);
+            inset 0 0 0 1px rgba(255, 248, 235, 0.12),
+            inset 0 -8px 16px rgba(0, 0, 0, 0.55),
+            0 4px 10px rgba(0, 0, 0, 0.45);
         }
         .compass-outer-ring.pip-ring-bronze::before {
           content: '';
@@ -404,7 +408,7 @@ export const UIModule = {
         }
         .season-outer-ring {
           position: absolute;
-          inset: 16%;
+          inset: var(--pip-season-inset);
           border-radius: 50%;
           pointer-events: none;
           z-index: 8;
@@ -413,14 +417,18 @@ export const UIModule = {
           transition:
             opacity 0.22s ease,
             transform 0.22s ease;
+          box-shadow:
+            inset 0 0 0 1px rgba(255, 248, 235, 0.15),
+            inset 0 -4px 8px rgba(0, 0, 0, 0.42),
+            0 3px 6px rgba(0, 0, 0, 0.35);
         }
         .season-outer-bg {
           position: absolute; inset: 0; border-radius: 50%;
           background: transparent;
           box-shadow: none;
           pointer-events: none;
-          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 16px), black calc(100% - 15px));
-          mask-image: radial-gradient(circle closest-side, transparent calc(100% - 16px), black calc(100% - 15px));
+          -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-outer-track)), black calc(100% - var(--pip-outer-track) + 1px));
+          mask-image: radial-gradient(circle closest-side, transparent calc(100% - var(--pip-outer-track)), black calc(100% - var(--pip-outer-track) + 1px));
         }
         .season-outer-bg.pip-ring-bronze {
           border: none;
@@ -632,22 +640,32 @@ export const UIModule = {
           pointer-events: none;
           display: block;
         }
+        /* POS / YAW / FPS pill — aligned to share the moondial vertical
+         * centerline so the two read as one professional unit.
+         * Moondial center X = wrapper-left (20px) + wrapper-width / 2
+         *                   = 20 + clamp(200,25vw,300) / 2
+         * Anchor left to that center, translateX(-50%) to center the pill
+         * on it regardless of pill width. */
         #v2-distance-pill {
           position: absolute;
-          left: 28px;
-          top: calc(clamp(200px, 25vw, 300px) + 18px);
-          padding: 9px 14px;
+          left: calc(20px + clamp(200px, 25vw, 300px) / 2);
+          top: calc(clamp(200px, 25vw, 300px) + 14px);
+          transform: translateX(-50%);
+          padding: 8px 16px;
           border-radius: 999px;
           color: var(--pip-gold-soft);
-          background: linear-gradient(165deg, rgba(28, 18, 14, 0.92) 0%, rgba(14, 10, 8, 0.88) 100%);
-          border: 1px solid rgba(198, 160, 53, 0.28);
-          font-size: 11.5px;
+          background: linear-gradient(165deg, rgba(28, 18, 14, 0.94) 0%, rgba(14, 10, 8, 0.90) 100%);
+          border: 1px solid rgba(198, 160, 53, 0.42);
+          font-size: 11px;
           font-weight: 600;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
+          white-space: nowrap;
           box-shadow:
-            0 10px 28px rgba(0, 0, 0, 0.45),
-            inset 0 1px 0 rgba(255, 255, 255, 0.07);
+            0 10px 28px rgba(0, 0, 0, 0.5),
+            0 2px 6px rgba(0, 0, 0, 0.35),
+            inset 0 1px 0 rgba(255, 220, 140, 0.18),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.45);
         }
 
         /* ────────────────────────────────────────────────────────────
@@ -658,17 +676,20 @@ export const UIModule = {
          * ──────────────────────────────────────────────────────────── */
         @media (max-width: 768px) {
           #moondial-wrapper {
-            --pip-moon-track: 11px;
-            --pip-compass-track: 10px;
-            --pip-outer-track: 8px;
+            --pip-moon-track: 13px;
+            --pip-compass-track: 12px;
+            --pip-outer-track: 11px;
+            --pip-compass-inset: -12px;
+            --pip-lunar-inset: 0px;
+            --pip-season-inset: 13px;
           }
           /* Distance/POS pill scales down too so it fits beside the
-             now-narrower right-edge HUD. */
+             now-narrower right-edge HUD. Centered translate() stays. */
           #v2-distance-pill {
-            font-size: 9.5px;
-            padding: 6px 10px;
-            letter-spacing: 0.04em;
-            top: calc(clamp(200px, 25vw, 300px) + 10px);
+            font-size: 9px;
+            padding: 5px 12px;
+            letter-spacing: 0.06em;
+            top: calc(clamp(200px, 25vw, 300px) + 8px);
           }
         }
       </style>
@@ -819,7 +840,19 @@ export const UIModule = {
       const y = player.feet.y.toFixed(1);
       const z = player.feet.z.toFixed(1);
       const yaw = player.yaw.toFixed(2);
-      pill.textContent = `POS: ${x}, ${y}, ${z} | YAW: ${yaw}`;
+      
+      let fpsVal = 0;
+      if (this._orc) {
+        fpsVal = this._orc._fpsReady ? this._orc.smoothFPS : this._orc.rawFPS;
+      }
+      if (!(fpsVal > 0)) {
+        const snap = getFrameBudgetSnapshot();
+        const ms = snap.avgMs > 0 ? snap.avgMs : snap.lastMs;
+        fpsVal = ms > 0 ? 1000 / ms : 0;
+      }
+      const fpsStr = fpsVal > 0 ? ` | FPS: ${Math.round(fpsVal)}` : "";
+      
+      pill.textContent = `POS: ${x}, ${y}, ${z} | YAW: ${yaw}${fpsStr}`;
     }
     this._syncCompass(player.yaw);
     if (frameCount % 45 === 0) this._syncPipOverlaySize();
@@ -964,15 +997,15 @@ export const UIModule = {
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "rgba(200, 165, 70, 0.34)";
-    ctx.lineWidth = Math.max(1.5, w * 0.0075);
+    ctx.strokeStyle = "rgba(129, 212, 250, 0.45)"; // glowing cyan/blue (no yellow circles)
+    ctx.lineWidth = Math.max(3.5, w * 0.018); // thicker radial lines
     ctx.setLineDash([4, 7]);
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.strokeStyle = "rgba(245, 236, 220, 0.06)";
-    ctx.lineWidth = Math.max(1, w * 0.004);
+    ctx.strokeStyle = "rgba(129, 212, 250, 0.25)"; // glowing cyan/blue inner radial (no yellow)
+    ctx.lineWidth = Math.max(2.5, w * 0.012); // thicker inner radial
     ctx.beginPath();
     ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
     ctx.stroke();
