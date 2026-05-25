@@ -318,6 +318,18 @@ export const SanctuaryDockModule = {
     if (typeof window !== "undefined") {
       window.__sanctuaryDockSurface = { getY: getDockSurfaceY };
     }
+    // Public extents — used by SanctuaryClickToMove to detect when a
+    // ground-plane raycast actually lands on the dock footprint, so
+    // clicks on the dock end up walking the player ON the dock instead
+    // of past it into the water.
+    if (typeof window !== "undefined") {
+      window.__sanctuaryDockExtents = {
+        midX, midZ, yaw,
+        halfLen: DOCK_LENGTH_M / 2 + 0.25,
+        halfWid: DOCK_WIDTH_M / 2 + 0.20,
+        surfaceY: dockY + DOCK_DECK_THICKNESS_M * 0.5,
+      };
+    }
 
     const root = new THREE.Group();
     root.add(local);
@@ -359,6 +371,7 @@ export const SanctuaryDockModule = {
     if (typeof window !== "undefined") {
       delete window.__sanctuaryFishingSpot;
       delete window.__sanctuaryDockSurface;
+      delete window.__sanctuaryDockExtents;
     }
     _placement = null;
   },

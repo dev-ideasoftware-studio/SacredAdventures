@@ -241,10 +241,40 @@ export const SanctuaryClickToMoveModule = {
     // at the hit XZ — close enough for the click target.
     const ray = this._raycaster.ray;
     if (Math.abs(ray.direction.y) < 1e-4) return;
-    const tHit = -ray.origin.y / ray.direction.y;
-    if (tHit < 0 || tHit > 200) return;
-    const hitX = ray.origin.x + ray.direction.x * tHit;
-    const hitZ = ray.origin.z + ray.direction.z * tHit;
+
+    // ── Dock-first hit test (May-25 2026 walkable-dock fix) ──────────
+    // If the dock is registered AND the ray intersects the elevated
+    // dock surface BEFORE hitting the ground plane, snap the click
+    // target to the dock-plane hit so kids can walk onto the dock to
+    // fish. Without this the camera ray passes through the dock mesh
+    // and lands on the ground BEHIND the dock — the player then walks
+    // straight past the dock into the pool.
+    let hitX, hitZ;
+    const dockExt = (typeof window !== "undefined") ? window.__sanctuaryDockExtents : null;
+    if (dockExt && Math.abs(ray.direction.y) > 1e-4) {
+      const tDock = (dockExt.surfaceY - ray.origin.y) / ray.direction.y;
+      if (tDock > 0 && tDock < 200) {
+        const dx_ = ray.origin.x + ray.direction.x * tDock;
+        const dz_ = ray.origin.z + ray.direction.z * tDock;
+        // Convert to dock-local coords and check against rectangular footprint
+        const ddx = dx_ - dockExt.midX;
+        const ddz = dz_ - dockExt.midZ;
+        const lx = Math.cos(dockExt.yaw) * ddx - Math.sin(dockExt.yaw) * ddz;
+        const lz = Math.sin(dockExt.yaw) * ddx + Math.cos(dockExt.yaw) * ddz;
+        if (Math.abs(lx) <= dockExt.halfLen && Math.abs(lz) <= dockExt.halfWid) {
+          // Click landed on the dock surface — use it directly.
+          hitX = dx_;
+          hitZ = dz_;
+        }
+      }
+    }
+    // Fallback: ground-plane intersection at y=0.
+    if (hitX === undefined) {
+      const tHit = -ray.origin.y / ray.direction.y;
+      if (tHit < 0 || tHit > 200) return;
+      hitX = ray.origin.x + ray.direction.x * tHit;
+      hitZ = ray.origin.z + ray.direction.z * tHit;
+    }
 
     // If we're in TOP-DOWN mode AND a mold tool is active, divert the
     // click into the SanctuaryMutations registry instead of walking the
