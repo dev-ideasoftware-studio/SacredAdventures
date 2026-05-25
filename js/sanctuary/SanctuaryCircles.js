@@ -51,21 +51,26 @@ function buildFishingSpotRing(spotX, spotY, spotZ) {
   group.userData.anuId = "environment.sanctuary.fishing_spot_ring";
   group.userData.anuKind = "sanctuary_fishing_spot_ring";
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
-  group.position.set(spotX, spotY + 0.03, spotZ);
+  // Lift higher (+0.06 vs old +0.03) so even if the spotY is slightly
+  // off, the ring sits cleanly above the deck.
+  group.position.set(spotX, spotY + 0.06, spotZ);
 
   // Single thin white ring, slow opacity pulse driven from update().
+  // depthTest: false → composite OVER any geometry that would otherwise
+  // occlude (e.g. the dock deck) so kids always see the fishing target.
   const ringGeo = new THREE.RingGeometry(0.92, 0.99, 56);
   const ringMat = new THREE.MeshBasicMaterial({
     color: FISHING_RING_WHITE,
     transparent: true,
     opacity: 0.62,
     depthWrite: false,
+    depthTest: false,            // ← ring always shows through
     side: THREE.DoubleSide,
     toneMapped: false,
   });
   const ring = new THREE.Mesh(ringGeo, ringMat);
   ring.rotation.x = -Math.PI / 2;
-  ring.renderOrder = 10;
+  ring.renderOrder = 999;        // render after EVERYTHING else
   ring.userData.anuKind = "sanctuary_fishing_spot_ring_white";
   ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
   group.add(ring);

@@ -74,30 +74,30 @@ let _cachedRailMat = null;
 function deckMaterial() {
   if (_cachedDeckMat) return _cachedDeckMat;
   _cachedDeckMat = new THREE.MeshStandardMaterial({
-    color: 0x8a5a36,
-    roughness: 0.88,
-    metalness: 0.0,
-    flatShading: true,
+    color: 0x7a4d2c, // deeper natural wood
+    roughness: 0.75,
+    metalness: 0.05,
+    flatShading: false,
   });
   return _cachedDeckMat;
 }
 function darkWoodMaterial() {
   if (_cachedDarkMat) return _cachedDarkMat;
   _cachedDarkMat = new THREE.MeshStandardMaterial({
-    color: 0x4a311c,
-    roughness: 0.92,
-    metalness: 0.0,
-    flatShading: true,
+    color: 0x3d2715, // darker aged wood
+    roughness: 0.85,
+    metalness: 0.02,
+    flatShading: false,
   });
   return _cachedDarkMat;
 }
 function railMaterial() {
   if (_cachedRailMat) return _cachedRailMat;
   _cachedRailMat = new THREE.MeshStandardMaterial({
-    color: 0x6e482a,
-    roughness: 0.90,
-    metalness: 0.0,
-    flatShading: true,
+    color: 0x5c3a21, // mid-tone natural wood
+    roughness: 0.80,
+    metalness: 0.02,
+    flatShading: false,
   });
   return _cachedRailMat;
 }
@@ -309,11 +309,16 @@ export const SanctuaryDockModule = {
     const yaw = Math.atan2(dz, dx);
 
     // Register deck surface for avatar elevation override.
+    // Walkable footprint = the rectangle where the avatar's Y is forced
+    // up onto the deck surface. Generous +0.45 m on each side of the
+    // visible deck so the kid doesn't sink-and-bob when standing on the
+    // very edge of a plank (the avatar's hip is ~0.25 m wide and the
+    // raised rails make the edge feel walkable).
     _placement = {
       midX, midZ, yaw,
       surfaceY: dockY + DOCK_DECK_THICKNESS_M * 0.5,
-      halfLen:  DOCK_LENGTH_M / 2 + 0.25,
-      halfWid:  DOCK_WIDTH_M  / 2 + 0.20,
+      halfLen:  DOCK_LENGTH_M / 2 + 0.45,
+      halfWid:  DOCK_WIDTH_M  / 2 + 0.45,
     };
     if (typeof window !== "undefined") {
       window.__sanctuaryDockSurface = { getY: getDockSurfaceY };
@@ -323,10 +328,18 @@ export const SanctuaryDockModule = {
     // clicks on the dock end up walking the player ON the dock instead
     // of past it into the water.
     if (typeof window !== "undefined") {
+      // Click-tolerance footprint is INTENTIONALLY WIDER than the actual
+      // dock geometry (+0.60 m beyond each edge instead of +0.25/+0.20).
+      // Reason: kids tend to click ABOVE the visible dock — at the
+      // perspective horizon edge — and we want those clicks to still
+      // walk them onto the dock rather than skipping past into the pool.
+      // The walkable-Y override (getDockSurfaceY) keeps its tighter
+      // 0.25/0.20 footprint so the avatar only LIFTS when actually on
+      // the planks.
       window.__sanctuaryDockExtents = {
         midX, midZ, yaw,
-        halfLen: DOCK_LENGTH_M / 2 + 0.25,
-        halfWid: DOCK_WIDTH_M / 2 + 0.20,
+        halfLen: DOCK_LENGTH_M / 2 + 0.80,
+        halfWid: DOCK_WIDTH_M / 2 + 0.60,
         surfaceY: dockY + DOCK_DECK_THICKNESS_M * 0.5,
       };
     }
@@ -345,7 +358,13 @@ export const SanctuaryDockModule = {
     scene.add(root);
     this._root = root;
     // Park the fishing-spot world coords for SanctuaryFish + Circles.
-    this._fishingSpot = { x: tipX, y: dockY, z: tipZ };
+    // Fishing spot Y = DECK SURFACE, not dock base. dockY is the centre
+    // of the plank thickness, so the visible deck top is +half-thickness.
+    // (Bug fix May-25 2026: the white ring was being covered by the
+    //  dock geometry because spotY was set to dockY (the base) instead
+    //  of the surface, putting the ring INSIDE the plank.)
+    const _deckSurfaceY = dockY + DOCK_DECK_THICKNESS_M * 0.5;
+    this._fishingSpot = { x: tipX, y: _deckSurfaceY, z: tipZ };
     if (typeof window !== "undefined") {
       window.__sanctuaryFishingSpot = { ...this._fishingSpot };
     }
