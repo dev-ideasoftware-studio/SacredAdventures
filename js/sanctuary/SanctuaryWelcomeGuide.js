@@ -199,12 +199,41 @@ function _injectStylesOnce() {
       width: 8px; height: 8px;
       border-radius: 50%;
       background: rgba(255, 248, 220, 0.28);
-      transition: background 0.25s, transform 0.25s;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
     }
     #sanctuary-welcome-guide .swg-dot.is-active {
       background: #fbc02d;
-      transform: scale(1.25);
       box-shadow: 0 0 8px rgba(251, 192, 45, 0.6);
+    }
+
+    /* Prev button — same transparent + border look as Skip, slightly
+     * softer so it reads as the secondary/back action. Hidden when on
+     * step 0 (toggled via the [data-swg-disabled] attribute). */
+    #sanctuary-welcome-guide .swg-prev {
+      appearance: none;
+      background: transparent;
+      color: rgba(255, 248, 220, 0.62);
+      border: 1.5px solid rgba(255, 248, 220, 0.28);
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s, border-color 0.18s, opacity 0.18s;
+    }
+    #sanctuary-welcome-guide .swg-prev:hover,
+    #sanctuary-welcome-guide .swg-prev:focus {
+      background: rgba(255, 248, 220, 0.06);
+      color: #fff7d0;
+      border-color: rgba(255, 248, 220, 0.55);
+      outline: none;
+    }
+    #sanctuary-welcome-guide .swg-prev[data-swg-disabled="1"] {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
 
     /* Skip button (transparent + border) */
@@ -247,16 +276,12 @@ function _injectStylesOnce() {
         0 3px 10px rgba(0,0,0,0.45),
         inset 0 1px 0 rgba(255,255,255,0.4),
         inset 0 -1px 0 rgba(0,0,0,0.3);
-      transition: transform 0.12s, box-shadow 0.18s, filter 0.18s;
+      transition: box-shadow 0.15s ease, filter 0.15s ease;
     }
     #sanctuary-welcome-guide .swg-next:hover,
     #sanctuary-welcome-guide .swg-next:focus {
-      filter: brightness(1.06);
-      transform: translateY(-1px);
+      filter: brightness(1.08);
       outline: none;
-    }
-    #sanctuary-welcome-guide .swg-next:active {
-      transform: translateY(0);
     }
 
     /* Mobile (≤ 768 px): top 1/3 viewport centered with calc width */
@@ -314,6 +339,7 @@ export const SanctuaryWelcomeGuideModule = {
       <div class="swg-body"    data-swg-body>—</div>
       <div class="swg-footer">
         <div class="swg-dots" data-swg-dots></div>
+        <button type="button" class="swg-prev" data-swg-prev aria-label="Previous step"><span style="margin-right:4px">←</span> Prev</button>
         <button type="button" class="swg-skip" data-swg-skip>Skip</button>
         <button type="button" class="swg-next" data-swg-next>Next <span style="margin-left:4px">→</span></button>
       </div>
@@ -339,6 +365,8 @@ export const SanctuaryWelcomeGuideModule = {
       .addEventListener("click", () => this._close());
     root.querySelector("[data-swg-next]")
       .addEventListener("click", () => this._next());
+    root.querySelector("[data-swg-prev]")
+      .addEventListener("click", () => this._prev());
 
     // "don't show" checkbox — initial state from localStorage, persist on change
     const cb = root.querySelector("[data-swg-dontshow]");
@@ -395,6 +423,10 @@ export const SanctuaryWelcomeGuideModule = {
     nextBtn.innerHTML = isLast
       ? `Begin <span style="margin-left:4px">✨</span>`
       : `Next <span style="margin-left:4px">→</span>`;
+
+    // Prev disabled on step 0 (hidden via [data-swg-disabled="1"] CSS).
+    const prevBtn = this._root.querySelector("[data-swg-prev]");
+    if (prevBtn) prevBtn.setAttribute("data-swg-disabled", this._step === 0 ? "1" : "0");
   },
 
   _next() {

@@ -42,7 +42,7 @@ const ACTION_RING = [
   { id: "items",   label: "ITEMS",   emoji: "🎒", angle: -90,  verb: "ACTION",            payload: "items"   },
   { id: "journal", label: "JOURNAL", emoji: "📖", angle: -45,  verb: "REQ_OPEN_JOURNAL" },
   { id: "setup",   label: "SETUP",   emoji: "⚙️", angle:   0,  verb: "OPEN_SETTINGS" },
-  { id: "camp",    label: "CAMP",    emoji: "⛺", angle:  45,  verb: "ACTION",            payload: "rest"    },
+  { id: "help",    label: "HELP",    emoji: "❓", angle:  45,  verb: "ACTION",            payload: "help"    },
   { id: "eat",     label: "EAT",     emoji: "🍴", angle:  90,  verb: "ACTION",            payload: "eat"     },
   { id: "heal",    label: "HEAL",    emoji: "❤️", angle: 135,  verb: "ACTION",            payload: "heal"    },
   { id: "track",   label: "TRACK",   emoji: "🐾", angle: 180,  verb: "ACTION",            payload: "track"   },
@@ -99,7 +99,12 @@ function _injectStyles() {
       user-select: none;
     }
 
-    /* Shared neumorphic button */
+    /* Shared neumorphic button.
+     * IMPORTANT: NO backdrop-filter on these. We have 12+ instances on
+     * screen at once, and each blur(...) costs a full-screen Gaussian
+     * shader pass per frame — Anu's sensor sweep pinpointed this as
+     * the dominant FPS cost. The opaque leather gradient looks identical
+     * for a tiny fraction of the GPU cost. */
     #${PANEL_ROOT_ID} .sp-btn {
       pointer-events: auto;
       width: 60px; height: 60px;
@@ -113,19 +118,18 @@ function _injectStyles() {
         0 6px 12px rgba(0,0,0,0.6),
         0 0 0 1px rgba(0,0,0,0.4),
         inset 0 1px 0 rgba(255, 220, 140, 0.18);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
       cursor: pointer;
-      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-                  box-shadow 0.18s, background 0.18s;
+      transition: box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
       font-size: 22px;
       line-height: 1;
     }
     #${PANEL_ROOT_ID} .sp-btn:hover {
-      transform: scale(1.06);
       box-shadow: 0 8px 16px rgba(0,0,0,0.65), 0 0 0 1px rgba(251,192,45,0.5);
+      border-color: ${C.GOLD};
     }
-    #${PANEL_ROOT_ID} .sp-btn:active { transform: scale(0.94); }
+    #${PANEL_ROOT_ID} .sp-btn:active {
+      background: linear-gradient(145deg, ${C.LEATHER_LO}, ${C.LEATHER_HI});
+    }
     #${PANEL_ROOT_ID} .sp-btn:focus-visible {
       outline: 2px solid ${C.GLOW_GOLD};
       outline-offset: 3px;
@@ -213,18 +217,17 @@ function _injectStyles() {
       width: 110px;
       padding: 10px 12px;
       border-radius: 14px;
-      background: linear-gradient(165deg, rgba(28, 18, 8, 0.78) 0%, rgba(38, 24, 10, 0.72) 100%);
+      background: linear-gradient(165deg, rgba(28, 18, 8, 0.88) 0%, rgba(38, 24, 10, 0.82) 100%);
       border: 1px solid rgba(251, 192, 45, 0.35);
       color: ${C.CREAM};
       text-align: center;
       cursor: pointer;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      /* NO backdrop-filter — 5 guide cards × full-screen blur = expensive.
+         Bumped bg opacity to 0.82-0.88 to keep the warm dark read. */
       box-shadow: 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255, 220, 140, 0.18);
-      transition: transform 0.18s, box-shadow 0.2s, border-color 0.2s;
+      transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
     }
     #sanctuary-guides-container .sp-guide-card:hover {
-      transform: translateY(-3px);
       border-color: ${C.GOLD};
       box-shadow: 0 10px 22px rgba(0,0,0,0.55), 0 0 12px rgba(251, 192, 45, 0.25);
     }
