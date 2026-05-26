@@ -108,7 +108,7 @@
             height: 100%;
             background: transparent !important;
             overflow: hidden;
-            pointer-events: none;
+            pointer-events: auto;
             /* Default pass-through */
             font-family: var(--font-body);
         }
@@ -1619,10 +1619,10 @@
                     <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-gear" style="color: #B0BEC5;"></i>
                     </div><span class="ac-text">Setup</span>
                 </div>
-                <div class="u-btn btn-action act-se" onclick="emit('ACTION', 'rest')" role="button"
-                    aria-label="Set up Camp" tabindex="0">
-                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-campground"
-                            style="color: #FF7043;"></i></div><span class="ac-text">Camp</span>
+                <div id="btn-view" class="u-btn btn-action act-se" onclick="emit('ACTION', 'view')" role="button"
+                    aria-label="Toggle PiP Minimap" tabindex="0">
+                    <div class="ac-icon" aria-hidden="true"><i class="fa-solid fa-eye"
+                            style="color: #80DEEA;"></i></div><span class="ac-text">View</span>
                 </div>
                 <div class="u-btn btn-action act-s" onclick="emit('ACTION', 'eat')" role="button" aria-label="Eat Food"
                     tabindex="0">

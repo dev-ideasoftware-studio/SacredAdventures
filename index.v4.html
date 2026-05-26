@@ -649,6 +649,23 @@
           console.log('%c[v4] action · eat → toggle panel', 'color:#a5d6a7;font-weight:bold;');
           return;
         }
+        if (verb === 'view') {
+          // VIEW button — toggle the PiP minimap second-render-pass on/off.
+          // Use this to isolate PiP cost: if FPS climbs when suspended,
+          // the second WebGLRenderer is the bottleneck.
+          if (typeof window._v4TogglePip === 'function') {
+            const suspended = window._v4TogglePip();
+            _v4FlashBanner(
+              suspended
+                ? '<b>PiP SUSPENDED</b><small>minimap OFF — watching raw FPS now</small>'
+                : '<b>PiP RESUMED</b><small>minimap back ON — second-pass render active</small>'
+            );
+          } else {
+            _v4FlashBanner('<b>VIEW</b><small>PiP module not ready yet</small>');
+          }
+          console.log('%c[v4] action · view → PiP toggle', 'color:#80deea;font-weight:bold;');
+          return;
+        }
         if (verb === 'fish') {
           // FISH button — two-step autowalk: dock entry → fishing ring tip.
           // Step 1: walk to the shore-side dock entrance.
