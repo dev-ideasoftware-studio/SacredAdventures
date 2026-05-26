@@ -40,7 +40,7 @@ const GROUND_LIFT_M = 0.08;
 /** Start the trail this far AHEAD of the player so the prints feel like
  *  they're guiding the player forward (kid-treasure-map vibe). */
 const TRAIL_LEAD_M = 1.2;
-const WALK_SPEED_MPS = 4.5;
+const WALK_SPEED_MPS = 5.4; // +20% vs original 4.5 m/s
 const ARRIVE_TOLERANCE_M = 0.45;
 
 const GOLD = 0xfbc02d;
