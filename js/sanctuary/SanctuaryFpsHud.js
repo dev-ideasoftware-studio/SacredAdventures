@@ -241,7 +241,12 @@ export const SanctuaryFpsHudModule = {
       pointerEvents:  "none",
       userSelect:     "none",
       backdropFilter: "blur(6px)",
+      transition:     "opacity 0.2s ease, visibility 0.2s ease",
     });
+
+    const style = document.createElement("style");
+    style.textContent = `body.v4-top-down-view #v4-fps-hud { opacity: 0; visibility: hidden; }`;
+    document.head.appendChild(style);
 
     el.innerHTML = `
       <div style="font-size:9px;letter-spacing:3px;color:rgba(251,192,45,0.65);
@@ -330,6 +335,12 @@ export const SanctuaryFpsHudModule = {
         $["hud-copy-btn"].style.background = "rgba(251,192,45,0.08)";
       });
     }
+
+    // Expose trace data globally so OrchestratorHud accordion can read it
+    window._v4GetPipelineTrace = () => {
+      const samples = this._readTrace();
+      return { samples, summary: _buildTraceSummary(samples) };
+    };
 
     // Keyboard shortcut: Alt+Shift+C
     this._onKeyDown = (e) => {
@@ -465,5 +476,6 @@ export const SanctuaryFpsHudModule = {
     this._traceHead = 0;
     this._traceFull = false;
     this._onKeyDown = null;
+    if (typeof window !== "undefined") delete window._v4GetPipelineTrace;
   },
 };

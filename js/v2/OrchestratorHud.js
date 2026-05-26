@@ -41,6 +41,35 @@ export const ORCHESTRATOR_HUD_HTML = `
       <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:6px;letter-spacing:0.4px;">PiP …</div>
       <div id="v2-hud-title" style="font-size:9px;letter-spacing:2px;color:rgba(251,192,45,0.35);margin-bottom:10px;font-weight:600;text-align:right;">SACRED ADV v2 · ORCHESTRATOR</div>
       <div style="height:1px;background:rgba(251,192,45,0.15);margin-bottom:10px;"></div>
+
+      <!-- ── PIPELINE TRACE accordion (above UNIVERSE) ──────────────── -->
+      <div id="v2-hud-trace-label" role="button" tabindex="0" aria-expanded="false"
+           aria-controls="v2-trace-accordion-body"
+           title="60-second pipeline trace — click to expand. Auto-refreshes every 2s while open."
+           style="font-size:10px;letter-spacing:1.5px;color:rgba(128,222,234,0.5);margin-bottom:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;user-select:none;pointer-events:auto;">
+        <span>
+          <span id="v2-trace-toggle-icon" style="display:inline-block;width:9px;transition:transform 0.15s;">▶</span>
+          TRACE
+          <span id="v2-trace-dur" style="color:#80deea;font-weight:700;letter-spacing:0;font-size:9px;opacity:0.7;">--s</span>
+        </span>
+        <span id="v2-trace-copy-pill"
+              style="pointer-events:auto;cursor:pointer;background:rgba(128,222,234,0.08);border:1px solid rgba(128,222,234,0.25);border-radius:4px;padding:1px 7px;font-size:8px;letter-spacing:1.5px;color:rgba(128,222,234,0.65);user-select:none;">
+          📋 COPY
+        </span>
+      </div>
+      <div id="v2-trace-accordion-body" style="display:none;margin-bottom:4px;">
+        <canvas id="v2-trace-spark" width="198" height="32"
+                style="display:block;width:198px;height:32px;border-radius:5px;
+                       background:#0a0603;margin-bottom:6px;
+                       box-shadow:inset 1px 1px 4px rgba(0,0,0,0.9);"></canvas>
+        <div id="v2-trace-stats"
+             style="font-size:9px;color:rgba(255,255,255,0.55);line-height:1.85;
+                    letter-spacing:0.3px;padding-bottom:4px;">
+          loading…
+        </div>
+      </div>
+      <div style="height:1px;background:rgba(251,192,45,0.08);margin-bottom:8px;"></div>
+
       <div id="v2-hud-universe-label" role="button" tabindex="0" aria-expanded="false" aria-controls="v2-universe-accordion-body" title="Click to expand/collapse module list" style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;user-select:none;">
         <span><span id="v2-universe-toggle-icon" style="display:inline-block;width:9px;transition:transform 0.15s;">▶</span> UNIVERSE <span id="v2-universe-pct" style="color:#a5d6a7;font-weight:700;letter-spacing:0;">--%</span></span>
         <span id="v2-universe-count" style="color:rgba(255,255,255,0.4);font-size:9px;letter-spacing:0.2px;font-weight:500;">0 mods</span>
@@ -155,6 +184,7 @@ export function buildOrchestratorHud() {
   document.body.appendChild(hud);
   _renderMapPicker(hud);
   _wireUniverseAccordion(hud);
+  _wireTraceAccordion(hud);
   return hud;
 }
 
@@ -188,6 +218,200 @@ function _wireUniverseAccordion(hud) {
   header.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
   });
+}
+
+// ── Pipeline Trace accordion helpers ────────────────────────────────────────
+
+/**
+ * Draw a compact FPS sparkline into the trace canvas.
+ * Each sample → 1 bar, colour = load-based heat, cyan ticks = DPR steps.
+ */
+function _drawTraceSpark(canvas, samples, summary) {
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0a0603';
+  ctx.fillRect(0, 0, W, H);
+  if (!samples.length) return;
+
+  const n = samples.length;
+  const barW = Math.max(1, W / n);
+
+  // Use steady-state max (skip first 3 boot samples) to scale bars
+  const steady = samples.slice(Math.min(3, n));
+  const maxFps = Math.max(1, steady.reduce((m, s) => Math.max(m, s.fps || 0), 0));
+
+  for (let i = 0; i < n; i++) {
+    const s = samples[i];
+    const barH = Math.round(Math.min(H, ((s.fps || 0) / maxFps) * H));
+    const load = s.loadPct || 0;
+    ctx.fillStyle = load > 130 ? '#ef5350'
+                  : load > 100 ? '#ff7043'
+                  : load > 85  ? '#fbc02d'
+                  :              '#a5d6a7';
+    ctx.fillRect(Math.floor(i * barW), H - barH, Math.max(1, Math.ceil(barW) - 1), barH);
+  }
+
+  // Cyan vertical ticks at DPR change events
+  const dprChanges = summary?.dprChanges || [];
+  for (const ev of dprChanges) {
+    const idx = samples.findIndex(s => s.t >= ev.t);
+    if (idx < 0) continue;
+    const x = Math.floor(idx * barW);
+    ctx.strokeStyle = 'rgba(128,222,234,0.75)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke();
+    // Label the DPR value
+    ctx.fillStyle = 'rgba(128,222,234,0.9)';
+    ctx.font = '7px ui-monospace,Menlo,monospace';
+    ctx.fillText(`×${ev.dpr}`, x + 2, 8);
+  }
+}
+
+/**
+ * Build inner HTML for the trace stats div.
+ * Produces a concise table + inline diagnosis.
+ */
+function _buildTraceStatsHtml(summary, samples) {
+  if (!summary || !samples.length) return '<span style="opacity:0.4">No trace data yet — wait ~5s.</span>';
+
+  const hi = (v, good, warn, suf = '') => {
+    const n = Number(v);
+    const s = `${n}${suf}`;
+    if (n <= good) return `<b style="color:#a5d6a7">${s}</b>`;
+    if (n <= warn) return `<b style="color:#fbc02d">${s}</b>`;
+    return `<b style="color:#ef5350">${s}</b>`;
+  };
+
+  // Steady-state = samples after the first 3 (skip boot spike)
+  const steady = samples.slice(Math.min(3, samples.length)).filter(s => s.fps > 0);
+  const avgLoad = steady.length
+    ? Math.round(steady.reduce((a, s) => a + (s.loadPct || 0), 0) / steady.length)
+    : null;
+
+  const dprStr = (summary.dprChanges || [])
+    .map(d => `×${d.dpr}`).join(' <span style="opacity:0.4">→</span> ') || '—';
+
+  const btlStr = (summary.bottleneckChanges || [])
+    .map(b => b.id === 'none' ? '<span style="opacity:0.3">·</span>'
+                              : `<b style="color:#80deea">${b.id}</b>`)
+    .join(' → ') || '—';
+
+  let diagColor = '#a5d6a7', diagIcon = '✓', diagMsg = 'Healthy — frame budget nominal';
+  if (avgLoad !== null && avgLoad > 130) {
+    diagColor = '#ef5350'; diagIcon = '✗'; diagMsg = `Over budget avg ${avgLoad}% — scene cost too high`;
+  } else if (avgLoad !== null && avgLoad > 85) {
+    diagColor = '#fbc02d'; diagIcon = '⚠'; diagMsg = `Watch — avg ${avgLoad}% budget in steady state`;
+  } else if (avgLoad !== null) {
+    diagMsg = `${avgLoad}% budget · DPR stepped up to ×${(summary.dprChanges || []).at(-1)?.dpr ?? '?'}`;
+  }
+
+  // pip-pass note: if pip-pass is labeled BTLNK but load is healthy, clarify
+  const hasPipBtl = (summary.bottleneckChanges || []).some(b => b.id === 'pip-pass');
+  const pipNote   = (hasPipBtl && avgLoad !== null && avgLoad < 60)
+    ? `<div style="color:rgba(128,222,234,0.6);font-size:8px;margin-top:3px;line-height:1.5;">
+         ↑ pip-pass score=1.0 is relative — it's the heaviest single op,<br>
+         but absolute budget is fine. Not a perf emergency.
+       </div>`
+    : '';
+
+  return `
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:0 8px;align-items:baseline;">
+      <span style="opacity:0.38;font-size:8px;letter-spacing:1px;">DUR</span>
+      <span>${summary.durationSec ?? '--'}s &nbsp;<span style="opacity:0.35">·</span>&nbsp; ${summary.sampleCount} samples</span>
+
+      <span style="opacity:0.38;font-size:8px;letter-spacing:1px;">FPS</span>
+      <span>${hi(summary.fps.min,60,30)} min &nbsp;·&nbsp; ${hi(summary.fps.avg,60,30)} avg &nbsp;·&nbsp; <b>${summary.fps.max}</b> peak</span>
+
+      <span style="opacity:0.38;font-size:8px;letter-spacing:1px;">LOAD</span>
+      <span>${hi(summary.loadPct.min,85,130,'%')} → ${hi(summary.loadPct.max,85,130,'%')}</span>
+
+      <span style="opacity:0.38;font-size:8px;letter-spacing:1px;">DPR</span>
+      <span>${dprStr}</span>
+
+      <span style="opacity:0.38;font-size:8px;letter-spacing:1px;">BTLNK</span>
+      <span style="font-size:8.5px;">${btlStr}</span>
+    </div>
+    <div style="margin-top:5px;padding:3px 6px;border-radius:4px;
+                background:rgba(0,0,0,0.25);border-left:2px solid ${diagColor};
+                font-size:8.5px;color:${diagColor};">
+      ${diagIcon} ${diagMsg}
+    </div>
+    ${pipNote}
+  `;
+}
+
+/**
+ * Wire the PIPELINE TRACE accordion — collapse/expand, auto-refresh, copy.
+ */
+function _wireTraceAccordion(hud) {
+  const header  = hud.querySelector('#v2-hud-trace-label');
+  const body    = hud.querySelector('#v2-trace-accordion-body');
+  const icon    = hud.querySelector('#v2-trace-toggle-icon');
+  const durEl   = hud.querySelector('#v2-trace-dur');
+  const copyPill = hud.querySelector('#v2-trace-copy-pill');
+  if (!header || !body || !icon) return;
+
+  const refresh = () => {
+    if (body.style.display === 'none') return;
+    const fn = typeof window._v4GetPipelineTrace === 'function' ? window._v4GetPipelineTrace : null;
+    if (!fn) {
+      const stats = body.querySelector('#v2-trace-stats');
+      if (stats) stats.innerHTML = '<span style="opacity:0.4">FPS HUD not loaded — boot index.v4.html first.</span>';
+      return;
+    }
+    const { samples, summary } = fn();
+    if (durEl) durEl.textContent = `${summary.durationSec ?? '--'}s`;
+    const canvas = body.querySelector('#v2-trace-spark');
+    if (canvas) _drawTraceSpark(canvas, samples, summary);
+    const stats = body.querySelector('#v2-trace-stats');
+    if (stats)  stats.innerHTML = _buildTraceStatsHtml(summary, samples);
+  };
+
+  const STORAGE_KEY = 'v2.hud.trace.expanded';
+  const setExpanded = (open) => {
+    body.style.display = open ? 'block' : 'none';
+    icon.textContent = open ? '▼' : '▶';
+    header.setAttribute('aria-expanded', String(open));
+    if (open) refresh();
+    try { localStorage.setItem(STORAGE_KEY, open ? '1' : '0'); } catch (_) {}
+  };
+
+  let initial = false;
+  try { initial = localStorage.getItem(STORAGE_KEY) === '1'; } catch (_) {}
+  setExpanded(initial);
+
+  const toggle = () => setExpanded(body.style.display === 'none');
+  header.addEventListener('click', (e) => {
+    // Don't toggle if the COPY pill was clicked
+    if (e.target.closest('#v2-trace-copy-pill')) return;
+    toggle();
+  });
+  header.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
+
+  // COPY pill — in header so always accessible
+  if (copyPill) {
+    copyPill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const fn = typeof window._v4GetPipelineTrace === 'function' ? window._v4GetPipelineTrace : null;
+      if (!fn) return;
+      const { samples, summary } = fn();
+      const text = JSON.stringify({
+        _meta: { source: 'OrchestratorHud 60s pipeline trace', capturedAt: new Date().toISOString(), project: 'Sacred Adventures' },
+        summary, samples,
+      }, null, 2);
+      navigator?.clipboard?.writeText(text).then(() => {
+        const orig = copyPill.textContent;
+        copyPill.textContent = '✓ COPIED';
+        copyPill.style.color = '#a5d6a7';
+        setTimeout(() => { copyPill.textContent = orig; copyPill.style.color = 'rgba(128,222,234,0.65)'; }, 1800);
+      }).catch(() => {});
+    });
+  }
+
+  // Auto-refresh every 2 s while open
+  setInterval(refresh, 2000);
 }
 
 /**
