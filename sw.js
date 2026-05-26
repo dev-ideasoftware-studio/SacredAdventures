@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v11";
+const CACHE_VERSION = "v12";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 
@@ -16,6 +16,7 @@ const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 const SHELL_FILES = [
   "./",
   "./index.html",
+  "./index.v4.html",
   "./SacredGame.Panel.html",
   "./SacredGame.Journal.html",
   "./Component.NewJournal.html",
@@ -83,6 +84,19 @@ const SHELL_FILES = [
   "./Assets/Journal.Cover.png",
   "./Assets/birdsong.mp3",
   "./Assets/AnimatedOpening.mp4",
+
+  // v4 Sanctuary GLBs — pre-warm the asset cache on install so first load
+  // doesn't stall on these (they're large and hit the render path immediately)
+  "./Assets/tree.glb",
+  "./Assets/bush.glb",
+  "./Assets/pond1.glb",
+  "./Assets/Avatar3.glb",
+  "./Assets/flora/reeds.glb",
+  "./Assets/frog.png",
+  "./Assets/bark.png",
+  "./Assets/water.png",
+  "./Assets/grass_seamless.png",
+  "./Assets/rock.png",
 ];
 
 // Install: precache shell files

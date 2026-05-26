@@ -232,6 +232,7 @@
     import { SanctuarySkyModule          } from './js/sanctuary/SanctuarySky.js';
     import { SanctuaryButterfliesModule  } from './js/sanctuary/SanctuaryButterflies.js';
     import { SanctuaryToolPaletteModule  } from './js/sanctuary/SanctuaryToolPalette.js';
+    import { SanctuaryMapGeneratorUiModule } from './js/sanctuary/SanctuaryMapGeneratorUi.js';
     import { SanctuaryKeyboardLookModule } from './js/sanctuary/SanctuaryKeyboardLook.js';
     import { SanctuaryZoomModule         } from './js/sanctuary/SanctuaryZoom.js';
     // PIP — 1:1 v2 port. May-18 2026 user spec: "fix pip by grabbing
@@ -338,6 +339,7 @@
     orc.register(MoldPlantRockModule);
     orc.register(MoldPlaceTipiModule);
     orc.register(SanctuaryToolPaletteModule);
+    orc.register(SanctuaryMapGeneratorUiModule);
     orc.register(SanctuaryKeyboardLookModule);
     orc.register(SanctuaryZoomModule);
     orc.register(V2UIModule); // creates the legacy moondial wayfinder
@@ -421,6 +423,7 @@
 
     v4Log('tool palette — hill · tree · flower · bush · lily · rock', 100, 99, 98, 95);
     await orc.activate('SanctuaryToolPalette');
+    await orc.activate('SanctuaryMapGeneratorUi');
 
     v4Log('keyboard — WASD move · arrows turn · space jump', 100, 99, 99, 96);
     await orc.activate('SanctuaryKeyboardLook');
@@ -743,6 +746,26 @@
       console.log('%c[v4] PIP single-click wired → top-down toggle.', 'color:#a5d6a7;font-weight:bold;');
     }
     _v4WirePipClick();
+
+    // ── Service Worker registration ───────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js', { scope: './' })
+        .then((reg) => {
+          console.log('%c[SW] Sacred Adventures service worker registered. scope:', 'color:#a5d6a7;font-weight:bold;', reg.scope);
+          // Prompt for immediate activation on update (no page-reload required)
+          reg.addEventListener('updatefound', () => {
+            const worker = reg.installing;
+            if (worker) {
+              worker.addEventListener('statechange', () => {
+                if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('[SW] Update available — will activate on next navigation.');
+                }
+              });
+            }
+          });
+        })
+        .catch((err) => console.warn('[SW] Registration failed:', err));
+    }
   </script>
 </body>
 </html>
