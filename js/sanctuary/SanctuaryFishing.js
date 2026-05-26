@@ -268,7 +268,214 @@ function _makeStatusPill() {
   return pill;
 }
 
-// ── Stress gauge (chunky, colorful plastic toy dashboard casing) ───────
+// ── 3-D Floating Interest Gauge ───────────────────────────────────────
+// Spec: AI 3D prompt (user 2026-05-26). Semicircle r=2.0, 5 segments,
+// clear plastic (MeshPhysicalMaterial), dark-grey needle, lies flat on
+// water, scale=0.22 → ~0.44 m radius, 3 cm submerged.
+
+const GAUGE_3D_SCALE = 0.22;
+const GAUGE_SEGS = [
+  { color: 0xd32f2f, label: "FAIL"    },
+  { color: 0xf57c00, label: "CURIOUS" },
+  { color: 0xfbc02d, label: "INSPECT" },
+  { color: 0x7cb342, label: "NIBBLE"  },
+  { color: 0x388e3c, label: "CAUGHT!" },
+];
+
+// Ring-slice Shape: outer arc forward, inner arc backward.
+function _arcShape(startAngle, endAngle, innerR, outerR, steps = 48) {
+  const shape = new THREE.Shape();
+  const step  = (endAngle - startAngle) / steps;
+  for (let i = 0; i <= steps; i++) {
+    const a = startAngle + i * step;
+    if (i === 0) shape.moveTo(Math.cos(a) * outerR, Math.sin(a) * outerR);
+    else         shape.lineTo(Math.cos(a) * outerR, Math.sin(a) * outerR);
+  }
+  for (let i = steps; i >= 0; i--) {
+    shape.lineTo(Math.cos(startAngle + i * step) * innerR,
+                 Math.sin(startAngle + i * step) * innerR);
+  }
+  shape.closePath();
+  return shape;
+}
+
+// Small canvas sprite for segment labels.
+function _segLabelSprite(text) {
+  const c = document.createElement("canvas");
+  c.width = 160; c.height = 56;
+  const ctx = c.getContext("2d");
+  ctx.font = "bold 17px ui-monospace,Menlo,monospace";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(0,0,0,0.88)"; ctx.shadowBlur = 5;
+  ctx.fillStyle = "#111";
+  ctx.fillText(text, 80, 28);
+  return new THREE.CanvasTexture(c);
+}
+
+function _build3DGauge(scene) {
+  const g = new THREE.Group();
+  g.name = "v4_gauge_3d";
+
+  // Clear plastic (spec: transmission 0.95, IOR 1.5, roughness 0.05)
+  const clearMat = new THREE.MeshPhysicalMaterial({
+    color: 0xddeeff, transmission: 0.95, opacity: 0.90,
+    ior: 1.5, roughness: 0.05,
+    transparent: true, side: THREE.DoubleSide, depthWrite: false,
+  });
+  // Matte dark grey (spec: #333333, roughness 0.4)
+  const darkMat = new THREE.MeshStandardMaterial({
+    color: 0x333333, roughness: 0.4, metalness: 0.05,
+  });
+
+  // Base plate — semicircle r=2.0, depth=0.10, bevel=0.02
+  const baseShape = new THREE.Shape();
+  baseShape.absarc(0, 0, 2.0, 0, Math.PI, false);
+  baseShape.lineTo(-2.0, 0);
+  g.add(new THREE.Mesh(
+    new THREE.ExtrudeGeometry(baseShape, {
+      depth: 0.10, bevelEnabled: true,
+      bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 3,
+    }),
+    clearMat
+  ));
+
+  // Outer rim — arc r 1.85→2.05, depth=0.15
+  g.add(new THREE.Mesh(
+    new THREE.ExtrudeGeometry(
+      _arcShape(0, Math.PI, 1.85, 2.05, 72),
+      { depth: 0.15, bevelEnabled: false }
+    ),
+    clearMat
+  ));
+
+  // 5 colored arc segments (r 0.85→1.82, 0.03 radian gaps)
+  const SEG_ARC = Math.PI / 5;
+  const GAP     = 0.015;   // half of 0.03 radian spec gap
+  const IN_R = 0.85, OUT_R = 1.82;
+
+  GAUGE_SEGS.forEach((seg, i) => {
+    const sa = Math.PI - i * SEG_ARC + GAP;
+    const ea = Math.PI - (i + 1) * SEG_ARC - GAP;
+
+    const segMesh = new THREE.Mesh(
+      new THREE.ShapeGeometry(_arcShape(sa, ea, IN_R, OUT_R), 48),
+      new THREE.MeshStandardMaterial({ color: seg.color, roughness: 0.18, metalness: 0.04 })
+    );
+    segMesh.position.z = 0.11;
+    g.add(segMesh);
+
+    // Label sprite at arc midpoint (always faces camera)
+    const mid = Math.PI - (i + 0.5) * SEG_ARC;
+    const lr  = (IN_R + OUT_R) / 2;
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: _segLabelSprite(seg.label), transparent: true, depthWrite: false,
+    }));
+    spr.position.set(Math.cos(mid) * lr, Math.sin(mid) * lr, 0.24);
+    spr.scale.set(0.72, 0.25, 1);
+    g.add(spr);
+  });
+
+  // Inner koi-fish plane (CanvasTexture redrawn each frame)
+  const fishCanvas = document.createElement("canvas");
+  fishCanvas.width = fishCanvas.height = 256;
+  const fishTex = new THREE.CanvasTexture(fishCanvas);
+  const fishPlane = new THREE.Mesh(
+    new THREE.CircleGeometry(0.80, 48),
+    new THREE.MeshBasicMaterial({
+      map: fishTex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  fishPlane.position.z = 0.12;
+  g.add(fishPlane);
+  g.userData.fishCanvas = fishCanvas;
+  g.userData.fishTex    = fishTex;
+
+  // State-label sprite (WAITING... / CURIOUS / etc.)
+  const lblCanvas = document.createElement("canvas");
+  lblCanvas.width = 320; lblCanvas.height = 72;
+  const lblTex = new THREE.CanvasTexture(lblCanvas);
+  const lblSpr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: lblTex, transparent: true, depthWrite: false,
+  }));
+  lblSpr.position.set(0, -0.06, 0.28);
+  lblSpr.scale.set(1.5, 0.34, 1);
+  g.add(lblSpr);
+  g.userData.lblCanvas = lblCanvas;
+  g.userData.lblTex    = lblTex;
+
+  // Center pivot cap (r=0.22, cylinder along Z after group rotation)
+  const pivotMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.22, 0.25, 32),
+    darkMat
+  );
+  pivotMesh.rotation.x = Math.PI / 2;
+  pivotMesh.position.z = 0.18;
+  g.add(pivotMesh);
+
+  // Needle — tapered shape in child group, rotates around local Z
+  const needleGroup = new THREE.Group();
+  const nShape = new THREE.Shape();
+  nShape.moveTo(0,    0.06);
+  nShape.lineTo(1.35, 0.02);
+  nShape.lineTo(1.35, -0.02);
+  nShape.lineTo(0,   -0.06);
+  nShape.closePath();
+  const needleMesh = new THREE.Mesh(
+    new THREE.ShapeGeometry(nShape, 1),
+    darkMat
+  );
+  needleMesh.position.z = 0.22;
+  needleGroup.add(needleMesh);
+  g.add(needleGroup);
+  g.userData.needleGroup = needleGroup;
+
+  // Lie flat on water (XZ plane, Y-up world)
+  g.rotation.x = -Math.PI / 2;
+  g.scale.setScalar(GAUGE_3D_SCALE);
+  // Group origin sits 1 cm below water surface so the base plate is
+  // partially submerged; after rotation.x=-PI/2 and scale(0.22) the
+  // visible face (local z ≈ 0.12) maps to world Y ≈ WATER_Y_M + 0.016,
+  // which keeps the dial clearly above water while the body is submerged.
+  g.position.y = WATER_Y_M - 0.01;
+  g.visible = false;
+  g.userData.isGauge3D = true;
+  g.name = "fishingGauge3D";
+
+  scene.add(g);
+  return g;
+}
+
+function _update3DGauge(g, frac, labelText, isReeling, time) {
+  if (!g) return;
+
+  // Needle: FAIL(π) → CAUGHT!(0)
+  const ng = g.userData.needleGroup;
+  if (ng) ng.rotation.z = Math.PI - frac * Math.PI;
+
+  // Koi fish canvas
+  const fc = g.userData.fishCanvas, ft = g.userData.fishTex;
+  if (fc && ft) {
+    const ctx = fc.getContext("2d");
+    ctx.clearRect(0, 0, 256, 256);
+    drawGaugeFish(ctx, 128, 164, time, frac, isReeling);
+    ft.needsUpdate = true;
+  }
+
+  // State label
+  const lc = g.userData.lblCanvas, lt = g.userData.lblTex;
+  if (lc && lt) {
+    const ctx = lc.getContext("2d");
+    ctx.clearRect(0, 0, 320, 72);
+    ctx.font = "800 20px ui-monospace,Menlo,monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(labelText.toUpperCase(), 160, 36);
+    lt.needsUpdate = true;
+  }
+}
+
+// ── Old 2D canvas gauge — REPLACED by 3D above ───────────────────────
 function _buildGauge() {
   const wrap = document.createElement("div");
   wrap.id = "v4-stress-gauge";
@@ -673,9 +880,8 @@ export const SanctuaryFishingModule = {
   _turnElapsed: 0,
   _surgeEvery:  2,
 
-  // Stress gauge
-  _gaugeWrap:  null,
-  _gaugeCtx:   null,
+  // 3-D interest gauge
+  _gauge3d:    null,
 
   // Wiggling flying fish animation state
   _flyingFish: null,
@@ -896,10 +1102,7 @@ export const SanctuaryFishingModule = {
     this._btn = _makeButton();
     this._statusPill = _makeStatusPill();
     
-    const { wrap, ctx, canvas } = _buildGauge();
-    this._gaugeWrap = wrap;
-    this._gaugeCtx = ctx;
-    this._gaugeCanvas = canvas;
+    this._gauge3d = _build3DGauge(scene);
 
     this._onClick = () => this._tryAction();
     this._btn.addEventListener("click", this._onClick);
@@ -1733,23 +1936,18 @@ export const SanctuaryFishingModule = {
       this._line.visible = false;
     }
 
-    // ── Update and Draw Stress Gauge ──────────────────────────────
-    if (this._gaugeWrap && this._gaugeCtx && this._camera) {
+    // ── Update 3-D Interest Gauge ─────────────────────────────────
+    if (this._gauge3d) {
       if (this._phase !== PHASE.IDLE) {
-        // Compute stress fraction based on active phase
         let frac = 0.0;
         let label = "WAITING...";
-        
+
         if (this._phase === PHASE.CASTING) {
           frac = Math.min(1.0, this._phaseT / 1.0);
           label = "CASTING...";
         } else if (this._phase === PHASE.WAITING) {
-          // INTEREST METER (May-25 2026): map the interested fish's
-          // distance-to-lure to the orange/yellow/green needle sweep.
-          // Far / no fish → orange. Within 2 m → yellow. Within 0.5 m → green.
           if (typeof window !== "undefined" && window.__interestedFish && this._bobber) {
             const d = window.__interestedFish.position.distanceTo(this._bobber.position);
-            // 4 m → frac 0 (full orange) ; 0.2 m → frac 1 (full green)
             const tNorm = Math.max(0, Math.min(1, (4.0 - d) / 3.8));
             frac = tNorm;
             label = tNorm > 0.66 ? "INTERESTED!" : tNorm > 0.33 ? "CURIOUS..." : "no bite...";
@@ -1762,35 +1960,24 @@ export const SanctuaryFishingModule = {
           label = "BITE! CLICK!";
         } else if (this._phase === PHASE.REELING) {
           frac = this._miniGameNeedle;
-          label = `KEEP IN YELLOW! (${Math.floor(this._reelProgress * 100)}%)`;
+          label = `KEEP IN GREEN! (${Math.floor(this._reelProgress * 100)}%)`;
         } else if (this._phase === PHASE.LANDING) {
           frac = this._miniGameNeedle;
           label = `TAP TO LAND! (${Math.floor(this._landingProgress * 100)}%)`;
         } else if (this._phase === PHASE.REWARD) {
-          frac = 0.0;
-          label = "🐟 CAUGHT!";
+          frac = 1.0;
+          label = "CAUGHT!";
         }
-        
+
         const isReeling = (this._phase === PHASE.REELING || this._phase === PHASE.BITE || this._phase === PHASE.LANDING);
         const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
-        _drawGauge(this._gaugeCtx, frac, label, isReeling, t);
-        
-        // Project bobber position to screen coordinates
-        const tempV = new THREE.Vector3();
-        const targetPos = this._bobber.visible ? this._bobber.position : this._castTarget;
-        tempV.copy(targetPos);
-        tempV.project(this._camera);
-        
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        const screenX = (tempV.x * 0.5 + 0.5) * width;
-        const screenY = (-(tempV.y * 0.5) + 0.5) * height - 85;
-        
-        this._gaugeWrap.style.left = `${screenX}px`;
-        this._gaugeWrap.style.top = `${screenY}px`;
-        this._gaugeWrap.style.display = "block";
+
+        const bp = this._bobber?.visible ? this._bobber.position : this._castTarget;
+        this._gauge3d.position.set(bp.x, WATER_Y_M - 0.01, bp.z);
+        this._gauge3d.visible = true;
+        _update3DGauge(this._gauge3d, frac, label, isReeling, t);
       } else {
-        this._gaugeWrap.style.display = "none";
+        this._gauge3d.visible = false;
       }
     }
   },
@@ -1951,12 +2138,10 @@ export const SanctuaryFishingModule = {
     this._ripples = [];
     if (this._btn?.parentElement) this._btn.parentElement.removeChild(this._btn);
     if (this._statusPill?.parentElement) this._statusPill.parentElement.removeChild(this._statusPill);
-    if (this._gaugeWrap && this._gaugeWrap.parentNode) {
-      this._gaugeWrap.parentNode.removeChild(this._gaugeWrap);
+    if (this._gauge3d) {
+      this._scene?.remove(this._gauge3d);
+      this._gauge3d = null;
     }
-    this._gaugeWrap = null;
-    this._gaugeCtx = null;
-    this._gaugeCanvas = null;
     this._travelCircleRef = null;
     this._circleOutlineRef = null;
     this._travelDecalGroupRef = null;
