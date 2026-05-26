@@ -241,17 +241,17 @@ export const SanctuaryDragonflyModule = {
   update(delta, frameCount) {
     if (!this._dragonflies.length) return;
 
-    // LAYER 1: The Strict Performance Invariant Gate
+    // Prioritized Bypassing & Stride Governor: skips frames under stress but maintains a % sampling so as not to freeze entirely.
     const stress = getSystemStressLevel();
+    let stride = 1;
     if (stress === STRESS_LEVELS.CRITICAL) {
-      return; // Early Exit: Budget Skip Conditions Compose the Median Frame
+      stride = 6; // 16.7% sampling to bypass bottleneck without freezing entirely
+    } else if (stress === STRESS_LEVELS.STRESS) {
+      stride = 2; // 50% sampling
     }
-
-    // LAYER 2: Stride/Cadence Throttle
-    const stride = stress === STRESS_LEVELS.STRESS ? 2 : 1;
     const ticks = frameCount !== undefined ? frameCount : ++_lastDragonflyFrameCount;
     if (ticks % stride !== 0) {
-      return; // Zero-cost pass-through
+      return;
     }
 
     const scaledDelta = delta * stride;

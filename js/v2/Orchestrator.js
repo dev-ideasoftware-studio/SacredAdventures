@@ -32,6 +32,8 @@ import {
   recordFrameDuration,
   getFrameBudgetSnapshot,
   getFrameSamples,
+  getSystemStressLevel,
+  STRESS_LEVELS,
 } from "./anu/FrameBudget.js";
 import { tickAdaptiveRenderPolicy } from "./anu/AdaptiveRenderPolicy.js";
 import {
@@ -71,6 +73,21 @@ const _pipSpiritLook = new THREE.Vector3();
 // ─────────────────────────────────────────────────────────────────────────────
 const BENCH_FRAMES   = 180;   // frames to average for a benchmark
 const SMOOTH_ALPHA   = 0.05;  // EMA smoothing for live FPS
+
+// Modules whose update() is suspended while fishing is active.
+// Geometries are already culled by _enterFishingZone; these CPU loops
+// have nothing pond-relevant to do and would just burn frame budget.
+const FISHING_SUSPEND_MODULES = new Set([
+  'SanctuaryButterflies', 'SanctuaryBraziers', 'SanctuaryWeather',
+  'SanctuaryTipis',       'SanctuaryTipiNpcs', 'SanctuaryVillagePad',
+  'SanctuaryToolPalette', 'SanctuaryMapGeneratorUi',
+  'SanctuaryKeyboardLook','SanctuaryZoom',      'SanctuaryWelcomeGuide',
+  'SanctuaryJournalBridge','SanctuaryCursor',   'SanctuaryInventory',
+  'SanctuarySky',         'SanctuaryCircles',   'SanctuaryClickToMove',
+  'SanctuaryMutations',   'SanctuaryAmbient',
+  'MoldPlaceTipi', 'MoldPlantRock', 'MoldPlantLily',
+  'MoldPlantBush', 'MoldPlantFlower', 'MoldPlantTree', 'MoldGrowHill',
+]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SACRED ORCHESTRATOR (engine shell — Anu runtime host)
@@ -573,7 +590,12 @@ export class SacredOrchestrator {
       AnuNatureAwareness.tick();
 
       // ── Update active modules ─────────────────────────────────────────────
+      const _fishingNow = window.__sanctuaryFishingActive === true;
       for (const name of this._activeModules) {
+        // During fishing: skip non-pond modules — their geometry is already
+        // culled from the scene; skipping their JS loops saves 3-6ms/frame.
+        if (_fishingNow && FISHING_SUSPEND_MODULES.has(name)) continue;
+
         const entry = this._registry.get(name);
         if (entry && entry.active && typeof entry.module.update === "function") {
           try {
@@ -594,6 +616,20 @@ export class SacredOrchestrator {
         this._bench.totalDelta += delta;
         if (this._bench.frames >= BENCH_FRAMES) {
           this._finalizeBench();
+        }
+      }
+
+      // ── Prioritized Rendering Pipeline Governor (Prioritized Bypassing & % Sampling) ──
+      const stress = getSystemStressLevel();
+      if (stress === STRESS_LEVELS.OPTIMAL) {
+        this.renderer.shadowMap.autoUpdate = true;
+      } else {
+        this.renderer.shadowMap.autoUpdate = false;
+        // Stressed: 33% sampling (every 3rd frame)
+        // Critical: 16.7% sampling (every 6th frame)
+        const shadowStride = stress === STRESS_LEVELS.STRESS ? 3 : 6;
+        if (this._frameCount % shadowStride === 0) {
+          this.renderer.shadowMap.needsUpdate = true;
         }
       }
 
