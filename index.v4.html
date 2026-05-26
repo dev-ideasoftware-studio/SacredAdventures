@@ -117,7 +117,7 @@
        passes clicks through to the canvas, and each interactive
        child enables pointer-events: auto on itself.
        Visible by default — P key toggles it off for screenshots. */
-    #panel-frame {
+    #v4-panel-frame {
       position: fixed;
       inset: 0;
       width: 100%;
@@ -128,7 +128,7 @@
       pointer-events: none; /* panel's body manages its own clicks */
       transition: opacity 0.25s ease;
     }
-    #panel-frame.hidden {
+    #v4-panel-frame.hidden {
       opacity: 0;
       pointer-events: none;
     }
@@ -200,8 +200,8 @@
        src and no JavaScript runs inside it, so Component.ThreeIcons.js's
        unthrottled RAF loop does not compete with the main render loop. -->
   <iframe
-    id="panel-frame"
-    data-src="SacredGame.Panel.html?v=v4"
+    id="v4-panel-frame"
+    src="SacredGame.Panel.html?v=v4"
     title="Sacred Panel"
   ></iframe>
 
@@ -257,7 +257,6 @@
     import { SanctuaryWorldPlayerShimModule } from './js/sanctuary/SanctuaryWorldPlayerShim.js';
     import { SanctuaryWaterFootstepsModule } from './js/sanctuary/SanctuaryWaterFootsteps.js';
     import { SanctuaryWelcomeGuideModule }   from './js/sanctuary/SanctuaryWelcomeGuide.js';
-    import { SanctuaryPanelsModule }         from './js/sanctuary/SanctuaryPanels.js';
     import { SanctuaryJournalBridgeModule }  from './js/sanctuary/SanctuaryJournalBridge.js';
     import { SanctuaryDragonflyModule }      from './js/sanctuary/SanctuaryDragonfly.js';
 
@@ -354,7 +353,6 @@
     orc.register(SanctuaryWorldPlayerShimModule);
     orc.register(SanctuaryWaterFootstepsModule);
     orc.register(SanctuaryWelcomeGuideModule);
-    orc.register(SanctuaryPanelsModule);
     orc.register(SanctuaryJournalBridgeModule);
     orc.register(SanctuaryDragonflyModule);
 
@@ -466,9 +464,6 @@
     v4Log('welcome guide — 5-step warm-tone tutorial', 100, 100, 100, 99);
     await orc.activate('SanctuaryWelcomeGuide');
 
-    v4Log('panels — keypad · action ring · guide cards', 100, 100, 100, 99);
-    await orc.activate('SanctuaryPanels');
-
     v4Log('journal ↔ Anu bridge — sensorium + audit replies', 100, 100, 100, 99);
     await orc.activate('SanctuaryJournalBridge');
 
@@ -569,14 +564,10 @@
     // ── Sacred Panel toggle (P key) ─────────────────────────────────
     // Panel iframe is lazy-loaded — no src until first open, so the
     // ThreeIconManager RAF loop doesn't run during gameplay.
-    window._v4PanelOpen = false;
+    window._v4PanelOpen = true;
     function _v4SetPanelOpen(open) {
-      const frame = document.getElementById('panel-frame');
+      const frame = document.getElementById('v4-panel-frame');
       if (!frame) return;
-      // Lazy-load: set src on first open.
-      if (open && !frame.src && frame.dataset.src) {
-        frame.src = frame.dataset.src;
-      }
       window._v4PanelOpen = !!open;
       frame.classList.toggle('hidden', !open);
       try {
