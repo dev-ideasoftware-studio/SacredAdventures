@@ -260,6 +260,7 @@
     import { SanctuaryJournalBridgeModule }  from './js/sanctuary/SanctuaryJournalBridge.js';
     import { SanctuaryDragonflyModule }      from './js/sanctuary/SanctuaryDragonfly.js';
     import { SanctuaryPondTreesModule }      from './js/sanctuary/SanctuaryPondTrees.js';
+    import { SanctuaryFrogsModule }          from './js/sanctuary/SanctuaryFrogs.js';
     import { AnuAdaptiveDprModule }          from './js/sanctuary/AnuAdaptiveDpr.js';
 
     // Modal loader plumbing — same protocol v2 used (Component.LoadingModal
@@ -359,6 +360,7 @@
     orc.register(SanctuaryJournalBridgeModule);
     orc.register(SanctuaryDragonflyModule);
     orc.register(SanctuaryPondTreesModule);
+    orc.register(SanctuaryFrogsModule);
 
     v4Log('Anu — opening her ear', 100, 22, 14, 10);
     await orc.activate('Anu');
@@ -479,6 +481,9 @@
 
     v4Log('pond trees — 12 sacred pines ringing the water', 100, 100, 100, 100);
     await orc.activate('SanctuaryPondTrees');
+
+    v4Log('frogs — jumping and swimming', 100, 100, 100, 100);
+    await orc.activate('SanctuaryFrogs');
 
     v4Log('breathing life into the loop', 100, 100, 100, 98);
     orc.start();
@@ -639,6 +644,39 @@
           if (typeof window._v4TogglePanel === 'function') window._v4TogglePanel();
           _v4FlashBanner('<b>PANEL</b><small>chrome toggled — press P to bring it back</small>');
           console.log('%c[v4] action · eat → toggle panel', 'color:#a5d6a7;font-weight:bold;');
+          return;
+        }
+        if (verb === 'fish') {
+          // FISH button — two-step autowalk: dock entry → fishing ring tip.
+          // Step 1: walk to the shore-side dock entrance.
+          // Step 2 (onArrive callback): walk to window.__sanctuaryFishingSpot.
+          // _v4WalkTo is exposed by SanctuaryClickToMove after it loads.
+          const fishSpot = window.__sanctuaryFishingSpot;
+          const dockExt  = window.__sanctuaryDockExtents;
+          if (!fishSpot || typeof window._v4WalkTo !== 'function') {
+            _v4FlashBanner('<b>FISH</b><small>world still loading — try again in a moment</small>');
+            console.log('%c[v4] action · fish → world not ready', 'color:#ef9a9a;font-weight:bold;');
+            return;
+          }
+          if (typeof window._v4CancelClickToMove === 'function') window._v4CancelClickToMove();
+
+          const goFish = () => {
+            _v4FlashBanner('<b>FISHING</b><small>approaching the ring…</small>');
+            window._v4WalkTo(fishSpot.x, fishSpot.z);
+          };
+
+          if (dockExt) {
+            // Shore-side entry point: dock centre shifted toward shore (yaw direction)
+            // Use 70 % of halfLen so we land near the plank start, not beyond it.
+            const entryX = dockExt.midX + Math.cos(dockExt.yaw) * (dockExt.halfLen * 0.70);
+            const entryZ = dockExt.midZ + Math.sin(dockExt.yaw) * (dockExt.halfLen * 0.70);
+            _v4FlashBanner('<b>FISHING</b><small>heading to the dock…</small>');
+            window._v4WalkTo(entryX, entryZ, goFish);
+          } else {
+            // No dock extents yet — walk straight to the spot.
+            goFish();
+          }
+          console.log('%c[v4] action · fish → autowalk dock → fishing spot', 'color:#a5d6a7;font-weight:bold;');
           return;
         }
         const msg = _v4ActionVerbs[verb] || `<b>${verb.toUpperCase()}</b>`;

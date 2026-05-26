@@ -59,7 +59,7 @@ export function buildPlayerV2TravelDecal(nameTag = "player_avatar") {
   disc.position.y = TRAVEL_DECAL_CLEAR_ABOVE_RIM_M;
   disc.userData.anuKind = "avatar_travel_circle";
   disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
-  disc.renderOrder = 8;
+  disc.renderOrder = 4; // below fish (renderOrder 5) so fish swim over the player circle
   group.add(disc);
 
   const innerR = R * 0.92;

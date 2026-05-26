@@ -114,6 +114,9 @@ export const SanctuaryClickToMoveModule = {
   _body: null,
   _yaw: 0,
 
+  /** Optional callback fired once when the current goal is reached. */
+  _onArrive: null,
+
   /** DOM listener handle. */
   _onPointerDown: null,
   _elapsed: 0,
@@ -214,9 +217,25 @@ export const SanctuaryClickToMoveModule = {
       window._v4CancelClickToMove = () => {
         if (!this._goal) return false;
         this._goal = null;
+        this._onArrive = null;
         if (this._xMarker) this._xMarker.visible = false;
         this._clearAllPrints();
         return true;
+      };
+
+      // Programmatic walk — used by panel buttons (e.g. FISH autowalk).
+      // Sets a goal without requiring a click. Optional `onArrive` fires
+      // once when the body reaches the goal; chain calls for multi-step
+      // walks (dock entry → fishing spot).
+      window._v4WalkTo = (x, z, onArrive) => {
+        if (!this._body) return;
+        const groundY = sanctuaryGroundY(x, z);
+        this._goal = new THREE.Vector3(x, groundY + GROUND_LIFT_M, z);
+        this._onArrive = typeof onArrive === "function" ? onArrive : null;
+        if (this._xMarker) {
+          this._xMarker.visible = true;
+          this._xMarker.position.copy(this._goal);
+        }
       };
     }
 
@@ -324,6 +343,9 @@ export const SanctuaryClickToMoveModule = {
       this._goal = null;
       this._xMarker.visible = false;
       this._clearAllPrints();
+      const cb = this._onArrive;
+      this._onArrive = null;
+      if (typeof cb === "function") cb();
       return;
     }
 
