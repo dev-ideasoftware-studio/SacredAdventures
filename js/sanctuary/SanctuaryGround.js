@@ -317,11 +317,11 @@ function buildTerrain() {
   // soft snow-cap kiss at the very top. The peaks rarely cross +5 m so
   // the snow tint is barely there; mostly the hills read as warm
   // meadow grading to dry summer-grass highlights.
-  const colBank   = new THREE.Color(0x3a4a2e);   // damp moss at the waterline
-  const colMeadow = new THREE.Color(0x6b8552);   // valley-floor grass
-  const colHill   = new THREE.Color(0x8aa869);   // mid-slope warm green
-  const colPeak   = new THREE.Color(0xb4b773);   // dry summer hilltop
-  const colSnow   = new THREE.Color(0xe9ecdf);   // pale sacred cap
+  const colBank   = new THREE.Color(0x56654e);   // darker ethereal sage
+  const colMeadow = new THREE.Color(0x768f69);   // mid ethereal sage
+  const colHill   = new THREE.Color(0x88a27a);   // soft ethereal sage
+  const colPeak   = new THREE.Color(0x9db68e);   // pale ethereal sage
+  const colSnow   = new THREE.Color(0xc3d1b8);   // very pale ethereal sage
   const tmp = new THREE.Color();
 
   for (let i = 0; i < pos.count; i++) {

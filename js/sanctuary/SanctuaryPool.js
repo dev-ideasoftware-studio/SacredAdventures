@@ -67,8 +67,8 @@ function buildWaterSurface(centerY) {
     color: new THREE.Color(0x0a3438),
     emissive: new THREE.Color(0x042022),
     emissiveIntensity: 0.15,
-    roughness: 0.30,            // slightly less glossy → softer pond read
-    metalness: 0.05,
+    roughness: 0.05,            // drastically reduced for brilliant wave light reflections
+    metalness: 0.85,            // high metalness for water caustics/reflections
     transparent: true,
     opacity: 0.66,
     depthWrite: false,
@@ -388,7 +388,8 @@ function buildLilyPads(centerY) {
   const PADS = 14;
   for (let i = 0; i < PADS; i++) {
     const ang = rng() * Math.PI * 2;
-    const rNorm = 0.55 + rng() * 0.37;
+    // Constrain the outer spawn limit so pads do not clip through the pool edge.
+    const rNorm = 0.40 + rng() * 0.42; // max radius multiplier: 0.82
     const r = rNorm * SANCTUARY_POOL_RADIUS_M;
     const x = SANCTUARY_POOL_CENTER_X + Math.cos(ang) * r;
     const z = SANCTUARY_POOL_CENTER_Z + Math.sin(ang) * r;
@@ -397,7 +398,8 @@ function buildLilyPads(centerY) {
     pad.rotation.x = -Math.PI / 2;
     pad.rotation.z = rng() * Math.PI * 2;     // random vein orientation
     pad.position.set(x, centerY + 0.02 + rng() * 0.01, z);
-    pad.scale.setScalar(0.7 + rng() * 0.7);
+    pad.scale.setScalar(0.55 + rng() * 0.45); // slightly smaller pads
+
     pad.name = `sanctuary_lily_pad_${i}`;
     pad.userData.anuKind = "sanctuary_lily_pad";
     pad.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;

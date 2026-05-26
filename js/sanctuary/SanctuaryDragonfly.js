@@ -156,112 +156,127 @@ function _makeDragonflyTexture() {
 export const SanctuaryDragonflyModule = {
   name: "SanctuaryDragonfly",
 
-  _root: null,
-  _sprite: null,
-  _texture: null,
   _scene: null,
-
-  // Flight state
-  _state: "idle",         // "idle" | "flying"
-  _stateT: 0,
-  _idleGap: 8,            // first dragonfly appears ~8 s after boot
-  _flightDur: 3,
-  _from: new THREE.Vector3(),
-  _to: new THREE.Vector3(),
-  _arcHeight: 0.5,
+  _texture: null,
+  _dragonflies: [],
 
   async load(scene) {
     if (typeof document === "undefined") return;
     this._scene = scene;
     this._texture = _makeDragonflyTexture();
-    const mat = new THREE.SpriteMaterial({
-      map: this._texture,
-      transparent: true,
-      depthWrite: false,
-      depthTest: true,
-      sizeAttenuation: true,
-    });
-    this._sprite = new THREE.Sprite(mat);
-    this._sprite.scale.set(0.45, 0.45, 1);  // ~45 cm at unit distance
-    this._sprite.position.set(0, -100, 0);   // start parked below scene
-    this._sprite.visible = false;
-    this._sprite.renderOrder = 6;
-    this._sprite.name = "sanctuary_dragonfly";
-    this._sprite.userData.anuKind = "sanctuary_dragonfly";
-    this._sprite.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FAUNA;
-    scene.add(this._sprite);
-    this._root = this._sprite;
+    this._dragonflies = [];
+
+    window.__sanctuaryDragonflies = this._dragonflies;
+
+    const count = 3;
+    for (let i = 0; i < count; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: this._texture,
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        sizeAttenuation: true,
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(0.45, 0.45, 1);
+      sprite.position.set(0, -100, 0);
+      sprite.renderOrder = 6;
+      sprite.name = `sanctuary_dragonfly_${i}`;
+      sprite.userData.anuKind = "sanctuary_dragonfly";
+      sprite.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FAUNA;
+      scene.add(sprite);
+
+      this._dragonflies.push({
+        sprite,
+        stateT: 0,
+        flightDur: 3,
+        from: new THREE.Vector3(),
+        to: new THREE.Vector3(),
+        arcHeight: 0.5,
+        alive: true,
+        respawnTimer: Math.random() * 2 // stagger initial spawns
+      });
+    }
 
     console.log(
-      "%c[Sanctuary] 🪰 Dragonfly online — random zips every 12-30 s.",
+      "%c[Sanctuary] 🪰 3 Dragonflies online — buzzing the frogs.",
       "color:#22afa2;font-weight:bold;",
     );
   },
 
-  _pickNewFlight() {
+  _pickNewFlight(df) {
     // Pick start + end on opposite sides of the pond.
-    const angA = Math.random() * Math.PI * 2;
-    const angB = angA + Math.PI + (Math.random() - 0.5) * 1.2;
-    const startR = SANCTUARY_POOL_RADIUS_M * (1.05 + Math.random() * 0.25);
-    const endR   = SANCTUARY_POOL_RADIUS_M * (1.05 + Math.random() * 0.25);
-    const y      = FLIGHT_Y_MIN_M + Math.random() * (FLIGHT_Y_MAX_M - FLIGHT_Y_MIN_M);
-    this._from.set(
-      SANCTUARY_POOL_CENTER_X + Math.cos(angA) * startR,
-      y,
-      SANCTUARY_POOL_CENTER_Z + Math.sin(angA) * startR,
-    );
-    this._to.set(
+    // They fly low over the lilies to tempt frogs.
+    const startPos = df.sprite.position.clone();
+    
+    // If it was dead, start at edge
+    if (startPos.y < 0) {
+      const angA = Math.random() * Math.PI * 2;
+      const startR = SANCTUARY_POOL_RADIUS_M * 1.05;
+      startPos.set(
+        SANCTUARY_POOL_CENTER_X + Math.cos(angA) * startR,
+        FLIGHT_Y_MIN_M,
+        SANCTUARY_POOL_CENTER_Z + Math.sin(angA) * startR,
+      );
+    }
+
+    const angB = Math.random() * Math.PI * 2;
+    const endR = SANCTUARY_POOL_RADIUS_M * (0.2 + Math.random() * 0.8);
+    const endY = FLIGHT_Y_MIN_M + Math.random() * 0.6; // low flight
+
+    df.from.copy(startPos);
+    df.to.set(
       SANCTUARY_POOL_CENTER_X + Math.cos(angB) * endR,
-      y + (Math.random() - 0.5) * 0.5,
+      endY,
       SANCTUARY_POOL_CENTER_Z + Math.sin(angB) * endR,
     );
-    this._arcHeight = 0.25 + Math.random() * 0.6;
-    this._flightDur = ZIP_DURATION_MIN_S + Math.random() * (ZIP_DURATION_MAX_S - ZIP_DURATION_MIN_S);
+    df.arcHeight = 0.1 + Math.random() * 0.4;
+    df.flightDur = ZIP_DURATION_MIN_S + Math.random() * 1.5;
+    df.stateT = 0;
   },
 
   update(delta) {
-    if (!this._sprite) return;
-    this._stateT += delta;
+    if (!this._dragonflies.length) return;
 
-    if (this._state === "idle") {
-      if (this._stateT >= this._idleGap) {
-        this._stateT = 0;
-        this._state = "flying";
-        this._pickNewFlight();
-        this._sprite.visible = true;
+    for (let df of this._dragonflies) {
+      if (!df.alive) {
+        df.sprite.position.set(0, -100, 0);
+        df.respawnTimer -= delta;
+        if (df.respawnTimer <= 0) {
+          df.alive = true;
+          this._pickNewFlight(df);
+        }
+        continue;
       }
-      return;
-    }
 
-    // Flying — interpolate from→to with parabolic Y arc
-    const t = Math.min(1, this._stateT / this._flightDur);
-    this._sprite.position.lerpVectors(this._from, this._to, t);
-    // Parabolic arc on Y (peak at middle of flight)
-    const arc = -4 * (t - 0.5) * (t - 0.5) + 1;
-    this._sprite.position.y += this._arcHeight * arc;
+      df.stateT += delta;
+      
+      const t = Math.min(1, df.stateT / df.flightDur);
+      df.sprite.position.lerpVectors(df.from, df.to, t);
+      const arc = -4 * (t - 0.5) * (t - 0.5) + 1;
+      df.sprite.position.y += df.arcHeight * arc;
 
-    // Tiny scale wobble = wingbeat parallax (40 Hz)
-    const wob = 0.45 + Math.sin(this._stateT * 40) * 0.015;
-    this._sprite.scale.set(wob, wob, 1);
+      const wob = 0.45 + Math.sin(df.stateT * 40) * 0.015;
+      df.sprite.scale.set(wob, wob, 1);
 
-    if (t >= 1) {
-      this._sprite.visible = false;
-      this._sprite.position.set(0, -100, 0);
-      this._state = "idle";
-      this._stateT = 0;
-      this._idleGap = IDLE_GAP_MIN_S + Math.random() * (IDLE_GAP_MAX_S - IDLE_GAP_MIN_S);
+      // Instant re-flight, no idle gap
+      if (t >= 1) {
+        this._pickNewFlight(df);
+      }
     }
   },
 
   unload(scene) {
-    if (this._sprite) {
-      scene.remove(this._sprite);
-      this._sprite.material?.dispose?.();
-      this._texture?.dispose?.();
-      this._sprite = null;
-      this._texture = null;
+    for (let df of this._dragonflies) {
+      if (df.sprite) {
+        scene.remove(df.sprite);
+        df.sprite.material?.dispose?.();
+      }
     }
-    this._root = null;
+    this._texture?.dispose?.();
+    this._dragonflies = [];
+    this._texture = null;
     this._scene = null;
+    delete window.__sanctuaryDragonflies;
   },
 };

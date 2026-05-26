@@ -940,22 +940,31 @@ export class SacredOrchestrator {
     this._pipH = 0;
   }
 
-  _stashTipiSmokeForPipRender() {
-    if (!this._pipTipiSmokePlume && this.scene) {
+  _stashAnuCullablesForPipRender() {
+    const stashed = [];
+    if (this.scene) {
       this.scene.traverse((o) => {
-        if (o.userData?.anuKind === "tipi_smoke")
-          this._pipTipiSmokePlume = o;
+        if (
+          o.userData?.anuKind === "tipi_smoke" ||
+          o.userData?.anuKind === "sanctuary_pond_tree_dense" ||
+          o.userData?.anuKind === "sanctuary_pond_bush_dense" ||
+          o.userData?.anuKind === "sanctuary_frog_group" ||
+          o.userData?.anuKind === "sanctuary_lily_pads"
+        ) {
+          stashed.push({ g: o, prev: o.visible });
+          o.visible = false;
+        }
       });
     }
-    const g = this._pipTipiSmokePlume;
-    if (!g) return null;
-    const prev = g.visible;
-    g.visible = false;
-    return { g, prev };
+    return stashed;
   }
 
-  _restoreTipiSmokeAfterPip(stash) {
-    if (stash?.g) stash.g.visible = stash.prev;
+  _restoreAnuCullablesAfterPip(stashed) {
+    if (stashed) {
+      for (const stash of stashed) {
+        if (stash.g) stash.g.visible = stash.prev;
+      }
+    }
   }
 
   /**
@@ -1009,7 +1018,7 @@ export class SacredOrchestrator {
     this.scene.fog = null;
     this.scene.background = null;
     return {
-      smokeStash: this._stashTipiSmokeForPipRender(),
+      cullStash: this._stashAnuCullablesForPipRender(),
       fog,
       bg,
       feet: wp.feet,
@@ -1028,7 +1037,7 @@ export class SacredOrchestrator {
     if (!mainMap) {
       const elev = 78;
       this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
-      this._pipOrtho.up.set(0, 1, 0);
+      this._pipOrtho.up.set(0, 0, -1);
       this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
       const pipClip = getRuntimeService("PipOrthoBranchClip");
       let clipArmed = false;
@@ -1067,7 +1076,7 @@ export class SacredOrchestrator {
     if (!state) return;
     this.scene.fog = state.fog;
     this.scene.background = state.bg;
-    this._restoreTipiSmokeAfterPip(state.smokeStash);
+    this._restoreAnuCullablesAfterPip(state.cullStash);
   }
 
   /**

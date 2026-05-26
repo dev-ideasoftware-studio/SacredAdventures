@@ -49,9 +49,11 @@ export const ORCHESTRATOR_HUD_HTML = `
         <div id="v2-modules" style="font-size:12px;color:#81d4fa;line-height:1.9;">none</div>
         <div id="v2-bench" style="font-size:11px;color:#ce93d8;margin-top:10px;min-height:16px;"></div>
       </div>
-      <div style="height:1px;background:rgba(251,192,45,0.15);margin:10px 0;"></div>
-      <div id="v2-hud-map-label" style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">MAP</div>
-      <div id="v2-map-picker" style="display:flex;flex-direction:column;gap:5px;"></div>
+      <div id="v2-hud-map-section">
+        <div style="height:1px;background:rgba(251,192,45,0.15);margin:10px 0;"></div>
+        <div id="v2-hud-map-label" style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;">MAP</div>
+        <div id="v2-map-picker" style="display:flex;flex-direction:column;gap:5px;"></div>
+      </div>
       <div id="v2-hud-copyright" style="font-size:8px;line-height:1.35;color:rgba(255,255,255,0.28);margin-top:12px;padding-top:10px;border-top:1px solid rgba(251,192,45,0.08);letter-spacing:0.15px;text-align:center;">Idea Software Studio &copy; 2026</div>
     `;
 
@@ -72,6 +74,8 @@ export function buildOrchestratorHud() {
     const st = document.createElement('style');
     st.id = 'v2-orchestrator-hud-mobile-css';
     st.textContent = `
+      #v2-hud-map-section { display: none; }
+      body.v2-village-view #v2-hud-map-section { display: block; }
       @media (max-width: 768px) {
         #v2-orchestrator-hud {
           width: min(196px, calc(100vw - 24px)) !important;

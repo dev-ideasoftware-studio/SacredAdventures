@@ -331,80 +331,98 @@ export const SanctuaryFishModule = {
         }
       } else {
         // ════════════════════════════════════════════════════════════════
-        // CALM ORBITAL SWIM — ported verbatim from Sacred.Adventures.BAD/
-        // js/sanctuary/SanctuaryFish.js (the "looked nice" baseline the
-        // user asked us to copy). NO burst-glide, NO dart bursts, NO
-        // pitch, NO roll, NO realistic-motion shenanigans. Just:
-        //   • orbit math (parametric blend of solo + school)
-        //   • soft player avoidance
-        //   • single-frequency vertical bob
-        //   • yaw from velocity + low-frequency wiggle
-        // Slow and koi-like — exactly what the user wanted.
+        // INDEPENDENT FORWARD SWIMMING (Wander & Avoid)
+        // Each fish moves strictly forward along its current heading, and
+        // smoothly turns toward its target heading. This completely breaks
+        // the rigid schooling/orbit logic.
         // ════════════════════════════════════════════════════════════════
-        const R = ud.orbitR ?? SANCTUARY_POOL_RADIUS_M * 0.45;
-        const orbitPhase = ud.orbitPhase ?? 0;
-        const soloO = (ud.soloOmega ?? 0.16) * (ud.speedMul ?? 1);
-        const schOff = ud.schoolAngleOff ?? 0;
-        const omegaSchool = SWIM_RATE_RAD_S * 0.55 * schoolStr;
+        
+        // 1. Initialize custom independent AI vars if missing
+        if (ud._wanderTargetHeading === undefined) {
+          ud._wanderTargetHeading = Math.random() * Math.PI * 2;
+          ud._currentHeading = Math.random() * Math.PI * 2;
+          ud._turnTimer = 0;
+          ud._swimSpeed = 0.15 * (ud.speedMul ?? 1.0);
+        }
+        
+        // 2. Periodic target heading updates (random wandering)
+        ud._turnTimer -= delta;
+        if (ud._turnTimer <= 0) {
+          ud._wanderTargetHeading += (Math.random() - 0.5) * 1.5; // gentle random turn
+          ud._turnTimer = 2.0 + Math.random() * 4.0;
+        }
 
-        const soloA0 = tb * soloO + orbitPhase;
-        const soloA1 = (tb + LOOK_AHEAD_S) * soloO + orbitPhase;
-        const sx0 = R * Math.cos(soloA0);
-        const sz0 = R * Math.sin(soloA0);
-        const sx1 = R * Math.cos(soloA1);
-        const sz1 = R * Math.sin(soloA1);
+        // 3. Pool boundary avoidance (steer back to center if too close to edge)
+        const dxFromCenter = fish.position.x - this._cx;
+        const dzFromCenter = fish.position.z - this._cz;
+        const distFromCenter = Math.hypot(dxFromCenter, dzFromCenter);
+        const MAX_R = SANCTUARY_POOL_RADIUS_M * 0.85; // keep inside pool
+        
+        if (distFromCenter > MAX_R) {
+          // Force target heading towards the pool center
+          const angleToCenter = Math.atan2(-dzFromCenter, -dxFromCenter);
+          ud._wanderTargetHeading = angleToCenter;
+        }
 
-        const schA0 = tb * omegaSchool + schOff;
-        const schA1 = (tb + LOOK_AHEAD_S) * omegaSchool + schOff;
-        const scx0 = R * Math.cos(schA0);
-        const scz0 = R * Math.sin(schA0);
-        const scx1 = R * Math.cos(schA1);
-        const scz1 = R * Math.sin(schA1);
-
-        const oneMinus = 1 - schoolStr;
-        let lx = sx0 * oneMinus + scx0 * schoolStr;
-        let lz = sz0 * oneMinus + scz0 * schoolStr;
-        let vx = sx1 * oneMinus + scx1 * schoolStr - lx;
-        let vz = sz1 * oneMinus + scz1 * schoolStr - lz;
-
+        // 4. Player Avoidance
+        let avoidSpeedMultiplier = 1.0;
         if (playerX !== null && playerZ !== null) {
-          const dxP = this._cx + lx - playerX;
-          const dzP = this._cz + lz - playerZ;
+          const dxP = fish.position.x - playerX;
+          const dzP = fish.position.z - playerZ;
           const dP = Math.hypot(dxP, dzP);
           if (dP < PLAYER_AVOID_RADIUS_M && dP > 1e-3) {
-            // Two-tier avoidance: soft drift inside 2 ft, hard flee if
-            // player is essentially stepping on the fish.
-            const stepOn = dP < PLAYER_STEPON_RADIUS_M;
-            const gain   = stepOn ? PLAYER_STEPON_GAIN : PLAYER_PUSH_GAIN;
-            const push   = (PLAYER_AVOID_RADIUS_M - dP) / PLAYER_AVOID_RADIUS_M;
-            lx += (dxP / dP) * push * gain;
-            lz += (dzP / dP) * push * gain;
-            vx = dxP / dP;
-            vz = dzP / dP;
+            // Steer away from player
+            const angleAway = Math.atan2(dzP, dxP);
+            ud._wanderTargetHeading = angleAway;
+            
+            // Speed up if stepped on!
+            if (dP < PLAYER_STEPON_RADIUS_M) {
+              avoidSpeedMultiplier = 3.5;
+            } else {
+              avoidSpeedMultiplier = 1.8;
+            }
           }
         }
 
+        // 5. Smoothly rotate current heading toward target heading
+        // Shortest angle delta
+        let hDiff = ud._wanderTargetHeading - ud._currentHeading;
+        while (hDiff > Math.PI) hDiff -= Math.PI * 2;
+        while (hDiff < -Math.PI) hDiff += Math.PI * 2;
+        
+        const turnSpeed = 1.2 * delta; // rad/s turn rate
+        if (Math.abs(hDiff) > turnSpeed) {
+          ud._currentHeading += Math.sign(hDiff) * turnSpeed;
+        } else {
+          ud._currentHeading = ud._wanderTargetHeading;
+        }
+
+        // Wrap heading cleanly
+        while (ud._currentHeading > Math.PI) ud._currentHeading -= Math.PI * 2;
+        while (ud._currentHeading < -Math.PI) ud._currentHeading += Math.PI * 2;
+
+        // 6. Move forward!
+        const currentSpeed = ud._swimSpeed * avoidSpeedMultiplier * delta;
+        fish.position.x += Math.cos(ud._currentHeading) * currentSpeed;
+        fish.position.z += Math.sin(ud._currentHeading) * currentSpeed;
+
+        // 7. Depth Bobbing
+        const orbitPhase = ud.orbitPhase ?? 0;
         const midY = ud.fishMidY ?? this._fishCenterY;
         const bobY = Math.sin(t * 0.9 + orbitPhase * 2.17) * 0.14;
-        fish.position.set(
-          this._cx + lx,
-          midY + (ud.depthOffset ?? 0) + bobY,
-          this._cz + lz,
-        );
+        fish.position.y = midY + (ud.depthOffset ?? 0) + bobY;
+
+        // 8. Visual Rotation (Heading + natural wiggle)
+        // atan2 is naturally oriented, but we add Math.PI if the fish model 
+        // faces -X natively. If the model faces +X naturally, we just use heading.
+        // The original code used: Math.atan2(-vz, vx) + Math.PI
+        const wiggleAmp = 0.22;
+        const wiggle = Math.sin(t * 6.5 + (ud.wigglePhase ?? 0) * 4.7) * wiggleAmp;
+        fish.rotation.set(0, -ud._currentHeading + Math.PI + wiggle, 0);
 
         // Render-order trick (user spec): "fish have higher z-index than
-        // player circle in case they are in water." The player travel-disc
-        // is a transparent ground decal; lifting fish.renderOrder ensures
-        // they composite on TOP of it without changing depth-test.
+        // player circle in case they are in water."
         if (fish.renderOrder !== 5) fish.renderOrder = 5;
-
-        if (vx * vx + vz * vz > 1e-8) {
-          const baseYaw = Math.atan2(-vz, vx) + Math.PI;
-          const wiggleAmp = 0.22;
-          const wiggle =
-            Math.sin(t * 6.5 + (ud.wigglePhase ?? 0) * 4.7) * wiggleAmp;
-          fish.rotation.set(0, baseYaw + wiggle, 0);
-        }
       }
     }
   },

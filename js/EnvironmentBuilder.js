@@ -134,12 +134,32 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             const GAP = 0.5;
             const size = RADIUS - GAP; // Leave a 1-meter visible trench between tiles
             
-            // Hexagon geometry oriented point-up
-            const hexGeo = new THREE.CylinderGeometry(size, size, 0.4, 6);
+            // Neumorphic Hexagon geometry with bevels
+            const hexShape = new THREE.Shape();
+            for (let i = 0; i < 6; i++) {
+                const a = i * Math.PI * 2 / 6;
+                if (i === 0) hexShape.moveTo(Math.cos(a) * size, Math.sin(a) * size);
+                else hexShape.lineTo(Math.cos(a) * size, Math.sin(a) * size);
+            }
+            hexShape.closePath();
+
+            const hexGeo = new THREE.ExtrudeGeometry(hexShape, {
+                depth: 0.2, 
+                bevelEnabled: true,
+                bevelSegments: 3,
+                bevelSteps: 2,
+                bevelSize: 0.3,
+                bevelThickness: 0.2
+            });
+            hexGeo.rotateX(Math.PI / 2);
             
             const hexMat = new THREE.MeshStandardMaterial({
-                color: 0x111611, roughness: 1.0, metalness: 0.0,
-                transparent: true, opacity: 0.8
+                color: 0x2e3b2e, 
+                roughness: 0.6, 
+                metalness: 0.4,
+                transparent: true, 
+                opacity: 0.9,
+                flatShading: false
             });
             
             // Generate a grid mapping
