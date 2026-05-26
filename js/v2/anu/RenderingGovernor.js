@@ -65,11 +65,11 @@ export function shouldRenderPipSceneThisFrame() {
  * args change — Anu reads from here as the canonical source of truth.
  */
 export const MAIN_RENDERER_BLUEPRINT = Object.freeze({
-  antialias: true,
+  antialias: false,          // MSAA off — DPR upscaling handles edge smoothing
   powerPreference: "high-performance",
-  pixelRatioCap: 2.0,
+  pixelRatioCap: 1.5,        // cap at 1.5; AnuAdaptiveDpr steps down from here
   shadowMapEnabled: true,
-  shadowMapType: "PCFSoftShadowMap",
+  shadowMapType: "PCFShadowMap", // PCF (not Soft) — half the shadow shader cost
   toneMapping: "ACESFilmicToneMapping",
   toneMappingExposure: 1.1,
 });

@@ -259,6 +259,8 @@
     import { SanctuaryWelcomeGuideModule }   from './js/sanctuary/SanctuaryWelcomeGuide.js';
     import { SanctuaryJournalBridgeModule }  from './js/sanctuary/SanctuaryJournalBridge.js';
     import { SanctuaryDragonflyModule }      from './js/sanctuary/SanctuaryDragonfly.js';
+    import { SanctuaryPondTreesModule }      from './js/sanctuary/SanctuaryPondTrees.js';
+    import { AnuAdaptiveDprModule }          from './js/sanctuary/AnuAdaptiveDpr.js';
 
     // Modal loader plumbing — same protocol v2 used (Component.LoadingModal
     // listens for LOG_SYSTEM with msg + 4 progress %, LOADING_COMPLETE
@@ -316,6 +318,7 @@
     // governed module. Order is intentional: ground first (provides
     // groundY + waterY anchors), then pool, dock, fish, circles.
     orc.register(AnuModule);
+    orc.register(AnuAdaptiveDprModule);
     orc.register(SanctuaryGroundModule);
     orc.register(SanctuaryPoolModule);
     orc.register(SanctuaryDockModule);
@@ -355,9 +358,13 @@
     orc.register(SanctuaryWelcomeGuideModule);
     orc.register(SanctuaryJournalBridgeModule);
     orc.register(SanctuaryDragonflyModule);
+    orc.register(SanctuaryPondTreesModule);
 
     v4Log('Anu — opening her ear', 100, 22, 14, 10);
     await orc.activate('Anu');
+
+    v4Log('Anu — FPS guardian online', 100, 25, 18, 12);
+    await orc.activate('AnuAdaptiveDpr');
 
     v4Log('part 1 / 5 — the ground that all bodies obey', 100, 35, 30, 22);
     await orc.activate('SanctuaryGround');
@@ -469,6 +476,9 @@
 
     v4Log('dragonfly — zips by every 12-30s', 100, 100, 100, 99);
     await orc.activate('SanctuaryDragonfly');
+
+    v4Log('pond trees — 12 sacred pines ringing the water', 100, 100, 100, 100);
+    await orc.activate('SanctuaryPondTrees');
 
     v4Log('breathing life into the loop', 100, 100, 100, 98);
     orc.start();
