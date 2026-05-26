@@ -1,24 +1,16 @@
 /**
- * Sacred Adventures — sanctuary tool palette (top-down mold picker).
+ * Sacred Adventures — Village Build Panel
  *
- * Only visible while the player has the TOP-DOWN camera active. Lets
- * kids pick which mold tool a click will fire — grow a hill, plant a
- * tree, plant a flower, plant a rock, plant a lily, plant a bush.
+ * A "FLORA & BUILD" panel that attaches FLUSH BELOW the OrchestratorHud
+ * (the brown "60 FPS" panel, top-right). Visible ONLY in Village View
+ * (body.v4-top-down-view). Looks like a single unified unit with the HUD above it.
  *
- * Visual: a horizontal strip pinned to the LEFT edge of the viewport
- * mid-height, each tool is a chunky tile with an emoji icon + the
- * tool's name underneath. Active tile glows gold. CSS-only — no
- * canvas pull, just DOM.
+ * Layout: 2-column grid of mold-tool tiles + GENERATE / CLEAR scene buttons.
+ * Positioning: ResizeObserver on #v2-orchestrator-hud so the panel tracks the
+ * HUD's height as accordions expand/collapse.
  *
- * Architecture:
- *   • Watches `document.body.classList` for `v4-top-down-view` and
- *     shows / hides accordingly.
- *   • On tile click, writes `window.__sanctuaryMoldTool = toolId`. The
- *     click-to-move module reads this when in top-down to decide
- *     whether to dispatch a mutation vs walk.
- *
- * Tools listed match `SanctuaryMutations.TOOLS` so the palette never
- * drifts from the registry's vocabulary.
+ * Tool set matches SanctuaryMutations.TOOLS vocabulary:
+ *   SELECT · HILL · TREE · FLOWER · BUSH · LILY · ROCK · TIPI
  */
 
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
@@ -35,85 +27,199 @@ const TOOLS = [
 ];
 
 const STYLE = `
-  #v4-tool-palette {
+  /* ── Village Build Panel ─────────────────────────────────────── */
+  #v4-village-build {
     position: fixed;
-    left: 12px;
-    top: 12px;
+    right: 0;
+    top: 120px; /* updated dynamically via ResizeObserver */
     display: none;
     flex-direction: column;
-    gap: 8px;
-    z-index: 9100;
-    user-select: none;
+    gap: 0;
+    z-index: 9998;
     pointer-events: none;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    background: rgba(10, 18, 14, 0.88);
-    backdrop-filter: blur(6px);
-    border: 1px solid rgba(251,192,45,0.28);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.45);
-    border-radius: 10px;
-    padding: 12px;
-    min-width: 140px;
+    user-select: none;
+    box-sizing: border-box;
+
+    width: min(280px, calc(100vw - 0px));
+
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(255,210,120,0.06) 0%, rgba(0,0,0,0) 60%),
+      linear-gradient(165deg, #1e1408 0%, #2c1d09 55%, #1a1106 100%);
+    border: 1px solid rgba(251,192,45,0.42);
+    border-top: 1px solid rgba(251,192,45,0.15); /* softer join line */
+    border-radius: 0 0 16px 16px;
+    padding: 10px 14px 14px;
+    font-family: 'Fredoka', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: #fbc02d;
+
+    box-shadow:
+      0 10px 28px rgba(0,0,0,0.55),
+      inset 0 -1px 0 rgba(0,0,0,0.45);
   }
-  body.v4-top-down-view #v4-tool-palette { display: flex; }
-  #v4-tool-palette .tool {
+
+  body.v4-top-down-view #v4-village-build { display: flex; }
+
+  /* Square OrchestratorHud bottom corners in village view so panels fuse */
+  body.v4-top-down-view #v2-orchestrator-hud {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-bottom-color: rgba(251,192,45,0.15) !important;
+  }
+
+  /* ── Section header ───────────────────────────────────────────── */
+  #v4-village-build .vb-header {
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    color: rgba(251,192,45,0.45);
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  /* ── 2-column grid ────────────────────────────────────────────── */
+  #v4-village-build .vb-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+
+  #v4-village-build .vb-tool {
     pointer-events: auto;
-    background: linear-gradient(180deg, rgba(28, 22, 16, 0.93), rgba(12, 8, 5, 0.97));
-    border: 1px solid rgba(255, 217, 122, 0.22);
-    border-left: 4px solid rgba(120, 120, 120, 0.6);
-    color: #ffe9a8;
-    padding: 8px 14px 8px 12px;
-    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 7px 6px 6px;
+    background: linear-gradient(180deg, rgba(28,22,16,0.93), rgba(12,8,5,0.97));
+    border: 1px solid rgba(255,217,122,0.20);
+    border-left: 3px solid rgba(120,120,120,0.5);
+    border-radius: 5px;
     cursor: pointer;
-    min-width: 86px;
-    display: flex; flex-direction: column;
-    align-items: center; gap: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: #c4b8a4;
     text-align: center;
-    font-size: 10px; letter-spacing: 2.2px;
-    font-weight: 800;
-    transition: transform 100ms ease, border-left-color 120ms ease, background 120ms ease;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.55);
+    transition: transform 80ms ease, border-left-color 100ms ease, background 100ms ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.45);
   }
-  #v4-tool-palette .tool:hover {
-    transform: translateX(2px);
-    background: linear-gradient(180deg, rgba(46, 32, 22, 0.95), rgba(22, 14, 9, 0.99));
+
+  #v4-village-build .vb-tool:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(180deg, rgba(46,32,22,0.95), rgba(22,14,9,0.99));
   }
-  #v4-tool-palette .tool .icon {
-    font-size: 22px;
-    line-height: 1.0;
+
+  #v4-village-build .vb-tool .vb-icon {
+    font-size: 18px;
+    line-height: 1;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
   }
-  #v4-tool-palette .tool .label {
-    color: #c4b8a4;
-    font-size: 9px; letter-spacing: 2.6px;
+
+  #v4-village-build .vb-tool.active {
+    border-left-color: #fbc02d !important;
+    background: linear-gradient(180deg, rgba(60,42,22,0.97), rgba(24,16,8,0.99));
+    box-shadow: 0 2px 12px rgba(0,0,0,0.55), inset 0 0 10px rgba(251,192,45,0.08);
+    color: #ffd97a;
   }
-  #v4-tool-palette .tool.active {
-    border-left-color: #fbc02d;
-    background: linear-gradient(180deg, rgba(60, 42, 22, 0.97), rgba(24, 16, 8, 0.99));
-    box-shadow: 0 3px 14px rgba(0,0,0,0.6), inset 0 0 12px rgba(251, 192, 45, 0.10);
+
+  /* ── Divider ──────────────────────────────────────────────────── */
+  #v4-village-build .vb-divider {
+    height: 1px;
+    background: rgba(251,192,45,0.12);
+    margin-bottom: 10px;
   }
-  #v4-tool-palette .tool.active .label { color: #ffd97a; }
+
+  /* ── Action buttons (Generate / Clear) ───────────────────────── */
+  #v4-village-build .vb-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #v4-village-build .vb-btn {
+    pointer-events: auto;
+    background: linear-gradient(180deg, rgba(40,26,20,0.94), rgba(15,10,8,0.97));
+    border: 1px solid rgba(255,217,122,0.28);
+    border-bottom: 3px solid rgba(251,192,45,0.60);
+    border-radius: 5px;
+    color: #ffe9a8;
+    padding: 8px 12px;
+    font-family: 'Fredoka', 'Segoe UI', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    transition: transform 100ms ease, background 100ms ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+
+  #v4-village-build .vb-btn:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(180deg, rgba(60,38,24,0.95), rgba(28,18,12,0.99));
+  }
+
+  #v4-village-build .vb-btn:active { transform: translateY(0); }
 `;
 
 function ensureStyle() {
-  if (document.getElementById("v4-tool-palette-style")) return;
+  if (document.getElementById("v4-village-build-style")) return;
   const s = document.createElement("style");
-  s.id = "v4-tool-palette-style";
+  s.id = "v4-village-build-style";
   s.textContent = STYLE;
   document.head.appendChild(s);
 }
 
-function buildPalette() {
+function buildPanel() {
   const wrap = document.createElement("div");
-  wrap.id = "v4-tool-palette";
+  wrap.id = "v4-village-build";
   wrap.userData = { anuSimulationDomain: ANU_SIMULATION_DOMAIN.PLAYER };
+
+  // Header
+  const hdr = document.createElement("div");
+  hdr.className = "vb-header";
+  hdr.textContent = "🌱 FLORA & BUILD";
+  wrap.appendChild(hdr);
+
+  // 2-col grid
+  const grid = document.createElement("div");
+  grid.className = "vb-grid";
   for (const t of TOOLS) {
     const btn = document.createElement("div");
-    btn.className = "tool";
+    btn.className = "vb-tool";
     btn.dataset.tool = t.id;
-    btn.innerHTML = `<div class="icon">${t.icon}</div><div class="label">${t.label}</div>`;
-    btn.style.borderLeftColor = t.accent;
-    wrap.appendChild(btn);
+    btn.style.borderLeftColor = t.accent + "99";
+    btn.innerHTML = `<div class="vb-icon">${t.icon}</div><div>${t.label}</div>`;
+    grid.appendChild(btn);
   }
+  wrap.appendChild(grid);
+
+  // Divider
+  const div = document.createElement("div");
+  div.className = "vb-divider";
+  wrap.appendChild(div);
+
+  // Action buttons
+  const actions = document.createElement("div");
+  actions.className = "vb-actions";
+
+  const btnGen = document.createElement("button");
+  btnGen.className = "vb-btn";
+  btnGen.id = "v4-btn-gen-scene";
+  btnGen.textContent = "✨ GENERATE SCENE";
+
+  const btnClr = document.createElement("button");
+  btnClr.className = "vb-btn";
+  btnClr.id = "v4-btn-clear-scene";
+  btnClr.textContent = "🗑 CLEAR SCENE";
+
+  actions.appendChild(btnGen);
+  actions.appendChild(btnClr);
+  wrap.appendChild(actions);
+
   document.body.appendChild(wrap);
   return wrap;
 }
@@ -123,36 +229,86 @@ export const SanctuaryToolPaletteModule = {
 
   _wrap: null,
   _activeId: "select",
+  _resizeObs: null,
+  _mutObs: null,
 
   async load() {
     ensureStyle();
-    this._wrap = buildPalette();
-    this._wrap.addEventListener("click", (ev) => {
-      const tile = ev.target.closest(".tool");
+    this._wrap = buildPanel();
+
+    // ── Tool selection ─────────────────────────────────────────────
+    this._wrap.querySelector(".vb-grid").addEventListener("click", (ev) => {
+      const tile = ev.target.closest(".vb-tool");
       if (!tile) return;
       this._setActive(tile.dataset.tool);
     });
-    // Default to grow_hill highlighted.
     this._setActive(this._activeId);
+
+    // ── Scene buttons ──────────────────────────────────────────────
+    document.getElementById("v4-btn-gen-scene")?.addEventListener("click", () => {
+      if (window.SanctuaryMutations?.generateScene) {
+        window.SanctuaryMutations.generateScene();
+      } else {
+        console.log("[VillageBuild] ✨ GENERATE SCENE — coming soon!");
+      }
+    });
+    document.getElementById("v4-btn-clear-scene")?.addEventListener("click", () => {
+      if (window.SanctuaryMutations?.clearScene) {
+        window.SanctuaryMutations.clearScene();
+      } else {
+        console.log("[VillageBuild] 🗑 CLEAR SCENE — coming soon!");
+      }
+    });
+
+    // ── Attach flush below OrchestratorHud ────────────────────────
+    this._hookPosition();
+
     console.log(
-      "%c[Sanctuary] 🎨 Tool palette ready — appears in top-down view.",
+      "%c[Sanctuary] 🌱 Village Build panel ready — attaches below OrchestratorHud in Village View.",
       "color:#ffd97a;font-weight:bold;",
     );
+  },
+
+  _hookPosition() {
+    const hudEl = document.getElementById("v2-orchestrator-hud");
+    if (!hudEl) return;
+
+    const reposition = () => {
+      if (!this._wrap) return;
+      const rect = hudEl.getBoundingClientRect();
+      // Flush: panel top = hud bottom (no gap; border-top acts as the separator)
+      this._wrap.style.top = `${rect.bottom}px`;
+    };
+
+    this._resizeObs = new ResizeObserver(reposition);
+    this._resizeObs.observe(hudEl);
+
+    // Also reposition when body class changes (entering/leaving village view)
+    this._mutObs = new MutationObserver(reposition);
+    this._mutObs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+
+    reposition(); // initial
   },
 
   _setActive(id) {
     if (!this._wrap) return;
     this._activeId = id;
-    this._wrap.querySelectorAll(".tool").forEach((el) => {
+    this._wrap.querySelectorAll(".vb-tool").forEach((el) => {
       el.classList.toggle("active", el.dataset.tool === id);
     });
     if (typeof window !== "undefined") window.__sanctuaryMoldTool = id;
   },
 
   update() {},
+
   unload() {
+    this._resizeObs?.disconnect();
+    this._mutObs?.disconnect();
+    this._resizeObs = null;
+    this._mutObs = null;
+
     if (this._wrap?.parentNode) this._wrap.parentNode.removeChild(this._wrap);
-    const s = document.getElementById("v4-tool-palette-style");
+    const s = document.getElementById("v4-village-build-style");
     if (s?.parentNode) s.parentNode.removeChild(s);
     this._wrap = null;
   },
