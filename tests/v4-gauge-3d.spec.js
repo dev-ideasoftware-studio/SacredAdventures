@@ -6,9 +6,10 @@
  * confirm that the dial face (local z ≈ 0.12 → world Y after rotation+scale)
  * is strictly above WATER_Y_M (-0.05 m).
  *
- * Expected math (GAUGE_3D_SCALE = 0.22, face localZ = 0.12):
- *   group.position.y = WATER_Y_M - 0.01 = -0.060
- *   face world Y     = -0.060 + 0.12 × 0.22 = -0.0336  (> -0.05 ✓)
+ * Expected math (GAUGE_3D_SCALE = 0.242, face localZ = 0.12):
+ *   group.position.y = WATER_Y_M = -0.050  (sits atop water)
+ *   face world Y     = -0.050 + 0.12 × 0.242 = -0.0210  (> -0.05 ✓)
+ *   scale +10%: 0.22 → 0.242
  */
 const { test, expect } = require('@playwright/test');
 

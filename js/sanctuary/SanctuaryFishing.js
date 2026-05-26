@@ -273,7 +273,7 @@ function _makeStatusPill() {
 // clear plastic (MeshPhysicalMaterial), dark-grey needle, lies flat on
 // water, scale=0.22 → ~0.44 m radius, 3 cm submerged.
 
-const GAUGE_3D_SCALE = 0.22;
+const GAUGE_3D_SCALE = 0.242; // +10% vs original 0.22
 const GAUGE_SEGS = [
   { color: 0xd32f2f, label: "FAIL"    },
   { color: 0xf57c00, label: "CURIOUS" },
@@ -429,14 +429,15 @@ function _build3DGauge(scene) {
   g.add(needleGroup);
   g.userData.needleGroup = needleGroup;
 
-  // Lie flat on water (XZ plane, Y-up world)
+  // Lie flat on water (XZ plane, Y-up world).
+  // YXZ Euler order: rotation.y (billboard) applied BEFORE rotation.x (flatten),
+  // so the yaw rotates around true world-Y regardless of the X tilt.
+  g.rotation.order = "YXZ";
   g.rotation.x = -Math.PI / 2;
   g.scale.setScalar(GAUGE_3D_SCALE);
-  // Group origin sits 1 cm below water surface so the base plate is
-  // partially submerged; after rotation.x=-PI/2 and scale(0.22) the
-  // visible face (local z ≈ 0.12) maps to world Y ≈ WATER_Y_M + 0.016,
-  // which keeps the dial clearly above water while the body is submerged.
-  g.position.y = WATER_Y_M - 0.01;
+  // Sit atop the water surface: group origin = WATER_Y_M so base plate
+  // rests on the surface; dial face (local z≈0.12) floats ~29mm above water.
+  g.position.y = WATER_Y_M;
   g.visible = false;
   g.userData.isGauge3D = true;
   g.name = "fishingGauge3D";
@@ -445,8 +446,17 @@ function _build3DGauge(scene) {
   return g;
 }
 
-function _update3DGauge(g, frac, labelText, isReeling, time) {
+function _update3DGauge(g, frac, labelText, isReeling, time, camera) {
   if (!g) return;
+
+  // Billboard: rotate around world-Y so the arc always faces the player.
+  // YXZ Euler order means rotation.y acts in world space before the X-tilt.
+  if (camera) {
+    const dx = camera.position.x - g.position.x;
+    const dz = camera.position.z - g.position.z;
+    // atan2(dx, dz): angle from +Z toward camera; arc opens toward camera.
+    g.rotation.y = Math.atan2(dx, dz);
+  }
 
   // Needle: FAIL(π) → CAUGHT!(0)
   const ng = g.userData.needleGroup;
@@ -1973,9 +1983,9 @@ export const SanctuaryFishingModule = {
         const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
 
         const bp = this._bobber?.visible ? this._bobber.position : this._castTarget;
-        this._gauge3d.position.set(bp.x, WATER_Y_M - 0.01, bp.z);
+        this._gauge3d.position.set(bp.x, WATER_Y_M, bp.z);
         this._gauge3d.visible = true;
-        _update3DGauge(this._gauge3d, frac, label, isReeling, t);
+        _update3DGauge(this._gauge3d, frac, label, isReeling, t, this._camera);
       } else {
         this._gauge3d.visible = false;
       }
