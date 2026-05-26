@@ -30,6 +30,7 @@ import { recordFrameDuration, getFrameBudgetSnapshot } from "../v2/anu/FrameBudg
 import { dispatchInteraction } from "../v2/anu/InteractionBus.js";
 import { ANU_EVENTS } from "../v2/anu/anuEvents.js";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
+import { getEffectivePipStride, setAdaptivePipStrideTarget } from "../v2/anu/RenderingGovernor.js";
 
 /** Discrete DPR ladder Anu can step through. Order: highest → lowest. */
 const DPR_LADDER = [2.0, 1.75, 1.5, 1.25, 1.0, 0.85, 0.75];
@@ -37,7 +38,7 @@ const DPR_LADDER = [2.0, 1.75, 1.5, 1.25, 1.0, 0.85, 0.75];
 /** Aspirational FPS — the spec target. Used as a *cap* on the
  *  refresh-rate-detected target so we never chase higher than the
  *  monitor can show. */
-const ASPIRATIONAL_FPS = 120;
+const ASPIRATIONAL_FPS = 65;
 
 /** Target wall — set at load() time once Anu samples the monitor's
  *  actual refresh rate. Default seed assumes 60 Hz until the rAF probe
@@ -191,6 +192,21 @@ export const AnuAdaptiveDprModule = {
       if (_stressFrames >= STRESS_STREAK && _currentIndex < DPR_LADDER.length - 1) {
         applyDpr(_currentIndex + 1, "stressed_down");
         _stressFrames = 0;
+
+        // Closed-Loop Regulatory Feedback: throttle the PiP cadence when stressed
+        const curStride = getEffectivePipStride();
+        if (curStride > 0) {
+          setAdaptivePipStrideTarget(curStride + 1);
+        }
+
+        // Severe stress (true wall-clock display rate choke, avg > target * 1.3)
+        if (avg > TARGET_MS * 1.3) {
+          // Drop the device cap down to 1.25 to prevent dynamic resolution upscaling under high pressure
+          _deviceDprCap = Math.max(1.0, Math.min(_deviceDprCap, 1.25));
+          if (curStride > 0) {
+            setAdaptivePipStrideTarget(curStride + 2); // throttle even faster
+          }
+        }
       }
       return;
     }
@@ -201,6 +217,12 @@ export const AnuAdaptiveDprModule = {
       if (_relaxFrames >= RELAX_STREAK && _currentIndex > 0) {
         applyDpr(_currentIndex - 1, "relaxed_up");
         _relaxFrames = 0;
+
+        // Closed-Loop Regulatory Feedback: gradually ease the PiP cadence back when stable
+        const curStride = getEffectivePipStride();
+        if (curStride > 0) {
+          setAdaptivePipStrideTarget(curStride - 1);
+        }
       }
       return;
     }

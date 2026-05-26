@@ -20,6 +20,7 @@
  */
 
 import * as THREE from "three";
+import { STRESS_LEVELS, getSystemStressLevel } from "../v2/anu/FrameBudget.js";
 import { ANU_SIMULATION_DOMAIN, ANU_INTERACTION_VERB } from "../v2/anu/SimulationController.js";
 import { sanctuaryGroundY } from "./SanctuaryGround.js";
 
@@ -182,6 +183,8 @@ function _ritualSlot(i, n, centerX, centerZ, groundY) {
   return new THREE.Vector3(x, groundY + RITUAL_HEIGHT_OVER_GROUND_M, z);
 }
 
+let _lastButterflyFrameCount = 0;
+
 export const SanctuaryButterfliesModule = {
   name: "SanctuaryButterflies",
 
@@ -317,9 +320,24 @@ export const SanctuaryButterfliesModule = {
     }
   },
 
-  update(delta) {
+  update(delta, frameCount) {
     if (!this._root) return;
-    this._elapsed += delta;
+
+    // LAYER 1: The Strict Performance Invariant Gate
+    const stress = getSystemStressLevel();
+    if (stress === STRESS_LEVELS.CRITICAL) {
+      return; // Early Exit: Budget Skip Conditions Compose the Median Frame
+    }
+
+    // LAYER 2: Stride/Cadence Throttle
+    const stride = stress === STRESS_LEVELS.STRESS ? 2 : 1;
+    const ticks = frameCount !== undefined ? frameCount : ++_lastButterflyFrameCount;
+    if (ticks % stride !== 0) {
+      return; // Zero-cost pass-through
+    }
+
+    const scaledDelta = delta * stride;
+    this._elapsed += scaledDelta;
 
     // Phase transitions.
     if (this._phase === PHASE.IDLE && this._elapsed >= this._nextRitualAt) {
@@ -360,7 +378,7 @@ export const SanctuaryButterfliesModule = {
 
       // Idle / disperse: each butterfly cycles explore → return → repeat.
       if (this._phase === PHASE.IDLE || this._phase === PHASE.DISPERSE) {
-        ud.modeT += delta;
+        ud.modeT += scaledDelta;
         const dx0 = ud.target.x - b.position.x;
         const dz0 = ud.target.z - b.position.z;
         const planar = Math.hypot(dx0, dz0);
@@ -390,7 +408,7 @@ export const SanctuaryButterfliesModule = {
       const dz = ud.target.z - b.position.z;
       const d = Math.hypot(dx, dy, dz);
       if (d > 0.005) {
-        const step = Math.min(speed * delta, d);
+        const step = Math.min(speed * scaledDelta, d);
         b.position.x += (dx / d) * step;
         b.position.y += (dy / d) * step;
         b.position.z += (dz / d) * step;
@@ -398,7 +416,7 @@ export const SanctuaryButterfliesModule = {
 
       // Wing-bob — fast Y oscillation reads as wingbeat at distance.
       const bob = Math.sin(this._elapsed * 6 + ud.bobPhase) * ud.bobAmp;
-      b.position.y += bob * delta * 6;
+      b.position.y += bob * scaledDelta * 6;
     }
   },
 

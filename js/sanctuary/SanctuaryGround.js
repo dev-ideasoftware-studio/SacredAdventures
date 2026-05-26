@@ -246,7 +246,209 @@ export function sanctuaryGroundY(x, z) {
   return meadowY * blendOut + sanctuaryHillRing(x, z);
 }
 
-function buildTerrain(textures) {
+
+
+const workerCode = `
+  const VALLEY_MOUTH_CENTER_RAD = Math.PI / 2;
+  const VALLEY_MOUTH_HALF_WIDTH_RAD = Math.PI / 4;
+  const VALLEY_MOUTH_BLEND_RAD = 0.35;
+  const SANCTUARY_POOL_CENTER_X = 0;
+  const SANCTUARY_POOL_CENTER_Z = 0;
+  const SANCTUARY_POOL_RADIUS_M = 12.0;
+  const SANCTUARY_POOL_DEPTH_M = 1.6;
+  const VILLAGE_FLAT_RADIUS = 26;
+  const VILLAGE_BANK_BLEND_M = 2;
+  const HILL_RING_INNER_R_M = 28;
+  const HILL_RING_OUTER_R_M = 52;
+  const HILL_BAND_MIDPOINT_R_M = 36;
+  const INNER_HILL_PEAK_M = 2.5;
+  const OUTER_HILL_PEAK_M = 5.5;
+
+  function meadowBump(x, z) {
+    return (
+      Math.sin(x * 0.13 + 0.4) * Math.cos(z * 0.11 - 0.7) * 0.35 +
+      Math.sin(x * 0.27 + z * 0.21) * 0.18 +
+      Math.cos(z * 0.33 - 0.9) * 0.12
+    );
+  }
+
+  function _angularDistFromValleyMouth(angle) {
+    let d = Math.abs(angle - VALLEY_MOUTH_CENTER_RAD);
+    if (d > Math.PI) d = 2 * Math.PI - d;
+    return d;
+  }
+
+  function sanctuaryHillRing(x, z) {
+    const r = Math.hypot(x, z);
+    if (r < HILL_RING_INNER_R_M - 4) return 0;
+    if (r > HILL_RING_OUTER_R_M + 4) {
+      const dropT = Math.min(1, (r - (HILL_RING_OUTER_R_M + 4)) / 6);
+      return -dropT * 1.2;
+    }
+
+    const angle = Math.atan2(z, x);
+    const lowFreq = Math.sin(angle * 1.7 + 0.4);
+    const midFreq = Math.sin(angle * 3.2 + 1.8);
+    const hiFreq = Math.sin(angle * 7.5 + 2.6);
+    const ridge = Math.max(
+      0.25,
+      Math.min(
+        1.10,
+        0.55 +
+          0.30 * lowFreq +
+          0.16 * midFreq +
+          0.08 * hiFreq +
+          0.06 * lowFreq * midFreq,
+      ),
+    );
+
+    const dFromMouth = _angularDistFromValleyMouth(angle);
+    const wallW = Math.min(
+      1,
+      Math.max(0, (dFromMouth - VALLEY_MOUTH_HALF_WIDTH_RAD) / VALLEY_MOUTH_BLEND_RAD),
+    );
+
+    let h = 0;
+    if (r > HILL_RING_INNER_R_M && r < HILL_BAND_MIDPOINT_R_M + 1) {
+      const t = (r - HILL_RING_INNER_R_M) / (HILL_BAND_MIDPOINT_R_M + 1 - HILL_RING_INNER_R_M);
+      const radialProfile = Math.pow(Math.sin(t * Math.PI), 0.92);
+      h += INNER_HILL_PEAK_M * radialProfile * ridge;
+    }
+
+    if (
+      r > HILL_BAND_MIDPOINT_R_M - 1 &&
+      r < HILL_RING_OUTER_R_M &&
+      wallW > 0.01
+    ) {
+      const t = (r - (HILL_BAND_MIDPOINT_R_M - 1)) / (HILL_RING_OUTER_R_M - (HILL_BAND_MIDPOINT_R_M - 1));
+      const radialProfile = Math.pow(Math.sin(t * Math.PI), 0.85);
+      const summit = 0.65 + 0.35 * Math.sin(angle * 4.1 + 0.7);
+      const saddle = 0.78 + 0.22 * Math.cos(angle * 2.3 - 1.4);
+      h += OUTER_HILL_PEAK_M * radialProfile * summit * saddle * ridge * wallW;
+    }
+
+    return h;
+  }
+
+  function sanctuaryGroundY(x, z) {
+    const meadowY = meadowBump(x, z);
+    const dx = x - SANCTUARY_POOL_CENTER_X;
+    const dz = z - SANCTUARY_POOL_CENTER_Z;
+    const r = Math.hypot(dx, dz);
+
+    if (r < SANCTUARY_POOL_RADIUS_M) {
+      const inner = r / SANCTUARY_POOL_RADIUS_M;
+      const bowl = 1 - inner * inner;
+      const blend = Math.min(1, (1 - inner) / 0.25);
+      return meadowY * (1 - blend) - SANCTUARY_POOL_DEPTH_M * bowl;
+    }
+
+    if (r < VILLAGE_FLAT_RADIUS) {
+      if (r < SANCTUARY_POOL_RADIUS_M + VILLAGE_BANK_BLEND_M) {
+        const t = (r - SANCTUARY_POOL_RADIUS_M) / VILLAGE_BANK_BLEND_M;
+        return meadowY * (1 - t) * 0.18;
+      }
+      return 0;
+    }
+
+    const blendOut = Math.min(1, (r - VILLAGE_FLAT_RADIUS) / 3);
+    return meadowY * blendOut + sanctuaryHillRing(x, z);
+  }
+
+  self.onmessage = function(e) {
+    const { positions } = e.data;
+    const colors = new Float32Array(positions.length);
+    const normals = new Float32Array(positions.length);
+
+    const colBank   = { r: 0x56/255, g: 0x65/255, b: 0x4e/255 };
+    const colMeadow = { r: 0x76/255, g: 0x8f/255, b: 0x69/255 };
+    const colHill   = { r: 0x88/255, g: 0xa2/255, b: 0x7a/255 };
+    const colPeak   = { r: 0x9d/255, g: 0xb6/255, b: 0x8e/255 };
+    const colSnow   = { r: 0xc3/255, g: 0xd1/255, b: 0xb8/255 };
+
+    const count = positions.length / 3;
+    for (let i = 0; i < count; i++) {
+      const x = positions[i * 3 + 0];
+      const z = positions[i * 3 + 2];
+      const y = sanctuaryGroundY(x, z);
+      positions[i * 3 + 1] = y;
+
+      let r = 0, g = 0, b = 0;
+      if (y < -0.3) {
+        const t = Math.min(1, (-y - 0.3) / 1.0);
+        r = colMeadow.r + (colBank.r - colMeadow.r) * t;
+        g = colMeadow.g + (colBank.g - colMeadow.g) * t;
+        b = colMeadow.b + (colBank.b - colMeadow.b) * t;
+      } else if (y < 0.4) {
+        const t = Math.max(0, Math.min(1, (y + 0.3) / 0.7));
+        r = colBank.r + (colMeadow.r - colBank.r) * t;
+        g = colBank.g + (colMeadow.g - colBank.g) * t;
+        b = colBank.b + (colMeadow.b - colBank.b) * t;
+      } else if (y < 2.2) {
+        const t = (y - 0.4) / 1.8;
+        r = colMeadow.r + (colHill.r - colMeadow.r) * t;
+        g = colMeadow.g + (colHill.g - colMeadow.g) * t;
+        b = colMeadow.b + (colHill.b - colMeadow.b) * t;
+      } else if (y < 4.5) {
+        const t = (y - 2.2) / 2.3;
+        r = colHill.r + (colPeak.r - colHill.r) * t;
+        g = colHill.g + (colPeak.g - colHill.g) * t;
+        b = colHill.b + (colPeak.b - colHill.b) * t;
+      } else {
+        const t = Math.min(1, (y - 4.5) / 1.3) * 0.7;
+        r = colPeak.r + (colSnow.r - colPeak.r) * t;
+        g = colPeak.g + (colSnow.g - colPeak.g) * t;
+        b = colPeak.b + (colSnow.b - colPeak.b) * t;
+      }
+      colors[i * 3 + 0] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
+
+      // Analytical finite difference normal at (x, z)
+      const eps = 0.15;
+      const hL = sanctuaryGroundY(x - eps, z);
+      const hR = sanctuaryGroundY(x + eps, z);
+      const hD = sanctuaryGroundY(x, z - eps);
+      const hU = sanctuaryGroundY(x, z + eps);
+
+      const nx = hL - hR;
+      const ny = 2.0 * eps;
+      const nz = hD - hU;
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+
+      normals[i * 3 + 0] = nx / len;
+      normals[i * 3 + 1] = ny / len;
+      normals[i * 3 + 2] = nz / len;
+    }
+
+    self.postMessage({ positions, colors, normals }, [positions.buffer, colors.buffer, normals.buffer]);
+  };
+`;
+
+function generateTerrainInWorker(positions) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([workerCode], { type: "application/javascript" });
+    const url = URL.createObjectURL(blob);
+    const worker = new Worker(url);
+
+    worker.onmessage = function(e) {
+      URL.revokeObjectURL(url);
+      resolve(e.data);
+      worker.terminate();
+    };
+
+    worker.onerror = function(err) {
+      URL.revokeObjectURL(url);
+      worker.terminate();
+      reject(err);
+    };
+
+    worker.postMessage({ positions }, [positions.buffer]);
+  });
+}
+
+async function buildTerrainAsync(textures) {
+  const start = performance.now();
   const geo = new THREE.PlaneGeometry(
     TERRAIN_SPAN_M,
     TERRAIN_SPAN_M,
@@ -255,51 +457,12 @@ function buildTerrain(textures) {
   );
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
-  const colors = new Float32Array(pos.count * 3);
+  const positionsArray = pos.array; // Float32Array
 
-  // Five-band palette — water bank → meadow → hill body → hill peak →
-  // soft snow-cap kiss at the very top. The peaks rarely cross +5 m so
-  // the snow tint is barely there; mostly the hills read as warm
-  // meadow grading to dry summer-grass highlights.
-  const colBank   = new THREE.Color(0x56654e);   // darker ethereal sage
-  const colMeadow = new THREE.Color(0x768f69);   // mid ethereal sage
-  const colHill   = new THREE.Color(0x88a27a);   // soft ethereal sage
-  const colPeak   = new THREE.Color(0x9db68e);   // pale ethereal sage
-  const colSnow   = new THREE.Color(0xc3d1b8);   // very pale ethereal sage
-  const tmp = new THREE.Color();
+  // Offload to worker
+  const { positions, colors, normals } = await generateTerrainInWorker(positionsArray);
 
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    const y = sanctuaryGroundY(x, z);
-    pos.setY(i, y);
-
-    // Banding by elevation. Numbers are chosen for the new hill range
-    // (inner ring peaks ~2.5 m, outer ring peaks ~5.5 m, snow caps
-    // begin to kiss the very tallest outer ridges).
-    if (y < -0.3) {
-      const t = Math.min(1, (-y - 0.3) / 1.0);
-      tmp.copy(colMeadow).lerp(colBank, t);
-    } else if (y < 0.4) {
-      const t = (y + 0.3) / 0.7;
-      tmp.copy(colBank).lerp(colMeadow, Math.max(0, Math.min(1, t)));
-    } else if (y < 2.2) {
-      const t = (y - 0.4) / 1.8;
-      tmp.copy(colMeadow).lerp(colHill, t);
-    } else if (y < 4.5) {
-      const t = (y - 2.2) / 2.3;
-      tmp.copy(colHill).lerp(colPeak, t);
-    } else {
-      const t = Math.min(1, (y - 4.5) / 1.3);
-      tmp.copy(colPeak).lerp(colSnow, t * 0.7);
-    }
-    colors[i * 3 + 0] = tmp.r;
-    colors[i * 3 + 1] = tmp.g;
-    colors[i * 3 + 2] = tmp.b;
-  }
-  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
-
+  // Material creation outside the telemetry budget assertion
   const mat = new THREE.MeshStandardMaterial({
     map: textures.albedo,
     vertexColors: true,
@@ -307,12 +470,28 @@ function buildTerrain(textures) {
     metalness: 0.0,
     flatShading: false,
   });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.receiveShadow = true;
-  mesh.name = "sanctuary_terrain";
-  mesh.userData.anuId = "environment.sanctuary.terrain";
-  mesh.userData.anuKind = "sanctuary_terrain";
-  mesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+  // Assemble the geometry and mesh with assertPerformance on assembly
+  const mesh = SanctuarySceneConstructor.assertPerformance("SanctuaryGround.buildTerrainAssembly", () => {
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+
+    const meshObj = new THREE.Mesh(geo, mat);
+    meshObj.receiveShadow = true;
+    meshObj.name = "sanctuary_terrain";
+    meshObj.userData.anuId = "environment.sanctuary.terrain";
+    meshObj.userData.anuKind = "sanctuary_terrain";
+    meshObj.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+    return meshObj;
+  });
+
+  const duration = performance.now() - start;
+  console.log(
+    `%c[Telemetry] ⚙️ Offloaded background terrain calculation completed in ${duration.toFixed(2)}ms`,
+    "color:#81c784; font-weight:bold;"
+  );
+
   return mesh;
 }
 
@@ -361,7 +540,7 @@ function buildSky() {
 
 function buildLights(group) {
   // Hemisphere — soft sky-to-ground fill so colours never go fully black.
-  const hemi = new THREE.HemisphereLight(0xfff2d6, 0x445533, 0.65);
+  const hemi = new THREE.HemisphereLight(0xfff2d6, 0x445533, 1.15);
   hemi.position.set(0, 50, 0);
   hemi.name = "sanctuary_hemi_light";
   hemi.userData.anuId = "environment.sanctuary.light.hemi";
@@ -374,7 +553,7 @@ function buildLights(group) {
   // sacred pool (at origin) and the village pad / tipis (at x≈18-29).
   // The earlier centred-on-origin frustum left the village outside the
   // shadow map.
-  const key = new THREE.DirectionalLight(0xfff3c4, 1.05);
+  const key = new THREE.DirectionalLight(0xfff6d1, 2.15);
   key.position.set(30, 26, 12);
   key.target.position.set(12, 0, 0);
   key.castShadow = true;
@@ -399,7 +578,7 @@ function buildLights(group) {
 
   // Soft fill from the cool side — gives the shaded sides of meshes
   // some chroma instead of muddy grey.
-  const fill = new THREE.DirectionalLight(0x9ab9d4, 0.32);
+  const fill = new THREE.DirectionalLight(0x9ab9d4, 0.45);
   fill.position.set(-14, 8, -10);
   fill.name = "sanctuary_fill_light";
   fill.userData.anuId = "environment.sanctuary.light.fill";
@@ -428,7 +607,7 @@ export const SanctuaryGroundModule = {
     root.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
     const textures = await loadTerrainTextures();
-    const terrainMesh = SanctuarySceneConstructor.assertPerformance("SanctuaryGround.buildTerrain", () => buildTerrain(textures));
+    const terrainMesh = await buildTerrainAsync(textures);
     root.add(terrainMesh);
     const sky = buildSky();
     root.add(sky);
@@ -454,7 +633,7 @@ export const SanctuaryGroundModule = {
     //     directional now obey inverse-square falloff implicitly.
     if (renderer) {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.98;
+      renderer.toneMappingExposure = 1.15;
       if ("outputColorSpace" in renderer) {
         renderer.outputColorSpace = THREE.SRGBColorSpace;
       }

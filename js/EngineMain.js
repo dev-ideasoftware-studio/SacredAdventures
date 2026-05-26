@@ -638,6 +638,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
           // Cinematic Tilted Perspective Overhead Minimap Camera
           pipCamera = new THREE.PerspectiveCamera(40, 1.0, 0.1, 3000);
           pipCamera.layers.enable(1); // Enable Layer 1 so we can see the FPV Avatar
+          pipCamera.layers.enable(3); // USER REQUEST: Add branches back to PIP map
           pipCamera.updateProjectionMatrix();
 
           // NATIVE CANVAS2D UI BLITTING PIPELINE (Replaces 3D Layer Masking Hack)

@@ -18,6 +18,7 @@
  */
 
 import * as THREE from "three";
+import { STRESS_LEVELS, getSystemStressLevel } from "../v2/anu/FrameBudget.js";
 import {
   SANCTUARY_POOL_CENTER_X,
   SANCTUARY_POOL_CENTER_Z,
@@ -31,7 +32,7 @@ function lcg(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0xffffffff; };
 }
 
-const FROG_COUNT = 2;
+const FROG_COUNT = 5;
 const LILY_COUNT = 16;
 const WATER_Y = -0.6; // Pool surface level
 const FLEE_DIST_SQ = 3.5 * 3.5;
@@ -252,13 +253,14 @@ function _buildFrog() {
 
 // ── AI Logic ──────────────────────────────────────────────────────────────
 
-function _getRandomLilyPos(rand, currentPos) {
+function _getRandomLilyPos(rand, currentPos, outVec) {
+  const out = outVec || new THREE.Vector3();
   if (!currentPos || _lilies.length === 0) {
     if (_lilies.length > 0) {
       const pad = _lilies[Math.floor(rand() * _lilies.length)];
-      return new THREE.Vector3(pad.position.x, WATER_Y + 0.02, pad.position.z);
+      return out.set(pad.position.x, WATER_Y + 0.02, pad.position.z);
     } else {
-      return _getRandomWaterPos(rand, currentPos);
+      return _getRandomWaterPos(rand, currentPos, out);
     }
   }
   
@@ -273,22 +275,23 @@ function _getRandomLilyPos(rand, currentPos) {
 
   if (validPads.length > 0) {
      const pad = validPads[Math.floor(rand() * validPads.length)];
-     return new THREE.Vector3(pad.position.x, WATER_Y + 0.02, pad.position.z);
+     return out.set(pad.position.x, WATER_Y + 0.02, pad.position.z);
   }
   
   // No nearby pads, jump to water instead
-  return _getRandomWaterPos(rand, currentPos);
+  return _getRandomWaterPos(rand, currentPos, out);
 }
 
 // Removed S_BASK_SHORE and _getRandomShorePos entirely.
 
-function _getRandomWaterPos(rand, currentPos) {
+function _getRandomWaterPos(rand, currentPos, outVec) {
+  const out = outVec || new THREE.Vector3();
   if (!currentPos) {
     const a = rand() * Math.PI * 2;
     const r = rand() * (SANCTUARY_POOL_RADIUS_M - 0.5);
     const x = SANCTUARY_POOL_CENTER_X + Math.cos(a) * r;
     const z = SANCTUARY_POOL_CENTER_Z + Math.sin(a) * r;
-    return new THREE.Vector3(x, WATER_Y - 0.08, z);
+    return out.set(x, WATER_Y - 0.08, z);
   }
 
   const a = rand() * Math.PI * 2;
@@ -306,8 +309,9 @@ function _getRandomWaterPos(rand, currentPos) {
      x = SANCTUARY_POOL_CENTER_X + Math.cos(inA) * inR;
      z = SANCTUARY_POOL_CENTER_Z + Math.sin(inA) * inR;
   }
-  return new THREE.Vector3(x, WATER_Y - 0.08, z);
+  return out.set(x, WATER_Y - 0.08, z);
 }
+
 
 function _startJump(f, targetPos, jumpTime) {
   f.state = S_JUMP;
@@ -315,10 +319,24 @@ function _startJump(f, targetPos, jumpTime) {
   f.endPos.copy(targetPos);
   f.timer = 0;
   f.duration = jumpTime;
-  
   // Orient toward target
   f.group.lookAt(targetPos.x, f.group.position.y, targetPos.z);
 }
+
+/**
+ * Clear the near-hook frog event if it belongs to this frog — called
+ * whenever the frog leaves the lily pad (flee, timer jump, being eaten).
+ */
+function _clearFrogEvent(f) {
+  if (typeof window !== "undefined" && window.__sanctuaryFrogOnLily?.frogObj === f) {
+    window.__sanctuaryFrogOnLily = null;
+  }
+}
+
+// Pre-allocated static vectors for Layer 3 Zero-Allocation
+const _staticFrogDir = new THREE.Vector3();
+const _staticTempVec = new THREE.Vector3();
+let _lastFrogFrameCount = 0;
 
 export const SanctuaryFrogsModule = {
   name: "SanctuaryFrogs",
@@ -384,7 +402,22 @@ export const SanctuaryFrogsModule = {
 
   update(dt, frameCount, scene, camera) {
     if (!dt || !_group) return;
-    _clock += dt;
+
+    // LAYER 1: The Strict Performance Invariant Gate
+    const stress = getSystemStressLevel();
+    if (stress === STRESS_LEVELS.CRITICAL) {
+      return; // Early Exit: Budget Skip Conditions Compose the Median Frame
+    }
+
+    // LAYER 2: Stride/Cadence Throttle
+    const stride = stress === STRESS_LEVELS.STRESS ? 2 : 1;
+    const ticks = frameCount !== undefined ? frameCount : ++_lastFrogFrameCount;
+    if (ticks % stride !== 0) {
+      return; // Zero-cost pass-through
+    }
+
+    const scaledDt = dt * stride;
+    _clock += scaledDt;
 
     // Gentle lily pad bobbing
     for (let i = 0; i < _lilies.length; i++) {
@@ -409,7 +442,7 @@ export const SanctuaryFrogsModule = {
       }
 
       if (f.state === S_JUMP) {
-        f.timer += dt;
+        f.timer += scaledDt;
         const t = Math.min(1.0, f.timer / f.duration);
         
         // Linear interpolation XZ
@@ -432,24 +465,46 @@ export const SanctuaryFrogsModule = {
           if (Math.abs(f.endPos.y - WATER_Y) < 0.05) {
             f.state = S_BASK_LILY; // landed on a pad
             f.timer = 30.0; // Rest for 30 seconds
+
+            // ── Near-hook broadcast ──────────────────────────────────
+            // If fishing is active and this lily pad is within 2.5 m of
+            // the bobber (XZ), alert nearby fish to try to eat the frog.
+            if (typeof window !== "undefined" && window.__sanctuaryBobberPos) {
+              const bp = window.__sanctuaryBobberPos;
+              const dxH = f.group.position.x - bp.x;
+              const dzH = f.group.position.z - bp.z;
+              if (Math.hypot(dxH, dzH) < 2.5) {
+                window.__sanctuaryFrogOnLily = {
+                  frogGroup: f.group,
+                  frogObj:   f,
+                  lilyPos:   f.group.position.clone(),
+                  eaten:     false,
+                };
+                console.log(
+                  "%c[SanctuaryFrogs] 🐸 Frog landed on lily NEAR HOOK — fish alert!",
+                  "color:#a5d6a7;font-weight:bold;",
+                );
+              }
+            }
           } else {
             f.state = S_SWIM;
             f.timer = 2.0 + rand() * 4.0; // rest for 2-6s in water
             // They just landed in water, give them a target to swim towards
-            f.endPos.copy(_getRandomWaterPos(rand, f.group.position));
+            _getRandomWaterPos(rand, f.group.position, f.endPos);
           }
         }
       } 
       else if (f.state === S_BASK_LILY) {
-        f.timer -= dt;
+        f.timer -= scaledDt;
 
         // Flee logic!
         if (playerPos) {
           const d2 = f.group.position.distanceToSquared(playerPos);
           if (d2 < FLEE_DIST_SQ) {
             // Frog panics and jumps back into water
-            const target = _getRandomWaterPos(rand, f.group.position);
-            _startJump(f, target, 0.6); // fast panic jump
+            _clearFrogEvent(f);
+            _getRandomWaterPos(rand, f.group.position, _staticTempVec);
+            _startJump(f, _staticTempVec, 0.6); // fast panic jump
             continue;
           }
         }
@@ -474,7 +529,7 @@ export const SanctuaryFrogsModule = {
           const targetYaw = Math.atan2(dfPos.x - f.group.position.x, dfPos.z - f.group.position.z);
           const angleDiff = targetYaw - f.group.rotation.y;
           const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
-          f.group.rotation.y += normalizedDiff * dt * 2.0; // slow turn
+          f.group.rotation.y += normalizedDiff * scaledDt * 2.0; // slow turn
 
           const distMeters = Math.sqrt(minDistSq);
           // 1 foot = ~0.3m, 2 feet = ~0.6m
@@ -490,14 +545,15 @@ export const SanctuaryFrogsModule = {
 
           if (shouldStrike) {
             // STRIKE!
+            _clearFrogEvent(f);
             f.state = S_STRIKE;
             f.timer = 0;
             f.duration = 0.5; // half second strike animation
             f.targetDF = nearestDF;
-            
+
             // Immediately jump to the water
             f.startPos.copy(f.group.position);
-            f.endPos.copy(_getRandomWaterPos(rand, f.group.position));
+            _getRandomWaterPos(rand, f.group.position, f.endPos);
             
             // "Eat" the dragonfly
             nearestDF.alive = false;
@@ -508,13 +564,18 @@ export const SanctuaryFrogsModule = {
 
         if (f.timer <= 0) {
           // Decide next action after 30s rest
+          _clearFrogEvent(f);
           const roll = rand();
-          const target = roll > 0.4 ? _getRandomLilyPos(rand, f.group.position) : _getRandomWaterPos(rand, f.group.position);
-          _startJump(f, target, 0.8);
+          if (roll > 0.4) {
+            _getRandomLilyPos(rand, f.group.position, _staticTempVec);
+          } else {
+            _getRandomWaterPos(rand, f.group.position, _staticTempVec);
+          }
+          _startJump(f, _staticTempVec, 0.8);
         }
       }
       else if (f.state === S_STRIKE) {
-        f.timer += dt;
+        f.timer += scaledDt;
         const t = Math.min(1.0, f.timer / f.duration);
         
         // Jump arc toward the water
@@ -556,7 +617,7 @@ export const SanctuaryFrogsModule = {
           f.group.rotation.x = 0;
           f.state = S_SWIM;
           f.timer = 3.0 + rand() * 4.0;
-          f.endPos.copy(_getRandomWaterPos(rand, f.group.position));
+          _getRandomWaterPos(rand, f.group.position, f.endPos);
           if (tongue) tongue.visible = false;
           f.targetDF = null;
           
@@ -567,10 +628,10 @@ export const SanctuaryFrogsModule = {
         }
       }
       else if (f.state === S_SWIM) {
-        f.timer -= dt;
+        f.timer -= scaledDt;
         
         // Swim towards target
-        const dir = new THREE.Vector3().subVectors(f.endPos, f.group.position);
+        const dir = _staticFrogDir.subVectors(f.endPos, f.group.position);
         dir.y = 0;
         const dist = dir.length();
         
@@ -578,14 +639,15 @@ export const SanctuaryFrogsModule = {
           // Time to rest or switch path
           const roll = rand();
           if (roll < 0.3) {
-            _startJump(f, _getRandomLilyPos(rand, f.group.position), 0.6);
+            _getRandomLilyPos(rand, f.group.position, _staticTempVec);
+            _startJump(f, _staticTempVec, 0.6);
           } else {
-            f.endPos.copy(_getRandomWaterPos(rand, f.group.position));
+            _getRandomWaterPos(rand, f.group.position, f.endPos);
             f.timer = 2 + rand() * 3;
           }
         } else {
           dir.normalize();
-          f.group.position.addScaledVector(dir, f.swimSpeed * dt);
+          f.group.position.addScaledVector(dir, f.swimSpeed * scaledDt);
           // Gently submerge/emerge while swimming
           f.group.position.y = WATER_Y - 0.08 + Math.sin(_clock * 10.0) * 0.01;
           
@@ -593,7 +655,7 @@ export const SanctuaryFrogsModule = {
           const targetYaw = Math.atan2(dir.x, dir.z);
           const angleDiff = targetYaw - f.group.rotation.y;
           const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
-          f.group.rotation.y += normalizedDiff * dt * 5.0;
+          f.group.rotation.y += normalizedDiff * scaledDt * 5.0;
         }
       }
     }

@@ -149,8 +149,8 @@ function evaluateLivePipelineRisk(opts = {}) {
   // module adds independently):
   //
   //   1 main game canvas (`#v2-canvas` from index.v2.html)
-  // + 1 engine HUD frame-graph (`#v2-frame-graph`) — created when AnuModule
-  //   activates and attaches the Orchestrator HUD.
+  // + 2 engine HUD canvases (`#v2-frame-graph` and `#v2-trace-spark`) — created
+  //   when the Orchestrator starts and attaches the HUD.
   // + PanelsPIP (the moondial PiP UIModule) contributes TWO canvases:
   //     - `#pipCanvas` — the second WebGL pass, gated by
   //       `V2_PIP_RENDER_EVERY_N_FRAMES > 0`.
@@ -167,9 +167,10 @@ function evaluateLivePipelineRisk(opts = {}) {
   try {
     if (typeof document !== "undefined" && _anuOrchestratorRef) {
       const active = _anuOrchestratorRef._activeModules ?? [];
+      const hasHud = _anuOrchestratorRef._hud ? 2 : 0;
       const expected =
         1 +
-        (active.includes("Anu") ? 1 : 0) +
+        hasHud +
         (active.includes("PanelsPIP")
           ? (V2_PIP_RENDER_EVERY_N_FRAMES > 0 ? 2 : 1)
           : 0) +

@@ -923,6 +923,9 @@ export const SanctuaryFishingModule = {
   _savedCamFov: 75,
   _camIsRepositioned: false,
 
+  // Fishing zone culling — objects hidden while fishing
+  _fishingCullStash: null,
+
   // Cached pool-centre vector (created once in load)
   _poolCentre: null,
 
@@ -1164,6 +1167,52 @@ export const SanctuaryFishingModule = {
     );
   },
 
+  // ── Fishing zone isolation ────────────────────────────────────────────────
+  // Hides all scene objects more than 16m from pool centre during fishing so
+  // the renderer only processes the pond area — big FPS win on shadow maps,
+  // draw calls and update traversals.
+  _enterFishingZone() {
+    if (this._fishingCullStash) return;
+    const scene = this._scene;
+    if (!scene) return;
+    const cx = SANCTUARY_POOL_CENTER_X, cz = SANCTUARY_POOL_CENTER_Z;
+    const CULL_R = 16.0;
+    const stash = [];
+    const tmp = new THREE.Vector3();
+    // Names of anuKind values that must stay visible during fishing
+    const KEEP = new Set([
+      'sanctuary_fish', 'sanctuary_fish_school', 'sanctuary_jumping_fish',
+      'sanctuary_baby_fish', 'sanctuary_frog', 'sanctuary_frogs',
+      'sanctuary_avatar', 'sanctuary_avatar_mesh', 'sanctuary_avatar_skin_fill_mesh',
+      'sanctuary_fish_jumps', 'sanctuary_pool', 'sanctuary_lily',
+      'sanctuary_lily_pad', 'sanctuary_ripple', 'sanctuary_water',
+    ]);
+    scene.traverse((obj) => {
+      if (!obj.visible) return;                     // already hidden — skip
+      if (obj.isLight || obj.isCamera) return;      // never cull lights/cameras
+      if (!obj.isMesh && !obj.isGroup) return;      // skip helpers, bones, etc.
+      const kind = obj.userData?.anuKind;
+      if (kind && KEEP.has(kind)) return;           // always keep pond objects
+      obj.getWorldPosition(tmp);
+      if (Math.hypot(tmp.x - cx, tmp.z - cz) > CULL_R) {
+        obj.visible = false;
+        stash.push(obj);
+      }
+    });
+    this._fishingCullStash = stash;
+    console.log(
+      `%c[SanctuaryFishing] 🎣 Fishing zone isolated — culled ${stash.length} distant objects.`,
+      'color:#4fc3f7;font-weight:bold;',
+    );
+  },
+
+  _exitFishingZone() {
+    if (!this._fishingCullStash) return;
+    for (const obj of this._fishingCullStash) obj.visible = true;
+    this._fishingCullStash = null;
+    console.log('%c[SanctuaryFishing] 🎣 Fishing zone — world restored.', 'color:#4fc3f7;');
+  },
+
   _setPhase(p) {
     this._phase  = p;
     this._phaseT = 0;
@@ -1197,6 +1246,10 @@ export const SanctuaryFishingModule = {
       window.__sanctuaryFishingActive = (p !== PHASE.IDLE);
     }
 
+    // Isolate pond scene for better FPS while fishing
+    if (p !== PHASE.IDLE && !this._fishingCullStash) this._enterFishingZone();
+    else if (p === PHASE.IDLE && this._fishingCullStash) this._exitFishingZone();
+
     // Reset turn counters each time we enter WAITING.
     if (p === PHASE.WAITING) {
       this._turnCount   = 0;
@@ -1226,6 +1279,31 @@ export const SanctuaryFishingModule = {
     }
     if (this._btn) {
       this._btn.textContent = (p === PHASE.BITE || p === PHASE.LANDING) ? "🐟 CATCH!" : "🎣 CAST";
+    }
+
+    // ── ANU POND SENSOR TELEMETRY WATCH ───────────────────────────────
+    if (typeof window !== "undefined" && window.AnuUniverse) {
+      try {
+        const budgetSnap = window.AnuUniverse.budget?.snapshot?.();
+        const fuzzSnap   = window.AnuUniverse.getFuzzyPipelineSnapshot?.();
+        const activeFps  = window.anuOrchestrator ? Math.round(window.anuOrchestrator._fpsReady ? window.anuOrchestrator.smoothFPS : window.anuOrchestrator.rawFPS) : 0;
+        const btlId      = fuzzSnap?.primaryBottleneck?.id ?? "none";
+        const btlScore   = fuzzSnap?.primaryBottleneck?.score ?? 0;
+        const loadPct    = budgetSnap ? Math.round(budgetSnap.loadPct) : 0;
+
+        let statusColor = "#a5d6a7"; // green
+        if (activeFps < 45 || loadPct > 120) statusColor = "#ef5350"; // red
+        else if (activeFps < 60 || loadPct > 90) statusColor = "#ffd166"; // amber
+
+        console.log(
+          `%c[ANU POND SENSOR] 🎣 Phase: ${p.toUpperCase()} · %c${activeFps} FPS%c · Load: ${loadPct}% · Primary Bottleneck: %c${btlId}%c (score: ${btlScore.toFixed(2)})`,
+          "color:#80deea;font-weight:bold;",
+          `color:${statusColor};font-weight:bold;`,
+          "color:#80deea;",
+          "color:#ffab91;font-weight:bold;",
+          "color:#80deea;"
+        );
+      } catch (_) {}
     }
   },
 
@@ -1867,12 +1945,31 @@ export const SanctuaryFishingModule = {
               this._attachFishToAvatarSide();
             }
             
-            // Caught fish resets as 10% tiny baby
+            // Caught fish: remove from pool, spawn tiny baby replacement
             if (window.__interestedFish) {
-              window.__interestedFish.userData.growthScale = 0.1;
-              window.__interestedFish.userData.isStruggling = false;
-              window.__interestedFish.userData.interestTimer = 0;
+              const caughtPoolFish = window.__interestedFish;
+              // Remove from the school array (shared ref with SanctuaryFishModule._fishMeshes)
+              if (Array.isArray(window.__sanctuaryFishSchool)) {
+                const idx = window.__sanctuaryFishSchool.indexOf(caughtPoolFish);
+                if (idx !== -1) window.__sanctuaryFishSchool.splice(idx, 1);
+                window.__sanctuaryFishCount = window.__sanctuaryFishSchool.length;
+              }
+              // Hide mesh — leave in scene graph until next pool reset
+              caughtPoolFish.visible = false;
+              caughtPoolFish.userData.isStruggling = false;
+              caughtPoolFish.userData.interestTimer = 0;
+              caughtPoolFish.userData._interestPhase = null;
               window.__interestedFish = null;
+
+              // Spawn a tiny baby fish near the pool centre
+              if (typeof window.__sanctuarySpawnBabyFish === "function") {
+                const offX = (Math.random() - 0.5) * 1.0;
+                const offZ = (Math.random() - 0.5) * 1.0;
+                window.__sanctuarySpawnBabyFish(
+                  SANCTUARY_POOL_CENTER_X + offX,
+                  SANCTUARY_POOL_CENTER_Z + offZ,
+                );
+              }
             }
             
             try { window.sanctuaryGrant?.("fish", 1); } catch (_) {}
@@ -2124,6 +2221,9 @@ export const SanctuaryFishingModule = {
   },
 
   unload(scene) {
+    // Restore any culled objects before tearing down
+    this._exitFishingZone();
+
     if (typeof window !== "undefined") {
       delete window.__sanctuaryFishingSpawnRipple;
     }

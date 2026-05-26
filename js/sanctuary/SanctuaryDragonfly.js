@@ -19,6 +19,7 @@
  */
 
 import * as THREE from "three";
+import { STRESS_LEVELS, getSystemStressLevel } from "../v2/anu/FrameBudget.js";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
 import {
   SANCTUARY_POOL_CENTER_X,
@@ -153,6 +154,8 @@ function _makeDragonflyTexture() {
   return tex;
 }
 
+let _lastDragonflyFrameCount = 0;
+
 export const SanctuaryDragonflyModule = {
   name: "SanctuaryDragonfly",
 
@@ -235,13 +238,28 @@ export const SanctuaryDragonflyModule = {
     df.stateT = 0;
   },
 
-  update(delta) {
+  update(delta, frameCount) {
     if (!this._dragonflies.length) return;
+
+    // LAYER 1: The Strict Performance Invariant Gate
+    const stress = getSystemStressLevel();
+    if (stress === STRESS_LEVELS.CRITICAL) {
+      return; // Early Exit: Budget Skip Conditions Compose the Median Frame
+    }
+
+    // LAYER 2: Stride/Cadence Throttle
+    const stride = stress === STRESS_LEVELS.STRESS ? 2 : 1;
+    const ticks = frameCount !== undefined ? frameCount : ++_lastDragonflyFrameCount;
+    if (ticks % stride !== 0) {
+      return; // Zero-cost pass-through
+    }
+
+    const scaledDelta = delta * stride;
 
     for (let df of this._dragonflies) {
       if (!df.alive) {
         df.sprite.position.set(0, -100, 0);
-        df.respawnTimer -= delta;
+        df.respawnTimer -= scaledDelta;
         if (df.respawnTimer <= 0) {
           df.alive = true;
           this._pickNewFlight(df);
@@ -249,7 +267,7 @@ export const SanctuaryDragonflyModule = {
         continue;
       }
 
-      df.stateT += delta;
+      df.stateT += scaledDelta;
       
       const t = Math.min(1, df.stateT / df.flightDur);
       df.sprite.position.lerpVectors(df.from, df.to, t);

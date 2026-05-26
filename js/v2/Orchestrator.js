@@ -109,7 +109,7 @@ export class SacredOrchestrator {
     // separates the v4 look from a flat low-poly read.
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.3;
 
     // ── Production shader-debug OFF (May-19 2026 FPS profile) ────────
     // `gl.getProgramInfoLog` is a CPU↔GPU readback that Three.js fires
@@ -355,14 +355,15 @@ export class SacredOrchestrator {
    * One benchmark at a time; queues extras until FPS EMA is meaningful.
    */
   _scheduleBenchForModule(name) {
-    if (this._bench) {
-      this._benchQueue.push(name);
-      return;
-    }
+    this._benchQueue.push(name);
+    this._processBenchQueue();
+  }
+
+  _processBenchQueue() {
+    if (this._bench || this._benchQueue.length === 0) return;
 
     const MIN_BASELINE = 8;
     if (!this._fpsReady || this.smoothFPS < MIN_BASELINE) {
-      this._benchQueue.push(name);
       if (!this._warmupPoll) {
         console.log(
           "%c[SacredOrchestrator] FPS warmup — benchmarks queued until EMA stabilizes (smoothFPS ≥ 8).",
@@ -379,11 +380,6 @@ export class SacredOrchestrator {
       return;
     }
 
-    this._beginBench(name);
-  }
-
-  _processBenchQueue() {
-    if (this._bench || this._benchQueue.length === 0) return;
     const next = this._benchQueue.shift();
     this._beginBench(next);
   }
@@ -518,15 +514,19 @@ export class SacredOrchestrator {
     const target = new THREE.WebGLRenderTarget(1, 1);
     const savedRT = renderer.getRenderTarget();
 
-    /** Restore frustum-cull state after the warmup pass. */
-    const restore = [];
+    /** Restore frustum-cull and visibility state after the warmup pass. */
+    const restoreCull = [];
+    const restoreVis = [];
     this.scene.traverse((o) => {
-      if (
-        (o.isMesh || o.isInstancedMesh || o.isSkinnedMesh) &&
-        o.frustumCulled === true
-      ) {
-        restore.push(o);
-        o.frustumCulled = false;
+      if (o.isMesh || o.isInstancedMesh || o.isSkinnedMesh) {
+        if (o.frustumCulled === true) {
+          restoreCull.push(o);
+          o.frustumCulled = false;
+        }
+        if (o.visible === false) {
+          restoreVis.push(o);
+          o.visible = true;
+        }
       }
     });
 
@@ -535,7 +535,8 @@ export class SacredOrchestrator {
       renderer.render(this.scene, camera);
     } finally {
       renderer.setRenderTarget(savedRT);
-      for (const o of restore) o.frustumCulled = true;
+      for (const o of restoreCull) o.frustumCulled = true;
+      for (const o of restoreVis) o.visible = false;
       target.dispose();
     }
   }
@@ -825,9 +826,12 @@ export class SacredOrchestrator {
     const isTopDown = document.body.classList.contains("v4-top-down-view");
     const pr = Math.min(window.devicePixelRatio || 1, isTopDown ? 2.0 : 1.25);
     const rect = canvasEl.getBoundingClientRect();
+    const rawW = Math.max(160, Math.floor(rect.width * pr));
+    const rawH = Math.max(160, Math.floor(rect.height * pr));
+    const cap = isTopDown ? 512 : 192;
     return {
-      w: Math.max(160, Math.floor(rect.width * pr)),
-      h: Math.max(160, Math.floor(rect.height * pr)),
+      w: Math.min(cap, rawW),
+      h: Math.min(cap, rawH),
     };
   }
 
@@ -844,6 +848,7 @@ export class SacredOrchestrator {
       alpha: true,
       antialias: false,
       powerPreference: "low-power",
+      preserveDrawingBuffer: true,
     });
     this._pipRenderer.setPixelRatio(1);
     this._pipRenderer.setSize(w, h, false);
@@ -947,8 +952,6 @@ export class SacredOrchestrator {
       this.scene.traverse((o) => {
         if (
           o.userData?.anuKind === "tipi_smoke" ||
-          o.userData?.anuKind === "sanctuary_pond_tree_dense" ||
-          o.userData?.anuKind === "sanctuary_pond_bush_dense" ||
           o.userData?.anuKind === "sanctuary_frog_group" ||
           o.userData?.anuKind === "sanctuary_lily_pads"
         ) {
@@ -976,7 +979,17 @@ export class SacredOrchestrator {
    */
   _renderPip() {
     const isTopDown = document.body.classList.contains("v4-top-down-view");
-    if (!isTopDown && !shouldRenderPipSceneThisFrame()) {
+    const isFishingActive =
+      window.__sanctuaryFishingActive === true && window.__sanctuaryBobberPos != null;
+    // During fishing: throttle PIP to every 4th frame (~15fps) — gauge still looks live
+    // but we stop burning a full 60fps second render pass over the pond.
+    if (isFishingActive) {
+      this._fishingPipFrame = ((this._fishingPipFrame ?? 0) + 1);
+      if (this._fishingPipFrame % 4 !== 0) {
+        this._pipRenderedLastFrame = false;
+        return;
+      }
+    } else if (!isTopDown && !shouldRenderPipSceneThisFrame()) {
       this._pipRenderedLastFrame = false;
       return;
     }
@@ -1005,6 +1018,15 @@ export class SacredOrchestrator {
     try {
       this._renderPipPass(state);
       this._pipRenderedLastFrame = true;
+
+      // Transfer the frame to the iframe via zero-copy ImageBitmap transferable
+      // Only do this expensive createImageBitmap call if the panel is actually visible
+      const iframe = document.getElementById("v4-panel-frame");
+      if (iframe && iframe.contentWindow && window._v4PanelOpen !== false) {
+        createImageBitmap(this._pipRenderer.domElement).then((bitmap) => {
+          iframe.contentWindow.postMessage({ type: "PIP_FRAME", bitmap }, "*", [bitmap]);
+        }).catch(() => {});
+      }
     } finally {
       this._restorePipScene(state);
     }
@@ -1036,6 +1058,42 @@ export class SacredOrchestrator {
    */
   _renderPipPass(state) {
     const { feet, yaw, mainMap } = state;
+
+    // ── Fishing mode: zoom PiP tight onto the 3D gauge ────────────────
+    // When the player is fishing, the PiP acts as a magnified close-up of
+    // the interest gauge floating on the water surface, so players can
+    // read it at a glance without squinting at the pool.
+    if (window.__sanctuaryFishingActive === true && window.__sanctuaryBobberPos) {
+      const bp = window.__sanctuaryBobberPos; // THREE.Vector3 live reference
+      // Gauge design radius = 2.0, world radius = 2.0 × 0.242 = 0.484 m.
+      // Span of 1.4 m → gauge fills ~70 % of the pip inner circle.
+      const FISHING_PIP_SPAN = 1.4;
+      const aspect = this._pipW / Math.max(1, this._pipH);
+      const halfW = FISHING_PIP_SPAN / 2;
+      const halfH = halfW / aspect;
+      this._pipOrtho.left   = -halfW;
+      this._pipOrtho.right  =  halfW;
+      this._pipOrtho.top    =  halfH;
+      this._pipOrtho.bottom = -halfH;
+      this._pipOrtho.updateProjectionMatrix();
+      // Camera sits 4 m above the water surface, looking straight down
+      const WATER_Y = -0.05;
+      this._pipOrtho.position.set(bp.x, WATER_Y + 4.0, bp.z);
+      this._pipOrtho.up.set(0, 0, -1);
+      this._pipOrtho.lookAt(bp.x, WATER_Y, bp.z);
+      this._pipRenderer.render(this.scene, this._pipOrtho);
+      // Restore normal ortho frustum so the non-fishing frame is correct
+      const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM * this._pipUserZoom;
+      const rHalfW = span / 2;
+      const rHalfH = rHalfW / aspect;
+      this._pipOrtho.left   = -rHalfW;
+      this._pipOrtho.right  =  rHalfW;
+      this._pipOrtho.top    =  rHalfH;
+      this._pipOrtho.bottom = -rHalfH;
+      this._pipOrtho.updateProjectionMatrix();
+      return;
+    }
+
     if (!mainMap) {
       const elev = 78;
       this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);

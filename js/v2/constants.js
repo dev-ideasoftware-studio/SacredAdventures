@@ -59,7 +59,7 @@ export const V2_PIP_ORTHO_ZOOM = 0.80;
 export const V2_PIP_RENDER_EVERY_N_FRAMES = 18;
 
 /** Target frame rate for budgeting / UX copy (physics step is still rAF-driven). */
-export const V2_TARGET_FPS = 120;
+export const V2_TARGET_FPS = 65;
 
 /** Nominal ms budget at V2_TARGET_FPS — used by FrameBudget / Anu reporting. */
 export const V2_FRAME_MS_BUDGET = 1000 / V2_TARGET_FPS;

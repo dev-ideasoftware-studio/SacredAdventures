@@ -32,12 +32,12 @@ const DAY = {
   skyHorizon: new THREE.Color(0xf5d8a0),
   bg: new THREE.Color(0xc9def0),
   fog: new THREE.Color(0xcfd9c6),
-  keyColor: new THREE.Color(0xfff3c4),
-  keyIntensity: 1.05,
+  keyColor: new THREE.Color(0xfff6d1),
+  keyIntensity: 2.15,
   hemiSky: new THREE.Color(0xfff2d6),
   hemiGround: new THREE.Color(0x445533),
-  hemiIntensity: 0.65,
-  exposure: 1.05,
+  hemiIntensity: 1.15,
+  exposure: 1.30,
 };
 const NIGHT = {
   skyTop: new THREE.Color(0x101830),

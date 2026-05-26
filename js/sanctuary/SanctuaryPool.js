@@ -24,6 +24,7 @@
  */
 
 import * as THREE from "three";
+import { STRESS_LEVELS, getSystemStressLevel } from "../v2/anu/FrameBudget.js";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
 import { SanctuarySceneConstructor } from "./SanctuarySceneConstructor.js";
 import {
@@ -572,6 +573,12 @@ function buildLilyPads(centerY) {
   return group;
 }
 
+// Pre-allocated static variables at the module scope for Layer 3 Zero-Allocation
+const _staticNormal = new THREE.Vector3();
+const _staticQuat = new THREE.Quaternion();
+const _staticUp = new THREE.Vector3(0, 1, 0);
+let _lastFrameCount = 0;
+
 export const SanctuaryPoolModule = {
   name: "SanctuaryPool",
 
@@ -621,10 +628,23 @@ export const SanctuaryPoolModule = {
     );
   },
 
-  update(delta) {
+  update(delta, frameCount) {
     if (!this._root) return;
     this._elapsed += delta;
     _poolTimeUniform.value = this._elapsed;
+
+    // LAYER 1: The Strict Performance Invariant Gate
+    const stress = getSystemStressLevel();
+    if (stress === STRESS_LEVELS.CRITICAL) {
+      return; // Early Exit: Budget Skip Conditions Compose the Median Frame
+    }
+
+    // LAYER 2: Stride/Cadence Throttle
+    const stride = stress === STRESS_LEVELS.STRESS ? 2 : 1;
+    const ticks = frameCount !== undefined ? frameCount : ++_lastFrameCount;
+    if (ticks % stride !== 0) {
+      return; // Zero-cost pass-through
+    }
 
     // Float and tilt the lily pads dynamically in sync with physical Gerstner Waves!
     if (this._lilyPadsGroup) {
@@ -645,18 +665,20 @@ export const SanctuaryPoolModule = {
           const slopeZ = (heightZ - waveHeight) / 0.1;
           
           // Build wave normal slope vector
-          const normal = new THREE.Vector3(-slopeX, 1.0, -slopeZ).normalize();
+          // LAYER 3: Zero-Allocation Traversal using pre-allocated module-scoped variables
+          _staticNormal.set(-slopeX, 1.0, -slopeZ).normalize();
           
           // Apply vertical height offset
           child.position.y = y0 + waveHeight;
           
           // Tilt matching unit vector rotation
-          const alignQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-          child.quaternion.copy(alignQuat).multiply(child.userData.baseQuaternion);
+          _staticQuat.setFromUnitVectors(_staticUp, _staticNormal);
+          child.quaternion.copy(_staticQuat).multiply(child.userData.baseQuaternion);
         }
       });
     }
   },
+
 
   unload(scene) {
     if (!this._root) return;

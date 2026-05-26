@@ -45,17 +45,63 @@ export function getFrameSamplesCapacity() {
   return _ROLL_LEN;
 }
 
+const _budgetSnapshot = {
+  lastMs: 0,
+  avgMs: 0,
+  loadPct: 0,
+  budgetMs: 0,
+  samples: 0
+};
+
 export function getFrameBudgetSnapshot() {
   const avgMs = getRollingAvgFrameMs();
   const loadPct =
     V2_FRAME_MS_BUDGET > 0
       ? ((avgMs > 0 ? avgMs : _lastMs) / V2_FRAME_MS_BUDGET) * 100
       : 0;
-  return Object.freeze({
-    lastMs: _lastMs,
-    avgMs,
-    loadPct,
-    budgetMs: V2_FRAME_MS_BUDGET,
-    samples: _samples.length,
-  });
+  _budgetSnapshot.lastMs = _lastMs;
+  _budgetSnapshot.avgMs = avgMs;
+  _budgetSnapshot.loadPct = loadPct;
+  _budgetSnapshot.budgetMs = V2_FRAME_MS_BUDGET;
+  _budgetSnapshot.samples = _samples.length;
+  return _budgetSnapshot;
 }
+
+export const STRESS_LEVELS = {
+  OPTIMAL: 1,  // Stride 1
+  STRESS: 2,   // Stride 2
+  CRITICAL: 3, // Bypass entirely
+};
+
+export function getSystemStressLevel() {
+  const avg = getRollingAvgFrameMs();
+  if (avg <= 0) return STRESS_LEVELS.OPTIMAL; // seed frame
+
+  // Dynamically obtain targetMs from the adaptive DPR monitor (probed screen Hz)
+  let targetMs = 1000 / 60; // 16.67ms baseline default (60 Hz target)
+  if (typeof window !== "undefined" && window.AnuUniverse?.adaptiveDpr) {
+    try {
+      const snap = window.AnuUniverse.adaptiveDpr.snapshot();
+      if (snap && snap.targetMs > 0) {
+        targetMs = snap.targetMs;
+      }
+    } catch (_) {
+      /* defensive */
+    }
+  }
+
+  // Calculate thresholds relative to the actual target MS (dynamic vsync headroom)
+  const stressThreshold = targetMs;
+  const criticalThreshold = targetMs * 1.5;
+
+  if (avg <= stressThreshold) return STRESS_LEVELS.OPTIMAL;
+  if (avg <= criticalThreshold) return STRESS_LEVELS.STRESS;
+  return STRESS_LEVELS.CRITICAL;
+}
+
+if (typeof window !== "undefined") {
+  if (!window.AnuUniverse) window.AnuUniverse = {};
+  window.AnuUniverse.STRESS_LEVELS = STRESS_LEVELS;
+  window.AnuUniverse.getSystemStressLevel = getSystemStressLevel;
+}
+

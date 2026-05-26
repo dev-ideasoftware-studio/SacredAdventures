@@ -78,9 +78,9 @@ export const UIModule = {
           --pip-gold: #c6a035;
           --pip-gold-soft: rgba(232, 212, 148, 0.92);
           --pip-parchment: #f3ece3;
-          --pip-moon-track: 14px;
-          --pip-compass-track: 12px;
-          --pip-outer-track: 10px;
+          --pip-moon-track: 22px;
+          --pip-compass-track: 20px;
+          --pip-outer-track: 16px;
           --pip-compass-inset: -12px;
           --pip-lunar-inset: 0px;
           --pip-season-inset: 14px;
@@ -680,9 +680,9 @@ export const UIModule = {
          * ──────────────────────────────────────────────────────────── */
         @media (max-width: 768px) {
           #moondial-wrapper {
-            --pip-moon-track: 13px;
-            --pip-compass-track: 12px;
-            --pip-outer-track: 11px;
+            --pip-moon-track: 11px;
+            --pip-compass-track: 10px;
+            --pip-outer-track: 8px;
             --pip-compass-inset: -12px;
             --pip-lunar-inset: 0px;
             --pip-season-inset: 13px;
