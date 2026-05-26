@@ -239,9 +239,9 @@ function buildBasinFloor(centerY) {
   // Slightly smaller, slightly darker disc just below the water surface
   // — gives the pool depth without exposing the carved terrain.
   const geo = new THREE.CircleGeometry(SANCTUARY_POOL_RADIUS_M * 0.92, 32);
-  // Color is updated to a beautiful, deep mossy forest green that shines through translucency.
+  // Color is blended to have a 40% dark brownish tint matching the earthy basin depth.
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x031d16), // beautiful, deep mossy forest green
+    color: new THREE.Color(0x031d16).lerp(new THREE.Color(0x2a1c0d), 0.4), // deep mossy green with 40% dark brownish tint
     roughness: 1.0,
     metalness: 0.0,
     flatShading: false,
@@ -304,6 +304,234 @@ function buildDrainHole(centerY) {
   return group;
 }
 
+/**
+ * Procedural turtle shell texture — 256x256 CanvasTexture.
+ * Renders beautifully detailed scutes/scales with golden seams and scute growth rings
+ * to match a photorealistic green sea/pond turtle.
+ */
+function _makeTurtleShellTexture() {
+  const SZ = 256;
+  const cv = document.createElement("canvas");
+  cv.width = SZ; cv.height = SZ;
+  const ctx = cv.getContext("2d");
+  const cx = SZ / 2, cy = SZ / 2;
+
+  // Base shell color — deep olive green
+  ctx.fillStyle = "#273f1d";
+  ctx.fillRect(0, 0, SZ, SZ);
+
+  // Draw hexagonal scutes (plates)
+  ctx.strokeStyle = "#ffe082"; // golden-yellow seams
+  ctx.lineWidth = 2.0;
+
+  const drawHex = (x, y, r) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
+      const px = x + Math.cos(angle) * r;
+      const py = y + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
+    // Fill with slightly varied shades of green/brown
+    ctx.fillStyle = `rgba(${30 + Math.floor(Math.random() * 20)}, ${50 + Math.floor(Math.random() * 30)}, ${20 + Math.floor(Math.random() * 15)}, 0.85)`;
+    ctx.fill();
+
+    // Inner growth rings inside each scute for photo-real detail
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.lineWidth = 1.0;
+    for (let r2 = r - 6; r2 > 4; r2 -= 6) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
+        const px = x + Math.cos(angle) * r2;
+        const py = y + Math.sin(angle) * r2;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "#ffe082";
+    ctx.lineWidth = 2.0;
+  };
+
+  // Central column of scutes
+  drawHex(cx, cy, 32);
+  drawHex(cx, cy - 54, 30);
+  drawHex(cx, cy + 54, 30);
+  drawHex(cx, cy - 100, 24);
+  drawHex(cx, cy + 100, 24);
+
+  // Left column of scutes
+  drawHex(cx - 48, cy - 27, 28);
+  drawHex(cx - 48, cy + 27, 28);
+  drawHex(cx - 45, cy - 81, 24);
+  drawHex(cx - 45, cy + 81, 24);
+
+  // Right column of scutes
+  drawHex(cx + 48, cy - 27, 28);
+  drawHex(cx + 48, cy + 27, 28);
+  drawHex(cx + 45, cy - 81, 24);
+  drawHex(cx + 45, cy + 81, 24);
+
+  // Edge shading
+  const edgeGrad = ctx.createRadialGradient(cx, cy, SZ * 0.35, cx, cy, SZ * 0.5);
+  edgeGrad.addColorStop(0, "rgba(0,0,0,0)");
+  edgeGrad.addColorStop(1, "rgba(10,20,5,0.85)");
+  ctx.fillStyle = edgeGrad;
+  ctx.beginPath(); ctx.arc(cx, cy, SZ / 2, 0, Math.PI * 2); ctx.fill();
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+/**
+ * Builds a beautifully detailed, majestic, photorealistic green sea/pond turtle.
+ * The turtle is larger than the drain, swimming underwater with fully animated limbs.
+ */
+function buildTurtle(centerY, textures) {
+  const group = new THREE.Group();
+  group.name = "sanctuary_pool_turtle";
+  group.userData.anuKind = "sanctuary_pool_turtle";
+  group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FAUNA;
+
+  const y = centerY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.08; // slightly above floor
+
+  // materials
+  const shellMat = new THREE.MeshStandardMaterial({
+    map: _makeTurtleShellTexture(),
+    roughness: 0.5,
+    metalness: 0.15,
+  });
+
+  const skinMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0x354b27),
+    roughness: 0.85,
+    metalness: 0.02,
+    bumpMap: textures?.normal,
+    bumpScale: 0.015,
+  });
+
+  const plastronMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0xd2d7b4), // pale cream/yellow-green
+    roughness: 0.85,
+    metalness: 0.02,
+  });
+
+  const eyeMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0x000000),
+    roughness: 0.1,
+    metalness: 0.9,
+  });
+
+  const eyeGlintMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(0xffffff),
+  });
+
+  // 1. Carapace (Shell)
+  // Domed shell
+  const shellGeo = new THREE.SphereGeometry(0.65, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+  const shellMesh = new THREE.Mesh(shellGeo, shellMat);
+  shellMesh.scale.set(1.15, 0.55, 1.45); // majestic large turtle shell (~2.0m long, ~1.6m wide - bigger than drain!)
+  shellMesh.position.y = 0.08;
+  shellMesh.castShadow = true;
+  shellMesh.receiveShadow = true;
+  group.add(shellMesh);
+
+  // 2. Plastron (Underside)
+  const plastronGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.08, 32);
+  const plastronMesh = new THREE.Mesh(plastronGeo, plastronMat);
+  plastronMesh.scale.set(1.0, 1.0, 1.3);
+  plastronMesh.rotation.x = -Math.PI / 2;
+  plastronMesh.position.y = 0.04;
+  plastronMesh.castShadow = true;
+  plastronMesh.receiveShadow = true;
+  group.add(plastronMesh);
+
+  // 3. Head & Neck
+  const neckGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.35, 16);
+  const neck = new THREE.Mesh(neckGeo, skinMat);
+  neck.position.set(0, 0.1, 0.7);
+  neck.rotation.x = Math.PI / 3; // angled forward/up
+  neck.castShadow = true;
+  group.add(neck);
+
+  const headGeo = new THREE.SphereGeometry(0.18, 16, 16);
+  const head = new THREE.Mesh(headGeo, skinMat);
+  head.scale.set(1.0, 0.85, 1.35); // elongated reptilian head
+  head.position.set(0, 0.22, 0.9);
+  head.castShadow = true;
+  group.add(head);
+  group.userData.headRef = head; // save reference for gentle bobbing
+
+  // Eyes
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 8), eyeMat);
+  eyeL.position.set(0.14, 0.04, 0.08);
+  head.add(eyeL);
+  const glintL = new THREE.Mesh(new THREE.SphereGeometry(0.007, 4, 4), eyeGlintMat);
+  glintL.position.set(0.015, 0.015, 0.015);
+  eyeL.add(glintL);
+
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 8), eyeMat);
+  eyeR.position.set(-0.14, 0.04, 0.08);
+  head.add(eyeR);
+  const glintR = new THREE.Mesh(new THREE.SphereGeometry(0.007, 4, 4), eyeGlintMat);
+  glintR.position.set(-0.015, 0.015, 0.015);
+  eyeR.add(glintR);
+
+  // 4. Flippers (4 legs)
+  // Front Flippers (large paddling flippers)
+  const frontFlipperGeo = new THREE.BoxGeometry(0.48, 0.03, 0.18);
+  const flipperL = new THREE.Mesh(frontFlipperGeo, skinMat);
+  flipperL.position.set(0.55, 0.05, 0.42);
+  flipperL.rotation.y = -0.3;
+  flipperL.castShadow = true;
+  group.add(flipperL);
+  group.userData.flipperLRef = flipperL;
+
+  const flipperR = new THREE.Mesh(frontFlipperGeo, skinMat);
+  flipperR.position.set(-0.55, 0.05, 0.42);
+  flipperR.rotation.y = 0.3;
+  flipperR.castShadow = true;
+  group.add(flipperR);
+  group.userData.flipperRRef = flipperR;
+
+  // Rear Flippers (smaller steering flippers)
+  const rearFlipperGeo = new THREE.BoxGeometry(0.32, 0.03, 0.15);
+  const flipperBL = new THREE.Mesh(rearFlipperGeo, skinMat);
+  flipperBL.position.set(0.45, 0.05, -0.45);
+  flipperBL.rotation.y = 0.35;
+  flipperBL.castShadow = true;
+  group.add(flipperBL);
+  group.userData.flipperBLRef = flipperBL;
+
+  const flipperBR = new THREE.Mesh(rearFlipperGeo, skinMat);
+  flipperBR.position.set(-0.45, 0.05, -0.45);
+  flipperBR.rotation.y = -0.35;
+  flipperBR.castShadow = true;
+  group.add(flipperBR);
+  group.userData.flipperBRRef = flipperBR;
+
+  // 5. Tail
+  const tailGeo = new THREE.ConeGeometry(0.06, 0.28, 8);
+  const tail = new THREE.Mesh(tailGeo, skinMat);
+  tail.position.set(0, 0.02, -0.72);
+  tail.rotation.x = -Math.PI / 3; // pointing back and slightly down
+  tail.castShadow = true;
+  group.add(tail);
+
+  // Position turtle near bottom center of the pond
+  group.position.set(SANCTUARY_POOL_CENTER_X, y, SANCTUARY_POOL_CENTER_Z);
+  group.scale.set(0.9, 0.9, 0.9); // slightly scale to fit perfectly over drain
+
+  return group;
+}
 
 function buildRim(centerY) {
   // Thin moss collar at the waterline — RingGeometry between water
@@ -578,6 +806,7 @@ const _staticNormal = new THREE.Vector3();
 const _staticQuat = new THREE.Quaternion();
 const _staticUp = new THREE.Vector3(0, 1, 0);
 let _lastFrameCount = 0;
+let _turtleGroup = null;
 
 export const SanctuaryPoolModule = {
   name: "SanctuaryPool",
@@ -619,6 +848,11 @@ export const SanctuaryPoolModule = {
     const lilies = SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildLilyPads", () => buildLilyPads(waterY));
     root.add(lilies);
     this._lilyPadsGroup = lilies;
+
+    // Build the majestic photorealistic green turtle
+    const turtle = SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildTurtle", () => buildTurtle(waterY, textures));
+    root.add(turtle);
+    _turtleGroup = turtle;
 
     scene.add(root);
     this._root = root;
@@ -677,6 +911,48 @@ export const SanctuaryPoolModule = {
         }
       });
     }
+
+    // Update majestic photorealistic green turtle underwater animation
+    if (_turtleGroup) {
+      const time = this._elapsed;
+      
+      // Gently crawl/swim near the bottom center over the drain
+      // slow oscillation around the center drain
+      const cx = SANCTUARY_POOL_CENTER_X + Math.sin(time * 0.15) * 0.45;
+      const cz = SANCTUARY_POOL_CENTER_Z + Math.cos(time * 0.15) * 0.2;
+      _turtleGroup.position.x = cx;
+      _turtleGroup.position.z = cz;
+      
+      // Face the direction of movement
+      _turtleGroup.rotation.y = time * 0.15 + Math.PI / 2 + Math.sin(time * 0.3) * 0.15;
+      
+      // Gentle breathing bob (Y position)
+      _turtleGroup.position.y = (this._waterY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.08) + Math.sin(time * 0.4) * 0.025;
+
+      // Animate flippers paddling out-of-phase
+      if (_turtleGroup.userData.flipperLRef) {
+        _turtleGroup.userData.flipperLRef.rotation.z = Math.sin(time * 0.9) * 0.22;
+        _turtleGroup.userData.flipperLRef.rotation.y = -0.3 + Math.cos(time * 0.9) * 0.1;
+      }
+      if (_turtleGroup.userData.flipperRRef) {
+        _turtleGroup.userData.flipperRRef.rotation.z = -Math.sin(time * 0.9) * 0.22;
+        _turtleGroup.userData.flipperRRef.rotation.y = 0.3 - Math.cos(time * 0.9) * 0.1;
+      }
+      
+      // Rear flippers steer out-of-phase
+      if (_turtleGroup.userData.flipperBLRef) {
+        _turtleGroup.userData.flipperBLRef.rotation.z = Math.cos(time * 0.9) * 0.1;
+      }
+      if (_turtleGroup.userData.flipperBRRef) {
+        _turtleGroup.userData.flipperBRRef.rotation.z = -Math.cos(time * 0.9) * 0.1;
+      }
+      
+      // Gentle head bobbing
+      if (_turtleGroup.userData.headRef) {
+        _turtleGroup.userData.headRef.rotation.x = Math.sin(time * 0.4) * 0.06;
+        _turtleGroup.userData.headRef.rotation.y = Math.cos(time * 0.35) * 0.08;
+      }
+    }
   },
 
 
@@ -701,6 +977,7 @@ export const SanctuaryPoolModule = {
     this._root = null;
     this._scene = null;
     this._lilyPadsGroup = null;
+    _turtleGroup = null;
     if (typeof window !== "undefined") delete window.__sanctuaryWaterY;
   },
 };

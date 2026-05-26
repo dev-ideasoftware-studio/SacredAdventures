@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v24";
+const CACHE_VERSION = "v25";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 

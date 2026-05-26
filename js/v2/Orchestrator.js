@@ -985,7 +985,7 @@ export class SacredOrchestrator {
     // but we stop burning a full 60fps second render pass over the pond.
     if (isFishingActive) {
       this._fishingPipFrame = ((this._fishingPipFrame ?? 0) + 1);
-      if (this._fishingPipFrame % 4 !== 0) {
+      if (this._fishingPipFrame % 8 !== 0) {
         this._pipRenderedLastFrame = false;
         return;
       }
@@ -1022,7 +1022,7 @@ export class SacredOrchestrator {
       // Transfer the frame to the iframe via zero-copy ImageBitmap transferable
       // Only do this expensive createImageBitmap call if the panel is actually visible
       const iframe = document.getElementById("v4-panel-frame");
-      if (iframe && iframe.contentWindow && window._v4PanelOpen !== false) {
+      if (!isFishingActive && iframe && iframe.contentWindow && window._v4PanelOpen !== false) {
         createImageBitmap(this._pipRenderer.domElement).then((bitmap) => {
           iframe.contentWindow.postMessage({ type: "PIP_FRAME", bitmap }, "*", [bitmap]);
         }).catch(() => {});
