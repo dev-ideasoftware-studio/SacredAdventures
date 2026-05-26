@@ -98,7 +98,6 @@ export const SanctuaryPipModule = {
   _renderer: null,
   _camera: null,
   _frame: 0,
-  _suspended: false,   // VIEW button toggle — true = PiP render skipped entirely
 
   async load(scene) {
     if (this._wrap) return;
@@ -151,29 +150,14 @@ export const SanctuaryPipModule = {
     this._camera.lookAt(0, 0, 0);
     this._camera.up.set(0, 0, -1); // so "north" (-Z) reads UP on the minimap
 
-    // ── Global toggle: VIEW button or window._v4TogglePip() ──────────
-    window._v4TogglePip = () => {
-      this._suspended = !this._suspended;
-      if (this._wrap) {
-        this._wrap.style.display = this._suspended ? "none" : "";
-      }
-      const state = this._suspended ? "SUSPENDED" : "RESUMED";
-      console.log(
-        `%c[Sanctuary] 🧭 PiP ${state}. Second-pass WebGL render ${this._suspended ? "OFF" : "ON"}.`,
-        `color:${this._suspended ? "#ef9a9a" : "#a5d6a7"};font-weight:bold;`,
-      );
-      return this._suspended;
-    };
-
     console.log(
-      "%c[Sanctuary] 🧭 PIP minimap ready — top-left, top-down, 6-frame stride. VIEW button suspends it.",
+      "%c[Sanctuary] 🧭 PIP minimap ready — top-left, top-down, 6-frame stride.",
       "color:#fbc02d;font-weight:bold;",
     );
   },
 
   update() {
     if (!this._renderer || !this._scene) return;
-    if (this._suspended) return;            // ← VIEW button killed the pass
     this._frame++;
     if (this._frame % PIP_RENDER_STRIDE !== 0) return;
 
@@ -207,7 +191,5 @@ export const SanctuaryPipModule = {
     this._canvas = null;
     this._camera = null;
     this._scene = null;
-    this._suspended = false;
-    if (typeof window !== "undefined") delete window._v4TogglePip;
   },
 };
