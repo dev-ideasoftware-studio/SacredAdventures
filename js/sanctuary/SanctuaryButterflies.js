@@ -196,6 +196,14 @@ export const SanctuaryButterfliesModule = {
   _nextRitualAt: RITUAL_FIRST_DELAY_S,
   _anchor: { x: 18, z: -2, gy: 0 },
 
+  _exploreTarget(rng, anchorX, anchorZ) {
+    return _exploreTarget(rng, anchorX, anchorZ);
+  },
+
+  _returnTarget(rng, anchorX, anchorZ) {
+    return _returnTarget(rng, anchorX, anchorZ);
+  },
+
   async load(scene) {
     if (this._root) return;
     this._scene = scene;

@@ -308,7 +308,7 @@ export const SanctuaryClickToMoveModule = {
       typeof window !== "undefined" && window.__sanctuaryMoldTool
         ? window.__sanctuaryMoldTool
         : null;
-    if (inTopDown && moldTool && window.SanctuaryMutations?.publish) {
+    if (inTopDown && moldTool && moldTool !== "select" && window.SanctuaryMutations?.publish) {
       window.SanctuaryMutations.publish(moldTool, hitX, hitZ);
       return;
     }

@@ -24,6 +24,7 @@
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
 
 const TOOLS = [
+  { id: "select",       icon: "👆", label: "SELECT",   accent: "#aaaaaa" },
   { id: "grow_hill",    icon: "⛰",  label: "HILL",     accent: "#7c9a5e" },
   { id: "plant_tree",   icon: "🌲", label: "TREE",     accent: "#3d6b32" },
   { id: "plant_flower", icon: "🌼", label: "FLOWER",   accent: "#ffb6c1" },
@@ -36,16 +37,22 @@ const TOOLS = [
 const STYLE = `
   #v4-tool-palette {
     position: fixed;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
+    left: 12px;
+    top: 12px;
     display: none;
     flex-direction: column;
     gap: 8px;
     z-index: 9100;
     user-select: none;
     pointer-events: none;
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: rgba(10, 18, 14, 0.88);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(251,192,45,0.28);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.45);
+    border-radius: 10px;
+    padding: 12px;
+    min-width: 140px;
   }
   body.v4-top-down-view #v4-tool-palette { display: flex; }
   #v4-tool-palette .tool {
@@ -115,7 +122,7 @@ export const SanctuaryToolPaletteModule = {
   name: "SanctuaryToolPalette",
 
   _wrap: null,
-  _activeId: "grow_hill",
+  _activeId: "select",
 
   async load() {
     ensureStyle();

@@ -25,6 +25,7 @@
 
 import * as THREE from "three";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
+import { SanctuarySceneConstructor } from "./SanctuarySceneConstructor.js";
 import {
   SANCTUARY_POOL_CENTER_X,
   SANCTUARY_POOL_CENTER_Z,
@@ -44,17 +45,37 @@ function organicRimRadius(angle) {
   );
 }
 
-function buildWaterSurface(centerY) {
+async function loadPoolTextures() {
+  const loader = new THREE.TextureLoader();
+  const [normal, caustics] = await Promise.all([
+    SanctuarySceneConstructor.loadTexture(loader, 'textures/water_normal.png', 'water_normal'),
+    SanctuarySceneConstructor.loadTexture(loader, 'textures/water_caustics.png', 'water_caustics')
+  ]);
+
+  normal.wrapS = THREE.RepeatWrapping;
+  normal.wrapT = THREE.RepeatWrapping;
+  caustics.wrapS = THREE.RepeatWrapping;
+  caustics.wrapT = THREE.RepeatWrapping;
+
+  return { normal, caustics };
+}
+
+function buildWaterSurface(centerY, textures) {
   const segs = 48;
-  const geo = new THREE.CircleGeometry(SANCTUARY_POOL_RADIUS_M * 0.97, segs);
+  const phiSegs = 8;
+  const geo = new THREE.CircleGeometry(SANCTUARY_POOL_RADIUS_M * 0.97, segs, phiSegs);
+  
   // Jitter the rim verts to an organic perimeter so the waterline reads
-  // natural instead of perfectly circular.
+  // natural instead of perfectly circular, scaling proportionally for concentric rings.
   const pos = geo.attributes.position;
+  const baseR = SANCTUARY_POOL_RADIUS_M * 0.97;
   for (let i = 1; i < pos.count; i++) {
     const x = pos.getX(i);
     const y = pos.getY(i);
+    const dist = Math.hypot(x, y);
+    const frac = dist / baseR;
     const a = Math.atan2(y, x);
-    const r = organicRimRadius(a) * 0.97;
+    const r = organicRimRadius(a) * 0.97 * frac;
     pos.setXY(i, Math.cos(a) * r, Math.sin(a) * r);
   }
   geo.computeVertexNormals();
@@ -63,54 +84,142 @@ function buildWaterSurface(centerY) {
   // greenish-blue water with soft waves as a pond would have".
   // Base hex 0x0c3a36 (deep teal) → 0x0a3438 (10 % darker, slight blue
   // shift), emissive 0x051d1c → 0x042022 (matches the darker base).
+  // Specular reflection is refined with softer roughness/metalness so the
+  // deep green watercolor and active morphing caustics read beautifully.
+  // Opacity is reduced to 0.58 to allow clear visibility into the depths!
   const mat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0x0a3438),
     emissive: new THREE.Color(0x042022),
-    emissiveIntensity: 0.15,
-    roughness: 0.05,            // drastically reduced for brilliant wave light reflections
-    metalness: 0.85,            // high metalness for water caustics/reflections
+    emissiveIntensity: 0.18,
+    roughness: 0.22,            // softer, more natural water reflections instead of a hard glass panel
+    metalness: 0.15,            // lower metalness so the deep green water and morphing caustics read beautifully
+    normalMap: textures.normal,
     transparent: true,
-    opacity: 0.66,
+    opacity: 0.45,              // reduced further to easily see the fish underneath
     depthWrite: false,
     side: THREE.DoubleSide,
     defines: { USE_UV: "" },
   });
 
+  mat.userData.uCausticsMapRef = textures.caustics;
+
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = _poolTimeUniform;
+    shader.uniforms.uNormalMap = { value: textures.normal };
+    shader.uniforms.uCausticsMap = { value: textures.caustics };
     mat.userData.uTimeRef = _poolTimeUniform;
+
+    // Declare uTime in both vertex and fragment shaders
+    shader.vertexShader = shader.vertexShader.replace(
+      "#include <common>",
+      `#include <common>
+      uniform float uTime;
+      `
+    );
+
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <common>",
-      `#include <common>\n      uniform float uTime;\n`,
+      `#include <common>
+      uniform float uTime;
+      uniform sampler2D uNormalMap;
+      uniform sampler2D uCausticsMap;
+      `
     );
+
+    // Physically displace vertices vertically in local Z space to create real undulating 3D waves!
+    // We implement a dual-wave Gerstner Wave system (Trochoidal Wave physics) for true fluid dynamics,
+    // displacing vertices both horizontally (crowding at peaks) and vertically, with all speeds reduced by 200% more (3x slower).
+    shader.vertexShader = shader.vertexShader.replace(
+      "#include <begin_vertex>",
+      `
+      #include <begin_vertex>
+      
+      // Two interfering Gerstner Waves simulating physical fluid dynamics (steep peaks, flat troughs, ultra-meditative speed)
+      float time = uTime;
+      float vDist = length(uv - vec2(0.5));
+      float shoreFade = smoothstep(0.48, 0.35, vDist);
+      
+      // Wave 1: Traveling North-East
+      vec2 d1 = normalize(vec2(0.9, 0.5));
+      float phase1 = dot(uv - vec2(0.5), d1) * 9.0 - time * 0.15;
+      float z1 = sin(phase1) * 0.005; // Ultra-flat wave height for a pond
+      float h1 = cos(phase1) * 0.003;
+      
+      // Wave 2: Traveling North-West (interference wave)
+      vec2 d2 = normalize(vec2(-0.4, 0.9));
+      float phase2 = dot(uv - vec2(0.5), d2) * 11.5 + time * 0.12;
+      float z2 = sin(phase2) * 0.003;
+      float h2 = cos(phase2) * 0.002;
+      
+      // Combine displacements and apply shoreline dampening
+      transformed.x += (h1 * d1.x + h2 * d2.x) * shoreFade;
+      transformed.y += (h1 * d1.y + h2 * d2.y) * shoreFade;
+      transformed.z += (z1 + z2) * shoreFade;
+      `
+    );
+
+    // Replace the standard normal map texture lookup with our dual-scrolling blend!
+    // Scrolling speeds tuned for a realistic pond feel, with stretched mapping so it's not swirly
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "texture2D( normalMap, vNormalMapUv ).xyz",
+      `normalize(
+        (texture2D( uNormalMap, vUv * 2.5 + vec2(uTime * 0.005, uTime * 0.004) ).xyz * 2.0 - 1.0) +
+        (texture2D( uNormalMap, vUv * 2.5 - vec2(uTime * 0.004, -uTime * 0.005) ).xyz * 2.0 - 1.0)
+      ) * 0.5 + 0.5`
+    );
+
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <map_fragment>",
       `
       #include <map_fragment>
-      // FPS-tuned water — May-17 2026. The original had 3 wave-front
-      // sin() calls + a second multiplicative sin-pair for sparkle;
-      // that's 5 trig ops per fragment over a ~30 % screen area pool.
-      // Halved to 2 directional sins; sparkle dropped. Still reads as
-      // sun-on-water from the camera angle; saves measurable shading
-      // time at DPR=1.5.
-      // SOFTER POND waves (May-25 2026) — lower wave frequency + smaller
-      // amplitude for a tranquil koi-pond surface (vs the prior choppier
-      // 1.20/-0.45 spatial frequencies). Slower time multipliers too.
-      vec2 pUv = vUv * 4.0;
-      float t = uTime;
-      float w1 = sin(pUv.x * 0.85 + pUv.y * 0.40 + t * 0.42);
-      float w2 = sin(pUv.x * -0.35 + pUv.y * 0.95 + t * 0.32);
+      
+      float time = uTime;
+      float distToCenter = length(vUv - vec2(0.5));
+      float shorelineFade = smoothstep(0.48, 0.35, distToCenter); // 1 inside, 0 at edge
+      
+      // Sample two scrolling normal maps at different frequencies (stretched mapping)
+      vec2 flow1 = vec2(time * 0.008, time * 0.0066);
+      vec2 flow2 = vec2(-time * 0.0066, time * 0.008);
+      
+      vec3 norm1 = texture2D(uNormalMap, vUv * 2.0 + flow1).xyz * 2.0 - 1.0;
+      vec3 norm2 = texture2D(uNormalMap, vUv * 2.5 + flow2).xyz * 2.0 - 1.0;
+      vec2 nOffset = (norm1.xy + norm2.xy) * 0.010; // Extremely gentle refraction to prevent swirly artifacts
+      
+      // Dynamic morphing caustics: Layer 1 (scrolls North-East, heavily warped)
+      vec2 uv1 = vUv * 1.5 + nOffset + vec2(time * 0.004, time * 0.003);
+      uv1.x += sin(uv1.y * 5.5 + time * 0.15) * 0.15;
+      uv1.y += cos(uv1.x * 4.8 - time * 0.12) * 0.12;
+      float c1 = texture2D(uCausticsMap, uv1).r;
+      
+      // Dynamic morphing caustics: Layer 2 (scrolls South-West)
+      vec2 uv2 = vUv * 1.8 - nOffset - vec2(time * 0.0032, -time * 0.004);
+      uv2.x += cos(uv2.y * 6.2 - time * 0.12) * 0.13;
+      uv2.y += sin(uv2.x * 5.5 + time * 0.15) * 0.14;
+      float c2 = texture2D(uCausticsMap, uv2).r;
+      
+      // Blend using minimum and scale up to form rich, dynamic, morphing bioluminescent webs
+      float causticsVal = min(c1, c2) * 2.2;
+      
+      // Add a shimmering pulse to caustics brightness over time
+      float shimmer = 0.88 + 0.12 * sin(time * 0.2);
+      causticsVal *= shimmer;
+      
+      // High-performance color ripples
+      vec2 pUv = vUv * 2.0; // wider, softer ripples
+      float w1 = sin(pUv.x * 0.85 + pUv.y * 0.40 + time * 0.05);
+      float w2 = sin(pUv.x * -0.35 + pUv.y * 0.95 + time * 0.04);
       float ripple = (w1 + w2) * 0.5;
-      // Color palette shifted 10 % darker + greenish-blue (more cyan,
-      // less olive). Old: (0.04,0.16,0.13) → (0.09,0.30,0.24) → (0.28,0.52,0.42).
-      // New: more blue channel, less green, all darker.
-      vec3 deep   = vec3(0.03, 0.14, 0.16);
-      vec3 mid    = vec3(0.07, 0.26, 0.28);
-      vec3 bright = vec3(0.22, 0.46, 0.50);
-      vec3 col = mix(deep, mid, 0.50 + ripple * 0.28);
-      col = mix(col, bright, smoothstep(0.60, 1.0, abs(ripple)) * 0.18);
-      diffuseColor.rgb = col;
-      `,
+
+      // Color tuning: Shifting deep bottom colors to a gorgeous mossy emerald green
+      vec3 deepColor = mix(vec3(0.005, 0.12, 0.08), vec3(0.015, 0.18, 0.12), 0.5 + ripple * 0.10);
+      vec3 shallowColor = mix(vec3(0.03, 0.22, 0.19), vec3(0.08, 0.35, 0.28), 0.5 + ripple * 0.10);
+      vec3 baseWaterColor = mix(deepColor, shallowColor, smoothstep(0.1, 0.5, distToCenter));
+      
+      // Caustic highlight blending — vibrant, soft bioluminescent teal glow
+      vec3 causticHighlight = vec3(0.35, 0.98, 0.90) * causticsVal * 0.65 * shorelineFade;
+      
+      diffuseColor.rgb = baseWaterColor + causticHighlight;
+      `
     );
   };
 
@@ -129,8 +238,9 @@ function buildBasinFloor(centerY) {
   // Slightly smaller, slightly darker disc just below the water surface
   // — gives the pool depth without exposing the carved terrain.
   const geo = new THREE.CircleGeometry(SANCTUARY_POOL_RADIUS_M * 0.92, 32);
+  // Color is updated to a beautiful, deep mossy forest green that shines through translucency.
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x05181a),
+    color: new THREE.Color(0x031d16), // beautiful, deep mossy forest green
     roughness: 1.0,
     metalness: 0.0,
     flatShading: false,
@@ -365,6 +475,35 @@ function _buildLotusFlower(rng) {
   return flower;
 }
 
+// Physical wave height sampler — matches the vertex shader's dual-wave Gerstner Wave interference model
+// to allow floating lily pads and flowers to follow the undulating surface in real time.
+function getWaveHeight(x, z, time) {
+  const baseR = SANCTUARY_POOL_RADIUS_M * 0.97;
+  const dx = x - SANCTUARY_POOL_CENTER_X;
+  const dz = z - SANCTUARY_POOL_CENTER_Z;
+  const uvX = dx / (baseR * 2.0) + 0.5;
+  const uvY = dz / (baseR * 2.0) + 0.5;
+  
+  const vDist = Math.hypot(uvX - 0.5, uvY - 0.5);
+  // smoothstep(0.48, 0.35, vDist)
+  const t = Math.max(0.0, Math.min(1.0, (vDist - 0.48) / (0.35 - 0.48)));
+  const shoreFade = t * t * (3.0 - 2.0 * t);
+  
+  // Wave 1: Traveling North-East
+  const d1X = 0.9 / Math.hypot(0.9, 0.5);
+  const d1Y = 0.5 / Math.hypot(0.9, 0.5);
+  const phase1 = ((uvX - 0.5) * d1X + (uvY - 0.5) * d1Y) * 9.0 - time * 0.15;
+  const z1 = Math.sin(phase1) * 0.005;
+  
+  // Wave 2: Traveling North-West (interference wave)
+  const d2X = -0.4 / Math.hypot(-0.4, 0.9);
+  const d2Y = 0.9 / Math.hypot(-0.4, 0.9);
+  const phase2 = ((uvX - 0.5) * d2X + (uvY - 0.5) * d2Y) * 11.5 + time * 0.12;
+  const z2 = Math.sin(phase2) * 0.003;
+  
+  return (z1 + z2) * shoreFade;
+}
+
 function buildLilyPads(centerY) {
   const group = new THREE.Group();
   group.name = "sanctuary_lily_pads";
@@ -404,6 +543,13 @@ function buildLilyPads(centerY) {
     pad.userData.anuKind = "sanctuary_lily_pad";
     pad.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
     pad.receiveShadow = true;                 // flower casts onto pad
+    
+    // Save initial coordinates and orientation for dynamic floating
+    pad.userData.initialX = x;
+    pad.userData.initialZ = z;
+    pad.userData.initialY = centerY + 0.02 + rng() * 0.01;
+    pad.userData.baseQuaternion = pad.quaternion.clone();
+
     group.add(pad);
 
     // ~45% of pads carry a beautiful lotus flower.
@@ -413,6 +559,13 @@ function buildLilyPads(centerY) {
       flower.name = `sanctuary_lily_flower_${i}`;
       flower.userData.anuKind = "sanctuary_lily_flower";
       flower.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+      // Save initial coordinates and orientation for dynamic floating
+      flower.userData.initialX = x;
+      flower.userData.initialZ = z;
+      flower.userData.initialY = centerY + 0.025;
+      flower.userData.baseQuaternion = flower.quaternion.clone();
+
       group.add(flower);
     }
   }
@@ -426,6 +579,7 @@ export const SanctuaryPoolModule = {
   _root: null,
   _waterY: 0,
   _elapsed: 0,
+  _lilyPadsGroup: null,
 
   async load(scene) {
     if (this._root) return;
@@ -447,11 +601,17 @@ export const SanctuaryPoolModule = {
     root.userData.anuKind = "sanctuary_pool";
     root.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
-    root.add(buildBasinFloor(waterY));
-    root.add(buildDrainHole(waterY));
-    root.add(buildWaterSurface(waterY));
-    root.add(buildRim(waterY));
-    root.add(buildLilyPads(waterY));
+    const textures = await loadPoolTextures();
+
+    root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildBasinFloor", () => buildBasinFloor(waterY)));
+    root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildDrainHole", () => buildDrainHole(waterY)));
+    root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildWaterSurface", () => buildWaterSurface(waterY, textures)));
+    root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildRim", () => buildRim(waterY)));
+    
+    // Store reference to build pads so we can update them in update() loop
+    const lilies = SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildLilyPads", () => buildLilyPads(waterY));
+    root.add(lilies);
+    this._lilyPadsGroup = lilies;
 
     scene.add(root);
     this._root = root;
@@ -465,6 +625,37 @@ export const SanctuaryPoolModule = {
     if (!this._root) return;
     this._elapsed += delta;
     _poolTimeUniform.value = this._elapsed;
+
+    // Float and tilt the lily pads dynamically in sync with physical Gerstner Waves!
+    if (this._lilyPadsGroup) {
+      const time = this._elapsed;
+      this._lilyPadsGroup.children.forEach((child) => {
+        if (child.userData.initialX !== undefined) {
+          const x = child.userData.initialX;
+          const z = child.userData.initialZ;
+          const y0 = child.userData.initialY;
+          
+          // Compute wave height at coordinate
+          const waveHeight = getWaveHeight(x, z, time);
+          
+          // Sample gradient around the coordinate to evaluate normal slope vector
+          const heightX = getWaveHeight(x + 0.1, z, time);
+          const heightZ = getWaveHeight(x, z + 0.1, time);
+          const slopeX = (heightX - waveHeight) / 0.1;
+          const slopeZ = (heightZ - waveHeight) / 0.1;
+          
+          // Build wave normal slope vector
+          const normal = new THREE.Vector3(-slopeX, 1.0, -slopeZ).normalize();
+          
+          // Apply vertical height offset
+          child.position.y = y0 + waveHeight;
+          
+          // Tilt matching unit vector rotation
+          const alignQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+          child.quaternion.copy(alignQuat).multiply(child.userData.baseQuaternion);
+        }
+      });
+    }
   },
 
   unload(scene) {
@@ -473,12 +664,21 @@ export const SanctuaryPoolModule = {
     this._root.traverse((o) => {
       if (o.geometry) o.geometry.dispose?.();
       if (o.material) {
-        if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose?.());
-        else o.material.dispose?.();
+        const disposeMat = (m) => {
+          m.map?.dispose?.();
+          m.normalMap?.dispose?.();
+          if (m.userData.uCausticsMapRef) {
+            m.userData.uCausticsMapRef.dispose?.();
+          }
+          m.dispose?.();
+        };
+        if (Array.isArray(o.material)) o.material.forEach(disposeMat);
+        else disposeMat(o.material);
       }
     });
     this._root = null;
     this._scene = null;
+    this._lilyPadsGroup = null;
     if (typeof window !== "undefined") delete window.__sanctuaryWaterY;
   },
 };

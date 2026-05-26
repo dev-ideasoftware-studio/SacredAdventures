@@ -33,6 +33,8 @@ import {
   SANCTUARY_POOL_RADIUS_M,
 } from "./SanctuaryGround.js";
 
+const _floraTimeUniform = { value: 0 };
+
 const FLOWER_CLUSTER_COUNT = 50;
 const MUSHROOM_CLUSTER_COUNT = 12;
 const GRASS_TUFT_COUNT = 40;
@@ -108,6 +110,49 @@ let _stemMat = null, _mushroomStemMat = null;
 const _flowerMats = new Map();
 const _mushroomCapMats = new Map();
 
+function applyWindSway(material, type) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = _floraTimeUniform;
+    
+    shader.vertexShader = shader.vertexShader.replace(
+      "#include <common>",
+      `#include <common>
+      uniform float uTime;
+      `
+    );
+
+    let heightFactor = "1.0";
+    if (type === "stem") {
+      heightFactor = "position.y";
+    } else if (type === "blossom") {
+      heightFactor = "0.20";
+    } else if (type === "grass") {
+      heightFactor = "(position.y + 0.15)";
+    }
+
+    shader.vertexShader = shader.vertexShader.replace(
+      "#include <begin_vertex>",
+      `
+      #include <begin_vertex>
+      
+      #ifdef USE_INSTANCING
+        vec3 instPos = instanceMatrix[3].xyz;
+      #else
+        vec3 instPos = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+      #endif
+      
+      // Compute wind sway using sine wave
+      float sAngle = instPos.x * 2.0 + instPos.z * 1.5 + uTime * 2.5;
+      float swayOffset = sin(sAngle) * 0.14 * ${heightFactor};
+      float swayCos = cos(sAngle * 0.8) * 0.08 * ${heightFactor};
+      
+      transformed.x += swayOffset;
+      transformed.z += swayCos;
+      `
+    );
+  };
+}
+
 function flowerStemGeo() {
   if (_flowerStemGeo) return _flowerStemGeo;
   const g = new THREE.CylinderGeometry(0.012, 0.018, 0.20, 4);
@@ -125,6 +170,7 @@ function stemMat() {
   _stemMat = new THREE.MeshStandardMaterial({
     color: 0x3f5530, roughness: 0.9, metalness: 0.0, flatShading: true,
   });
+  applyWindSway(_stemMat, "stem");
   return _stemMat;
 }
 function flowerMat(hex) {
@@ -137,6 +183,7 @@ function flowerMat(hex) {
     metalness: 0.0,
     flatShading: true,
   });
+  applyWindSway(m, "blossom");
   _flowerMats.set(hex, m);
   return m;
 }
@@ -244,6 +291,7 @@ function grassMat() {
     roughness: 0.96,
     metalness: 0.0,
   });
+  applyWindSway(_grassMat, "grass");
   return _grassMat;
 }
 
@@ -475,7 +523,11 @@ export const SanctuaryFloraModule = {
     );
   },
 
-  update() {},
+  _elapsed: 0,
+  update(delta) {
+    this._elapsed += delta;
+    _floraTimeUniform.value = this._elapsed;
+  },
 
   unload(scene) {
     if (!this._root) return;
@@ -483,6 +535,34 @@ export const SanctuaryFloraModule = {
     this._root.traverse((o) => {
       if (o.geometry) o.geometry.dispose?.();
     });
+
+    // Dispose materials and textures
+    _flowerMats.forEach((m) => m.dispose?.());
+    _flowerMats.clear();
+
+    _mushroomCapMats.forEach((m) => m.dispose?.());
+    _mushroomCapMats.clear();
+
+    if (_grassMat) {
+      _grassMat.map?.dispose?.();
+      _grassMat.dispose?.();
+      _grassMat = null;
+    }
+    if (_stemMat) {
+      _stemMat.dispose?.();
+      _stemMat = null;
+    }
+    if (_mushroomStemMat) {
+      _mushroomStemMat.dispose?.();
+      _mushroomStemMat = null;
+    }
+
+    _flowerStemGeo = null;
+    _flowerBlossomGeo = null;
+    _mushroomStemGeo = null;
+    _mushroomCapGeo = null;
+    _grassGeo = null;
+
     this._root = null;
     this._scene = null;
   },

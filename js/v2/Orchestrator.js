@@ -822,7 +822,8 @@ export class SacredOrchestrator {
    * backing store (NOT CSS); CSS dimensions stay owned by the caller.
    */
   _computePipBackingSize(canvasEl) {
-    const pr = Math.min(window.devicePixelRatio || 1, 1.25);
+    const isTopDown = document.body.classList.contains("v4-top-down-view");
+    const pr = Math.min(window.devicePixelRatio || 1, isTopDown ? 2.0 : 1.25);
     const rect = canvasEl.getBoundingClientRect();
     return {
       w: Math.max(160, Math.floor(rect.width * pr)),
@@ -974,7 +975,8 @@ export class SacredOrchestrator {
    * pass actually executed this tick (vs gated out by stride/services).
    */
   _renderPip() {
-    if (!shouldRenderPipSceneThisFrame()) {
+    const isTopDown = document.body.classList.contains("v4-top-down-view");
+    if (!isTopDown && !shouldRenderPipSceneThisFrame()) {
       this._pipRenderedLastFrame = false;
       return;
     }

@@ -412,6 +412,14 @@ export const SanctuaryFishModule = {
         const bobY = Math.sin(t * 0.9 + orbitPhase * 2.17) * 0.14;
         fish.position.y = midY + (ud.depthOffset ?? 0) + bobY;
 
+        // Occasionally ripple the surface when bobbing near the top
+        // Greatly reduced probability (was 1.8) to prevent FPS death from ripple overflow
+        if (bobY > 0.10 && Math.random() < 0.08 * delta) {
+          if (typeof window !== "undefined" && typeof window.sanctuaryPulse === "function") {
+            window.sanctuaryPulse(fish.position.x, fish.position.z);
+          }
+        }
+
         // 8. Visual Rotation (Heading + natural wiggle)
         // atan2 is naturally oriented, but we add Math.PI if the fish model 
         // faces -X natively. If the model faces +X naturally, we just use heading.

@@ -1083,6 +1083,42 @@
         }
 
         /* ============================================
+           TOUCH DEVICE LOCK — compact cards on all
+           mobile/tablet regardless of screen width.
+           Catches large tablets (iPad Pro landscape
+           ≥1024px) that the width breakpoint misses.
+           ============================================ */
+        @media (pointer: coarse) {
+            .guide-card {
+                width: 54px !important;
+                height: 56px !important;
+                padding: 2px !important;
+                justify-content: center !important;
+                gap: 0px !important;
+            }
+            .card-desc {
+                display: none !important;
+            }
+            .card-icon-3d {
+                width: 34px !important;
+                height: 34px !important;
+                margin: 0 auto !important;
+            }
+            .card-title {
+                font-size: 8px !important;
+                position: absolute !important;
+                bottom: 3px !important;
+                width: 100% !important;
+                left: 0 !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                margin: 0 !important;
+                line-height: 1 !important;
+            }
+        }
+
+        /* ============================================
            MOBILE LAYOUT - REIMAGINED (Professional)
            ============================================ */
         /* MOBILE SPECIFIC (Override Tablet) - Per User Request */

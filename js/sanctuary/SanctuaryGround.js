@@ -26,6 +26,7 @@
 
 import * as THREE from "three";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
+import { SanctuarySceneConstructor } from "./SanctuarySceneConstructor.js";
 
 /**
  * Photo-real hex shader for the sanctuary terrain — May-18 2026 user
@@ -44,77 +45,20 @@ import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
  *      hash of vWorldPos.xz) adds a 2 % luminance jitter. Breaks the
  *      flat-shaded plateaus into something that reads photographic.
  */
-function applySanctuaryHexShader(material) {
-  material.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader.replace(
-      "#include <common>",
-      "#include <common>\nvarying vec3 vWorldPos;",
-    );
-    shader.vertexShader = shader.vertexShader.replace(
-      "#include <worldpos_vertex>",
-      `#include <worldpos_vertex>
-       vWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
-    );
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <common>",
-      `#include <common>
-       varying vec3 vWorldPos;
-       float hexDist(vec2 p) {
-         p = abs(p);
-         float c = dot(p, normalize(vec2(1.0, 1.73205081)));
-         return max(c, p.x);
-       }
-       float hash21(vec2 p) {
-         p = fract(p * vec2(123.34, 456.21));
-         p += dot(p, p + 45.32);
-         return fract(p.x * p.y);
-       }`,
-    );
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <color_fragment>",
-      `#include <color_fragment>
-       float hexRadius = 6.27;
-       float hr3 = hexRadius * 1.73205081;
-       vec2 rr = vec2(hr3, hexRadius * 3.0);
-       vec2 h2 = rr * 0.5;
-       vec2 uv = vWorldPos.xz;
-       vec2 a = mod(uv, rr) - h2;
-       vec2 b = mod(uv - h2, rr) - h2;
-       vec2 localPos = dot(a,a) < dot(b,b) ? a : b;
-       // Hex centroid in world space — used as the per-tile RNG seed.
-       vec2 hexCentroid = uv - localPos;
-       float dist2 = hexDist(localPos);
-       float maxDist = hr3 * 0.5;
-       float edgeDist = maxDist - dist2;
+async function loadTerrainTextures() {
+  const loader = new THREE.TextureLoader();
+  const albedo = await SanctuarySceneConstructor.loadTexture(
+    loader,
+    './Assets/landscape-scenes/terrain/grass-seamless.png',
+    'terrain_albedo'
+  );
 
-       // (1) Stronger hex edges — kid-tile read.
-       if (edgeDist < 0.24) {
-         float crack = smoothstep(0.0, 0.24, edgeDist);
-         diffuseColor.rgb *= (0.62 + crack * crack * 0.30);
-       } else if (edgeDist < 0.50) {
-         float slope = smoothstep(0.24, 0.50, edgeDist);
-         diffuseColor.rgb *= (0.92 + slope * 0.10);
-       } else {
-         diffuseColor.rgb *= 1.02;
-       }
-       float cornerDist = length(localPos);
-       if (cornerDist > hexRadius * 0.62) {
-         float cornerDip = smoothstep(hexRadius * 0.62, hexRadius, cornerDist);
-         diffuseColor.rgb *= (1.0 - cornerDip * 0.24);
-       }
+  albedo.wrapS = THREE.RepeatWrapping;
+  albedo.wrapT = THREE.RepeatWrapping;
+  albedo.repeat.set(12, 12);
+  albedo.colorSpace = THREE.SRGBColorSpace;
 
-       // (2) Per-hex tint jitter — each tile gets a slight warm/cool shift.
-       float hexHash = hash21(hexCentroid * 0.13);
-       vec3 tintWarm = vec3(1.03, 1.01, 0.97);
-       vec3 tintCool = vec3(0.97, 1.00, 1.03);
-       vec3 hexTint = mix(tintCool, tintWarm, hexHash);
-       diffuseColor.rgb *= hexTint;
-
-       // (3) High-frequency grain — pixel-level noise breaks flat shading.
-       float grain = hash21(vWorldPos.xz * 4.7);
-       diffuseColor.rgb *= (0.985 + grain * 0.030);`,
-    );
-  };
+  return { albedo };
 }
 
 // ── Pool basin params shared with SanctuaryPool ──────────────────────
@@ -302,7 +246,7 @@ export function sanctuaryGroundY(x, z) {
   return meadowY * blendOut + sanctuaryHillRing(x, z);
 }
 
-function buildTerrain() {
+function buildTerrain(textures) {
   const geo = new THREE.PlaneGeometry(
     TERRAIN_SPAN_M,
     TERRAIN_SPAN_M,
@@ -357,17 +301,12 @@ function buildTerrain() {
   geo.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({
+    map: textures.albedo,
     vertexColors: true,
-    roughness: 0.97,
+    roughness: 0.95,
     metalness: 0.0,
     flatShading: false,
   });
-  // Photo-real hex shader (May-18 enhancement of the legacy v2
-  // `applyNeuHexShader` — see `applySanctuaryHexShader` above).
-  // Adds bolder hex edges, per-tile warm/cool tint jitter, and a
-  // high-frequency grain pass that breaks flat shading. Reads as a
-  // hand-painted sacred floor rather than a flat-coloured plane.
-  applySanctuaryHexShader(mat);
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.name = "sanctuary_terrain";
@@ -488,7 +427,9 @@ export const SanctuaryGroundModule = {
     root.userData.anuKind = "sanctuary_ground";
     root.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
-    root.add(buildTerrain());
+    const textures = await loadTerrainTextures();
+    const terrainMesh = SanctuarySceneConstructor.assertPerformance("SanctuaryGround.buildTerrain", () => buildTerrain(textures));
+    root.add(terrainMesh);
     const sky = buildSky();
     root.add(sky);
     this._sky = sky;
@@ -537,8 +478,15 @@ export const SanctuaryGroundModule = {
     this._root.traverse((o) => {
       if (o.geometry) o.geometry.dispose?.();
       if (o.material) {
-        if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose?.());
-        else o.material.dispose?.();
+        if (Array.isArray(o.material)) {
+          o.material.forEach((m) => {
+            m.map?.dispose?.();
+            m.dispose?.();
+          });
+        } else {
+          o.material.map?.dispose?.();
+          o.material.dispose?.();
+        }
       }
     });
     scene.fog = null;

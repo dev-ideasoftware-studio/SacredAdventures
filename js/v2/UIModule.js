@@ -78,12 +78,12 @@ export const UIModule = {
           --pip-gold: #c6a035;
           --pip-gold-soft: rgba(232, 212, 148, 0.92);
           --pip-parchment: #f3ece3;
-          --pip-moon-track: 26px;
-          --pip-compass-track: 24px;
-          --pip-outer-track: 22px;
-          --pip-compass-inset: -24px;
+          --pip-moon-track: 14px;
+          --pip-compass-track: 12px;
+          --pip-outer-track: 10px;
+          --pip-compass-inset: -12px;
           --pip-lunar-inset: 0px;
-          --pip-season-inset: 26px;
+          --pip-season-inset: 14px;
           position: absolute;
           /* Top buffer = 20px breathing room (matches left:20px). With
            * top:0 the N compass label + outer bezel shadow were clipping
@@ -92,7 +92,7 @@ export const UIModule = {
           left: 20px;
           width: clamp(200px, 25vw, 300px);
           height: clamp(200px, 25vw, 300px);
-          z-index: 1200;
+          z-index: 3500;
           border-radius: 50%;
           pointer-events: auto;
           cursor: default;

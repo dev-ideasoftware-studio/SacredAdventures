@@ -308,9 +308,9 @@ export const SanctuaryControlsModule = {
       // tool-palette UI will swap this between grow_hill / plant_tree /
       // plant_bush / plant_lily / plant_rock.
       if (typeof window !== "undefined") {
-        window.__sanctuaryMoldTool = window.SanctuaryMutations?.TOOLS?.GROW_HILL ?? "grow_hill";
+        window.__sanctuaryMoldTool = "select";
       }
-      flashToast(this._toast, "top-down · click to GROW A HILL · save to keep it");
+      flashToast(this._toast, "top-down mode active · select a tool to mold the world");
     } else if (this._savedCameraPose) {
       this._camera.position.copy(this._savedCameraPose.pos);
       this._camera.rotation.copy(this._savedCameraPose.rot);
