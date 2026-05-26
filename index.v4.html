@@ -125,7 +125,7 @@
       border: none;
       z-index: 3000;
       background: transparent;
-      pointer-events: none; /* panel's body manages its own clicks */
+      pointer-events: auto; /* panel body=none; buttons=auto; void clicks tunnel via CANVAS_CLICK */
       transition: opacity 0.25s ease;
     }
     #v4-panel-frame.hidden {
@@ -700,6 +700,26 @@
       } else if (t === 'THUMB_MOVE') {
         window.__sanctuaryJoystickInput.x = Number(d.x) || 0;
         window.__sanctuaryJoystickInput.y = Number(d.y) || 0;
+      } else if (t === 'CANVAS_CLICK') {
+        // Panel tunnels background taps here so the canvas click-to-move
+        // still fires even though the iframe is now pointer-events:auto.
+        // The panel sends normalised (0–1) coords; we convert to clientXY
+        // and re-dispatch a mousedown on the canvas so SanctuaryClickToMove
+        // picks it up exactly like a real ground click.
+        const canvas = document.getElementById('v4-canvas');
+        if (canvas) {
+          const cx = (Number(d.x) || 0) * window.innerWidth;
+          const cy = (Number(d.y) || 0) * window.innerHeight;
+          canvas.dispatchEvent(new MouseEvent('mousedown', {
+            clientX: cx, clientY: cy,
+            bubbles: true, cancelable: true,
+            button: Number(d.button) || 0,
+          }));
+        }
+      } else if (t === 'REQ_START_AUTO_WALK') {
+        // Panel requests auto-walk (e.g. from guide card buttons) — cancel
+        // any existing path so the next click-to-move starts clean.
+        if (typeof window._v4CancelClickToMove === 'function') window._v4CancelClickToMove();
       }
     });
 
