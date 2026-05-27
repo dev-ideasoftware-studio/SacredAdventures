@@ -1022,7 +1022,19 @@ export class SacredOrchestrator {
         if (
           o.userData?.anuKind === "tipi_smoke" ||
           o.userData?.anuKind === "sanctuary_frog_group" ||
-          o.userData?.anuKind === "sanctuary_lily_pads"
+          o.userData?.anuKind === "sanctuary_lily_pads" ||
+          o.userData?.anuKind === "sanctuary_butterfly" ||
+          o.userData?.anuKind === "sanctuary_butterflies" ||
+          o.userData?.anuKind === "sanctuary_smoke" ||
+          o.userData?.anuKind === "tipi_group" ||
+          o.userData?.anuKind === "npc_yellowbutterfly" ||
+          o.userData?.anuKind === "npc_bringshappiness" ||
+          (o.name && (
+            o.name.includes("tipi") ||
+            o.name.includes("Tipi") ||
+            o.name.includes("smoke") ||
+            o.name.includes("Smoke")
+          ))
         ) {
           stashed.push({ g: o, prev: o.visible });
           o.visible = false;
@@ -1110,6 +1122,11 @@ export class SacredOrchestrator {
     const bg = this.scene.background;
     this.scene.fog = null;
     this.scene.background = null;
+
+    // Add temporary bright ambient light for minimap legibility under all conditions
+    const pipLight = new THREE.AmbientLight(0xffffff, 1.2);
+    this.scene.add(pipLight);
+
     return {
       cullStash: this._stashAnuCullablesForPipRender(),
       fog,
@@ -1117,6 +1134,7 @@ export class SacredOrchestrator {
       feet: wp.feet,
       yaw: wp.yaw || 0,
       mainMap: wp.mainCanvasMapView === true,
+      pipLight,
     };
   }
 
@@ -1206,6 +1224,9 @@ export class SacredOrchestrator {
     this.scene.fog = state.fog;
     this.scene.background = state.bg;
     this._restoreAnuCullablesAfterPip(state.cullStash);
+    if (state.pipLight) {
+      this.scene.remove(state.pipLight);
+    }
   }
 
   /**
