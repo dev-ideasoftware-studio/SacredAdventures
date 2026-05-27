@@ -54,6 +54,17 @@ export const UIModule = {
               0 0 0 8px #1a1512, /* Outer Iron Chassis */
               0 15px 40px rgba(0, 0, 0, 0.8), /* Volumetric shadow */
               0 0 20px rgba(255, 180, 50, 0.1);
+          --pip-moon-track: 22px;
+          --pip-compass-track: 20px;
+          --pip-outer-track: 16px;
+        }
+
+        @media (max-width: 768px) {
+          #moondial-wrapper {
+            --pip-moon-track: 11px;
+            --pip-compass-track: 10px;
+            --pip-outer-track: 8px;
+          }
         }
         
         #moondial-wrapper iframe {

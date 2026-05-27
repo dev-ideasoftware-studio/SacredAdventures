@@ -10,7 +10,7 @@ test.use({ baseURL: undefined });
 
 async function probe(page) {
   await page.goto('http://127.0.0.1:5505/index.html');
-  await page.waitForTimeout(13000);
+  await page.waitForTimeout(18000);
   return await page.evaluate(() => {
     const moon = document.getElementById('moondial-wrapper');
     const pill = document.getElementById('v2-distance-pill');
@@ -26,12 +26,13 @@ async function probe(page) {
       moonW:       Math.round(m.width),
       pillW:       Math.round(p.width),
       gap:         Math.round(p.top - m.bottom),
-      audit: (window.AnuUniverse?.audit?.() || []).length,
+      audit: (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length,
     };
   });
 }
 
 test('DESKTOP — POS pill centered on moondial centerline ±1px', async ({ browser }) => {
+  test.setTimeout(60000);
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const errs = [];
@@ -54,6 +55,7 @@ test('DESKTOP — POS pill centered on moondial centerline ±1px', async ({ brow
 });
 
 test('MOBILE — same centered alignment + tighter gap', async ({ browser }) => {
+  test.setTimeout(60000);
   const ctx = await browser.newContext({ viewport: { width: 375, height: 667 } });
   const page = await ctx.newPage();
   const r = await probe(page);

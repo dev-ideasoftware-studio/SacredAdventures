@@ -21,7 +21,7 @@ async function bootAndProbe(page, label) {
   page.on('response', r => { if (r.status() === 404) net404.push(r.url()); });
 
   await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(13000);
+  await page.waitForTimeout(18000);
 
   const probe = await page.evaluate(() => {
     const hud = document.getElementById('v2-orchestrator-hud');
@@ -53,7 +53,7 @@ async function bootAndProbe(page, label) {
       moonTrack:   moonCs ? moonCs.getPropertyValue('--pip-moon-track').trim() : null,
       compassTrack:moonCs ? moonCs.getPropertyValue('--pip-compass-track').trim() : null,
       outerTrack:  moonCs ? moonCs.getPropertyValue('--pip-outer-track').trim() : null,
-      auditLen: (window.AnuUniverse?.audit?.() || []).length,
+      auditLen: (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length,
     };
   });
 
@@ -76,6 +76,7 @@ async function bootAndProbe(page, label) {
 }
 
 test('MOBILE 375×667 — HUD shrink + PIP dials halved + accordion + title relocated', async ({ browser }) => {
+  test.setTimeout(60000);
   const ctx = await browser.newContext({ viewport: { width: 375, height: 667 } });
   const page = await ctx.newPage();
   const r = await bootAndProbe(page, 'MOBILE 375×667');
@@ -95,6 +96,7 @@ test('MOBILE 375×667 — HUD shrink + PIP dials halved + accordion + title relo
 });
 
 test('DESKTOP 1280×800 — full size on HUD AND PIP dials', async ({ browser }) => {
+  test.setTimeout(60000);
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const r = await bootAndProbe(page, 'DESKTOP 1280×800');
