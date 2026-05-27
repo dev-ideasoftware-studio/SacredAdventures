@@ -88,7 +88,6 @@ export const UIModule = {
             border-radius: 50%;
             z-index: 1;
             pointer-events: none;
-            filter: sepia(1) hue-rotate(80deg) saturate(1.8) brightness(1.3) contrast(1.15) drop-shadow(0 0 8px rgba(110, 240, 200, 0.45));
         }
 
         #pip-click-zone {

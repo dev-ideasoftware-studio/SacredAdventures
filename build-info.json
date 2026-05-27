@@ -1,8 +1,8 @@
 {
-  "subject": "test(welcome): filter pip-full-rate warning and increase test timeouts for robustness",
-  "isoDate": "2026-05-27T09:37:57-05:00",
+  "subject": "style(pip): remove emerald green hologram filter from minimap canvas",
+  "isoDate": "2026-05-27T09:46:08-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v32",
   "dirty": false,
-  "generatedAt": "2026-05-27T14:38:01.179Z"
+  "generatedAt": "2026-05-27T14:46:11.859Z"
 }
