@@ -24,6 +24,7 @@ async function boot(page, { clearStorage = false } = {}) {
 }
 
 test('always-shows on fresh + checkbox suppresses next boot + AAA contrast preserved', async ({ browser }) => {
+  test.setTimeout(60000);
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const errs = [];

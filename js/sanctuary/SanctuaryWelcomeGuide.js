@@ -36,7 +36,7 @@ const STEPS = [
   {
     title: "Steer &amp; Move",
     body:
-      "Press <b>W</b> or <b>↑ / ↓</b> to walk forward or backward. Press <b>S</b> or <b>←</b> to turn left, and <b>D</b> or <b>→</b> to turn right.",
+      "Press <b>W / S</b> or <b>↑ / ↓</b> to walk forward or backward. Press <b>A / D</b> to strafe left or right. Use <b>Q / E</b> or <b>← / →</b> to turn left or right.",
   },
   {
     title: "Click to Walk",

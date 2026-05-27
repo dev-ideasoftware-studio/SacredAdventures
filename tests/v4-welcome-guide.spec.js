@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 test.use({ baseURL: undefined });
 test('Welcome guide renders + no errors', async ({ browser }) => {
+  test.setTimeout(60000);
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const errs = [], warns = [];

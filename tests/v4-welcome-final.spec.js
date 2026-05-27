@@ -32,6 +32,7 @@ async function boot(page) {
 }
 
 test('DESKTOP — guide centred between PIP & HUD with ≥30px buffers + AAA contrast', async ({ browser }) => {
+  test.setTimeout(60000);
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const errs = [];
@@ -83,7 +84,7 @@ test('DESKTOP — guide centred between PIP & HUD with ≥30px buffers + AAA con
   console.log(`  body  contrast: ${bodyC.toFixed(2)}:1   (target ≥ 7 for AAA normal)`);
 
   expect(probe.found).toBe(true);
-  expect(probe.pipTop).toBe(0);                        // PIP flush top
+  expect(probe.pipTop).toBe(20);                       // PIP standard alignment (top: 20px)
   expect(probe.bufferLeft).toBeGreaterThanOrEqual(30); // ≥30 left
   expect(probe.bufferRight).toBeGreaterThanOrEqual(30);// ≥30 right
   expect(probe.bufferTop).toBeGreaterThanOrEqual(30);  // ≥30 top

@@ -134,23 +134,29 @@
     }
     #v4-banner {
       position: fixed;
-      bottom: 20px;
+      bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0,0,0,0.72);
-      border-left: 3px solid #fbc02d;
-      padding: 10px 22px;
+      background: rgba(25, 18, 12, 0.45);
+      border: 1px solid rgba(251, 192, 45, 0.28);
+      border-radius: 999px;
+      padding: 10px 24px;
       color: #ffe9a8;
       font-size: 12px;
       letter-spacing: 1.8px;
       text-align: center;
       pointer-events: none;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(12px) saturate(160%);
+      -webkit-backdrop-filter: blur(12px) saturate(160%);
       z-index: 8500;
-      transition: opacity 0.7s;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      box-shadow: 
+        0 10px 30px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,220,140,0.15);
     }
-    #v4-banner b { color: #a5d6a7; letter-spacing: 2.5px; font-weight: 800; }
-    #v4-banner small { display: block; color: #bbb; font-size: 10px; margin-top: 4px; letter-spacing: 1.4px; }
+    #v4-banner b { color: #ffe9a8; letter-spacing: 2.5px; font-weight: 800; }
+    #v4-banner small { display: block; color: #a5d6a7; font-size: 10px; margin-top: 4px; letter-spacing: 1.4px; }
   </style>
 
   <script type="importmap">
@@ -205,10 +211,7 @@
     title="Sacred Panel"
   ></iframe>
 
-  <div id="v4-banner">
-    <b>SANCTUARY · the sacred pool</b>
-    <small>click the ground to walk · the gold ring marks where to fish · W / arrows = move · S = turn left · D = turn right</small>
-  </div>
+  <div id="v4-banner"></div>
 
   <script type="module">
     import { SacredOrchestrator } from './js/v2/Orchestrator.js';
@@ -508,11 +511,7 @@
     v4LoadingComplete();
     setTimeout(teardownLoadingIframe, 900);
 
-    // Banner fade after 7s.
-    setTimeout(() => {
-      const b = document.getElementById('v4-banner');
-      if (b) b.style.opacity = '0';
-    }, 7000);
+    // Banner begins empty and is dynamically flashed when user triggers HUD panel actions.
 
     console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
     console.log('%c  SACRED · SANCTUARY · v4    ', 'color:#fff2c4;font-weight:bold;font-size:13px;background:#1a2018;padding:4px 8px;');

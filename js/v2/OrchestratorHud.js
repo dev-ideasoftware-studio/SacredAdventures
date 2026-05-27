@@ -220,6 +220,113 @@ function _wireUniverseAccordion(hud) {
   });
 }
 
+// ── Pipeline Trace ring-buffer (feeds window._v4GetPipelineTrace) ───────────
+// Samples ANU's existing FrameBudget + adaptiveDpr + fuzzy-pipeline sensors
+// at 1 Hz into a 60-sample ring (60 s window). The original ring-buffer in
+// SanctuaryFpsHud was reverted in 6685fb1; this rebuilds it next to its only
+// consumer so the TRACE accordion stops showing "FPS HUD not loaded".
+
+const TRACE_RING_SIZE = 60;
+const TRACE_SAMPLE_MS = 1000;
+const _traceRing = new Array(TRACE_RING_SIZE);
+let _traceHead = 0;
+let _traceFull = false;
+let _traceSamplerStarted = false;
+
+function _sampleTraceTick() {
+  const now = Date.now();
+  let fps = 0, loadPct = 0, dpr = null, bottleneck = 'none';
+  let haveBudget = false;
+  try {
+    const budget = window.AnuUniverse?.budget?.snapshot?.();
+    if (budget) {
+      const avg = budget.avgMs > 0 ? budget.avgMs : budget.lastMs;
+      if (avg > 0) {
+        fps = Math.round(1000 / avg);
+        loadPct = Math.round(budget.loadPct || 0);
+        haveBudget = true;
+      }
+    }
+  } catch (_) {}
+  if (!haveBudget) return; // skip pre-warmup ticks so boot zeros don't pollute the ring
+  try {
+    const adapt = window.AnuUniverse?.adaptiveDpr?.snapshot?.();
+    if (adapt && typeof adapt.currentDpr === 'number') {
+      dpr = Math.round(adapt.currentDpr * 100) / 100;
+    }
+  } catch (_) {}
+  if (dpr === null && typeof window !== 'undefined') {
+    dpr = Math.round((window.devicePixelRatio || 1) * 100) / 100;
+  }
+  try {
+    const fuzzy = window.AnuUniverse?.getFuzzyPipelineSnapshot?.();
+    bottleneck = fuzzy?.primaryBottleneck?.id || 'none';
+  } catch (_) {}
+  _traceRing[_traceHead] = { t: now, fps, loadPct, dpr, bottleneck };
+  _traceHead = (_traceHead + 1) % TRACE_RING_SIZE;
+  if (_traceHead === 0) _traceFull = true;
+}
+
+function _readTraceSamples() {
+  const out = [];
+  if (_traceFull) {
+    for (let i = 0; i < TRACE_RING_SIZE; i++) {
+      const s = _traceRing[(_traceHead + i) % TRACE_RING_SIZE];
+      if (s) out.push(s);
+    }
+  } else {
+    for (let i = 0; i < _traceHead; i++) {
+      const s = _traceRing[i];
+      if (s) out.push(s);
+    }
+  }
+  return out;
+}
+
+function _buildTraceSummary(samples) {
+  if (!samples.length) {
+    return { durationSec: 0, sampleCount: 0,
+             fps: { min: 0, avg: 0, max: 0 }, loadPct: { min: 0, max: 0 },
+             dprChanges: [], bottleneckChanges: [] };
+  }
+  let fpsMin = Infinity, fpsMax = 0, fpsSum = 0;
+  let loadMin = Infinity, loadMax = 0;
+  const dprChanges = [];
+  const bottleneckChanges = [];
+  let lastDpr = null, lastBtl = null;
+  for (const s of samples) {
+    if (s.fps < fpsMin) fpsMin = s.fps;
+    if (s.fps > fpsMax) fpsMax = s.fps;
+    fpsSum += s.fps;
+    if (s.loadPct < loadMin) loadMin = s.loadPct;
+    if (s.loadPct > loadMax) loadMax = s.loadPct;
+    if (s.dpr !== lastDpr) { dprChanges.push({ t: s.t, dpr: s.dpr }); lastDpr = s.dpr; }
+    if (s.bottleneck !== lastBtl) { bottleneckChanges.push({ t: s.t, id: s.bottleneck }); lastBtl = s.bottleneck; }
+  }
+  const durationSec = Math.round((samples[samples.length - 1].t - samples[0].t) / 1000);
+  return {
+    durationSec,
+    sampleCount: samples.length,
+    fps: { min: fpsMin === Infinity ? 0 : fpsMin, avg: Math.round(fpsSum / samples.length), max: fpsMax },
+    loadPct: { min: loadMin === Infinity ? 0 : loadMin, max: loadMax },
+    dprChanges,
+    bottleneckChanges,
+  };
+}
+
+function _startTraceSampler() {
+  if (_traceSamplerStarted) return;
+  _traceSamplerStarted = true;
+  _sampleTraceTick();
+  setInterval(_sampleTraceTick, TRACE_SAMPLE_MS);
+  if (typeof window !== 'undefined') {
+    window._v4GetPipelineTrace = () => {
+      const samples = _readTraceSamples();
+      return { samples, summary: _buildTraceSummary(samples) };
+    };
+  }
+}
+
 // ── Pipeline Trace accordion helpers ────────────────────────────────────────
 
 /**
@@ -351,12 +458,14 @@ function _wireTraceAccordion(hud) {
   const copyPill = hud.querySelector('#v2-trace-copy-pill');
   if (!header || !body || !icon) return;
 
+  _startTraceSampler();
+
   const refresh = () => {
     if (body.style.display === 'none') return;
     const fn = typeof window._v4GetPipelineTrace === 'function' ? window._v4GetPipelineTrace : null;
     if (!fn) {
       const stats = body.querySelector('#v2-trace-stats');
-      if (stats) stats.innerHTML = '<span style="opacity:0.4">FPS HUD not loaded — boot index.html first.</span>';
+      if (stats) stats.innerHTML = '<span style="opacity:0.4">Pipeline trace sampler not started.</span>';
       return;
     }
     const { samples, summary } = fn();

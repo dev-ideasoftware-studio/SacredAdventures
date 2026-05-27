@@ -1,8 +1,8 @@
 {
-  "subject": "ugh",
-  "isoDate": "2026-05-27T08:51:31-05:00",
+  "subject": "fix(hud): restore TRACE accordion data — wire _v4GetPipelineTrace off ANU",
+  "isoDate": "2026-05-27T09:00:02-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v32",
   "dirty": false,
-  "generatedAt": "2026-05-27T13:51:46.335Z"
+  "generatedAt": "2026-05-27T14:00:20.608Z"
 }
