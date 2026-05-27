@@ -28,3 +28,6 @@ Sacred.Adventures.BAD/
 
 # Live-server config (env-specific, can be committed if desired)
 # .live-server.json
+
+# Ad-hoc probes, throwaway test scripts, screenshots (Rule H)
+backups/
