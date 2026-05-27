@@ -16,7 +16,7 @@ test('Welcome guide renders + no errors', async ({ browser }) => {
     const cs = getComputedStyle(el);
     const dotsActive = document.querySelectorAll('#sanctuary-welcome-guide .swg-dot.is-active').length;
     const totalDots  = document.querySelectorAll('#sanctuary-welcome-guide .swg-dot').length;
-    const audit = (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length;
+    const audit = (window.AnuUniverse?.audit?.() || []).length;
     return {
       found: true,
       hidden: el.classList.contains('is-hidden'),
@@ -34,13 +34,7 @@ test('Welcome guide renders + no errors', async ({ browser }) => {
   });
   console.log('\nGUIDE PROBE:', JSON.stringify(probe, null, 2));
   console.log('\nErrors:', errs.length, 'Warnings:', warns.length);
-  warns.forEach(w => console.log('  ⚠ WARNING:', w));
-  errs.forEach(e => console.log('  ❌ ERROR:', e));
-  
-  const auditDetails = await page.evaluate(() => window.AnuUniverse?.audit?.() || []);
-  console.log('\n--- ANU AUDIT DETAILS ---');
-  console.log(JSON.stringify(auditDetails, null, 2));
-
+  errs.slice(0,3).forEach(e => console.log('  ❌', e.substring(0, 200)));
   expect(probe.found).toBe(true);
   expect(probe.hidden).toBe(false);
   expect(probe.pillText).toBe('WELCOME GUIDE');

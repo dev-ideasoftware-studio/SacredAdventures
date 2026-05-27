@@ -38,7 +38,7 @@ test('always-shows on fresh + checkbox suppresses next boot + AAA contrast prese
     const cb = g?.querySelector('[data-swg-dontshow]');
     const cbRect = cb?.getBoundingClientRect();
     const guideRect = g?.getBoundingClientRect();
-    const audit = (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length;
+    const audit = (window.AnuUniverse?.audit?.() || []).length;
     return {
       visible: g && !g.classList.contains('is-hidden'),
       cbExists: !!cb,
@@ -101,7 +101,7 @@ test('always-shows on fresh + checkbox suppresses next boot + AAA contrast prese
     return {
       visible: g && !g.classList.contains('is-hidden'),
       cbChecked: g?.querySelector('[data-swg-dontshow]')?.checked,
-      auditLen: (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length,
+      auditLen: (window.AnuUniverse?.audit?.() || []).length,
     };
   });
   console.log(`\n[5] AFTER UNCHECK + RELOAD:`, JSON.stringify(probe, null, 2));

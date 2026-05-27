@@ -28,7 +28,7 @@ function parseRGB(s) {
 async function boot(page) {
   await page.addInitScript(() => { try { localStorage.removeItem('sanctuary.welcomeGuide.seenV1'); } catch {} });
   await page.goto('http://127.0.0.1:5505/index.html');
-  await page.waitForTimeout(18000);
+  await page.waitForTimeout(14000);
 }
 
 test('DESKTOP — guide centred between PIP & HUD with ≥30px buffers + AAA contrast', async ({ browser }) => {
@@ -67,7 +67,7 @@ test('DESKTOP — guide centred between PIP & HUD with ≥30px buffers + AAA con
       titleColor: titleEl ? getComputedStyle(titleEl).color : null,
       bodyColor:  bodyEl  ? getComputedStyle(bodyEl).color  : null,
       blur: cs.backdropFilter || cs.webkitBackdropFilter,
-      auditLen: (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length,
+      auditLen: (window.AnuUniverse?.audit?.() || []).length,
     };
   });
 
