@@ -31,3 +31,6 @@ Sacred.Adventures.BAD/
 
 # Ad-hoc probes, throwaway test scripts, screenshots (Rule H)
 backups/
+
+# Local reference legacy archive
+.archive/

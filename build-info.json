@@ -1,8 +1,8 @@
 {
-  "subject": "feat(test): add tests/anu-sync-check.spec.js — canonical \"Anu confirms sync\" gate",
-  "isoDate": "2026-05-27T05:07:29-05:00",
+  "subject": "feat(archive): Batch 1 - move obsolete components to git-ignored .archive/ folder",
+  "isoDate": "2026-05-27T06:16:53-05:00",
   "branch": "dev/ideasoftware-studio",
-  "swVersion": "v29",
+  "swVersion": "v30",
   "dirty": false,
-  "generatedAt": "2026-05-27T10:07:32.105Z"
+  "generatedAt": "2026-05-27T11:16:59.079Z"
 }

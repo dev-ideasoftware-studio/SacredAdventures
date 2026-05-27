@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v29";
+const CACHE_VERSION = "v30";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 
@@ -19,7 +19,6 @@ const SHELL_FILES = [
   "./SacredGame.Panel.html",
   "./SacredGame.Journal.html",
   "./Component.NewJournal.html",
-  "./Component.MoonDial.html",
   "./SacredGame.css",
   "./manifest.json",
 
@@ -33,10 +32,7 @@ const SHELL_FILES = [
   "./js/Component.PostProcessing.js",
   "./js/Component.HerdSystem.js",
   "./js/Component.RabbitSystem.js",
-  "./Component.AssetFactory.js",
-  "./Component.FuzzyBrain.js",
   "./Component.ThreeIcons.js",
-  "./Component.Assets.js",
   "./Component.LoadingModal.html",
 
   // Data JS
