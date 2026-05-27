@@ -1,8 +1,8 @@
 {
-  "subject": "refactor(pip): fully remove SanctuaryPip — no top-left minimap anymore",
-  "isoDate": "2026-05-27T04:57:50-05:00",
+  "subject": "feat(test): add tests/anu-sync-check.spec.js — canonical \"Anu confirms sync\" gate",
+  "isoDate": "2026-05-27T05:07:29-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v29",
   "dirty": false,
-  "generatedAt": "2026-05-27T09:57:53.354Z"
+  "generatedAt": "2026-05-27T10:07:32.105Z"
 }
