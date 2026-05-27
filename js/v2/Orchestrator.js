@@ -946,11 +946,11 @@ export class SacredOrchestrator {
     );
     this._pipPersp = new THREE.PerspectiveCamera(42, aspect, 0.12, 220);
     // Enable layer 1 on both PiP cameras so they pick up the PiP-only markers.
-    // Disable layer 0 so the PiP camera stops rendering the high-poly 3D scene!
+    // Restore layer 0 so the 3D scene (terrain, standard trees, etc.) renders on the minimap.
     this._pipOrtho.layers.enable(1);
-    this._pipOrtho.layers.disable(0);
+    this._pipOrtho.layers.enable(0);
     this._pipPersp.layers.enable(1);
-    this._pipPersp.layers.disable(0);
+    this._pipPersp.layers.enable(0);
 
     // Warm-up: the second WebGL context has its own program cache + own
     // GPU buffer pool, so the *first* PiP render would otherwise compile

@@ -259,6 +259,7 @@ const TreesForestModule = {
     this._leafMeshes = [];
     this._foliageBaseColors = new Array(N);
     this._sharedTreeGeometries = new Set();
+    this._treeSpheres = [];
     for (const m of meshesToInstance) {
       if (m.geometry) this._sharedTreeGeometries.add(m.geometry);
     }
@@ -478,6 +479,11 @@ transformed.y += wobY;
       quaternion.setFromEuler(rotationEuler);
       matrix.compose(position, quaternion, scaleVec);
 
+      // Cache bounding sphere for manual frustum culling
+      const sphereCenter = new THREE.Vector3(pos.x, groundY + targetH * 0.5, pos.z);
+      const sphereRadius = targetH * 0.7; // Cover height and horizontal spread
+      this._treeSpheres.push(new THREE.Sphere(sphereCenter, sphereRadius));
+
       let tintColor =
         foliageColors[Math.floor(Math.random() * foliageColors.length)];
       // Species-bias the tint so the new silhouettes also read as
@@ -554,11 +560,72 @@ transformed.y += wobY;
       }
     }
 
-    for (const { instancedMesh, isLeaf } of allInstanced) {
+    // Cache original matrices and colors for manual per-instance frustum culling
+    for (const { instancedMesh } of allInstanced) {
+      instancedMesh.userData.originalMatrices = [];
+      instancedMesh.userData.originalColors = [];
+      for (let i = 0; i < N; i++) {
+        const mat = new THREE.Matrix4();
+        instancedMesh.getMatrixAt(i, mat);
+        instancedMesh.userData.originalMatrices.push(mat);
+        if (instancedMesh.instanceColor) {
+          const col = new THREE.Color();
+          instancedMesh.getColorAt(i, col);
+          instancedMesh.userData.originalColors.push(col);
+        }
+      }
+    }
+
+    this._lastCullFrame = -1;
+    this._lastCullCamera = null;
+    this._visibleIndices = [];
+
+    const cullingFrustum = new THREE.Frustum();
+    const cullingProjScreenMtx = new THREE.Matrix4();
+
+    for (const { instancedMesh } of allInstanced) {
       instancedMesh.instanceMatrix.needsUpdate = true;
-      if (isLeaf && instancedMesh.instanceColor)
-        instancedMesh.instanceColor.needsUpdate = true;
+      if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
       instancedMesh.computeBoundingSphere();
+
+      instancedMesh.onBeforeRender = (renderer, scene, camera) => {
+        const frameId = renderer.info.render.frame;
+        const camId = camera.uuid;
+
+        // Perform frustum culling once per frame per camera across all tree parts
+        if (this._lastCullFrame !== frameId || this._lastCullCamera !== camId) {
+          this._lastCullFrame = frameId;
+          this._lastCullCamera = camId;
+
+          cullingProjScreenMtx.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+          cullingFrustum.setFromProjectionMatrix(cullingProjScreenMtx);
+
+          this._visibleIndices = [];
+          for (let i = 0; i < N; i++) {
+            if (cullingFrustum.intersectsSphere(this._treeSpheres[i])) {
+              this._visibleIndices.push(i);
+            }
+          }
+        }
+
+        const visibleCount = this._visibleIndices.length;
+        const origMtxs = instancedMesh.userData.originalMatrices;
+        const origClrs = instancedMesh.userData.originalColors;
+
+        for (let v = 0; v < visibleCount; v++) {
+          const origIndex = this._visibleIndices[v];
+          instancedMesh.setMatrixAt(v, origMtxs[origIndex]);
+          if (instancedMesh.instanceColor && origClrs[origIndex]) {
+            instancedMesh.setColorAt(v, origClrs[origIndex]);
+          }
+        }
+
+        instancedMesh.count = visibleCount;
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        if (instancedMesh.instanceColor) {
+          instancedMesh.instanceColor.needsUpdate = true;
+        }
+      };
     }
 
     // ── Wildflowers — meadow scatter (May-2026 opening-scene pass) ───────

@@ -1,8 +1,8 @@
 {
-  "subject": "fix(fish-jumps): pond-only breach, no insect chase, splash clamped to pond",
-  "isoDate": "2026-05-27T08:26:54-05:00",
+  "subject": "feat(perf): re-enable 3D minimap rendering and implement manual per-instance frustum culling for instanced forest",
+  "isoDate": "2026-05-27T08:29:08-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v32",
   "dirty": false,
-  "generatedAt": "2026-05-27T13:26:57.871Z"
+  "generatedAt": "2026-05-27T13:29:12.659Z"
 }
