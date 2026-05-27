@@ -1,8 +1,8 @@
 {
-  "subject": "feat(archive): Batch 1 - move obsolete components to git-ignored .archive/ folder",
-  "isoDate": "2026-05-27T06:16:53-05:00",
+  "subject": "feat(archive): Batch 2 - move obsolete development utilities and transitional pages to .archive/",
+  "isoDate": "2026-05-27T06:40:39-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v30",
   "dirty": false,
-  "generatedAt": "2026-05-27T11:16:59.079Z"
+  "generatedAt": "2026-05-27T11:40:42.361Z"
 }

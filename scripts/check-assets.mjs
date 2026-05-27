@@ -56,7 +56,6 @@ const WARN_TREES = [
   "Component.NewJournal.html",
   "SacredGame.Journal.html",
   "SacredGame.Panel.html",
-  "SacredOnes.html",
   "index.html",
   "launch.html",
   "manifest.json",
