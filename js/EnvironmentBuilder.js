@@ -638,6 +638,9 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             await new Promise((resolveTipi) => {
                 console.log("[generateWorld] Starting GLTFLoader for Tipi...");
                 const gltfLoaderTipi = new GLTFLoader();
+                const dracoLoaderTipi = new window.THREE.DRACOLoader();
+                dracoLoaderTipi.setDecoderPath('vendor/three/examples/jsm/libs/draco/gltf/');
+                gltfLoaderTipi.setDRACOLoader(dracoLoaderTipi);
                 gltfLoaderTipi.setPath('Assets/Tipi.yellowbutterfly/');
                 gltfLoaderTipi.load('tipi.yellowbutterfly.glb', (gltf) => {
                     const obj = gltf.scene;
@@ -749,6 +752,9 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         
                         // === YELLOW BUTTERFLY NPC ===
                         const ybGltfLoader = new GLTFLoader();
+                        const ybDracoLoader = new window.THREE.DRACOLoader();
+                        ybDracoLoader.setDecoderPath('vendor/three/examples/jsm/libs/draco/gltf/');
+                        ybGltfLoader.setDRACOLoader(ybDracoLoader);
                         ybGltfLoader.load('Assets/animated.yellowbutterfly.glb', (gltf) => {
                             const ybModel = gltf.scene;
                             // The base mesh for yellow butterfly is incredibly small, so we use 1.728x scale.

@@ -63,6 +63,20 @@ let _relaxFrames = 0;
 let _stepCount = 0;
 let _lastChangeAt = 0;
 let _detectedHz = 60;
+/** Max ladder index Anu is allowed to descend to. Default = last rung
+ *  (no floor). Modules can raise this floor for scenes that need to stay
+ *  visually crisp (e.g. fishing close-up) by calling `setMinDpr(value)`. */
+let _floorIndex = 6; // DPR_LADDER.length - 1
+
+/** Convert a desired minimum DPR to the corresponding max-index in the ladder.
+ *  Returns the largest index `i` such that `DPR_LADDER[i] >= minDpr`. */
+function _minDprToFloorIndex(minDpr) {
+  let idx = 0;
+  for (let i = 0; i < DPR_LADDER.length; i++) {
+    if (DPR_LADDER[i] >= minDpr) idx = i;
+  }
+  return idx;
+}
 
 /** Probe monitor refresh by timing two consecutive requestAnimationFrame
  *  ticks. Rounds to the nearest common refresh rate (60/72/75/90/120/144/165/240). */
@@ -103,7 +117,9 @@ function snapshot() {
 
 function applyDpr(idx, reason) {
   if (!_renderer) return;
-  const clamped = Math.max(0, Math.min(DPR_LADDER.length - 1, idx));
+  // Respect the floor — scenes can pin a minimum DPR (e.g. fishing close-up
+  // needs to stay crisp; the adaptive stepper must not descend below that).
+  const clamped = Math.max(0, Math.min(_floorIndex, idx));
   if (clamped === _currentIndex) return;
   _currentIndex = clamped;
   const dpr = DPR_LADDER[clamped];
@@ -169,6 +185,20 @@ export const AnuAdaptiveDprModule = {
           setIndex: (i) => applyDpr(i, "manual"),
           stepUp: () => applyDpr(_currentIndex - 1, "manual_up"),
           stepDown: () => applyDpr(_currentIndex + 1, "manual_down"),
+          /** Pin a minimum DPR — adaptive stepper won't descend below this.
+           *  If the current DPR is already lower, bump up to the new floor
+           *  immediately so the scene looks crisp on the very next frame. */
+          setMinDpr: (minDpr) => {
+            _floorIndex = _minDprToFloorIndex(minDpr);
+            if (_currentIndex > _floorIndex) {
+              applyDpr(_floorIndex, `floor_raised(min=${minDpr})`);
+            }
+          },
+          /** Remove the DPR floor — adaptive stepper can again descend to the
+           *  ladder's lowest rung if frame budget demands it. */
+          clearMinDpr: () => {
+            _floorIndex = DPR_LADDER.length - 1;
+          },
         });
       }
     }
@@ -189,7 +219,7 @@ export const AnuAdaptiveDprModule = {
     if (avg > TARGET_MS) {
       _stressFrames++;
       _relaxFrames = 0;
-      if (_stressFrames >= STRESS_STREAK && _currentIndex < DPR_LADDER.length - 1) {
+      if (_stressFrames >= STRESS_STREAK && _currentIndex < _floorIndex) {
         applyDpr(_currentIndex + 1, "stressed_down");
         _stressFrames = 0;
 

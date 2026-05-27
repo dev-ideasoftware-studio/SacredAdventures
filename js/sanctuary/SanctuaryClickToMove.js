@@ -29,7 +29,12 @@
 
 import * as THREE from "three";
 import { ANU_SIMULATION_DOMAIN, ANU_INTERACTION_VERB } from "../v2/anu/SimulationController.js";
-import { sanctuaryGroundY } from "./SanctuaryGround.js";
+import {
+  sanctuaryGroundY,
+  SANCTUARY_POOL_CENTER_X,
+  SANCTUARY_POOL_CENTER_Z,
+  SANCTUARY_POOL_RADIUS_M,
+} from "./SanctuaryGround.js";
 
 const MAX_FOOTPRINTS = 50;
 const PRINT_LEN_M = 0.28;
@@ -237,6 +242,87 @@ export const SanctuaryClickToMoveModule = {
           this._xMarker.position.copy(this._goal);
         }
       };
+
+      // Smart-walk: like _v4WalkTo, but if the straight line from the body
+      // to the target would cross the pool, arc around the perimeter at a
+      // safe radius. Waypoints are chained via nested onArrive callbacks so
+      // the player walks one segment at a time. Falls through to a direct
+      // _v4WalkTo when the path is already clear of water.
+      window._v4SmartWalkTo = (targetX, targetZ, onArrive) => {
+        if (!this._body) return;
+        const sx = this._body.position.x;
+        const sz = this._body.position.z;
+        const dx = targetX - sx;
+        const dz = targetZ - sz;
+        const segLen = Math.hypot(dx, dz);
+        if (segLen < 0.5) {
+          if (typeof onArrive === "function") onArrive();
+          return;
+        }
+
+        // Closest-point-on-segment to pool centre (clamped [0,1])
+        const t = Math.max(
+          0,
+          Math.min(
+            1,
+            ((SANCTUARY_POOL_CENTER_X - sx) * dx +
+              (SANCTUARY_POOL_CENTER_Z - sz) * dz) /
+              (segLen * segLen),
+          ),
+        );
+        const cpX = sx + t * dx;
+        const cpZ = sz + t * dz;
+        const distToCentre = Math.hypot(
+          cpX - SANCTUARY_POOL_CENTER_X,
+          cpZ - SANCTUARY_POOL_CENTER_Z,
+        );
+
+        // Direct path clears the pool — no arc needed.
+        if (distToCentre >= SANCTUARY_POOL_RADIUS_M) {
+          window._v4WalkTo(targetX, targetZ, onArrive);
+          return;
+        }
+
+        // Build perimeter arc waypoints. SAFE_R is 2 m outside the pool so
+        // the avatar walks on dry ground, not pool rim.
+        const SAFE_R = SANCTUARY_POOL_RADIUS_M + 2.0;
+        const startA = Math.atan2(
+          sz - SANCTUARY_POOL_CENTER_Z,
+          sx - SANCTUARY_POOL_CENTER_X,
+        );
+        const endA = Math.atan2(
+          targetZ - SANCTUARY_POOL_CENTER_Z,
+          targetX - SANCTUARY_POOL_CENTER_X,
+        );
+        let angleDiff = endA - startA;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+        // ~36° per step (π/5) — five steps for a half-pool arc
+        const stepCount = Math.max(
+          2,
+          Math.ceil(Math.abs(angleDiff) / (Math.PI / 5)),
+        );
+        const waypoints = [];
+        for (let i = 1; i <= stepCount; i++) {
+          const a = startA + (angleDiff * i) / (stepCount + 1);
+          waypoints.push({
+            x: SANCTUARY_POOL_CENTER_X + Math.cos(a) * SAFE_R,
+            z: SANCTUARY_POOL_CENTER_Z + Math.sin(a) * SAFE_R,
+          });
+        }
+        waypoints.push({ x: targetX, z: targetZ });
+
+        const step = (i) => {
+          if (i >= waypoints.length) {
+            if (typeof onArrive === "function") onArrive();
+            return;
+          }
+          const w = waypoints[i];
+          window._v4WalkTo(w.x, w.z, () => step(i + 1));
+        };
+        step(0);
+      };
     }
 
     console.log(
@@ -247,6 +333,10 @@ export const SanctuaryClickToMoveModule = {
 
   _handleClick(ev) {
     if (!this._canvas || !this._camera) return;
+    // Don't queue a new walk target while input is suppressed (e.g. during
+    // fishing) — otherwise the stale goal fires the moment fishing ends and
+    // teleports the player away from the pool.
+    if (typeof window !== "undefined" && window._v2InputSuppressed) return;
     const rect = this._canvas.getBoundingClientRect();
     const cx = ev.touches?.[0]?.clientX ?? ev.clientX;
     const cy = ev.touches?.[0]?.clientY ?? ev.clientY;
@@ -322,6 +412,14 @@ export const SanctuaryClickToMoveModule = {
   update(delta) {
     if (!this._root) return;
     this._elapsed += delta;
+
+    // Re-resolve body every frame — avatar GLB loads async after this module
+    // activates, so _body starts as the camera fallback and upgrades once the
+    // avatar root appears on window.__sanctuaryAvatar.
+    const av = typeof window !== "undefined" ? window.__sanctuaryAvatar : null;
+    if (av && this._body !== av) {
+      this._body = av;
+    }
 
     // Pulse the X mark while a goal is live.
     if (this._xMarker?.visible) {

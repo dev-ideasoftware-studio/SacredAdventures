@@ -479,6 +479,7 @@ async function buildTerrainAsync(textures) {
 
     const meshObj = new THREE.Mesh(geo, mat);
     meshObj.receiveShadow = true;
+    meshObj.layers.enable(1); // Show in PiP map
     meshObj.name = "sanctuary_terrain";
     meshObj.userData.anuId = "environment.sanctuary.terrain";
     meshObj.userData.anuKind = "sanctuary_terrain";

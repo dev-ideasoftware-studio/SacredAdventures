@@ -929,11 +929,37 @@ export const SanctuaryFishingModule = {
   // Cached pool-centre vector (created once in load)
   _poolCentre: null,
 
+  // Preallocated Color objects — reused via .set() to avoid GC jank from new THREE.Color() in update()
+  _colFishInner:   null,
+  _colFishMid:     null,
+  _colFishRim:     null,
+  _colRingInner:   null,
+  _colRingOuter:   null,
+
+  // Preallocated Vector3 scratch pads for hot update() paths
+  _camTarget:  null,
+  _lookTarget: null,
+  _tipWorld:   null,
+
+  // Gauge canvas throttle — only redraw at ~10 fps (100 ms) or on label change
+  _gaugeDrawT:   0,
+  _gaugePrevLabel: '',
+
   async load(scene, camera) {
     this._scene   = scene;
     this._camera  = camera;
     this._fishingCamTimer = 0;
     this._poolCentre = new THREE.Vector3(SANCTUARY_POOL_CENTER_X, WATER_Y_M, SANCTUARY_POOL_CENTER_Z);
+
+    // Preallocate Color + Vector3 scratch pads to avoid per-frame GC pressure
+    this._colFishInner = new THREE.Color();
+    this._colFishMid   = new THREE.Color();
+    this._colFishRim   = new THREE.Color();
+    this._colRingInner = new THREE.Color();
+    this._colRingOuter = new THREE.Color();
+    this._camTarget    = new THREE.Vector3();
+    this._lookTarget   = new THREE.Vector3();
+    this._tipWorld     = new THREE.Vector3();
 
     if (typeof window !== "undefined") {
       window.__sanctuaryFishingSpawnRipple = (x, z) => this._spawnRipple(x, z);
@@ -1161,6 +1187,21 @@ export const SanctuaryFishingModule = {
     };
     window.addEventListener("keydown", this._onKey, true);
 
+    // Expose programmatic start so the FISH guide button (and any auto-walk
+    // sequence) can begin fishing without waiting for the user to click the
+    // in-game button or press F. Same dock-proximity gate as the user paths.
+    if (typeof window !== "undefined") {
+      window._v4StartFishing = () => {
+        if (!this._isPlayerOnDock()) {
+          console.warn("[SanctuaryFishing] _v4StartFishing: player not on dock — ignored.");
+          return false;
+        }
+        if (this._phase !== PHASE.IDLE) return false;
+        this._tryAction();
+        return true;
+      };
+    }
+
     console.log(
       "%c[Sanctuary] 🎣 Fishing v2 — pool-centre cast · J-hook · ripples · turn-based bites.",
       "color:#80deea;font-weight:bold;",
@@ -1200,6 +1241,11 @@ export const SanctuaryFishingModule = {
       }
     });
     this._fishingCullStash = stash;
+    // Raise the DPR floor so the fishing close-up stays crisp — the
+    // adaptive stepper can still descend if needed, but never below 1.5
+    // (avoids the 0.75 blur seen during the FPS-pressured baseline).
+    const Anu = (typeof window !== "undefined") ? window.AnuUniverse : null;
+    Anu?.adaptiveDpr?.setMinDpr?.(1.5);
     console.log(
       `%c[SanctuaryFishing] 🎣 Fishing zone isolated — culled ${stash.length} distant objects.`,
       'color:#4fc3f7;font-weight:bold;',
@@ -1210,6 +1256,10 @@ export const SanctuaryFishingModule = {
     if (!this._fishingCullStash) return;
     for (const obj of this._fishingCullStash) obj.visible = true;
     this._fishingCullStash = null;
+    // Release the DPR floor — adaptive stepper resumes full range so the
+    // open world can ladder down again if it's under pressure.
+    const Anu = (typeof window !== "undefined") ? window.AnuUniverse : null;
+    Anu?.adaptiveDpr?.clearMinDpr?.();
     console.log('%c[SanctuaryFishing] 🎣 Fishing zone — world restored.', 'color:#4fc3f7;');
   },
 
@@ -1527,10 +1577,14 @@ export const SanctuaryFishingModule = {
       if (discMesh && discMesh.material && discMesh.material.uniforms) {
         const uni = discMesh.material.uniforms;
         
-        // Target colors: blue when actively fishing, normal green otherwise
-        const targetInner = isFishingActive ? new THREE.Color(0x06182c) : new THREE.Color(0x0d260d);
-        const targetMid   = isFishingActive ? new THREE.Color(0x1565c0) : new THREE.Color(0x2e7d32);
-        const targetRim   = isFishingActive ? new THREE.Color(0x64b5f6) : new THREE.Color(0x7cb342);
+        // Target colors: blue when actively fishing, normal green otherwise.
+        // Use preallocated Color objects — .set() is in-place, no GC allocation.
+        const targetInner = isFishingActive
+          ? this._colFishInner.set(0x06182c) : this._colFishInner.set(0x0d260d);
+        const targetMid   = isFishingActive
+          ? this._colFishMid.set(0x1565c0)   : this._colFishMid.set(0x2e7d32);
+        const targetRim   = isFishingActive
+          ? this._colFishRim.set(0x64b5f6)   : this._colFishRim.set(0x7cb342);
 
         // Smoothly lerp towards target colors
         const k = 1 - Math.exp(-8 * delta);
@@ -1547,8 +1601,10 @@ export const SanctuaryFishingModule = {
       if (ringMesh && ringMesh.material && ringMesh.material.uniforms) {
         const uni = ringMesh.material.uniforms;
 
-        const targetInner = isFishingActive ? new THREE.Color(0xb3e5fc) : new THREE.Color(0xffffff);
-        const targetOuter = isFishingActive ? new THREE.Color(0x0288d1) : new THREE.Color(0xffffff);
+        const targetInner = isFishingActive
+          ? this._colRingInner.set(0xb3e5fc) : this._colRingInner.set(0xffffff);
+        const targetOuter = isFishingActive
+          ? this._colRingOuter.set(0x0288d1) : this._colRingOuter.set(0xffffff);
 
         const k = 1 - Math.exp(-8 * delta);
         uni.uInner.value.lerp(targetInner, k);
@@ -1669,15 +1725,17 @@ export const SanctuaryFishingModule = {
           // Midpoint gaze target between avatar and the cast target in water (static, no bobber wiggle shake)
           const playerPos = avatar.position;
           const fishPos = (this._bobber && this._bobber.visible && this._castTarget) ? this._castTarget : this._poolCentre;
-          lookTarget = new THREE.Vector3().addVectors(playerPos, fishPos).multiplyScalar(0.5);
-          lookTarget.y += 0.6; // lift to frame action
+          this._lookTarget.addVectors(playerPos, fishPos).multiplyScalar(0.5);
+          this._lookTarget.y += 0.6; // lift to frame action
+          lookTarget = this._lookTarget;
         }
 
-        const camTarget = new THREE.Vector3(
+        this._camTarget.set(
           avatar.position.x + rotBkX * finalCamBack,
           WATER_Y_M + finalCamLift,
           avatar.position.z + rotBkZ * finalCamBack,
         );
+        const camTarget = this._camTarget;
         const k = 1 - Math.exp(-CAM_LERP_RATE * delta);
         this._camera.position.lerp(camTarget, k);
         this._camera.lookAt(lookTarget);
@@ -1888,18 +1946,17 @@ export const SanctuaryFishingModule = {
         this._dropDanger = 0.0; // Locked at zero to prevent frustrating failures
 
         // Position the bobber: ascending out of the water towards the rod tip!
-        const tipWorld = new THREE.Vector3();
         if (!this._rodTipHelperRef && this._rod) {
           this._rodTipHelperRef = this._rod.getObjectByName("rod_tip_helper");
         }
         const tipObj = this._rodTipHelperRef;
         if (tipObj) {
-          tipObj.getWorldPosition(tipWorld);
+          tipObj.getWorldPosition(this._tipWorld);
         } else {
-          tipWorld.copy(this._rodGroup.position);
+          this._tipWorld.copy(this._rodGroup.position);
         }
-        const startPos = new THREE.Vector3(SANCTUARY_POOL_CENTER_X, WATER_Y_M, SANCTUARY_POOL_CENTER_Z);
-        this._bobber.position.lerpVectors(startPos, tipWorld, this._landingProgress);
+        // Reuse _poolCentre as the start position (same coords — no allocation)
+        this._bobber.position.lerpVectors(this._poolCentre, this._tipWorld, this._landingProgress);
 
         // Add struggling jitter to the bobber
         const amp = 0.04;
@@ -2022,17 +2079,18 @@ export const SanctuaryFishingModule = {
 
     // ── Fishing line: rod tip → bobber ────────────────────────────
     if (this._rodGroup.visible) {
-      const tipWorld = new THREE.Vector3();
+      // Reuse preallocated _tipWorld scratch — no allocation per frame
       if (!this._rodTipHelperRef && this._rod) {
         this._rodTipHelperRef = this._rod.getObjectByName("rod_tip_helper");
       }
       const tipObj = this._rodTipHelperRef;
       if (tipObj) {
-        tipObj.getWorldPosition(tipWorld);
+        tipObj.getWorldPosition(this._tipWorld);
       } else {
         // Fallback
-        tipWorld.copy(this._rodGroup.position);
+        this._tipWorld.copy(this._rodGroup.position);
       }
+      const tipWorld = this._tipWorld;
       const bp   = this._bobber.position;
       const arr  = this._lineGeo.attributes.position.array;
       arr[0] = tipWorld.x; arr[1] = tipWorld.y; arr[2] = tipWorld.z;
@@ -2082,7 +2140,26 @@ export const SanctuaryFishingModule = {
         const bp = this._bobber?.visible ? this._bobber.position : this._castTarget;
         this._gauge3d.position.set(bp.x, WATER_Y_M, bp.z);
         this._gauge3d.visible = true;
-        _update3DGauge(this._gauge3d, frac, label, isReeling, t, this._camera);
+
+        // Gauge canvas throttle — canvas redraws (gradients + GPU uploads) are
+        // expensive. Only redraw at ~10 fps (100 ms) or when the label changes.
+        // On skipped frames: rotate the needle + face camera (cheap math only).
+        this._gaugeDrawT += delta;
+        if (this._gaugeDrawT >= 0.10 || label !== this._gaugePrevLabel) {
+          this._gaugeDrawT = 0;
+          this._gaugePrevLabel = label;
+          _update3DGauge(this._gauge3d, frac, label, isReeling, t, this._camera);
+        } else {
+          const ud = this._gauge3d.userData;
+          if (ud.needleGroup) {
+            ud.needleGroup.rotation.z = Math.PI - frac * Math.PI;
+          }
+          if (this._camera) {
+            const dx = this._camera.position.x - this._gauge3d.position.x;
+            const dz = this._camera.position.z - this._gauge3d.position.z;
+            this._gauge3d.rotation.y = Math.atan2(dx, dz);
+          }
+        }
       } else {
         this._gauge3d.visible = false;
       }
@@ -2226,6 +2303,7 @@ export const SanctuaryFishingModule = {
 
     if (typeof window !== "undefined") {
       delete window.__sanctuaryFishingSpawnRipple;
+      delete window._v4StartFishing;
     }
     if (this._playerFlatFish) {
       const parent = this._playerFlatFish.parent;

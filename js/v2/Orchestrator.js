@@ -83,7 +83,7 @@ const FISHING_SUSPEND_MODULES = new Set([
   'SanctuaryToolPalette', 'SanctuaryMapGeneratorUi',
   'SanctuaryKeyboardLook','SanctuaryZoom',      'SanctuaryWelcomeGuide',
   'SanctuaryJournalBridge','SanctuaryCursor',   'SanctuaryInventory',
-  'SanctuarySky',         'SanctuaryCircles',   'SanctuaryClickToMove',
+  'SanctuarySky',                               'SanctuaryClickToMove',
   'SanctuaryMutations',   'SanctuaryAmbient',
   'MoldPlaceTipi', 'MoldPlantRock', 'MoldPlantLily',
   'MoldPlantBush', 'MoldPlantFlower', 'MoldPlantTree', 'MoldGrowHill',
@@ -860,11 +860,18 @@ export class SacredOrchestrator {
    */
   _computePipBackingSize(canvasEl) {
     const isTopDown = document.body.classList.contains("v4-top-down-view");
-    const pr = Math.min(window.devicePixelRatio || 1, isTopDown ? 2.0 : 1.25);
+    const isFishing = (typeof window !== "undefined") &&
+      window.__sanctuaryFishingActive === true;
+    // Fishing: render the close-up at full device DPR and a bigger cap —
+    // the frustum is 1.4 m and the scene is already culled to the pond,
+    // so the cost stays small while the gauge & fish read sharp instead
+    // of pixelated. Top-down: full DPR for the map. Default: light minimap.
+    const dprClamp = isTopDown ? 2.0 : (isFishing ? 2.0 : 1.25);
+    const pr = Math.min(window.devicePixelRatio || 1, dprClamp);
     const rect = canvasEl.getBoundingClientRect();
     const rawW = Math.max(160, Math.floor(rect.width * pr));
     const rawH = Math.max(160, Math.floor(rect.height * pr));
-    const cap = isTopDown ? 512 : 192;
+    const cap = isTopDown ? 512 : (isFishing ? 768 : 192);
     return {
       w: Math.min(cap, rawW),
       h: Math.min(cap, rawH),
@@ -913,11 +920,12 @@ export class SacredOrchestrator {
       520,
     );
     this._pipPersp = new THREE.PerspectiveCamera(42, aspect, 0.12, 220);
-    // Enable layer 1 on both PiP cameras so they pick up the avatar's
-    // PiP-only marker (added in SanctuaryAvatar). Main camera stays on
-    // default (layer 0) and never sees the marker. (May-19 2026.)
+    // Enable layer 1 on both PiP cameras so they pick up the PiP-only markers.
+    // Disable layer 0 so the PiP camera stops rendering the high-poly 3D scene!
     this._pipOrtho.layers.enable(1);
+    this._pipOrtho.layers.disable(0);
     this._pipPersp.layers.enable(1);
+    this._pipPersp.layers.disable(0);
 
     // Warm-up: the second WebGL context has its own program cache + own
     // GPU buffer pool, so the *first* PiP render would otherwise compile

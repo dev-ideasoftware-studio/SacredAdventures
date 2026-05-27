@@ -638,9 +638,14 @@
     };
     window.addEventListener('message', (event) => {
       const d = event.data || {};
-      const t = d.type;
+      let t = d.type;
+      let data = d.data;
+      // Panel guide-card buttons post legacy *_ACTION messages
+      // (e.g. toggleFish → { type: 'FISH_ACTION' }). The v4 dispatcher
+      // expects { type: 'ACTION', data: '<verb>' }, so normalise here.
+      if (t === 'FISH_ACTION') { t = 'ACTION'; data = 'fish'; }
       if (t === 'ACTION') {
-        const verb = String(d.data || '').toLowerCase();
+        const verb = String(data || '').toLowerCase();
         if (verb === 'eat') {
           // EAT button rewired (May-19 2026) — fires what the legacy
           // PANEL chip used to do: toggle the right-side game HUD iframe.
@@ -667,36 +672,54 @@
           return;
         }
         if (verb === 'fish') {
-          // FISH button — two-step autowalk: dock entry → fishing ring tip.
-          // Step 1: walk to the shore-side dock entrance.
-          // Step 2 (onArrive callback): walk to window.__sanctuaryFishingSpot.
-          // _v4WalkTo is exposed by SanctuaryClickToMove after it loads.
+          // FISH button — three-leg auto-sequence powered by smart pathing:
+          //   1. Smart-walk to the dock's SHORE entry (arcs around the pool
+          //      perimeter if the direct line would cross water).
+          //   2. Straight walk onto the dock to window.__sanctuaryFishingSpot.
+          //   3. window._v4StartFishing() → SanctuaryFishing._tryAction() casts.
+          // _v4SmartWalkTo / _v4WalkTo are exposed by SanctuaryClickToMove,
+          // _v4StartFishing by SanctuaryFishing — both after their modules load.
           const fishSpot = window.__sanctuaryFishingSpot;
           const dockExt  = window.__sanctuaryDockExtents;
-          if (!fishSpot || typeof window._v4WalkTo !== 'function') {
+          if (!fishSpot || typeof window._v4SmartWalkTo !== 'function') {
             _v4FlashBanner('<b>FISH</b><small>world still loading — try again in a moment</small>');
             console.log('%c[v4] action · fish → world not ready', 'color:#ef9a9a;font-weight:bold;');
             return;
           }
           if (typeof window._v4CancelClickToMove === 'function') window._v4CancelClickToMove();
 
-          const goFish = () => {
-            _v4FlashBanner('<b>FISHING</b><small>approaching the ring…</small>');
-            window._v4WalkTo(fishSpot.x, fishSpot.z);
+          const beginFishing = () => {
+            if (typeof window._v4StartFishing === 'function') {
+              const ok = window._v4StartFishing();
+              _v4FlashBanner(ok
+                ? '<b>FISHING</b><small>line in the water…</small>'
+                : '<b>FISHING</b><small>tap the rod to cast</small>');
+            } else {
+              _v4FlashBanner('<b>FISHING</b><small>tap the rod to cast</small>');
+            }
           };
 
           if (dockExt) {
-            // Shore-side entry point: dock centre shifted toward shore (yaw direction)
-            // Use 70 % of halfLen so we land near the plank start, not beyond it.
-            const entryX = dockExt.midX + Math.cos(dockExt.yaw) * (dockExt.halfLen * 0.70);
-            const entryZ = dockExt.midZ + Math.sin(dockExt.yaw) * (dockExt.halfLen * 0.70);
+            // Shore entry = midpoint shifted AWAY from the tip along the
+            // dock's long axis (cos/sin form a yaw-aligned unit vector;
+            // subtracting walks toward shore since local +X = shore→tip).
+            const stepBack = dockExt.halfLen * 0.95;
+            const entryX = dockExt.midX - Math.cos(dockExt.yaw) * stepBack;
+            const entryZ = dockExt.midZ - Math.sin(dockExt.yaw) * stepBack;
+
+            const walkOntoDock = () => {
+              _v4FlashBanner('<b>FISHING</b><small>onto the dock…</small>');
+              window._v4WalkTo(fishSpot.x, fishSpot.z, beginFishing);
+            };
             _v4FlashBanner('<b>FISHING</b><small>heading to the dock…</small>');
-            window._v4WalkTo(entryX, entryZ, goFish);
+            window._v4SmartWalkTo(entryX, entryZ, walkOntoDock);
           } else {
-            // No dock extents yet — walk straight to the spot.
-            goFish();
+            // No dock yet — smart-route straight to the spot.
+            _v4FlashBanner('<b>FISHING</b><small>approaching the ring…</small>');
+            window._v4SmartWalkTo(fishSpot.x, fishSpot.z, beginFishing);
           }
-          console.log('%c[v4] action · fish → autowalk dock → fishing spot', 'color:#a5d6a7;font-weight:bold;');
+
+          console.log('%c[v4] action · fish → smart-walk(dock entry) → tip → auto-cast', 'color:#a5d6a7;font-weight:bold;');
           return;
         }
         const msg = _v4ActionVerbs[verb] || `<b>${verb.toUpperCase()}</b>`;

@@ -228,6 +228,7 @@ function buildWaterSurface(centerY, textures) {
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(SANCTUARY_POOL_CENTER_X, centerY, SANCTUARY_POOL_CENTER_Z);
   mesh.renderOrder = 4;
+  mesh.layers.enable(1); // Show in PiP map
   mesh.name = "sanctuary_pool_water";
   mesh.userData.anuId = "environment.sanctuary.pool.water";
   mesh.userData.anuKind = "sanctuary_pool_water";
@@ -254,6 +255,7 @@ function buildBasinFloor(centerY) {
     SANCTUARY_POOL_CENTER_Z,
   );
   mesh.receiveShadow = true;
+  mesh.layers.enable(1); // Show in PiP map
   mesh.name = "sanctuary_pool_basin_floor";
   mesh.userData.anuId = "environment.sanctuary.pool.basin_floor";
   mesh.userData.anuKind = "sanctuary_pool_basin_floor";
@@ -305,11 +307,11 @@ function buildDrainHole(centerY) {
 }
 
 /**
- * Procedural turtle shell texture — 256x256 CanvasTexture.
- * Renders beautifully detailed scutes/scales with golden seams and scute growth rings
- * to match a photorealistic green sea/pond turtle.
+ * UNUSED — kept only because removing it would conflict with another
+ * pending diff from the parallel editor. Not called from anywhere.
+ * @deprecated turtle shellMat now uses a plain color in buildTurtle().
  */
-function _makeTurtleShellTexture() {
+function _makeTurtleShellTexture_LEGACY_UNUSED() {
   const SZ = 256;
   const cv = document.createElement("canvas");
   cv.width = SZ; cv.height = SZ;
@@ -403,11 +405,11 @@ function buildTurtle(centerY, textures) {
 
   const y = centerY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.08; // slightly above floor
 
-  // materials
+  // materials — plain olive-green dome (no scute/vignette canvas texture)
   const shellMat = new THREE.MeshStandardMaterial({
-    map: _makeTurtleShellTexture(),
-    roughness: 0.5,
-    metalness: 0.15,
+    color: new THREE.Color(0x2f4a22),
+    roughness: 0.55,
+    metalness: 0.12,
   });
 
   const skinMat = new THREE.MeshStandardMaterial({
@@ -555,6 +557,7 @@ function buildRim(centerY) {
     centerY + 0.04,
     SANCTUARY_POOL_CENTER_Z,
   );
+  mesh.layers.enable(1); // Show in PiP map
   mesh.name = "sanctuary_pool_moss_rim";
   mesh.userData.anuId = "environment.sanctuary.pool.moss_rim";
   mesh.userData.anuKind = "sanctuary_pool_moss_rim";

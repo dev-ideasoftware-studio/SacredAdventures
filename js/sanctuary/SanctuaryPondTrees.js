@@ -77,6 +77,7 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
       const im = new THREE.InstancedMesh(bakedGeo, mat, count);
       im.receiveShadow = receiveShadow;
       im.castShadow = castShadow;
+      im.layers.enable(1);
       
       im.name = anuKind;
       im.userData.anuKind = anuKind;
