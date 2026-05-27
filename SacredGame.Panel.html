@@ -1029,8 +1029,11 @@
 
         /* --- RESPONSIVE / MOBILE --- */
 
-        /* TABLET LANDSCAPE (1024px) */
-        @media (max-width: 1024px) {
+        /* TABLET LANDSCAPE — covers iPad standard 1024, iPad Pro 11" 1194,
+           iPad Pro 12.9" 1366, and DevTools tablet simulations (1280+).
+           Desktop monitors typically start at 1440 so 1366 is a safe cap.
+           Below 1024 cascades through the pointer:coarse and 860 mobile rules. */
+        @media (max-width: 1366px) {
             /* Overrides removed to maintain desktop scale per user request */
 
 
