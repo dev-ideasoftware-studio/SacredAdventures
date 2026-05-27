@@ -4,6 +4,7 @@
     "check:v2": "node scripts/check-v2.mjs",
     "playwright:install-chromium": "PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium",
     "check:assets": "node scripts/check-assets.mjs",
+    "build-info": "node scripts/build-info.mjs",
     "test:v4": "playwright test tests/v4-console.spec.js",
     "test": "npm run check:v2 && npm run check:assets && npm run test:v4"
   },
