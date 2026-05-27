@@ -1,8 +1,8 @@
 {
-  "subject": "feat(reorganize): Batch 3 - move active components to js/components/ and update dynamic loaders",
-  "isoDate": "2026-05-27T06:48:22-05:00",
+  "subject": "feat(agents): install Agent Mesh Protocol workflow and ignore temporary mailbox",
+  "isoDate": "2026-05-27T07:08:10-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v31",
   "dirty": false,
-  "generatedAt": "2026-05-27T11:48:22.245Z"
+  "generatedAt": "2026-05-27T12:08:10.641Z"
 }
