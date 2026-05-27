@@ -235,8 +235,7 @@
     import { SanctuaryMapGeneratorUiModule } from './js/sanctuary/SanctuaryMapGeneratorUi.js';
     import { SanctuaryKeyboardLookModule } from './js/sanctuary/SanctuaryKeyboardLook.js';
     import { SanctuaryZoomModule         } from './js/sanctuary/SanctuaryZoom.js';
-    // PIP — Sanctuary top-down minimap restored
-    import { SanctuaryPipModule          } from './js/sanctuary/SanctuaryPip.js';
+    // PIP fully removed — was SanctuaryPip.js (top-down minimap canvas).
     import { UIModule as V2UIModule        } from './js/v2/UIModule.js';
     import { SanctuaryVillagePadModule   } from './js/sanctuary/SanctuaryVillagePad.js';
     import { SanctuaryFishJumpsModule    } from './js/sanctuary/SanctuaryFishJumps.js';
@@ -339,7 +338,6 @@
     orc.register(SanctuaryKeyboardLookModule);
     orc.register(SanctuaryZoomModule);
     orc.register(V2UIModule); // keeps the distance pill and side-panel
-    orc.register(SanctuaryPipModule); // creates the legacy top-down PIP
     orc.register(SanctuaryVillagePadModule);
     orc.register(SanctuaryTipisModule);
     orc.register(SanctuaryTipiNpcsModule);
@@ -428,9 +426,8 @@
     v4Log('scroll-wheel zoom — FPV chase + top-down height', 100, 99, 99, 96);
     await orc.activate('SanctuaryZoom');
 
-    v4Log('legacy v2 moondial PIP — compass + lunar dial + seasons', 100, 99, 99, 96);
+    v4Log('panels + distance pill', 100, 99, 99, 96);
     await orc.activate('PanelsPIP');
-    await orc.activate('SanctuaryPip');
 
     v4Log('village build pad — sacred ground awaiting the tipis', 100, 99, 99, 97);
     await orc.activate('SanctuaryVillagePad');

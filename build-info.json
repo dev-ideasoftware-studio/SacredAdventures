@@ -1,8 +1,8 @@
 {
-  "subject": "fix(hud,anu): unify FPS source on orc.smoothFPS + make .report() return real snapshots",
-  "isoDate": "2026-05-27T04:49:31-05:00",
+  "subject": "refactor(pip): fully remove SanctuaryPip — no top-left minimap anymore",
+  "isoDate": "2026-05-27T04:57:50-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v29",
-  "dirty": true,
-  "generatedAt": "2026-05-27T09:49:35.437Z"
+  "dirty": false,
+  "generatedAt": "2026-05-27T09:57:53.354Z"
 }
