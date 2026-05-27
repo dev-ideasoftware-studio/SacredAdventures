@@ -56,7 +56,7 @@ export const V2_PIP_ORTHO_ZOOM = 0.80;
 // to cut PiP CPU+GPU work to a third without a visible loss on the
 // moondial. (At 60 fps this is 3.3 Hz; the moondial player marker
 // still updates smoothly enough that nobody notices.)
-export const V2_PIP_RENDER_EVERY_N_FRAMES = 1;
+export const V2_PIP_RENDER_EVERY_N_FRAMES = 6;
 
 /** Target frame rate for budgeting / UX copy (physics step is still rAF-driven). */
 export const V2_TARGET_FPS = 65;

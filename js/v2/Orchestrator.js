@@ -911,6 +911,19 @@ export class SacredOrchestrator {
     this._pipW = w;
     this._pipH = h;
 
+    if (!canvasEl._hasPipContextListeners) {
+      canvasEl._hasPipContextListeners = true;
+      canvasEl.addEventListener("webglcontextlost", (event) => {
+        event.preventDefault();
+        console.warn("[SacredOrchestrator] ⚠️ PiP WebGL context lost! Disposing PiP renderer to prepare for restore...");
+        this._disposePipRenderer();
+      }, false);
+
+      canvasEl.addEventListener("webglcontextrestored", () => {
+        console.log("[SacredOrchestrator] ♻️ PiP WebGL context restored! Re-initializing PiP pipeline on next frame...");
+      }, false);
+    }
+
     this._pipRenderer = new THREE.WebGLRenderer({
       canvas: canvasEl,
       alpha: true,

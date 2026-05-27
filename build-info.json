@@ -1,8 +1,8 @@
 {
-  "subject": "refactor(fonts): centralize font loading via WebFontsService and implement advanced proximity culling for high-res PiP minimap",
-  "isoDate": "2026-05-27T10:54:39-05:00",
+  "subject": "feat(pip): implement self-healing WebGL context restoration and set render cadence to 6-frame stride for 120 FPS",
+  "isoDate": "2026-05-27T13:02:24-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v32",
   "dirty": false,
-  "generatedAt": "2026-05-27T15:54:43.472Z"
+  "generatedAt": "2026-05-27T18:02:28.025Z"
 }
