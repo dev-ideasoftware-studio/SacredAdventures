@@ -1,8 +1,8 @@
 {
-  "subject": "fix(panel): extend tablet-landscape compact-card rules to 1366px",
-  "isoDate": "2026-05-27T07:45:40-05:00",
+  "subject": "feat(pip): restore clean SVG-based circular MoonDial and compass ring",
+  "isoDate": "2026-05-27T08:03:48-05:00",
   "branch": "dev/ideasoftware-studio",
-  "swVersion": "v31",
-  "dirty": true,
-  "generatedAt": "2026-05-27T12:45:44.726Z"
+  "swVersion": "v32",
+  "dirty": false,
+  "generatedAt": "2026-05-27T13:03:53.155Z"
 }

@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v31";
+const CACHE_VERSION = "v32";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 
@@ -34,6 +34,7 @@ const SHELL_FILES = [
   "./js/Component.RabbitSystem.js",
   "./js/components/Component.ThreeIcons.js",
   "./js/components/Component.LoadingModal.html",
+  "./js/components/Component.MoonDial.html",
 
   // Data JS
   "./Assets/AxeData.js",
