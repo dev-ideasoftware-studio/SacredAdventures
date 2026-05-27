@@ -33,6 +33,16 @@ const FORBIDDEN_PATTERNS = [
   /\.preSimplify\.glb$/,  // backups belong in BACKUP/, not tracked
 ];
 
+// Commit-subject quality. Catches lazy / accidental commits like the
+// 2026-05-27 b1f03a7 incident (subject literally "1"). A real subject
+// should at minimum identify the area of change.
+const MIN_SUBJECT_LENGTH = 15;
+const JUNK_SUBJECT_PATTERNS = [
+  /^[0-9]+$/,                // pure digits ("1", "42")
+  /^\W*$/,                   // only punctuation
+  /^(wip|fix|update|test|temp|asdf|foo|bar|x|y|z)\W*$/i,  // single junk word
+];
+
 const GITIGNORED_DIRS = [
   ".archive/",
   "backups/",
@@ -60,6 +70,7 @@ test("Anu Guardian — repo-state invariants for rogue-AI prevention", async () 
     protectedDirsTouched: [],
     commitsWithoutBuildInfo: [],
     multiAmendCommits: [],
+    junkSubjectCommits: [],
     syntaxGateFailure: null,
     assetsGateFailure: null,
   };
@@ -122,6 +133,24 @@ test("Anu Guardian — repo-state invariants for rogue-AI prevention", async () 
     if (count > 1) findings.multiAmendCommits.push({ subject: subj, count });
   }
 
+  // ── 5b. Commit-subject quality (NEW: catches 2026-05-27 b1f03a7 "1" incident)
+  // Each recent commit must have a subject of at least MIN_SUBJECT_LENGTH
+  // characters and must not match any JUNK_SUBJECT_PATTERNS. Catches
+  // lazy / accidental / placeholder commit messages that the prior gates
+  // (which only verified file presence + reflog) couldn't detect.
+  for (const sha of recentShas) {
+    const subject = git(`git log -1 --pretty=%s ${sha}`).trim();
+    const tooShort = subject.length < MIN_SUBJECT_LENGTH;
+    const matchesJunk = JUNK_SUBJECT_PATTERNS.some((re) => re.test(subject));
+    if (tooShort || matchesJunk) {
+      findings.junkSubjectCommits.push({
+        sha: sha.slice(0, 7),
+        subject,
+        reason: tooShort ? `length ${subject.length} < ${MIN_SUBJECT_LENGTH}` : "matches junk pattern",
+      });
+    }
+  }
+
   // ── 6. check:v2 + check:assets exit 0 ──────────────────────────────
   try { execSync("npm run check:v2", { stdio: "pipe" }); }
   catch (e) { findings.syntaxGateFailure = e.stdout?.toString().slice(-400) ?? String(e); }
@@ -137,6 +166,7 @@ test("Anu Guardian — repo-state invariants for rogue-AI prevention", async () 
     findings.protectedDirsTouched.length +
     findings.commitsWithoutBuildInfo.length +
     findings.multiAmendCommits.length +
+    findings.junkSubjectCommits.length +
     (findings.syntaxGateFailure ? 1 : 0) +
     (findings.assetsGateFailure ? 1 : 0);
 
@@ -158,6 +188,7 @@ test("Anu Guardian — repo-state invariants for rogue-AI prevention", async () 
   console.log(`Protected touched : ${findings.protectedDirsTouched.length}${findings.protectedDirsTouched.length ? " — " + findings.protectedDirsTouched.join(", ") : ""}`);
   console.log(`Bypassed-hook     : ${findings.commitsWithoutBuildInfo.length}${findings.commitsWithoutBuildInfo.length ? " — " + findings.commitsWithoutBuildInfo.map(c => `${c.sha} ${c.subject.slice(0, 40)}`).join("; ") : ""}`);
   console.log(`Multi-amend       : ${findings.multiAmendCommits.length}${findings.multiAmendCommits.length ? " — " + findings.multiAmendCommits.map(c => `${c.count}x "${c.subject.slice(0, 40)}"`).join("; ") : ""}`);
+  console.log(`Junk subjects     : ${findings.junkSubjectCommits.length}${findings.junkSubjectCommits.length ? " — " + findings.junkSubjectCommits.map(c => `${c.sha} "${c.subject}" (${c.reason})`).join("; ") : ""}`);
   console.log(`check:v2          : ${findings.syntaxGateFailure ? "FAIL" : "PASS"}`);
   console.log(`check:assets      : ${findings.assetsGateFailure ? "FAIL" : "PASS"}`);
   console.log("══════════════════════════════════════════\n");
