@@ -193,8 +193,25 @@ export const SanctuaryCirclesModule = {
   /**
    * Trigger one expanding ring at (x, z) on the water surface. Cycles
    * through the pre-allocated `_ripples` slots — never allocates.
+   *
+   * Defense-in-depth (2026-05-27): clamps (x, z) to 0.94 × pool radius
+   * BEFORE assigning to the ripple. Several callers (frogs jumping,
+   * fish breaches, mold-plant placements, fishing minigame) pass
+   * positions that can drift slightly past the pool edge — without
+   * this clamp, the ripple expands ONTO the grass and reads as a
+   * "side ripple" (a flat ring viewed at oblique angle from camera
+   * looks like a tall thin ellipse). Clamping makes that
+   * mechanically impossible regardless of caller bugs.
    */
   pulseAt(x, z) {
+    const dx = x - SANCTUARY_POOL_CENTER_X;
+    const dz = z - SANCTUARY_POOL_CENTER_Z;
+    const dist = Math.hypot(dx, dz);
+    const maxR = SANCTUARY_POOL_RADIUS_M * 0.94;
+    if (dist > maxR) {
+      x = SANCTUARY_POOL_CENTER_X + (dx / dist) * maxR;
+      z = SANCTUARY_POOL_CENTER_Z + (dz / dist) * maxR;
+    }
     for (const slot of this._ripples) {
       if (!slot.mesh.visible || slot.life >= 1.0) {
         slot.mesh.visible = true;

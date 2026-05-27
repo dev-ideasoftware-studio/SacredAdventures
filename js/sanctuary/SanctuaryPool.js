@@ -420,11 +420,7 @@ function buildTurtle(centerY, textures) {
     bumpScale: 0.015,
   });
 
-  const plastronMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0xd2d7b4), // pale cream/yellow-green
-    roughness: 0.85,
-    metalness: 0.02,
-  });
+  // plastronMat removed with the plastron disc (see "2. Plastron" below).
 
   const eyeMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0x000000),
@@ -446,15 +442,12 @@ function buildTurtle(centerY, textures) {
   shellMesh.receiveShadow = true;
   group.add(shellMesh);
 
-  // 2. Plastron (Underside)
-  const plastronGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.08, 32);
-  const plastronMesh = new THREE.Mesh(plastronGeo, plastronMat);
-  plastronMesh.scale.set(1.0, 1.0, 1.3);
-  plastronMesh.rotation.x = -Math.PI / 2;
-  plastronMesh.position.y = 0.04;
-  plastronMesh.castShadow = true;
-  plastronMesh.receiveShadow = true;
-  group.add(plastronMesh);
+  // 2. Plastron (REMOVED 2026-05-27) — the cylinder had rotation.x = -π/2
+  // which tipped its flat circular faces forward/backward instead of
+  // laying them flat. From side/oblique angles this read as a stray
+  // "circle on the side of the turtle". Per user spec: remove it. The
+  // turtle reads fine underwater with just the carapace; the missing
+  // belly disc is hidden by the basin floor + water.
 
   // 3. Head & Neck
   const neckGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.35, 16);

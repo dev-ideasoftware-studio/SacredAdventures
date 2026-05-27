@@ -1822,11 +1822,22 @@ export const SanctuaryFishingModule = {
 
           const distToLure = fishMesh.position.distanceTo(this._bobber.position);
 
-          // ── Random "loses total interest" (May-25 2026 user spec) ──
-          // After at least 3 s of nibbling around, ~10 %/sec chance the
-          // fish just swims off. Spawns a ripple where it bailed +
-          // cute combat-text. The next interest pick can be any fish.
-          if (fishMesh.userData.interestTimer > 3.0 && Math.random() < 0.10 * delta) {
+          // ── "Loses interest" decay (May-27 2026 user retune) ──────
+          // Previous mechanic: 10%/sec chance after 3 s = fish bails in
+          // ~10 s expected. Felt too random — the player felt punished
+          // before the bite-ramp had a real chance to fire.
+          //
+          // New mechanic: fish are NEUTRAL by default (no loss-of-
+          // interest tick) so the bite-chance ramp (line ~1842) can
+          // play out without sabotage. Only AFTER 60 s of sustained
+          // interest with no bite does a 50 %/min decay kick in — i.e.
+          // ~0.83 %/sec — and that decay continues until either the
+          // bite lands or the fish actually bails. That's 60× gentler
+          // than before for the early window where most bites happen.
+          const sustainedNoBiteS = 60.0;
+          const loseIntPerSec = 0.5 / 60.0; // 50% per minute
+          const farPastInterest = fishMesh.userData.interestTimer > sustainedNoBiteS;
+          if (farPastInterest && Math.random() < loseIntPerSec * delta) {
             if (typeof window.__sanctuaryFishingSpawnRipple === 'function') {
               window.__sanctuaryFishingSpawnRipple(fishMesh.position.x, fishMesh.position.z);
             } else if (typeof window.sanctuaryPulse === 'function') {
