@@ -735,6 +735,30 @@ export class SacredOrchestrator {
 
   report() {
     const r = this.renderer.info.render;
+    const modules = [];
+    for (const [name, entry] of this._registry) {
+      modules.push({
+        name,
+        active: !!entry.active,
+        fpsCost: entry.fpsCost ?? null,
+      });
+    }
+    const snapshot = {
+      timestamp: new Date().toISOString(),
+      fps: {
+        smooth: this.smoothFPS,
+        raw: this.rawFPS,
+        peak: this._peakFPS,
+        ready: !!this._fpsReady,
+        target: V2_TARGET_FPS,
+      },
+      frame: this._frameCount,
+      draws: r.calls,
+      triangles: r.triangles,
+      activeModules: [...this._activeModules],
+      modules,
+      runtimeServices: getRuntimeServicesSnapshot(),
+    };
     console.group('%c[SacredOrchestrator] 📋 Full Status Report', 'color:#fbc02d;font-weight:bold;font-size:13px;');
     console.log(`FPS: ${this.smoothFPS.toFixed(1)} smooth | ${this.rawFPS.toFixed(1)} raw | Target: ${V2_TARGET_FPS}`);
     console.log(`Draw calls: ${r.calls} | Triangles: ${r.triangles} | Frame: ${this._frameCount}`);
@@ -766,6 +790,7 @@ export class SacredOrchestrator {
       );
     }
     console.groupEnd();
+    return snapshot;
   }
 
   getRuntimeServicesSnapshot() {

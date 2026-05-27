@@ -1,8 +1,8 @@
 {
-  "subject": "refactor(pip): remove MoonDial and restore legacy SanctuaryPip",
-  "isoDate": "2026-05-27T04:41:39-05:00",
+  "subject": "fix(hud,anu): unify FPS source on orc.smoothFPS + make .report() return real snapshots",
+  "isoDate": "2026-05-27T04:49:31-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v29",
-  "dirty": false,
-  "generatedAt": "2026-05-27T09:41:39.299Z"
+  "dirty": true,
+  "generatedAt": "2026-05-27T09:49:35.437Z"
 }

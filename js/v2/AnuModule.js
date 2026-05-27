@@ -237,6 +237,21 @@ function buildPublicApi(moduleRef) {
     },
 
     report() {
+      const snapshot = {
+        timestamp: new Date().toISOString(),
+        engine: ANU_EMPATHY_ENGINE_NAME,
+        version: api.version,
+        incidents: ANU_PIPELINE_MEMORY.map((m) => ({ id: m.id, title: m.title })),
+        audit: evaluateLivePipelineRisk(),
+        rendering: getRenderingSnapshot(),
+        budget: getFrameBudgetSnapshot(),
+        adaptive: getAdaptivePolicyDebug(),
+        runtimeServices: getRuntimeServicesSnapshot(),
+        runtimeServiceContracts: validateRuntimeServiceContracts(_anuOrchestratorRef?._activeModules ?? []),
+        governance: buildGovernanceSnapshot(_anuOrchestratorRef),
+        fuzzyPipeline: buildFuzzyPipelineSnapshot(_anuOrchestratorRef),
+        worldSensorium: buildWorldSensoriumSnapshot(_anuOrchestratorRef),
+      };
       console.group("%c[Anu Universe] Pipeline memory", "color:#fbc02d;font-weight:bold;");
       console.log(`${ANU_EMPATHY_ENGINE_NAME} · AnuUniverse.version ${api.version}`);
       console.log(`Recorded incidents: ${ANU_PIPELINE_MEMORY.length}`);
@@ -245,20 +260,18 @@ function buildPublicApi(moduleRef) {
       }
       // Labels are the canonical AnuUniverse.* method that produced each line —
       // makes copy-paste debugging and tooling unambiguous (Phase 2 ergonomics fix).
-      console.log("AnuUniverse.audit():", evaluateLivePipelineRisk());
-      console.log("AnuUniverse.rendering.getRenderingSnapshot():", getRenderingSnapshot());
-      console.log("AnuUniverse.budget.snapshot():", getFrameBudgetSnapshot());
-      console.log("AnuUniverse.adaptive.debug():", getAdaptivePolicyDebug());
-      console.log("AnuUniverse.getRuntimeServicesSnapshot():", getRuntimeServicesSnapshot());
-      console.log(
-        "AnuUniverse.validateRuntimeServiceContracts():",
-        validateRuntimeServiceContracts(_anuOrchestratorRef?._activeModules ?? []),
-      );
-      console.log("AnuUniverse.getGovernanceSnapshot():", buildGovernanceSnapshot(_anuOrchestratorRef));
-      console.log("AnuUniverse.getFuzzyPipelineSnapshot():", buildFuzzyPipelineSnapshot(_anuOrchestratorRef));
-      console.log("AnuUniverse.getWorldSensoriumSnapshot():", buildWorldSensoriumSnapshot(_anuOrchestratorRef));
+      console.log("AnuUniverse.audit():", snapshot.audit);
+      console.log("AnuUniverse.rendering.getRenderingSnapshot():", snapshot.rendering);
+      console.log("AnuUniverse.budget.snapshot():", snapshot.budget);
+      console.log("AnuUniverse.adaptive.debug():", snapshot.adaptive);
+      console.log("AnuUniverse.getRuntimeServicesSnapshot():", snapshot.runtimeServices);
+      console.log("AnuUniverse.validateRuntimeServiceContracts():", snapshot.runtimeServiceContracts);
+      console.log("AnuUniverse.getGovernanceSnapshot():", snapshot.governance);
+      console.log("AnuUniverse.getFuzzyPipelineSnapshot():", snapshot.fuzzyPipeline);
+      console.log("AnuUniverse.getWorldSensoriumSnapshot():", snapshot.worldSensorium);
       console.log("Run AnuUniverse.help() for the full method index.");
       console.groupEnd();
+      return snapshot;
     },
 
     /**
