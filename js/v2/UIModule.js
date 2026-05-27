@@ -1,6 +1,26 @@
-import { getRuntimeService } from "./RuntimeServices.js";
+import { getRuntimeService, registerRuntimeService } from "./RuntimeServices.js";
 import { getFrameBudgetSnapshot } from "./anu/FrameBudget.js";
 import { pipCompassRingRotationDegFromYawRad } from "./pipCompassMath.js";
+
+export const WebFontsService = {
+  _loaded: new Set(),
+  loadFont(id, href) {
+    if (this._loaded.has(id) || document.getElementById(id)) {
+      this._loaded.add(id);
+      return;
+    }
+    const l = document.createElement("link");
+    l.id = id;
+    l.rel = "stylesheet";
+    l.href = href;
+    document.head.appendChild(l);
+    this._loaded.add(id);
+    console.log(`[WebFontsService] 🔤 Loading font: ${id}`);
+  },
+  isLoaded(id) {
+    return this._loaded.has(id) || !!document.getElementById(id);
+  }
+};
 
 export const UIModule = {
   name: "PanelsPIP",
@@ -15,13 +35,8 @@ export const UIModule = {
   load(scene, camera, _renderer, orchestrator) {
     this._orc = orchestrator;
     
-    if (!document.getElementById("v2-font-cinzel")) {
-      const l = document.createElement("link");
-      l.id = "v2-font-cinzel";
-      l.rel = "stylesheet";
-      l.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap";
-      document.head.appendChild(l);
-    }
+    registerRuntimeService("WebFontsService", WebFontsService, { owner: "UIModule" });
+    WebFontsService.loadFont("v2-font-cinzel", "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap");
 
     this._root = document.createElement("div");
     this._root.id = "v2-panels-pip";

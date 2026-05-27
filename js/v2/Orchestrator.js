@@ -891,12 +891,12 @@ export class SacredOrchestrator {
     // the frustum is 1.4 m and the scene is already culled to the pond,
     // so the cost stays small while the gauge & fish read sharp instead
     // of pixelated. Top-down: full DPR for the map. Default: light minimap.
-    const dprClamp = isTopDown ? 2.0 : (isFishing ? 2.0 : 1.25);
+    const dprClamp = 2.0;
     const pr = Math.min(window.devicePixelRatio || 1, dprClamp);
     const rect = canvasEl.getBoundingClientRect();
     const rawW = Math.max(160, Math.floor(rect.width * pr));
     const rawH = Math.max(160, Math.floor(rect.height * pr));
-    const cap = isTopDown ? 512 : (isFishing ? 768 : 192);
+    const cap = isTopDown ? 512 : (isFishing ? 768 : 384);
     return {
       w: Math.min(cap, rawW),
       h: Math.min(cap, rawH),
@@ -944,7 +944,9 @@ export class SacredOrchestrator {
       0.5,
       520,
     );
+    this._pipOrtho.name = "pipOrtho";
     this._pipPersp = new THREE.PerspectiveCamera(42, aspect, 0.12, 220);
+    this._pipPersp.name = "pipPersp";
     // Enable layer 1 on both PiP cameras so they pick up the PiP-only markers.
     // Restore layer 0 so the 3D scene (terrain, standard trees, etc.) renders on the minimap.
     this._pipOrtho.layers.enable(1);
@@ -1015,11 +1017,12 @@ export class SacredOrchestrator {
     this._pipH = 0;
   }
 
-  _stashAnuCullablesForPipRender() {
+  _stashAnuCullablesForPipRender(feet) {
     const stashed = [];
+    const cullingRadiusSq = 30 * 30; // 30-meter proximity culling radius
     if (this.scene) {
       this.scene.traverse((o) => {
-        if (
+        let shouldHide = (
           o.userData?.anuKind === "tipi_smoke" ||
           o.userData?.anuKind === "sanctuary_frog_group" ||
           o.userData?.anuKind === "sanctuary_lily_pads" ||
@@ -1035,7 +1038,34 @@ export class SacredOrchestrator {
             o.name.includes("smoke") ||
             o.name.includes("Smoke")
           ))
-        ) {
+        );
+
+        if (!shouldHide && feet && o.position && (o.isMesh || o.isGroup)) {
+          const isImmune = (
+            o.name === "terrain" ||
+            o.name === "water" ||
+            o.name === "sky" ||
+            o.name?.includes("terrain") ||
+            o.name?.includes("water") ||
+            o.name?.includes("sky") ||
+            o.userData?.anuKind === "terrain" ||
+            o.userData?.anuKind === "water" ||
+            o.userData?.anuKind === "sky" ||
+            o.isLight ||
+            o === this._avatar
+          );
+
+          if (!isImmune) {
+            const dx = o.position.x - feet.x;
+            const dz = o.position.z - feet.z;
+            const distSq = dx * dx + dz * dz;
+            if (distSq > cullingRadiusSq) {
+              shouldHide = true;
+            }
+          }
+        }
+
+        if (shouldHide && o.visible) {
           stashed.push({ g: o, prev: o.visible });
           o.visible = false;
         }
@@ -1128,7 +1158,7 @@ export class SacredOrchestrator {
     this.scene.add(pipLight);
 
     return {
-      cullStash: this._stashAnuCullablesForPipRender(),
+      cullStash: this._stashAnuCullablesForPipRender(wp.feet),
       fog,
       bg,
       feet: wp.feet,

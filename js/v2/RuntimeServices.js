@@ -40,6 +40,15 @@ export const RUNTIME_SERVICE_CONTRACTS = Object.freeze({
       clearOrthoClip: Object.freeze({ kind: "function", arity: 0 }),
     }),
   }),
+  WebFontsService: Object.freeze({
+    owner: "UIModule",
+    optional: true,
+    description: "Service for dynamically loading and verifying web fonts (Cinzel, Fredoka, Lato, Nunito, FontAwesome).",
+    methods: Object.freeze({
+      loadFont: Object.freeze({ kind: "function", arity: 2 }),
+      isLoaded: Object.freeze({ kind: "function", arity: 1 }),
+    }),
+  }),
 });
 
 const _services = new Map();

@@ -46,33 +46,48 @@ const FA_URL =
   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
 
 function ensureFontAwesome() {
-  if (document.getElementById("v2-fa")) return;
-  const l = document.createElement("link");
-  l.id = "v2-fa";
-  l.rel = "stylesheet";
-  l.href = FA_URL;
-  document.head.appendChild(l);
+  const fontService = getRuntimeService("WebFontsService");
+  if (fontService) {
+    fontService.loadFont("v2-fa", FA_URL);
+  } else {
+    if (document.getElementById("v2-fa")) return;
+    const l = document.createElement("link");
+    l.id = "v2-fa";
+    l.rel = "stylesheet";
+    l.href = FA_URL;
+    document.head.appendChild(l);
+  }
 }
 
 /** Legacy panel cards use Lato for descriptions / titles */
 function ensureLato() {
-  if (document.getElementById("v2-font-lato")) return;
-  const l = document.createElement("link");
-  l.id = "v2-font-lato";
-  l.rel = "stylesheet";
-  l.href =
-    "https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap";
-  document.head.appendChild(l);
+  const fontService = getRuntimeService("WebFontsService");
+  if (fontService) {
+    fontService.loadFont("v2-font-lato", "https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap");
+  } else {
+    if (document.getElementById("v2-font-lato")) return;
+    const l = document.createElement("link");
+    l.id = "v2-font-lato";
+    l.rel = "stylesheet";
+    l.href =
+      "https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap";
+    document.head.appendChild(l);
+  }
 }
 
 function ensureNunito() {
-  if (document.getElementById("v2-font-nunito")) return;
-  const l = document.createElement("link");
-  l.id = "v2-font-nunito";
-  l.rel = "stylesheet";
-  l.href =
-    "https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap";
-  document.head.appendChild(l);
+  const fontService = getRuntimeService("WebFontsService");
+  if (fontService) {
+    fontService.loadFont("v2-font-nunito", "https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap");
+  } else {
+    if (document.getElementById("v2-font-nunito")) return;
+    const l = document.createElement("link");
+    l.id = "v2-font-nunito";
+    l.rel = "stylesheet";
+    l.href =
+      "https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap";
+    document.head.appendChild(l);
+  }
 }
 
 function synthKey(key, type) {

@@ -27,6 +27,7 @@ import { getRenderingSnapshot } from "./anu/RenderingGovernor.js";
 import { getFrameBudgetSnapshot, getFrameSamples } from "./anu/FrameBudget.js";
 import { getActiveMapId, listMaps, setActiveMapId } from "./MapsConfig.js";
 import { getGovernanceSnapshot } from "./anu/AnuGovernanceRules.js";
+import { getRuntimeService } from "./RuntimeServices.js";
 
 /** HUD HTML — kept as a constant so a future reskin doesn't have to rebuild the function. */
 export const ORCHESTRATOR_HUD_HTML = `
@@ -88,12 +89,17 @@ export const ORCHESTRATOR_HUD_HTML = `
 
 /** Build the HUD root element and inject the HTML. Returns the element. */
 export function buildOrchestratorHud() {
-  if (!document.getElementById('v2-font')) {
-    const lnk = document.createElement('link');
-    lnk.id = 'v2-font';
-    lnk.rel = 'stylesheet';
-    lnk.href = 'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap';
-    document.head.appendChild(lnk);
+  const fontService = getRuntimeService("WebFontsService");
+  if (fontService) {
+    fontService.loadFont("v2-font-fredoka", "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap");
+  } else {
+    if (!document.getElementById("v2-font")) {
+      const lnk = document.createElement("link");
+      lnk.id = "v2-font";
+      lnk.rel = "stylesheet";
+      lnk.href = "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap";
+      document.head.appendChild(lnk);
+    }
   }
   // Mobile shrink (≤ 768 px): ~30% smaller + thinner + smaller fonts so
   // the truncated "UNIVERSE.ANU: ✓ cle…" and "PiP=on stride:8 phas…"

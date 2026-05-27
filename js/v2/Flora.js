@@ -600,9 +600,19 @@ transformed.y += wobY;
           cullingProjScreenMtx.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
           cullingFrustum.setFromProjectionMatrix(cullingProjScreenMtx);
 
+          const isPip = camera.name && camera.name.startsWith("pip");
+          const maxDistSq = isPip ? 30 * 30 : Infinity;
+          const player = getRuntimeService("WorldPlayer") || window.WorldPlayer;
+          const pFeet = player?.feet ?? { x: 0, y: 0, z: 0 };
+
           this._visibleIndices = [];
           for (let i = 0; i < N; i++) {
-            if (cullingFrustum.intersectsSphere(this._treeSpheres[i])) {
+            const s = this._treeSpheres[i];
+            const dx = s.center.x - pFeet.x;
+            const dz = s.center.z - pFeet.z;
+            const distSq = dx * dx + dz * dz;
+
+            if (distSq <= maxDistSq && cullingFrustum.intersectsSphere(s)) {
               this._visibleIndices.push(i);
             }
           }
