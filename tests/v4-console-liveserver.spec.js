@@ -1,5 +1,5 @@
 /**
- * Audit the user's live-server at 127.0.0.1:5505/index.v4.html (NOT the
+ * Audit the user's live-server at 127.0.0.1:5505/index.html (NOT the
  * Playwright-managed Python server). 12 s boot window, full console capture.
  *
  * Run with no webServer override; we hit an external URL.
@@ -32,7 +32,7 @@ test('v4 sanctuary — live-server console audit (5505)', async ({ page }) => {
     networkFail.push(`FAIL → ${req.url()} (${req.failure()?.errorText || '?'})`);
   });
 
-  await page.goto('http://127.0.0.1:5505/index.v4.html', {
+  await page.goto('http://127.0.0.1:5505/index.html', {
     waitUntil: 'domcontentloaded',
   });
 

@@ -5,7 +5,7 @@
  * SanctuaryToolPalette, which now renders a unified "FLORA & BUILD" panel
  * attached flush below the OrchestratorHud in Village View.
  *
- * This module stub is kept so the index.v4.html boot sequence doesn't break.
+ * This module stub is kept so the index.html boot sequence doesn't break.
  */
 
 export const SanctuaryMapGeneratorUiModule = {

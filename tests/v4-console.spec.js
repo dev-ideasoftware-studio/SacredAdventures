@@ -1,6 +1,6 @@
 /**
  * v4-console.spec.js
- * Boot index.v4.html in a headless Chromium, collect every console message
+ * Boot index.html in a headless Chromium, collect every console message
  * and network failure for 12 seconds, then report. No assertions — pure
  * signal capture so we can see exactly what the browser sees on boot.
  */
@@ -36,7 +36,7 @@ test('v4 sanctuary — console + network audit (12 s boot window)', async ({ pag
     networkFail.push(`FAIL → ${req.url()} (${req.failure()?.errorText || '?'})`);
   });
 
-  await page.goto('/index.v4.html', { waitUntil: 'domcontentloaded' });
+  await page.goto('/index.html', { waitUntil: 'domcontentloaded' });
 
   // Wait 12 s for the orchestrator + all modules to boot
   await page.waitForTimeout(12000);

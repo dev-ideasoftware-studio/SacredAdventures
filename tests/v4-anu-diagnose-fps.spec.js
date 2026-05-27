@@ -9,7 +9,7 @@ test.use({ baseURL: undefined });
 test('Anu sensor sweep — FPS forensic', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
-  await page.goto('http://127.0.0.1:5505/index.v4.html');
+  await page.goto('http://127.0.0.1:5505/index.html');
   await page.waitForTimeout(22000); // let it warm up well past boot
 
   const report = await page.evaluate(() => {

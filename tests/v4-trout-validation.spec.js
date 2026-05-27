@@ -1,7 +1,7 @@
 /**
  * tests/v4-trout-validation.spec.js
  * 
- * 1. Navigate to http://127.0.0.1:5505/index.v4.html.
+ * 1. Navigate to http://127.0.0.1:5505/index.html.
  * 2. Wait 12 seconds for the scene to boot and run.
  * 3. Capture all console errors and warnings (from console listeners, page errors, and window.__consoleErrors).
  * 4. Verify window.anuOrchestrator._activeModuleInstances.SanctuaryFishJumps is active and has no issues.
@@ -39,8 +39,8 @@ test('Validate Sanctuary Trout Jumps, Console Errors and Take Beautiful Screensh
   });
 
   // 1. Navigate to the requested URL
-  console.log("Navigating to http://127.0.0.1:5505/index.v4.html...");
-  await page.goto('http://127.0.0.1:5505/index.v4.html', { waitUntil: 'load' });
+  console.log("Navigating to http://127.0.0.1:5505/index.html...");
+  await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'load' });
 
   // 2. Wait 12 seconds for the scene to boot and run.
   console.log("Waiting 12 seconds for the scene to fully load, boot, and run...");

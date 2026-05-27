@@ -14,7 +14,7 @@ test.use({ baseURL: undefined });
 
 async function probe(page) {
   await page.addInitScript(() => { try { localStorage.removeItem('sanctuary.welcomeGuide.seenV2'); } catch {} });
-  await page.goto('http://127.0.0.1:5505/index.v4.html');
+  await page.goto('http://127.0.0.1:5505/index.html');
   // 18s — boot finishes after warm-up passes; WelcomeGuide + Panels load
   // near the end (~13-14s) so we need 17+ for the elements to exist.
   await page.waitForTimeout(18000);

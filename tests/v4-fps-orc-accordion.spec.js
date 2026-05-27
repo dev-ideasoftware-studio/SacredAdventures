@@ -13,7 +13,7 @@ test('FPS HUD — ORCHESTRATOR accordion renders and expands', async ({ page }) 
   page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
   page.on('pageerror', err => errors.push(`[pageerror] ${err.message}`));
 
-  await page.goto('http://127.0.0.1:5505/index.v4.html', { waitUntil: 'load' });
+  await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'load' });
   await page.waitForTimeout(7000);
 
   // ── 1. FPS HUD panel present ──────────────────────────────────────────────

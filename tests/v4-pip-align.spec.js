@@ -9,7 +9,7 @@ const path = require('path');
 test.use({ baseURL: undefined });
 
 async function probe(page) {
-  await page.goto('http://127.0.0.1:5505/index.v4.html');
+  await page.goto('http://127.0.0.1:5505/index.html');
   await page.waitForTimeout(13000);
   return await page.evaluate(() => {
     const moon = document.getElementById('moondial-wrapper');

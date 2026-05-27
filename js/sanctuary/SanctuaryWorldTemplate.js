@@ -72,7 +72,7 @@
  *   3. Implement `load()` — add your meshes to the scene.
  *   4. Implement `update(delta)` — anything that moves each frame.
  *   5. Implement `unload(scene)` — remove your meshes when deactivated.
- *   6. In `index.v4.html`:
+ *   6. In `index.html`:
  *        import { YourWorldModule } from './js/sanctuary/YourWorld.js';
  *        orc.register(YourWorldModule);
  *        await orc.activate('YourWorldName');

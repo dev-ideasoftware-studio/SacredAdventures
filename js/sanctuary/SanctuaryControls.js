@@ -235,7 +235,7 @@ export const SanctuaryControlsModule = {
     });
 
     // PANEL button — toggles the SacredGame.Panel.html iframe slider.
-    // Also bound to the P key in index.v4.html, but kids need a visible
+    // Also bound to the P key in index.html, but kids need a visible
     // button so they can find it.
     document.getElementById("v4-btn-panel").addEventListener("click", () => {
       if (typeof window._v4TogglePanel === "function") window._v4TogglePanel();

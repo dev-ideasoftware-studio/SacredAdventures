@@ -21,7 +21,7 @@ test('Panels mount + emit correct verbs + Anu clean', async ({ browser }) => {
     });
   });
 
-  await page.goto('http://127.0.0.1:5505/index.v4.html');
+  await page.goto('http://127.0.0.1:5505/index.html');
   await page.waitForTimeout(13000);
 
   const probe = await page.evaluate(() => ({

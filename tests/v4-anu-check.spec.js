@@ -22,7 +22,7 @@ test('v4 sanctuary — boot + console + Anu universe check', async ({ page }) =>
   page.on('pageerror', e => errors.push(`[pageerror] ${e.message}`));
   page.on('response', r => { if (r.status() === 404) network404.push(r.url()); });
 
-  await page.goto('http://127.0.0.1:5505/index.v4.html', { waitUntil: 'domcontentloaded' });
+  await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(13000);
 
   console.log('\n╔══════════════════════════════════════════════════════╗');

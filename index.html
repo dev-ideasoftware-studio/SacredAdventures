@@ -1,603 +1,788 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sacred Adventures — An Indigenous Children's 3D Learning Game</title>
-    <meta name="description"
-        content="Sacred Adventures is an interactive 3D game where children explore an enchanted Indigenous world, complete quests, build villages, and learn through play. Built for accessibility (WCAG AAA) and offline play.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sacred Adventures v4 — Sanctuary</title>
+  <!--
+    Sanctuary build (May-17 2026). Per the user:
 
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+      "use a multipart script to really create this brand new universe
+       scene. Let ANU construct this new beautiful sacred grove. Just
+       the 3d model and a nice rendering of THE POOL + FISH + FISH
+       DOCK + 3d CIRCLES … this will be our sanctuary."
 
-    <link rel="icon" href="Assets/pwa-icon.png">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#fbc02d">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Sacred Ones">
-    <link rel="apple-touch-icon" href="Assets/pwa-icon.png">
+    Five focused parts (each in js/sanctuary/), each tagged for one Anu
+    domain from line one, each ≤ ~250 lines of clean code with no GLB
+    fetches and zero `window._v2*` baggage:
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered', reg))
-                    .catch(err => console.log('Service Worker registration failed', err));
-            });
-        }
-    </script>
+      Part 1 — SanctuaryGround   · ENVIRONMENT
+                terrain + sky + lights + fog + pool basin carve.
+                Source of truth for `sanctuaryGroundY(x, z)`.
 
-    <!-- 1. THREE.JS IMPORT MAP (Local vendor for offline play) -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "./vendor/three/three.module.js",
-                "three/addons/": "./vendor/three/examples/jsm/"
-            }
-        }
-    </script>
+      Part 2 — SanctuaryPool     · ENVIRONMENT
+                water surface (animated 3-wave shader) + basin floor +
+                moss rim + 14 lily pads (some with gold flowers).
 
-    <!-- 2. NATIVE ES MODULE IMPORTS -->
-    <script type="module">
-        import * as THREE_module from 'three';
-        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
-        import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-        import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-        import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+      Part 3 — SanctuaryDock     · STRUCTURES
+                planks + posts + rails + steps + endcap. Procedural
+                wood; ~500 tris. Publishes `__sanctuaryFishingSpot`.
 
-        // A. Globally Expose Loaders for sub-modules
-        window.THREE = Object.assign({}, THREE_module);
-        window.OBJLoader = OBJLoader;
-        window.MTLLoader = MTLLoader;
-        window.GLTFLoader = GLTFLoader;
-        window.SkeletonUtils = SkeletonUtils;
-        window.BufferGeometryUtils = BufferGeometryUtils;
+      Part 4 — SanctuaryFish     · FAUNA
+                12 low-poly trout, lazy orbital swim, tail wag, depth
+                drift. ~500 tris total.
 
-        // Ensure THREE namespace has loaders attached for older scripts
-        window.THREE.OBJLoader = OBJLoader;
-        window.THREE.MTLLoader = MTLLoader;
-        window.THREE.GLTFLoader = GLTFLoader;
-        window.THREE.DRACOLoader = DRACOLoader;
+      Part 5 — SanctuaryCircles  · ENVIRONMENT (decorative)
+                fishing-spot gold ring + pool perimeter moonlight ring
+                + 6 reusable expanding ripples (auto-pulse + on-demand).
 
-        // B. Inject Game Components as classic scripts to avoid CORS on file://
-        // CACHE BUSTER ADDED: Append a timestamp to prevent the browser from serving stale 18FPS cached files
-        const loadScript = (src) => new Promise((resolve, reject) => {
-            const s = document.createElement('script');
-            const cacheBuster = `?v=1776936947${new Date().getTime()}`;
-            s.src = src.includes('?') ? src + `&v=1776936947${new Date().getTime()}` : src + cacheBuster;
-            s.async = false; // CRITICAL: Guarantee execution order of Promise.all array!
-            s.onload = resolve;
-            s.onerror = reject;
-            document.head.appendChild(s);
-        });
+    No GLBs. No legacy code. No `window._v2*` flags. Pure procedural.
+    Anu telemetry should read sub-30k tris total scene cost.
+  -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #c9def0;
+      color: #fff7d0;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    #v4-canvas {
+      position: fixed; inset: 0;
+      display: block;
+      width: 100vw; height: 100vh;
+      cursor: crosshair;
+      z-index: 1;
+    }
+    /* Full-screen loading modal iframe (Component.LoadingModal.html).
+       Mirrors v2's pattern: sits above the canvas until boot completes
+       and we send LOADING_COMPLETE + fade it out. */
+    #v4-loading-iframe {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      z-index: 100000;
+      background: #111;
+      transition: opacity 0.65s ease;
+    }
 
-        Promise.all([
-            loadScript('Component.FuzzyBrain.js'),
-            loadScript('js/MasterAI.js'),
-            loadScript('js/Component.PostProcessing.js'),
-            loadScript('js/Component.RabbitSystem.js'),
-            // loadScript('js/Component.BirdSystem.js'), // DISABLED - broken syntax
-            loadScript('js/Component.HerdSystem.js'),
-            loadScript('js/EnvironmentBuilder.js'),
-            loadScript('Component.AssetFactory.js'),
-            loadScript('Component.ThreeIcons.js')
-        ]).then(() => {
-            // C. Signal Ready
-            window.customScriptsReady = true;
-            if (window.documentReady) window.startGameIfReady();
-        }).catch(err => {
-            console.error("Failed to load game components via script injection:", err);
-        });
-    </script>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: var(--theme-main-bg);
-            color: white;
-            font-family: 'Inter', sans-serif;
-        }
+    /* Pocket journal overlay (same pattern v2 used). Hidden until the
+       J key is pressed or the bottom controls open it. The iframe runs
+       its own scene; we just relay PROCESS_INPUT / RETURN_TO_GAME. */
+    #v4-journal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50000;
+      background: rgba(0, 0, 0, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(3px);
+      transition: opacity 0.25s ease;
+    }
+    #v4-journal-overlay.open { display: flex; }
+    #v4-journal-overlay-close {
+      position: fixed;
+      top: 12px; right: 12px;
+      z-index: 50001;
+      width: 46px; height: 46px;
+      border: none; border-radius: 50%;
+      cursor: pointer;
+      font-size: 26px; line-height: 1; color: #1a1510;
+      background: rgba(255, 245, 220, 0.96);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.85);
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 0;
+      transition: transform 0.15s ease;
+    }
+    #v4-journal-overlay.open #v4-journal-overlay-close { display: flex; }
+    #v4-journal-overlay-close:hover { transform: scale(1.06); }
+    #v4-journal-frame {
+      width: min(96vw, 980px);
+      height: min(94vh, 760px);
+      border: none;
+      background: transparent !important;
+      display: block;
+    }
 
-        #canvas-container {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-        }
+    /* Rich HUD panel iframe (SacredGame.Panel.html). The panel HTML
+       positions THREE sub-panels itself — #left-panel (movement,
+       bottom-left), #right-panel (actions, bottom-right), and
+       #guides-container (hints, centre). So the iframe spans the
+       full viewport; the panel's own `body { pointer-events: none }`
+       passes clicks through to the canvas, and each interactive
+       child enables pointer-events: auto on itself.
+       Visible by default — P key toggles it off for screenshots. */
+    #v4-panel-frame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      z-index: 3000;
+      background: transparent;
+      pointer-events: auto; /* panel body=none; buttons=auto; void clicks tunnel via CANVAS_CLICK */
+      transition: opacity 0.25s ease;
+    }
+    #v4-panel-frame.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #v4-banner {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.72);
+      border-left: 3px solid #fbc02d;
+      padding: 10px 22px;
+      color: #ffe9a8;
+      font-size: 12px;
+      letter-spacing: 1.8px;
+      text-align: center;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+      z-index: 8500;
+      transition: opacity 0.7s;
+    }
+    #v4-banner b { color: #a5d6a7; letter-spacing: 2.5px; font-weight: 800; }
+    #v4-banner small { display: block; color: #bbb; font-size: 10px; margin-top: 4px; letter-spacing: 1.4px; }
+  </style>
 
-        /* The Inner Rim (PIP View) */
-        #pip-lens {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            overflow: hidden;
-            background: #222;
-        }
-
-        #loading {
-            position: absolute;
-            inset: 0;
-            z-index: 999999;
-            background: rgba(0, 0, 0, 0.4);
-            /* Let the background video shine through */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            /* Push modal to the bottom */
-            padding-bottom: 8%;
-            /* Margin from bottom edge */
-            transition: opacity 2s ease-in-out;
-            pointer-events: none;
-        }
-
-        /* LOADING SCREEN CONTAINER (Managed via iframe) */
-        #loading-iframe {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            border: none;
-            z-index: 999999;
-            background: #111;
-            transition: opacity 1.5s ease-in-out;
-            pointer-events: auto;
-        }
-
-        @keyframes pulse {
-            0% {
-                opacity: 0.5;
-            }
-
-            50% {
-                opacity: 1;
-            }
-
-            100% {
-                opacity: 0.5;
-            }
-        }
-
-        #quest-notification {
-            position: absolute;
-            top: 25%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(30, 20, 15, 0.85);
-            border: 2px solid #fbc02d;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(251, 192, 45, 0.2);
-            text-align: center;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.8s ease-in-out;
-            padding: 24px 48px;
-            backdrop-filter: blur(8px);
-        }
-
-        #quest-notification h2 {
-            margin: 0 0 8px 0;
-            color: #fbc02d;
-            font-family: 'Fredoka', sans-serif;
-            font-size: 2.2rem;
-            letter-spacing: 0.1em;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-            text-transform: uppercase;
-        }
-
-        #quest-notification p {
-            margin: 0;
-            color: #fdf6e3;
-            font-family: 'Nunito', sans-serif;
-            font-size: 1.2rem;
-            font-weight: bold;
-            letter-spacing: 0.05em;
-        }
-
-        #ui-overlay {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            z-index: 10;
-            pointer-events: none;
-        }
-
-        .key-hint {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 5px 10px;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            font-size: 0.8rem;
-            margin-top: 5px;
-            backdrop-filter: blur(4px);
-        }
-
-        #time-display {
-            position: absolute;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #fdf6e3;
-            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-            z-index: 200;
-            font-family: 'Georgia', serif;
-            letter-spacing: 0.15em;
-            background: rgba(93, 64, 55, 0.75);
-            padding: 6px 18px;
-            border-radius: 20px;
-            border: 1px solid rgba(210, 180, 140, 0.4);
-            backdrop-filter: blur(6px);
-        }
-
-        /* === MAP ZOOM CONTROLS === */
-        #map-zoom-ui {
-            display: none;
-            position: absolute;
-            left: 20px;
-            top: max(50%, 420px);
-            /* Pushed down to act as a buffer and never collide with Moondial */
-            transform: translateY(-50%);
-            z-index: 100;
-            flex-direction: column;
-            gap: 12px;
-            background: rgba(93, 64, 55, 0.4);
-            padding: 10px;
-            border-radius: 30px;
-            border: 2px solid rgba(210, 180, 140, 0.4);
-            backdrop-filter: blur(8px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        }
-
-        /* Ethereal Vignette Overlay (Replaces Ugly Resolution-Killing Backdrop Blurs) */
-        #surreal-vignette {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            z-index: 50;
-            /* Above WebGL canvas, but below UI */
-            opacity: 0;
-            transition: opacity 1.0s ease-in-out;
-            /* Heavy dark edge gradient to force the eye to the bright, glowing green center map */
-            background: radial-gradient(circle, transparent 40%, rgba(0, 10, 5, 0.8) 120%);
-            box-shadow: inset 0 0 150px rgba(0, 15, 0, 0.9);
-            mix-blend-mode: multiply;
-        }
-
-        body.is-map-view #surreal-vignette {
-            opacity: 1;
-        }
-
-        /* Show zoom only in map view */
-        body.is-map-view #map-zoom-ui {
-            display: flex;
-        }
-
-        .zoom-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(62, 39, 35, 0.8);
-            color: #fdf6e3;
-            border: 1px solid rgba(251, 192, 45, 0.5);
-            font-size: 24px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-            transition: all 0.2s;
-        }
-
-        .zoom-btn:hover {
-            background: rgba(251, 192, 45, 0.4);
-            transform: scale(1.1);
-        }
-
-        .zoom-btn:active {
-            transform: scale(0.95);
-        }
-
-
-        /* ACTION SIDEBAR (Left-Aligned, Exploration Focus) */
-        #action-sidebar {
-            position: fixed;
-            left: -350px;
-            /* Hidden off-screen by default */
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            background: var(--theme-sidebar-bg);
-            /* Creamy UI */
-            padding: 20px 20px 20px 30px;
-            border-radius: 0 40px 40px 0;
-            box-shadow: 10px 0 40px rgba(0, 0, 0, 0.15), inset -5px 0 10px rgba(255, 255, 255, 1.0);
-            border: 4px solid #dda15e;
-            /* Cute wood border */
-            border-left: none;
-            z-index: 10000;
-            /* Float above map canvas */
-            transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-            /* Bouncy spring easing */
-            pointer-events: auto;
-        }
-
-        #action-sidebar.active {
-            left: 0px;
-        }
-
-        .action-btn {
-            width: 240px;
-            height: 48px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
-            border: 0.5px solid white !important;
-            cursor: pointer;
-            position: relative;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Fredoka One', 'Varela Round', sans-serif;
-            font-weight: 800;
-            font-size: 16px;
-            text-transform: uppercase;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
-            user-select: none;
-            gap: 10px;
-        }
-
-        .action-btn:hover {
-            transform: scale(1.05);
-            /* Matching Logbook hover scale */
-        }
-
-        .action-btn:active {
-            transform: translateY(6px);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0px 0 #581c87, 0 4px 6px rgba(0, 0, 0, 0.2);
-        }
-
-        @keyframes sidebarBloom {
-
-            0%,
-            100% {
-                box-shadow: 0 0 10px #eab308, 0 5px 15px rgba(0, 0, 0, 0.4);
-                filter: brightness(1);
-            }
-
-            50% {
-                box-shadow: 0 0 30px #fef08a, 0 5px 15px rgba(0, 0, 0, 0.4);
-                filter: brightness(1.2);
-            }
-        }
-
-        .action-btn.bloom-glow {
-            animation: sidebarBloom 1.5s infinite;
-            border-color: #fef08a !important;
-        }
-
-        .action-icon {
-            font-size: 28px;
-        }
-    </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
+      }
+    }
+  </script>
 </head>
-
 <body>
-    <!-- NEW: High-Performance CSS Vignette perfectly frames the Ethereal Green Diorama without destroying Frame Rate/Resolution -->
-    <div id="surreal-vignette"></div>
 
-    <!-- FPV PiP Overlay styled with Heaven Panels Aesthetic (Browns and Inner Shadows) -->
-    <div id="top-left-fpv"
-        style="position: absolute; top: 50px; left: 290px; width: 200px; height: 200px; border-radius: 50%; background: linear-gradient(145deg, rgba(70, 48, 41, 0.5), rgba(46, 29, 26, 0.5)); border: 4px solid #8d6e63; box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.3), inset -5px -5px 15px rgba(255, 255, 255, 0.4); z-index: 1000; overflow: hidden; display: none;">
-    </div>
+  <iframe
+    id="v4-loading-iframe"
+    src="Component.LoadingModal.html?v=v4"
+    title="Sacred Sanctuary loading"
+    allow="autoplay"
+  ></iframe>
 
+  <canvas id="v4-canvas"></canvas>
 
-    <div id="quest-notification">
-        <h2>QUEST COMPLETED</h2>
-        <p>Got Axe!</p>
-    </div>
+  <!-- ── Pocket Journal overlay ───────────────────────────────────── -->
+  <!-- Press J (or call window._v4ToggleJournal()) to open. The iframe -->
+  <!-- runs its own UI; we close on Esc or backdrop click. -->
+  <div id="v4-journal-overlay" role="dialog" aria-modal="true" aria-label="Sacred Journal">
+    <button
+      type="button"
+      id="v4-journal-overlay-close"
+      aria-label="Close Sacred Journal"
+      title="Close (Esc)"
+    >&times;</button>
+    <iframe
+      id="v4-journal-frame"
+      src="SacredGame.Journal.html?v=v4"
+      allowtransparency="true"
+      title="Sacred Journal"
+    ></iframe>
+  </div>
 
-    <!-- DEVELOPMENT DIAGNOSTICS -->
-    <div id="dev-fps"
-        style="display:block;position:fixed; top:15px; right:15px; background:linear-gradient(145deg, rgba(70, 48, 41, 0.9), rgba(46, 29, 26, 0.9)); color:#e8dec5; padding:8px 14px; font-family:'Lato', sans-serif; font-size:12px; font-weight:900; border-radius:12px; border: 2px solid #8d6e63; box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.1); z-index:1000000; pointer-events:none; letter-spacing:1px; text-transform:uppercase;">
-        60 FPS</div>
+  <!-- ── Rich HUD Panel (SacredGame.Panel.html) ─────────────────────── -->
+  <!-- Sliding panel from the right edge. Toggle via P key, or call    -->
+  <!-- window._v4TogglePanel(). Uses the same postMessage protocol the -->
+  <!-- v2 panel + journal speak so events relay through `window`.       -->
+  <!-- Panel iframe is lazy-loaded — src is set the first time the player
+       opens it (P key / _v4TogglePanel). Before that the iframe has no
+       src and no JavaScript runs inside it, so Component.ThreeIcons.js's
+       unthrottled RAF loop does not compete with the main render loop. -->
+  <iframe
+    id="v4-panel-frame"
+    src="SacredGame.Panel.html?v=v4"
+    title="Sacred Panel"
+  ></iframe>
 
-    <iframe id="loading-iframe" src="Component.LoadingModal.html?v=2"
-        style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:999999;pointer-events:auto;background:#000;"
-        allow="autoplay"></iframe>
+  <div id="v4-banner">
+    <b>SANCTUARY · the sacred pool</b>
+    <small>click the ground to walk · the gold ring marks where to fish · W / arrows = move · S = turn left · D = turn right</small>
+  </div>
 
-    <script>
-        // LOG SYSTEM HELPER: Routes telemetry to the diagnostic HUD
-        window.logSystem = function (msg, pVideo, pAssets, pLogic, pInit) {
-            const ld = document.getElementById('loading-iframe');
-            if (ld && ld.contentWindow) {
-                ld.contentWindow.postMessage({
-                    type: 'LOG_SYSTEM',
-                    msg, pVideo, pAssets, pLogic, pInit
-                }, '*');
-            }
-            if (msg) console.log(`[System] ${msg}`);
-        };
+  <script type="module">
+    import { SacredOrchestrator } from './js/v2/Orchestrator.js';
+    import { AnuModule } from './js/v2/AnuModule.js';
 
-        // BOOTSTRAP ORCHESTRATION
-        let isEngineStarted = false;
-        window.addEventListener('message', (event) => {
-            if (event.data.type === 'VIDEO_READY' && !isEngineStarted) {
-                isEngineStarted = true;
-                logSystem("Downloading...", 100, 0, 0, 0);
+    import { SanctuaryGroundModule       } from './js/sanctuary/SanctuaryGround.js';
+    import { SanctuaryPoolModule         } from './js/sanctuary/SanctuaryPool.js';
+    import { SanctuaryDockModule         } from './js/sanctuary/SanctuaryDock.js';
+    import { SanctuaryFishModule         } from './js/sanctuary/SanctuaryFish.js';
+    import { SanctuaryCirclesModule      } from './js/sanctuary/SanctuaryCircles.js';
+    import { SanctuaryAvatarModule       } from './js/sanctuary/SanctuaryAvatar.js';
+    import { SanctuaryClickToMoveModule  } from './js/sanctuary/SanctuaryClickToMove.js';
+    import { SanctuaryMutationsModule    } from './js/sanctuary/SanctuaryMutations.js';
+    import { MoldGrowHillModule          } from './js/sanctuary/MoldGrowHill.js';
+    import { MoldPlantTreeModule         } from './js/sanctuary/MoldPlantTree.js';
+    import { MoldPlantFlowerModule       } from './js/sanctuary/MoldPlantFlower.js';
+    import { MoldPlantBushModule         } from './js/sanctuary/MoldPlantBush.js';
+    import { MoldPlantLilyModule         } from './js/sanctuary/MoldPlantLily.js';
+    import { MoldPlantRockModule         } from './js/sanctuary/MoldPlantRock.js';
+    import { MoldPlaceTipiModule         } from './js/sanctuary/MoldPlaceTipi.js';
+    import { SanctuarySkyModule          } from './js/sanctuary/SanctuarySky.js';
+    import { SanctuaryButterfliesModule  } from './js/sanctuary/SanctuaryButterflies.js';
+    import { SanctuaryToolPaletteModule  } from './js/sanctuary/SanctuaryToolPalette.js';
+    import { SanctuaryMapGeneratorUiModule } from './js/sanctuary/SanctuaryMapGeneratorUi.js';
+    import { SanctuaryKeyboardLookModule } from './js/sanctuary/SanctuaryKeyboardLook.js';
+    import { SanctuaryZoomModule         } from './js/sanctuary/SanctuaryZoom.js';
+    // PIP — 1:1 v2 port. May-18 2026 user spec: "fix pip by grabbing
+    // 1:1 my panels and pip and journal 3rd request". The v2 `UIModule`
+    // builds the full moondial (compass ring + lunar phase dial +
+    // 5-season buttons + bronze styling + lens toggle) in one shot.
+    // My earlier SanctuaryPip / SanctuaryPipOverlay placeholders are
+    // intentionally NOT imported here — they were the "cheap" versions.
+    import { UIModule as V2UIModule        } from './js/v2/UIModule.js';
+    import { SanctuaryVillagePadModule   } from './js/sanctuary/SanctuaryVillagePad.js';
+    import { SanctuaryFishJumpsModule    } from './js/sanctuary/SanctuaryFishJumps.js';
+    import { SanctuaryDayNightModule     } from './js/sanctuary/SanctuaryDayNight.js';
+    import { SanctuaryTipisModule        } from './js/sanctuary/SanctuaryTipis.js';
+    import { SanctuaryTipiNpcsModule     } from './js/sanctuary/SanctuaryTipiNpcs.js';
+    import { SanctuaryBraziersModule     } from './js/sanctuary/SanctuaryBraziers.js';
+    import { SanctuaryWeatherModule      } from './js/sanctuary/SanctuaryWeather.js';
+    import { SanctuaryCursorModule       } from './js/sanctuary/SanctuaryCursor.js';
+    import { SanctuaryAmbientModule      } from './js/sanctuary/SanctuaryAmbient.js';
+    import { SanctuaryInventoryModule    } from './js/sanctuary/SanctuaryInventory.js';
+    import { SanctuaryControlsModule     } from './js/sanctuary/SanctuaryControls.js';
+    import { SanctuaryFpsHudModule       } from './js/sanctuary/SanctuaryFpsHud.js';
+    import { SanctuaryFishingModule      } from './js/sanctuary/SanctuaryFishing.js';
+    import { SanctuaryWorldPlayerShimModule } from './js/sanctuary/SanctuaryWorldPlayerShim.js';
+    import { SanctuaryWaterFootstepsModule } from './js/sanctuary/SanctuaryWaterFootsteps.js';
+    import { SanctuaryWelcomeGuideModule }   from './js/sanctuary/SanctuaryWelcomeGuide.js';
+    import { SanctuaryJournalBridgeModule }  from './js/sanctuary/SanctuaryJournalBridge.js';
+    import { SanctuaryDragonflyModule }      from './js/sanctuary/SanctuaryDragonfly.js';
+    import { SanctuaryPondTreesModule }      from './js/sanctuary/SanctuaryPondTrees.js';
+    import { SanctuaryFrogsModule }          from './js/sanctuary/SanctuaryFrogs.js';
+    import { AnuAdaptiveDprModule }          from './js/sanctuary/AnuAdaptiveDpr.js';
 
-                // Start Asset Preload
-                const npcScript = document.createElement('script');
-                npcScript.src = 'js/MasterNPCAI.js?v=1';
-                document.body.appendChild(npcScript);
+    // Modal loader plumbing — same protocol v2 used (Component.LoadingModal
+    // listens for LOG_SYSTEM with msg + 4 progress %, LOADING_COMPLETE
+    // triggers its fade). v4 keeps the four lanes minimal: assets land
+    // fast because everything is procedural, so we mostly drive logic +
+    // init progress.
+    const loadingIframe = document.getElementById('v4-loading-iframe');
+    function postToLoadingModal(payload) {
+      try { loadingIframe?.contentWindow?.postMessage(payload, '*'); } catch (_) {}
+    }
+    function v4Log(msg, pVideo, pAssets, pLogic, pInit) {
+      postToLoadingModal({ type: 'LOG_SYSTEM', msg, pVideo, pAssets, pLogic, pInit });
+    }
+    function v4LoadingComplete() { postToLoadingModal({ type: 'LOADING_COMPLETE' }); }
+    function teardownLoadingIframe() {
+      const ifr = document.getElementById('v4-loading-iframe');
+      if (!ifr) return;
+      ifr.style.opacity = '0';
+      ifr.style.pointerEvents = 'none';
+      setTimeout(() => ifr.remove(), 700);
+    }
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'VIDEO_READY') {
+        v4Log('opening reel ready', 100, 8, 0, 0);
+      }
+    });
+    // Wait for the loading iframe to be ready before sending it messages.
+    await new Promise((resolve) => {
+      if (!loadingIframe) return resolve();
+      loadingIframe.addEventListener('load', resolve, { once: true });
+      setTimeout(resolve, 4000);
+    });
+    const setStep = (s) => v4Log(s, 100, 100, 0, 0);
 
-                const dbScript = document.createElement('script');
-                dbScript.src = 'js/GameObjectsDatabase.js?v=1';
-                dbScript.onload = () => {
-                    logSystem("Loading...", 100, 15, 0, 0);
-                    
-                    const anuScript = document.createElement('script');
-                    anuScript.src = 'js/Universe.Anu.js?v=' + Date.now();
-                    anuScript.onload = () => {
-                        const engineScript = document.createElement('script');
-                        engineScript.type = 'module';
-                        engineScript.src = 'js/EngineMain.js?v=' + Date.now();
-                        engineScript.onload = () => {
-                            logSystem("Processing...", 100, 30, 0, 0);
-                            window.customScriptsReady = true;
-                            if (window.startGameIfReady) window.startGameIfReady();
-                        };
-                        document.body.appendChild(engineScript);
-                    };
-                    document.body.appendChild(anuScript);
-                };
-                document.body.appendChild(dbScript);
-            }
-        });
-    </script>
-    <div id="bg-video-desc" class="sr-only">Atmospheric looping background video displaying cinematic floating particles
-        and a glowing dream-like landscape setting.</div>
+    v4Log('starting orchestrator', 100, 12, 4, 4);
+    const canvas = document.getElementById('v4-canvas');
+    const orc = new SacredOrchestrator(canvas);
 
-    <div id="canvas-container"></div>
-
-    <!-- FAST NATIVE VIGNETTE IS NOW HANDLED VIA #surreal-vignette at the top of the body block -->
-
-    <!-- UI OVERLAY (Adventure Panel — iframe) -->
-    <iframe id="panel-frame" src="SacredGame.Panel.html"
-        style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:1000;pointer-events:auto;background:transparent;"
-        allowtransparency="true"></iframe>
-
-    <!-- JOURNAL WRAPPER — self-contained, sits above Panel, pointer-events off until logbook-active -->
-    <iframe id="journal-frame" src="SacredGame.Journal.html"
-        tabindex="-1" allowtransparency="true" title="Journal"
-        style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:9500;pointer-events:none;background:transparent;"></iframe>
-
-    <!-- HUD ELEMENTS -->
-    <div id="time-display">08:00 AM</div>
-
-    <div id="map-zoom-ui">
-        <button class="zoom-btn" onclick="if(window._mapZoomLevel > 40) window._mapZoomLevel -= 20"
-            title="Zoom In">+</button>
-        <button class="zoom-btn" onclick="if(window._mapZoomLevel < 350) window._mapZoomLevel += 20"
-            title="Zoom Out">-</button>
-    </div>
-
-    <div id="stats-hud"
-        style="display:none;position:fixed;top:10px;right:10px;z-index:9999;font-family:'Courier New',monospace;font-size:13px;color:#0f0;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:6px;pointer-events:none;line-height:1.5;">
-        FPS: --</div>
-
-    <!-- ACTION SIDEBAR -->
-    <!-- ACTION SIDEBAR: Hidden in production — enable via console: document.getElementById('action-sidebar').style.display='flex' -->
-    <div id="action-sidebar" style="display:none;">
-        <div class="action-btn" data-action="map" onclick="window.postMessage({ type: 'TOGGLE_VIEW_MODE' }, '*');">
-            <span class="action-icon">🗺️</span>
-            Toggle Map
-        </div>
-        <div class="action-btn" data-action="building" id="building-action-btn" style="display:none;"
-            onclick="if(window.clearBuildingHighlight) window.clearBuildingHighlight();">
-            <span class="action-icon">⛺</span>
-            Tipi
-        </div>
-        <div class="action-btn" data-action="autowalk" onclick="handleActionClick('autowalk')">
-            <span class="action-icon">🧭</span>
-            Auto-Walk
-        </div>
-        <div class="action-btn" data-action="wood" onclick="handleActionClick('wood')">
-            <span class="action-icon">🪓</span>
-            Gather Wood
-        </div>
-        <div class="action-btn" data-action="theme"
-            onclick="document.body.classList.toggle('theme-light'); const frame = document.getElementById('panel-frame'); if(frame && frame.contentWindow) { frame.contentWindow.document.body.classList.toggle('theme-light'); }">
-            <span class="action-icon">🌗</span>
-            Toggle Theme
-        </div>
-    </div>
-
-    <!-- MODULES -->
-    <!-- MODULES LOADED DYNAMICALLY ABOVE AFTER VIDEO START -->
-
-    <!-- ANU DEV TOOLBAR — only on localhost, invisible in production -->
-    <div id="anu-dev-toolbar" style="
-        position:fixed; top:0; left:0; right:0; z-index:99999;
-        background:rgba(0,0,0,0.85); color:#fff;
-        font:11px/1 monospace; padding:4px 8px;
-        display:flex; align-items:center; gap:6px; flex-wrap:wrap;
-    ">
-        <span style="color:#fbc02d;font-weight:bold;">⚡ ANU</span>
-        <span id="anu-fps-badge" style="color:#4caf50;min-width:60px;">FPS: --</span>
-        <span id="anu-mood-badge" style="color:#ce93d8;">mood: --</span>
-        <span style="color:#666;">|</span>
-    </div>
-    <script>
-    (function() {
-        // Only activate on localhost
-        if (!location.hostname.includes('localhost') && !location.hostname.includes('127.0.0.1')) return;
-
-        const MODULES = ['SHADOWS','PIP','POSTFX','TREES','ANIMALS','NPCS','JOURNAL','TERRAIN'];
-        const toolbar = document.getElementById('anu-dev-toolbar');
-        const fpsBadge = document.getElementById('anu-fps-badge');
-        const moodBadge = document.getElementById('anu-mood-badge');
-        const states = {}; // true = enabled
-        MODULES.forEach(m => states[m] = true);
-
-        function makeBtn(label) {
-            const btn = document.createElement('button');
-            btn.textContent = label;
-            btn.dataset.mod = label;
-            btn.style.cssText = `
-                padding:2px 7px; font:10px monospace; border-radius:3px; cursor:pointer;
-                border:1px solid #4caf50; background:#1a3a1a; color:#4caf50;
-            `;
-            btn.onclick = () => {
-                if (!window.UniverseAnu) return;
-                if (states[label]) {
-                    window.UniverseAnu.disable(label);
-                    states[label] = false;
-                    btn.style.borderColor = '#ff5252';
-                    btn.style.background = '#3a1a1a';
-                    btn.style.color = '#ff5252';
-                } else {
-                    window.UniverseAnu.enable(label);
-                    states[label] = true;
-                    btn.style.borderColor = '#4caf50';
-                    btn.style.background = '#1a3a1a';
-                    btn.style.color = '#4caf50';
-                }
-            };
-            toolbar.appendChild(btn);
+    // Rebrand the orchestrator HUD heading for v4 — the DOM element is
+    // created by `new SacredOrchestrator()` above, then we swap the
+    // header text before any user sees it.
+    requestAnimationFrame(() => {
+      const hud = document.getElementById('v2-orchestrator-hud');
+      if (hud) {
+        const head = hud.querySelector('div');
+        if (head && head.textContent.includes('SACRED ADV')) {
+          head.textContent = 'SACRED · SANCTUARY · v4 · ANU';
         }
+      }
+    });
 
-        MODULES.forEach(makeBtn);
+    orc.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 
-        // Live FPS + mood ticker
-        setInterval(() => {
-            if (window.UniverseAnu) {
-                const fps = Math.round(window.UniverseAnu._sensors.fps.weight || 0);
-                const mood = window.UniverseAnu.mood || '--';
-                fpsBadge.textContent = `FPS: ${fps}`;
-                fpsBadge.style.color = fps > 40 ? '#4caf50' : fps > 20 ? '#ff9800' : '#ff5252';
-                moodBadge.textContent = `mood: ${mood}`;
-                const moodColors = {serene:'#4caf50', restless:'#ff9800', troubled:'#ff5252', sacred:'#fbc02d'};
-                moodBadge.style.color = moodColors[mood] || '#ce93d8';
+    // The five parts of the sanctuary. Each is a self-contained Anu-
+    // governed module. Order is intentional: ground first (provides
+    // groundY + waterY anchors), then pool, dock, fish, circles.
+    orc.register(AnuModule);
+    orc.register(AnuAdaptiveDprModule);
+    orc.register(SanctuaryGroundModule);
+    orc.register(SanctuaryPoolModule);
+    orc.register(SanctuaryDockModule);
+    orc.register(SanctuaryFishModule);
+    orc.register(SanctuaryCirclesModule);
+    orc.register(SanctuaryAvatarModule);
+    orc.register(SanctuaryClickToMoveModule);
+    orc.register(SanctuarySkyModule);
+    orc.register(SanctuaryButterfliesModule);
+    orc.register(SanctuaryMutationsModule);
+    orc.register(MoldGrowHillModule);
+    orc.register(MoldPlantTreeModule);
+    orc.register(MoldPlantFlowerModule);
+    orc.register(MoldPlantBushModule);
+    orc.register(MoldPlantLilyModule);
+    orc.register(MoldPlantRockModule);
+    orc.register(MoldPlaceTipiModule);
+    orc.register(SanctuaryToolPaletteModule);
+    orc.register(SanctuaryMapGeneratorUiModule);
+    orc.register(SanctuaryKeyboardLookModule);
+    orc.register(SanctuaryZoomModule);
+    orc.register(V2UIModule); // creates the legacy moondial wayfinder
+    orc.register(SanctuaryVillagePadModule);
+    orc.register(SanctuaryTipisModule);
+    orc.register(SanctuaryTipiNpcsModule);
+    orc.register(SanctuaryBraziersModule);
+    orc.register(SanctuaryWeatherModule);
+    orc.register(SanctuaryFishJumpsModule);
+    orc.register(SanctuaryDayNightModule);
+    orc.register(SanctuaryCursorModule);
+    orc.register(SanctuaryAmbientModule);
+    orc.register(SanctuaryInventoryModule);
+    orc.register(SanctuaryControlsModule);
+    orc.register(SanctuaryFpsHudModule);
+    orc.register(SanctuaryFishingModule);
+    orc.register(SanctuaryWorldPlayerShimModule);
+    orc.register(SanctuaryWaterFootstepsModule);
+    orc.register(SanctuaryWelcomeGuideModule);
+    orc.register(SanctuaryJournalBridgeModule);
+    orc.register(SanctuaryDragonflyModule);
+    orc.register(SanctuaryPondTreesModule);
+    orc.register(SanctuaryFrogsModule);
+
+    v4Log('Anu — opening her ear', 100, 22, 14, 10);
+    await orc.activate('Anu');
+
+    v4Log('Anu — FPS guardian online', 100, 25, 18, 12);
+    await orc.activate('AnuAdaptiveDpr');
+
+    v4Log('part 1 / 5 — the ground that all bodies obey', 100, 35, 30, 22);
+    await orc.activate('SanctuaryGround');
+
+    v4Log('part 2 / 5 — the sacred pool', 100, 55, 52, 40);
+    await orc.activate('SanctuaryPool');
+
+    v4Log('part 3 / 5 — the fish dock', 100, 72, 68, 58);
+    await orc.activate('SanctuaryDock');
+
+    v4Log('part 4 / 5 — the school finds the water', 100, 88, 84, 75);
+    await orc.activate('SanctuaryFish');
+
+    v4Log('part 5 / 5 — circles of guiding light', 100, 96, 94, 88);
+    await orc.activate('SanctuaryCircles');
+
+    v4Log('Avatar3 — kid body, anti-transparency armour', 100, 97, 95, 90);
+    await orc.activate('SanctuaryAvatar');
+
+    v4Log('giving the player their feet', 100, 98, 97, 93);
+    await orc.activate('SanctuaryClickToMove');
+
+    v4Log('priming walking sound effects', 100, 98, 97, 93);
+    await orc.activate('SanctuaryWaterFootsteps');
+
+    v4Log('WorldPlayer shim — so PIP can find the avatar', 100, 98, 97, 93);
+    await orc.activate('SanctuaryWorldPlayerShim');
+
+    v4Log('sky · drifting clouds + distant birds', 100, 90, 88, 80);
+    await orc.activate('SanctuarySky');
+
+    v4Log('mutation registry — kids can shape this world', 100, 96, 95, 90);
+    await orc.activate('SanctuaryMutations');
+
+    v4Log('mold · grow_hill', 100, 97, 96, 92);
+    await orc.activate('MoldGrowHill');
+
+    v4Log('mold · plant_tree', 100, 97, 97, 93);
+    await orc.activate('MoldPlantTree');
+
+    v4Log('mold · plant_flower', 100, 98, 97, 94);
+    await orc.activate('MoldPlantFlower');
+
+    v4Log('mold · plant_bush · plant_lily · plant_rock · place_tipi', 100, 98, 98, 94);
+    await orc.activate('MoldPlantBush');
+    await orc.activate('MoldPlantLily');
+    await orc.activate('MoldPlantRock');
+    await orc.activate('MoldPlaceTipi');
+
+    v4Log('butterflies fluttering across the meadow', 100, 98, 98, 95);
+    await orc.activate('SanctuaryButterflies');
+
+    v4Log('tool palette — hill · tree · flower · bush · lily · rock', 100, 99, 98, 95);
+    await orc.activate('SanctuaryToolPalette');
+    await orc.activate('SanctuaryMapGeneratorUi');
+
+    v4Log('keyboard — WASD move · arrows turn · space jump', 100, 99, 99, 96);
+    await orc.activate('SanctuaryKeyboardLook');
+
+    v4Log('scroll-wheel zoom — FPV chase + top-down height', 100, 99, 99, 96);
+    await orc.activate('SanctuaryZoom');
+
+    v4Log('legacy v2 moondial PIP — compass + lunar dial + seasons', 100, 99, 99, 96);
+    await orc.activate('PanelsPIP');
+
+    v4Log('village build pad — sacred ground awaiting the tipis', 100, 99, 99, 97);
+    await orc.activate('SanctuaryVillagePad');
+
+    v4Log('tipi 1 + tipi 2 — phasing in onto the pad', 100, 99, 99, 97);
+    await orc.activate('SanctuaryTipis');
+
+    v4Log('seated NPCs — YB on tipi 1, BHG on tipi 2', 100, 99, 99, 97);
+    await orc.activate('SanctuaryTipiNpcs');
+
+    v4Log('braziers — fire + smoke at each tipi', 100, 99, 99, 97);
+    await orc.activate('SanctuaryBraziers');
+
+    v4Log('fish jumps — surprise breaks every 8–18 s', 100, 99, 99, 97);
+    await orc.activate('SanctuaryFishJumps');
+
+    v4Log('controls bar — top-down · reset · save', 100, 99, 99, 97);
+    await orc.activate('SanctuaryControls');
+
+    v4Log('day ↔ night toggle — moon button on controls bar', 100, 99, 99, 98);
+    await orc.activate('SanctuaryDayNight');
+
+    v4Log('tool cursor — follows mouse in top-down', 100, 99, 99, 98);
+    await orc.activate('SanctuaryCursor');
+
+    v4Log('ambient sound — wind + water + birds (after first click)', 100, 99, 99, 98);
+    await orc.activate('SanctuaryAmbient');
+
+    v4Log('harvest inventory — right-click flora to gather', 100, 99, 99, 99);
+    await orc.activate('SanctuaryInventory');
+
+    v4Log('weather — 🌧 toggle on the controls bar', 100, 99, 99, 99);
+    await orc.activate('SanctuaryWeather');
+
+    v4Log('FPS HUD — live counter top-right', 100, 100, 100, 97);
+    await orc.activate('SanctuaryFpsHud');
+
+    v4Log('fishing — cast · bite · catch · 🐟 inventory', 100, 100, 100, 98);
+    await orc.activate('SanctuaryFishing');
+
+    v4Log('welcome guide — 5-step warm-tone tutorial', 100, 100, 100, 99);
+    await orc.activate('SanctuaryWelcomeGuide');
+
+    v4Log('journal ↔ Anu bridge — sensorium + audit replies', 100, 100, 100, 99);
+    await orc.activate('SanctuaryJournalBridge');
+
+    v4Log('dragonfly — zips by every 12-30s', 100, 100, 100, 99);
+    await orc.activate('SanctuaryDragonfly');
+
+    v4Log('pond trees — 12 sacred pines ringing the water', 100, 100, 100, 100);
+    await orc.activate('SanctuaryPondTrees');
+
+    v4Log('frogs — jumping and swimming', 100, 100, 100, 100);
+    await orc.activate('SanctuaryFrogs');
+
+    v4Log('breathing life into the loop', 100, 100, 100, 98);
+    orc.start();
+
+    // Place a still camera looking at the pool from the south bank —
+    // the dock juts into the pool from the south, so this puts the
+    // dock + the gold ring + the pool in a single composed shot.
+    // Initial camera: behind the avatar south of v2 Tipi 1 (0,0).
+    orc.camera.position.set(0, 4.8, -6.5);
+    orc.camera.lookAt(0, 1.2, 0);
+    orc.camera.fov = 52;
+    orc.camera.updateProjectionMatrix();
+
+    // First real-frame paint before we fade the loading veil.
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+    v4Log('the grove is open', 100, 100, 100, 100);
+
+    // Hold ~720 ms so the modal's flip-to-100 % odometer animation
+    // completes before we send the LOADING_COMPLETE fade signal — same
+    // pacing v2 used (Anu memory `loading-modal-percent-tween-may-12`).
+    await new Promise((resolve) => setTimeout(resolve, 720));
+    v4LoadingComplete();
+    setTimeout(teardownLoadingIframe, 900);
+
+    // Banner fade after 7s.
+    setTimeout(() => {
+      const b = document.getElementById('v4-banner');
+      if (b) b.style.opacity = '0';
+    }, 7000);
+
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
+    console.log('%c  SACRED · SANCTUARY · v4    ', 'color:#fff2c4;font-weight:bold;font-size:13px;background:#1a2018;padding:4px 8px;');
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color:#fbc02d;');
+    console.log('%c  ground   · sacred pool · fish dock · twelve fish · circles of light  ', 'color:#a5d6a7;');
+    console.log('%c  Anu telemetry → AnuUniverse.help()', 'color:#fbc02d;font-weight:bold;background:#1a1108;padding:2px 6px;border-radius:3px;');
+    console.log('%c  Send a ripple → sanctuaryPulse(0, -2)   (works anywhere on the pool)', 'color:#80deea;');
+    console.log('%c  Open the journal → press J  (or window._v4ToggleJournal())', 'color:#80deea;');
+    console.log('');
+  </script>
+
+  <!-- ── Sacred Journal toggle (non-module, after game boot) ────────── -->
+  <!-- Mirrors v2's pattern: J key + Esc + backdrop click toggle the    -->
+  <!-- overlay. While open we set `window._v4InputSuppressed = true` so -->
+  <!-- the keyboard module + click-to-move both freeze.                  -->
+  <script>
+    window._v4JournalOpen = false;
+    window._v4InputSuppressed = false;
+    window.__sanctuaryJoystickInput = { x: 0, y: 0 };
+
+    function _v4SetJournalOpen(open) {
+      const overlay = document.getElementById('v4-journal-overlay');
+      const frame = document.getElementById('v4-journal-frame');
+      if (!overlay) return;
+      window._v4JournalOpen = !!open;
+      window._v4InputSuppressed = !!open;
+      overlay.classList.toggle('open', !!open);
+      try {
+        frame?.contentWindow?.postMessage(
+          { type: 'VISIBILITY_CHANGE', isVisible: !!open },
+          '*',
+        );
+      } catch (_) {}
+    }
+    window._v4ToggleJournal = () => _v4SetJournalOpen(!window._v4JournalOpen);
+    window._v4CloseJournal  = () => _v4SetJournalOpen(false);
+
+    // Close button + backdrop click + Esc.
+    document.getElementById('v4-journal-overlay-close')
+      ?.addEventListener('click', () => _v4SetJournalOpen(false));
+    document.getElementById('v4-journal-overlay')
+      ?.addEventListener('mousedown', (e) => {
+        if (window._v4JournalOpen && e.target === e.currentTarget) _v4SetJournalOpen(false);
+      });
+    window.addEventListener('keydown', (e) => {
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+      if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        _v4SetJournalOpen(!window._v4JournalOpen);
+      }
+      if (e.key === 'Escape' && window._v4JournalOpen) _v4SetJournalOpen(false);
+    });
+
+    // Listen for the journal's "close" signals.
+    window.addEventListener('message', (event) => {
+      const t = event.data?.type;
+      if (t === 'RETURN_TO_GAME' || t === 'CLOSE_LOGBOOK') _v4SetJournalOpen(false);
+      if (t === 'REQ_TOGGLE_LOGBOOK' && window._v4JournalOpen) _v4SetJournalOpen(false);
+    });
+
+    // ── Sacred Panel toggle (P key) ─────────────────────────────────
+    // Panel iframe is lazy-loaded — no src until first open, so the
+    // ThreeIconManager RAF loop doesn't run during gameplay.
+    window._v4PanelOpen = true;
+    function _v4SetPanelOpen(open) {
+      const frame = document.getElementById('v4-panel-frame');
+      if (!frame) return;
+      window._v4PanelOpen = !!open;
+      frame.classList.toggle('hidden', !open);
+      try {
+        frame.contentWindow?.postMessage(
+          { type: 'VISIBILITY_CHANGE', isVisible: !!open },
+          '*',
+        );
+      } catch (_) {}
+    }
+    window._v4TogglePanel = () => _v4SetPanelOpen(!window._v4PanelOpen);
+    window._v4ClosePanel  = () => _v4SetPanelOpen(false);
+    window._v4SetPanelOpen = _v4SetPanelOpen;
+    window.addEventListener('keydown', (e) => {
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+      if ((e.key === 'p' || e.key === 'P') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        _v4SetPanelOpen(!window._v4PanelOpen);
+      }
+    });
+    // Forward panel postMessages of interest (journal triggers, etc.)
+    window.addEventListener('message', (event) => {
+      const t = event.data?.type;
+      if (t === 'REQ_OPEN_JOURNAL') _v4SetJournalOpen(true);
+      if (t === 'REQ_CLOSE_PANEL') _v4SetPanelOpen(false);
+    });
+
+    // ── Panel ACTION-button router ──────────────────────────────────
+    // SacredGame.Panel.html's right-panel action ring fires
+    //   emit('ACTION', verb)         — rest / eat / heal / track
+    //   emit('OPEN_SETTINGS')        — settings cog
+    //   emit('TOGGLE_VIEW_MODE')     — map / top-down toggle
+    // Until v4 has player-state systems for rest/eat/heal/track these
+    // are surfaced as banner + console feedback so the buttons visibly
+    // do something. OPEN_SETTINGS and TOGGLE_VIEW_MODE route to real
+    // v4 surfaces (the orchestrator HUD and the existing top-down
+    // toggle in SanctuaryControls).
+    function _v4FlashBanner(html, ms = 2200) {
+      const b = document.getElementById('v4-banner');
+      if (!b) return;
+      b.innerHTML = html;
+      b.style.opacity = '1';
+      clearTimeout(window.__v4BannerTimer);
+      window.__v4BannerTimer = setTimeout(() => { b.style.opacity = '0'; }, ms);
+    }
+    const _v4ActionVerbs = {
+      rest:  '<b>REST</b><small>the body settles · breath slows</small>',
+      heal:  '<b>HEAL</b><small>warmth gathers in the chest</small>',
+      track: '<b>TRACK</b><small>looking for sign on the ground</small>',
+    };
+    window.addEventListener('message', (event) => {
+      const d = event.data || {};
+      const t = d.type;
+      if (t === 'ACTION') {
+        const verb = String(d.data || '').toLowerCase();
+        if (verb === 'eat') {
+          // EAT button rewired (May-19 2026) — fires what the legacy
+          // PANEL chip used to do: toggle the right-side game HUD iframe.
+          if (typeof window._v4TogglePanel === 'function') window._v4TogglePanel();
+          _v4FlashBanner('<b>PANEL</b><small>chrome toggled — press P to bring it back</small>');
+          console.log('%c[v4] action · eat → toggle panel', 'color:#a5d6a7;font-weight:bold;');
+          return;
+        }
+        if (verb === 'view') {
+          // VIEW button — toggle the PiP minimap second-render-pass on/off.
+          // Use this to isolate PiP cost: if FPS climbs when suspended,
+          // the second WebGLRenderer is the bottleneck.
+          if (typeof window._v4TogglePip === 'function') {
+            const suspended = window._v4TogglePip();
+            _v4FlashBanner(
+              suspended
+                ? '<b>PiP SUSPENDED</b><small>minimap OFF — watching raw FPS now</small>'
+                : '<b>PiP RESUMED</b><small>minimap back ON — second-pass render active</small>'
+            );
+          } else {
+            _v4FlashBanner('<b>VIEW</b><small>PiP module not ready yet</small>');
+          }
+          console.log('%c[v4] action · view → PiP toggle', 'color:#80deea;font-weight:bold;');
+          return;
+        }
+        if (verb === 'fish') {
+          // FISH button — two-step autowalk: dock entry → fishing ring tip.
+          // Step 1: walk to the shore-side dock entrance.
+          // Step 2 (onArrive callback): walk to window.__sanctuaryFishingSpot.
+          // _v4WalkTo is exposed by SanctuaryClickToMove after it loads.
+          const fishSpot = window.__sanctuaryFishingSpot;
+          const dockExt  = window.__sanctuaryDockExtents;
+          if (!fishSpot || typeof window._v4WalkTo !== 'function') {
+            _v4FlashBanner('<b>FISH</b><small>world still loading — try again in a moment</small>');
+            console.log('%c[v4] action · fish → world not ready', 'color:#ef9a9a;font-weight:bold;');
+            return;
+          }
+          if (typeof window._v4CancelClickToMove === 'function') window._v4CancelClickToMove();
+
+          const goFish = () => {
+            _v4FlashBanner('<b>FISHING</b><small>approaching the ring…</small>');
+            window._v4WalkTo(fishSpot.x, fishSpot.z);
+          };
+
+          if (dockExt) {
+            // Shore-side entry point: dock centre shifted toward shore (yaw direction)
+            // Use 70 % of halfLen so we land near the plank start, not beyond it.
+            const entryX = dockExt.midX + Math.cos(dockExt.yaw) * (dockExt.halfLen * 0.70);
+            const entryZ = dockExt.midZ + Math.sin(dockExt.yaw) * (dockExt.halfLen * 0.70);
+            _v4FlashBanner('<b>FISHING</b><small>heading to the dock…</small>');
+            window._v4WalkTo(entryX, entryZ, goFish);
+          } else {
+            // No dock extents yet — walk straight to the spot.
+            goFish();
+          }
+          console.log('%c[v4] action · fish → autowalk dock → fishing spot', 'color:#a5d6a7;font-weight:bold;');
+          return;
+        }
+        const msg = _v4ActionVerbs[verb] || `<b>${verb.toUpperCase()}</b>`;
+        _v4FlashBanner(msg);
+        console.log(`%c[v4] action · ${verb}`, 'color:#a5d6a7;font-weight:bold;');
+      } else if (t === 'OPEN_SETTINGS') {
+        const hud = document.getElementById('v2-orchestrator-hud');
+        if (hud) {
+          const hidden = hud.style.display === 'none';
+          hud.style.display = hidden ? '' : 'none';
+          _v4FlashBanner(hidden ? '<b>SETTINGS</b><small>Anu telemetry shown</small>'
+                                : '<b>SETTINGS</b><small>Anu telemetry hidden</small>');
+        }
+        console.log('%c[v4] action · settings', 'color:#a5d6a7;font-weight:bold;');
+      } else if (t === 'TOGGLE_VIEW_MODE') {
+        // MAP icon in the right-panel action ring → top-down toggle.
+        // SanctuaryControls exposes `window._v4ToggleTopDown()` so we
+        // can drive the toggle without the (now-hidden) legacy button.
+        if (typeof window._v4ToggleTopDown === 'function') window._v4ToggleTopDown();
+        console.log('%c[v4] action · toggle view mode', 'color:#a5d6a7;font-weight:bold;');
+      } else if (t === 'THUMB_MOVE') {
+        window.__sanctuaryJoystickInput.x = Number(d.x) || 0;
+        window.__sanctuaryJoystickInput.y = Number(d.y) || 0;
+      } else if (t === 'CANVAS_CLICK') {
+        // Panel tunnels background taps here so the canvas click-to-move
+        // still fires even though the iframe is now pointer-events:auto.
+        // The panel sends normalised (0–1) coords; we convert to clientXY
+        // and re-dispatch a mousedown on the canvas so SanctuaryClickToMove
+        // picks it up exactly like a real ground click.
+        const canvas = document.getElementById('v4-canvas');
+        if (canvas) {
+          const cx = (Number(d.x) || 0) * window.innerWidth;
+          const cy = (Number(d.y) || 0) * window.innerHeight;
+          canvas.dispatchEvent(new MouseEvent('mousedown', {
+            clientX: cx, clientY: cy,
+            bubbles: true, cancelable: true,
+            button: Number(d.button) || 0,
+          }));
+        }
+      } else if (t === 'REQ_START_AUTO_WALK') {
+        // Panel requests auto-walk (e.g. from guide card buttons) — cancel
+        // any existing path so the next click-to-move starts clean.
+        if (typeof window._v4CancelClickToMove === 'function') window._v4CancelClickToMove();
+      }
+    });
+
+    // ── PIP single-click → toggle top-down ──────────────────────────
+    // The v2 moondial PIP lives at `#moondial-wrapper` (built by
+    // V2UIModule after boot). A single click anywhere on it now also
+    // toggles top-down, matching the MAP icon in the action ring.
+    // Clicks on the moondial's own glass controls (+/-, lens toggle)
+    // and on its season-buttons ring are excluded so kids can still
+    // use them without flipping the view.
+    function _v4WirePipClick() {
+      const pip = document.getElementById('moondial-wrapper');
+      if (!pip) { setTimeout(_v4WirePipClick, 400); return; }
+      if (pip.dataset.v4ClickWired === '1') return;
+      pip.dataset.v4ClickWired = '1';
+      pip.addEventListener('click', (e) => {
+        const tgt = e.target;
+        if (tgt?.closest?.('.pip-glass-controls') || tgt?.closest?.('.season-outer-ring')) return;
+        if (typeof window._v4ToggleTopDown === 'function') window._v4ToggleTopDown();
+      });
+      console.log('%c[v4] PIP single-click wired → top-down toggle.', 'color:#a5d6a7;font-weight:bold;');
+    }
+    _v4WirePipClick();
+
+    // ── Service Worker registration ───────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js', { scope: './' })
+        .then((reg) => {
+          console.log('%c[SW] Sacred Adventures service worker registered. scope:', 'color:#a5d6a7;font-weight:bold;', reg.scope);
+          // Prompt for immediate activation on update (no page-reload required)
+          reg.addEventListener('updatefound', () => {
+            const worker = reg.installing;
+            if (worker) {
+              worker.addEventListener('statechange', () => {
+                if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('[SW] Update available — will activate on next navigation.');
+                }
+              });
             }
-        }, 500);
-    })();
-    </script>
+          });
+        })
+        .catch((err) => console.warn('[SW] Registration failed:', err));
+    }
+  </script>
 </body>
-
 </html>

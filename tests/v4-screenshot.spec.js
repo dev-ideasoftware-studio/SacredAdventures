@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 
 test('screenshot trees and check errors', async ({ page }) => {
-  console.log("Navigating to http://127.0.0.1:5505/index.v4.html...");
-  await page.goto('http://127.0.0.1:5505/index.v4.html');
+  console.log("Navigating to http://127.0.0.1:5505/index.html...");
+  await page.goto('http://127.0.0.1:5505/index.html');
   
   console.log("Waiting 6 seconds...");
   await page.waitForTimeout(6000);

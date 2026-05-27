@@ -22,7 +22,7 @@ test('v4 sanctuary — reload-loop detector (45 s watch)', async ({ page }) => {
   });
 
   const start = Date.now();
-  await page.goto('http://127.0.0.1:5505/index.v4.html', {
+  await page.goto('http://127.0.0.1:5505/index.html', {
     waitUntil: 'domcontentloaded',
   });
 

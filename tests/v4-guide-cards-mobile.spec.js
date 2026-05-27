@@ -17,7 +17,7 @@ for (const vp of VIEWPORTS) {
     page.on('console', m => { if (m.type()==='error') errors.push(m.text()); });
     page.on('pageerror', e => errors.push(e.message));
 
-    await page.goto('http://127.0.0.1:5505/index.v4.html', { waitUntil: 'load' });
+    await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'load' });
     await page.waitForTimeout(5000);
 
     const card = page.locator('.guide-card').first();

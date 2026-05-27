@@ -27,7 +27,7 @@ function parseRGB(s) {
 
 async function boot(page) {
   await page.addInitScript(() => { try { localStorage.removeItem('sanctuary.welcomeGuide.seenV1'); } catch {} });
-  await page.goto('http://127.0.0.1:5505/index.v4.html');
+  await page.goto('http://127.0.0.1:5505/index.html');
   await page.waitForTimeout(14000);
 }
 

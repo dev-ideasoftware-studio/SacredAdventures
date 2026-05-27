@@ -39,7 +39,7 @@ test('v4 sanctuary — trace EVERY reload attempt', async ({ page }) => {
     window.WebSocket.prototype = OrigWS.prototype;
   });
 
-  await page.goto('http://127.0.0.1:5505/index.v4.html', {
+  await page.goto('http://127.0.0.1:5505/index.html', {
     waitUntil: 'domcontentloaded',
   });
   await page.waitForTimeout(45000);

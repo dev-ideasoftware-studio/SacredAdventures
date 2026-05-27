@@ -7,7 +7,7 @@ test('Welcome guide renders + no errors', async ({ browser }) => {
   page.on('console', m => { if (m.type()==='error') errs.push(m.text()); if (m.type()==='warning') warns.push(m.text()); });
   page.on('pageerror', e => errs.push('[pageerror] '+e.message));
   await page.addInitScript(() => { try { localStorage.removeItem('sanctuary.welcomeGuide.seenV1'); } catch {} });
-  await page.goto('http://127.0.0.1:5505/index.v4.html');
+  await page.goto('http://127.0.0.1:5505/index.html');
   await page.waitForTimeout(14000);
   const probe = await page.evaluate(() => {
     const el = document.getElementById('sanctuary-welcome-guide');

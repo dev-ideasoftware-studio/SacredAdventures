@@ -356,7 +356,7 @@ function _wireTraceAccordion(hud) {
     const fn = typeof window._v4GetPipelineTrace === 'function' ? window._v4GetPipelineTrace : null;
     if (!fn) {
       const stats = body.querySelector('#v2-trace-stats');
-      if (stats) stats.innerHTML = '<span style="opacity:0.4">FPS HUD not loaded — boot index.v4.html first.</span>';
+      if (stats) stats.innerHTML = '<span style="opacity:0.4">FPS HUD not loaded — boot index.html first.</span>';
       return;
     }
     const { samples, summary } = fn();

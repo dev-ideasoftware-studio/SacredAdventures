@@ -18,7 +18,7 @@ async function bootAndProbe(page, label) {
   page.on('pageerror', e => errors.push(`[pageerror] ${e.message}`));
   page.on('response', r => { if (r.status() === 404) net404.push(r.url()); });
 
-  await page.goto('http://127.0.0.1:5505/index.v4.html', { waitUntil: 'domcontentloaded' });
+  await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(12000);
 
   const probe = await page.evaluate(() => {

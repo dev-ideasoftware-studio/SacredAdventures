@@ -12,7 +12,7 @@ const { test, expect } = require('@playwright/test');
 test.use({ baseURL: undefined });
 
 async function boot(page, { clearStorage = false } = {}) {
-  await page.goto('http://127.0.0.1:5505/index.v4.html');
+  await page.goto('http://127.0.0.1:5505/index.html');
   if (clearStorage) {
     // Clear AFTER load so subsequent reloads don't re-clear.
     await page.evaluate(() => {

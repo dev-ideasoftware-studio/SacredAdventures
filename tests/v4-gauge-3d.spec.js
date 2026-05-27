@@ -18,7 +18,7 @@ test('3D fishing gauge — dial face world Y above water surface', async ({ page
   page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
   page.on('pageerror', err => errors.push(`[pageerror] ${err.message}`));
 
-  await page.goto('http://127.0.0.1:5505/index.v4.html', { waitUntil: 'load' });
+  await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'load' });
   await page.waitForTimeout(8000);
   console.log('✓ Scene loaded');
 

@@ -30,8 +30,8 @@ test('sanctuary pool telemetry and screenshot check', async ({ page }) => {
     errors.push(`[pageerror] ${err.message}\n${err.stack || ''}`);
   });
 
-  console.log("Navigating to http://127.0.0.1:5505/index.v4.html...");
-  await page.goto('http://127.0.0.1:5505/index.v4.html', { waitUntil: 'load' });
+  console.log("Navigating to http://127.0.0.1:5505/index.html...");
+  await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'load' });
 
   console.log("Waiting 8 seconds for fully loading...");
   await page.waitForTimeout(8000);
