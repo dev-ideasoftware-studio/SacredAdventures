@@ -83,7 +83,7 @@ uniform float uPipRingRad2;
           n,
           `${n}
 vec2 _pipRingDfSac = gl_FragCoord.xy - uPipRingCen;
-if (uPipRingClip > 0.5 && dot(_pipRingDfSac, _pipRingDfSac) < uPipRingRad2) discard;
+if (uPipRingClip > 0.5 && dot(_pipRingDfSac, _pipRingDfSac) > uPipRingRad2) discard;
 `,
         );
         done = true;
@@ -163,9 +163,9 @@ function insertPipRingDiscardAfterMainOpen(fragmentSrc, variant) {
   const discardLine =
     variant === "smoke"
       ? `vec2 _pipRingDfSac = gl_FragCoord.xy - uPipRingCen;
-  if (uPipRingClip > 0.5 && dot(_pipRingDfSac, _pipRingDfSac) < uPipSmokeRingRad2) discard;`
+  if (uPipRingClip > 0.5 && dot(_pipRingDfSac, _pipRingDfSac) > uPipSmokeRingRad2) discard;`
       : `vec2 _pipRingDfSac = gl_FragCoord.xy - uPipRingCen;
-  if (uPipRingClip > 0.5 && dot(_pipRingDfSac, _pipRingDfSac) < uPipRingRad2) discard;`;
+  if (uPipRingClip > 0.5 && dot(_pipRingDfSac, _pipRingDfSac) > uPipRingRad2) discard;`;
   return fragmentSrc.replace(
     /\bvoid\s+main\s*\(\s*\)\s*\{/,
     `void main() {

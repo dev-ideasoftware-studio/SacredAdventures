@@ -1,8 +1,8 @@
 {
-  "subject": "1",
-  "isoDate": "2026-05-27T08:29:30-05:00",
+  "subject": "fix(pip): resolve inverted minimap clipping shader bug",
+  "isoDate": "2026-05-27T08:31:47-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v32",
-  "dirty": true,
-  "generatedAt": "2026-05-27T13:30:36.045Z"
+  "dirty": false,
+  "generatedAt": "2026-05-27T13:31:50.896Z"
 }
