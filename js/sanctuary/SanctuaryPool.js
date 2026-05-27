@@ -757,6 +757,14 @@ function buildLilyPads(centerY) {
   });
 
   const PADS = 14;
+  // Vertical lift for flowers above their pad. The lotus petals are cones
+  // centered ~0.045 above the flower group origin with half-height 0.065,
+  // so their bottoms dip ~0.02 BELOW the group origin. Lifting the flower
+  // 0.05 m above its pad keeps every petal cleanly above the pad surface
+  // — and above the random Y of every neighboring pad (which all live
+  // within centerY+0.02..+0.03), so flowers can no longer be clipped by
+  // adjacent lily geometry.
+  const FLOWER_LIFT_M = 0.05;
   for (let i = 0; i < PADS; i++) {
     const ang = rng() * Math.PI * 2;
     // Constrain the outer spawn limit so pads do not clip through the pool edge.
@@ -765,21 +773,25 @@ function buildLilyPads(centerY) {
     const x = SANCTUARY_POOL_CENTER_X + Math.cos(ang) * r;
     const z = SANCTUARY_POOL_CENTER_Z + Math.sin(ang) * r;
 
+    // Cache the pad's random Y so userData.initialY matches position.y
+    // exactly. Previous code called rng() twice and drifted by up to 1 cm,
+    // throwing off the wave-follow integrator.
+    const padY = centerY + 0.02 + rng() * 0.01;
+
     const pad = new THREE.Mesh(padGeo, padMat);
     pad.rotation.x = -Math.PI / 2;
     pad.rotation.z = rng() * Math.PI * 2;     // random vein orientation
-    pad.position.set(x, centerY + 0.02 + rng() * 0.01, z);
+    pad.position.set(x, padY, z);
     pad.scale.setScalar(0.55 + rng() * 0.45); // slightly smaller pads
 
     pad.name = `sanctuary_lily_pad_${i}`;
     pad.userData.anuKind = "sanctuary_lily_pad";
     pad.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
     pad.receiveShadow = true;                 // flower casts onto pad
-    
-    // Save initial coordinates and orientation for dynamic floating
+
     pad.userData.initialX = x;
     pad.userData.initialZ = z;
-    pad.userData.initialY = centerY + 0.02 + rng() * 0.01;
+    pad.userData.initialY = padY;
     pad.userData.baseQuaternion = pad.quaternion.clone();
 
     group.add(pad);
@@ -787,15 +799,15 @@ function buildLilyPads(centerY) {
     // ~45% of pads carry a beautiful lotus flower.
     if (rng() < 0.45) {
       const flower = _buildLotusFlower(rng);
-      flower.position.set(x, centerY + 0.025, z);
+      const flowerY = padY + FLOWER_LIFT_M;
+      flower.position.set(x, flowerY, z);
       flower.name = `sanctuary_lily_flower_${i}`;
       flower.userData.anuKind = "sanctuary_lily_flower";
       flower.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
-      // Save initial coordinates and orientation for dynamic floating
       flower.userData.initialX = x;
       flower.userData.initialZ = z;
-      flower.userData.initialY = centerY + 0.025;
+      flower.userData.initialY = flowerY;
       flower.userData.baseQuaternion = flower.quaternion.clone();
 
       group.add(flower);
