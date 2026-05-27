@@ -42,12 +42,12 @@ const STYLE = `
     user-select: none;
     border-radius: 50%;
     overflow: hidden;
-    border: 3px solid rgba(251, 192, 45, 0.65);
-    box-shadow:
-      0 6px 24px rgba(0,0,0,0.55),
-      inset 0 0 22px rgba(0,0,0,0.45),
-      0 0 14px rgba(251,192,45,0.25);
-    background: #0e1418;
+    background: rgba(30, 38, 16, 0.6);
+    -webkit-mask-image: radial-gradient(circle, white 100%, white 100%);
+    mask-image: radial-gradient(circle, white 100%, white 100%);
+    box-shadow: 
+      inset 0 0 30px rgba(0, 0, 0, 0.8),
+      0 0 20px rgba(0, 0, 0, 0.6);
   }
   #v4-pip-canvas {
     width: 100%;

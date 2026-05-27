@@ -1,8 +1,8 @@
 {
-  "subject": "feat(npc): replace NPC.BHG.glb with decimated re-export (25 MB → 1.9 MB)",
-  "isoDate": "2026-05-27T03:45:33-05:00",
+  "subject": "refactor(pip): remove MoonDial and restore legacy SanctuaryPip",
+  "isoDate": "2026-05-27T04:41:39-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v29",
-  "dirty": true,
-  "generatedAt": "2026-05-27T08:45:37.624Z"
+  "dirty": false,
+  "generatedAt": "2026-05-27T09:41:39.299Z"
 }

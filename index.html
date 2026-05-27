@@ -235,12 +235,8 @@
     import { SanctuaryMapGeneratorUiModule } from './js/sanctuary/SanctuaryMapGeneratorUi.js';
     import { SanctuaryKeyboardLookModule } from './js/sanctuary/SanctuaryKeyboardLook.js';
     import { SanctuaryZoomModule         } from './js/sanctuary/SanctuaryZoom.js';
-    // PIP — 1:1 v2 port. May-18 2026 user spec: "fix pip by grabbing
-    // 1:1 my panels and pip and journal 3rd request". The v2 `UIModule`
-    // builds the full moondial (compass ring + lunar phase dial +
-    // 5-season buttons + bronze styling + lens toggle) in one shot.
-    // My earlier SanctuaryPip / SanctuaryPipOverlay placeholders are
-    // intentionally NOT imported here — they were the "cheap" versions.
+    // PIP — Sanctuary top-down minimap restored
+    import { SanctuaryPipModule          } from './js/sanctuary/SanctuaryPip.js';
     import { UIModule as V2UIModule        } from './js/v2/UIModule.js';
     import { SanctuaryVillagePadModule   } from './js/sanctuary/SanctuaryVillagePad.js';
     import { SanctuaryFishJumpsModule    } from './js/sanctuary/SanctuaryFishJumps.js';
@@ -342,7 +338,8 @@
     orc.register(SanctuaryMapGeneratorUiModule);
     orc.register(SanctuaryKeyboardLookModule);
     orc.register(SanctuaryZoomModule);
-    orc.register(V2UIModule); // creates the legacy moondial wayfinder
+    orc.register(V2UIModule); // keeps the distance pill and side-panel
+    orc.register(SanctuaryPipModule); // creates the legacy top-down PIP
     orc.register(SanctuaryVillagePadModule);
     orc.register(SanctuaryTipisModule);
     orc.register(SanctuaryTipiNpcsModule);
@@ -433,6 +430,7 @@
 
     v4Log('legacy v2 moondial PIP — compass + lunar dial + seasons', 100, 99, 99, 96);
     await orc.activate('PanelsPIP');
+    await orc.activate('SanctuaryPip');
 
     v4Log('village build pad — sacred ground awaiting the tipis', 100, 99, 99, 97);
     await orc.activate('SanctuaryVillagePad');
@@ -766,26 +764,7 @@
       }
     });
 
-    // ── PIP single-click → toggle top-down ──────────────────────────
-    // The v2 moondial PIP lives at `#moondial-wrapper` (built by
-    // V2UIModule after boot). A single click anywhere on it now also
-    // toggles top-down, matching the MAP icon in the action ring.
-    // Clicks on the moondial's own glass controls (+/-, lens toggle)
-    // and on its season-buttons ring are excluded so kids can still
-    // use them without flipping the view.
-    function _v4WirePipClick() {
-      const pip = document.getElementById('moondial-wrapper');
-      if (!pip) { setTimeout(_v4WirePipClick, 400); return; }
-      if (pip.dataset.v4ClickWired === '1') return;
-      pip.dataset.v4ClickWired = '1';
-      pip.addEventListener('click', (e) => {
-        const tgt = e.target;
-        if (tgt?.closest?.('.pip-glass-controls') || tgt?.closest?.('.season-outer-ring')) return;
-        if (typeof window._v4ToggleTopDown === 'function') window._v4ToggleTopDown();
-      });
-      console.log('%c[v4] PIP single-click wired → top-down toggle.', 'color:#a5d6a7;font-weight:bold;');
-    }
-    _v4WirePipClick();
+    // PIP click wiring removed because MoonDial was removed
 
     // ── Service Worker registration ───────────────────────────────────────────
     if ('serviceWorker' in navigator) {
