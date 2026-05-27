@@ -2834,8 +2834,10 @@
             // Check if we clicked a UI button or active element
             if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.u-btn') || e.target.closest('.modal-box') || e.target.closest('.guide-card')) return;
 
-            // Allow click-through to game even if Logbook is open, but block explicit UI dim overlays
-            if (e.target.classList.contains('ui-dimmed') || e.target.id === 'ui-container') return;
+            // Allow click-through to game even if Logbook is open, but block explicit UI dim overlays.
+            // NOTE: #ui-container is a structural full-cover layer (pointer-events:none, vignette
+            // removed) — it must NOT block tunneling. Real-click-to-move regression fix.
+            if (e.target.classList.contains('ui-dimmed')) return;
 
             // If logbook is open, clicking the void should close the logbook instead of moving the player
             if (document.body.classList.contains('logbook-active')) {
