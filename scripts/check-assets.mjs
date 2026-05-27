@@ -51,9 +51,9 @@ const WARN_TREES = [
   "_legacy_archive",
   "scratch",
   // top-level files that load assets
-  "Component.ThreeIcons.js",
-  "Component.LoadingModal.html",
-  "Component.NewJournal.html",
+  "js/components/Component.ThreeIcons.js",
+  "js/components/Component.LoadingModal.html",
+  "js/components/Component.NewJournal.html",
   "SacredGame.Journal.html",
   "SacredGame.Panel.html",
   "index.html",

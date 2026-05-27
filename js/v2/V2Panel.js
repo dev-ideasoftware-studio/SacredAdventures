@@ -121,7 +121,7 @@ async function ensureAxeGuideAsset() {
 
 async function loadThreeIconsScript() {
   if (window.ThreeIconManager) return;
-  const url = new URL("../../Component.ThreeIcons.js", import.meta.url).href;
+  const url = new URL("../components/Component.ThreeIcons.js", import.meta.url).href;
   await new Promise((resolve, reject) => {
     const s = document.createElement("script");
     s.src = url;
