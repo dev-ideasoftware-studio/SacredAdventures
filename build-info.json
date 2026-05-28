@@ -1,8 +1,8 @@
 {
-  "subject": "fix: Downgrade OrbitControls to r160 to match vendorized Three.js version and prevent Controls import error",
-  "isoDate": "2026-05-27T23:51:49-05:00",
+  "subject": "chore(coordination): persist 1M-context Claude tab's status note in claude-ack.md",
+  "isoDate": "2026-05-28T00:01:01-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v35",
   "dirty": true,
-  "generatedAt": "2026-05-28T04:51:52.838Z"
+  "generatedAt": "2026-05-28T05:01:05.135Z"
 }
