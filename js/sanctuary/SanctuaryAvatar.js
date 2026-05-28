@@ -378,7 +378,7 @@ export const SanctuaryAvatarModule = {
         const isNew = AVATAR_URL.includes("Avatar-New");
         
         // Robust selection: look for name match first, fallback to standard Tripo indices
-        const idleClip = clips.find(c => /idle/i.test(c.name)) ?? (isNew ? clips[4] : clips[4]) ?? clips[0];
+        const idleClip = clips.find(c => /look|turn/i.test(c.name)) ?? (isNew ? clips[7] : clips[4]) ?? clips[0];
         let walkClip = clips.find(c => /walk|run/i.test(c.name)) ?? (isNew ? clips[1] : clips[3]) ?? clips[1] ?? null;
         if (walkClip === idleClip) walkClip = null;
 
@@ -492,7 +492,11 @@ export const SanctuaryAvatarModule = {
 
     const isFishing = typeof window !== "undefined" && window.__sanctuaryFishingActive === true;
     const dist = Math.hypot(cur.x - SANCTUARY_POOL_CENTER_X, cur.z - SANCTUARY_POOL_CENTER_Z);
-    const inPool = !isFishing && dist < 11.5;
+    let onDock = false;
+    if (typeof window !== "undefined" && window.__sanctuaryDockSurface) {
+      onDock = (window.__sanctuaryDockSurface.getY(cur.x, cur.z) !== null);
+    }
+    const inPool = !isFishing && !onDock && dist < 11.5;
 
     // All actions (zero all first, then raise the winner to 1)
     const _zero = (a) => { if (a) a.setEffectiveWeight(0.0); };

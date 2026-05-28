@@ -487,7 +487,7 @@ export function createWorldAvatarController() {
       });
 
       this.semanticClips = {
-        idle: clips.find(c => /idle/i.test(c.name))?.name ?? clips[4]?.name ?? clips[0]?.name ?? null,
+        idle: clips.find(c => /look|turn/i.test(c.name))?.name ?? (isNew ? clips[7]?.name : clips[4]?.name) ?? clips[0]?.name ?? null,
         /** Matches `look` — same NLA strip works for forward + pivot. */
         walk: walkClipName,
         look: lookClipName,
