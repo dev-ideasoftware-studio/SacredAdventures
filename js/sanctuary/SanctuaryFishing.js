@@ -320,11 +320,15 @@ function _build3DGauge(scene) {
   const g = new THREE.Group();
   g.name = "v4_gauge_3d";
 
-  // Clear plastic (spec: transmission 0.95, IOR 1.5, roughness 0.05)
+  // Clear plastic (spec: transmission 0.95, IOR 1.5, roughness 0.05).
+  // depthTest:false + the high renderOrder set on the group at the end
+  // of _build3DGauge keeps the gauge in front of opaque dock geometry
+  // (the guardrails were clipping over it — user-reported 2026-05-28).
   const clearMat = new THREE.MeshPhysicalMaterial({
     color: 0xddeeff, transmission: 0.95, opacity: 0.90,
     ior: 1.5, roughness: 0.05,
-    transparent: true, side: THREE.DoubleSide, depthWrite: false,
+    transparent: true, side: THREE.DoubleSide,
+    depthWrite: false, depthTest: false,
   });
   // Matte dark grey (spec: #333333, roughness 0.4)
   const darkMat = new THREE.MeshStandardMaterial({
@@ -458,10 +462,16 @@ function _build3DGauge(scene) {
   g.userData.isGauge3D = true;
   g.name = "fishingGauge3D";
 
-  // Recursively enable layer 2 on the gauge group and all its children so it renders in the PiP camera pass
+  // High renderOrder so the gauge paints AFTER the dock and stays on
+  // top of guardrails / posts even when the camera is close enough
+  // that the rails would otherwise occlude it. Combined with the
+  // depthTest:false on clearMat above this guarantees no clipping
+  // (user-reported 2026-05-28).
+  g.renderOrder = 9990;
   g.traverse((child) => {
     if (child.isMesh || child.isSprite || child.isGroup) {
-      child.layers.enable(2);
+      child.layers.enable(2); // PiP camera pass
+      if (child.renderOrder === 0) child.renderOrder = 9990;
     }
   });
 
@@ -989,6 +999,30 @@ export const SanctuaryFishingModule = {
       window.__sanctuaryFishingSpawnRipple = (x, z) => this._spawnRipple(x, z);
     }
 
+    // ── PIP frosted-plastic "fish-finder lens" CSS ────────────────────
+    // User-requested 2026-05-28: "reduce the opacity of the PIP glass
+    // in FISHING GAME VIEW". When body.v4-fishing-active is set (toggled
+    // by the phase-change handler) the moondial-wrapper's dark frosted
+    // backdrop lightens and the inset shadow softens so the gauge +
+    // close-up gauge view read clearly through the glass.
+    if (typeof document !== "undefined" && !document.getElementById("v4-fishing-pip-glass-style")) {
+      const s = document.createElement("style");
+      s.id = "v4-fishing-pip-glass-style";
+      s.textContent = `
+        body.v4-fishing-active #moondial-wrapper {
+          background: radial-gradient(circle, rgba(15, 10, 5, 0.10) 30%, rgba(5, 2, 0, 0.30) 100%) !important;
+          border-color: rgba(255, 215, 0, 0.55) !important;
+          box-shadow:
+            inset 0 0 12px rgba(0, 0, 0, 0.35),
+            0 0 0 8px #1a1512,
+            0 15px 40px rgba(0, 0, 0, 0.55),
+            0 0 24px rgba(255, 200, 80, 0.18) !important;
+          transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
+        }
+      `;
+      document.head.appendChild(s);
+    }
+
     // ── Spot disc + fish glyph ────────────────────────────────────
     const spot = (typeof window !== "undefined") ? window.__sanctuaryFishingSpot : null;
     if (spot) {
@@ -1341,6 +1375,15 @@ export const SanctuaryFishingModule = {
       window._v2InputSuppressed = (p !== PHASE.IDLE);
       window._v4InputSuppressed = (p !== PHASE.IDLE);
       window.__sanctuaryFishingActive = (p !== PHASE.IDLE);
+    }
+    // Toggle body class so the PIP frosted-plastic ring lightens during
+    // fishing — gives the kid a clearer "fish-finder" look-through to
+    // the close-up gauge + pond beneath. CSS rule is injected once in
+    // load() (search for "v4-fishing-active" below). User-requested
+    // 2026-05-28: "reduce the opacity of the PIP glass in FISHING
+    // GAME VIEW".
+    if (typeof document !== "undefined") {
+      document.body.classList.toggle("v4-fishing-active", p !== PHASE.IDLE);
     }
 
     // Isolate pond scene for better FPS while fishing
@@ -2266,6 +2309,9 @@ export const SanctuaryFishingModule = {
     if (typeof window !== "undefined") {
       window._v2InputSuppressed = false;
       window.__sanctuaryFishingActive = false;
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("v4-fishing-active");
+      }
       if (typeof window._v4CancelClickToMove === "function") {
         window._v4CancelClickToMove();
       }

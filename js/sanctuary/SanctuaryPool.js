@@ -1231,13 +1231,61 @@ function _makeLilyPadTexture() {
  * Build a beautiful lotus flower from stacked layered petals.
  * Three concentric rings, pink-to-white gradient. Casts shadow.
  */
-function _buildLotusFlower(rng) {
-  const flower = new THREE.Group();
+/**
+ * Lotus variant colour atlas — outer (deepest saturated) + inner
+ * (lighter blossom-edge) + pistil (warm/bright contrast). Each
+ * entry's emissive tint is the colour roughly halved so the petals
+ * read sun-lit, not flat. User-requested 2026-05-28: "gradients of
+ * blues greens reds purples and golds".
+ */
+const LOTUS_VARIANTS = {
+  pink: {
+    outer: 0xf7c4d5, inner: 0xfde6ef, pistil: 0xf2c94c,
+    outerEm: 0x331a23, innerEm: 0x402028, pistilEm: 0x6b4a10,
+  },
+  blue: {
+    outer: 0x7ab8d6, inner: 0xc6e2f1, pistil: 0xf2e34c,
+    outerEm: 0x10303f, innerEm: 0x1c3a4a, pistilEm: 0x6b5a10,
+  },
+  green: {
+    outer: 0x9fc97a, inner: 0xdceec5, pistil: 0xf7d04c,
+    outerEm: 0x20351c, innerEm: 0x2a3d22, pistilEm: 0x6b4f10,
+  },
+  red: {
+    outer: 0xe07a7a, inner: 0xf4c1bf, pistil: 0xf2c94c,
+    outerEm: 0x3a1414, innerEm: 0x402424, pistilEm: 0x6b4a10,
+  },
+  purple: {
+    outer: 0x9b73c4, inner: 0xd6c2ea, pistil: 0xf7d34c,
+    outerEm: 0x271a3a, innerEm: 0x342a44, pistilEm: 0x6b4f10,
+  },
+  gold: {
+    outer: 0xe8be4e, inner: 0xfae89b, pistil: 0xf5b220,
+    outerEm: 0x3a2c10, innerEm: 0x4a3a18, pistilEm: 0x6b3e08,
+  },
+};
+const LOTUS_VARIANT_KEYS = Object.keys(LOTUS_VARIANTS);
 
-  // Outer petal ring (8 petals, outer-most, deepest pink)
+/**
+ * Build a lotus flower in one of the 6 colour variants. Variant can
+ * be passed by name (`'pink' | 'blue' | 'green' | 'red' | 'purple' |
+ * 'gold'`); omit to pick one at random via `rng()`. Each call uses
+ * fresh materials so caller can apply per-instance tweaks (scale,
+ * opacity) without mutating shared state.
+ */
+function _buildLotusFlower(rng, variant) {
+  const variantKey = variant && LOTUS_VARIANTS[variant]
+    ? variant
+    : LOTUS_VARIANT_KEYS[Math.floor(rng() * LOTUS_VARIANT_KEYS.length)];
+  const palette = LOTUS_VARIANTS[variantKey];
+
+  const flower = new THREE.Group();
+  flower.userData.lotusVariant = variantKey;
+
+  // Outer petal ring (8 petals, outer-most, deepest saturated tint)
   const outerMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0xf7c4d5),
-    emissive: new THREE.Color(0x331a23),
+    color: new THREE.Color(palette.outer),
+    emissive: new THREE.Color(palette.outerEm),
     emissiveIntensity: 0.05,
     roughness: 0.6,
     metalness: 0.05,
@@ -1255,10 +1303,10 @@ function _buildLotusFlower(rng) {
     flower.add(petal);
   }
 
-  // Inner petal ring (6 petals, lighter)
+  // Inner petal ring (6 petals, lighter blossom-edge of the same hue)
   const innerMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0xfde6ef),
-    emissive: new THREE.Color(0x402028),
+    color: new THREE.Color(palette.inner),
+    emissive: new THREE.Color(palette.innerEm),
     emissiveIntensity: 0.04,
     roughness: 0.55,
     metalness: 0.05,
@@ -1275,10 +1323,10 @@ function _buildLotusFlower(rng) {
     flower.add(petal);
   }
 
-  // Central pistil (gold/yellow)
+  // Central pistil — warm contrast colour from the variant
   const pistilMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0xf2c94c),
-    emissive: new THREE.Color(0x6b4a10),
+    color: new THREE.Color(palette.pistil),
+    emissive: new THREE.Color(palette.pistilEm),
     emissiveIntensity: 0.4,
     roughness: 0.4,
     metalness: 0.1,
@@ -1380,9 +1428,14 @@ function buildLilyPads(centerY) {
 
     group.add(pad);
 
-    // ~45% of pads carry a beautiful lotus flower.
-    if (rng() < 0.45) {
+    // ~70% of pads carry a beautiful lotus flower with a random colour
+    // variant from the 6-colour palette (pink/blue/green/red/purple/gold).
+    // Per-flower random scale 0.7-1.6x gives "different flower sizes"
+    // per the user's 2026-05-28 ask.
+    if (rng() < 0.70) {
       const flower = _buildLotusFlower(rng);
+      const flowerScale = 0.7 + rng() * 0.9; // 0.7 - 1.6x
+      flower.scale.setScalar(flowerScale);
       const flowerY = padY + FLOWER_LIFT_M;
       flower.position.set(x, flowerY, z);
       flower.name = `sanctuary_lily_flower_${i}`;
@@ -1400,12 +1453,14 @@ function buildLilyPads(centerY) {
 
   // ── BIG ORCHID LILIES — 3 oversized centre-pool clusters ──────────
   // User-requested 2026-05-28: bigger lilies with orchids near the
-  // centre. These are visually distinct from the regular 14 pads —
-  // 1.6× scale, paired with a slightly larger orchid-style flower
-  // (rotated lotus + warmer pink-purple tint), placed within a ~3 m
-  // ring around the pool centre so they read as the "centrepiece".
+  // centre + "showcase around the fishing gauge" with the colourful
+  // variants. Each of the 3 centre pads carries one of the most
+  // vibrant variants (gold / purple / blue) at 1.45-1.65x flower
+  // scale. Placed in a ~3 m ring around the pool centre so they
+  // frame the gauge area when fishing is active.
   const ORCHID_PADS = 3;
-  const ORCHID_RING_RADIUS_M = 2.8; // close to centre, but outside the drain
+  const ORCHID_VARIANTS = ["gold", "purple", "blue"];
+  const ORCHID_RING_RADIUS_M = 2.8;
   for (let i = 0; i < ORCHID_PADS; i++) {
     const ang = (i / ORCHID_PADS) * Math.PI * 2 + rng() * 0.5;
     const r = ORCHID_RING_RADIUS_M * (0.75 + rng() * 0.5);
@@ -1417,7 +1472,7 @@ function buildLilyPads(centerY) {
     pad.rotation.x = -Math.PI / 2;
     pad.rotation.z = rng() * Math.PI * 2;
     pad.position.set(x, padY, z);
-    pad.scale.setScalar(1.55 + rng() * 0.25); // 1.55–1.80 — clearly bigger than regular pads (0.55–1.0)
+    pad.scale.setScalar(1.55 + rng() * 0.25); // 1.55-1.80 — clearly bigger than regular pads
     pad.name = `sanctuary_orchid_pad_${i}`;
     pad.userData.anuKind = "sanctuary_lily_pad";
     pad.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
@@ -1428,20 +1483,13 @@ function buildLilyPads(centerY) {
     pad.userData.baseQuaternion = pad.quaternion.clone();
     group.add(pad);
 
-    const flower = _buildLotusFlower(rng);
-    // Tint every petal toward warm pink-purple so the orchid reads
-    // distinct from the standard cream lotus
-    flower.traverse((ch) => {
-      if (ch.isMesh && ch.material && ch.material.color) {
-        // Clone the material so the regular lotus pads stay unaffected
-        ch.material = ch.material.clone();
-        ch.material.color = new THREE.Color(0xe6a8c8).lerp(ch.material.color, 0.35);
-      }
-    });
-    flower.scale.setScalar(1.45 + rng() * 0.20); // 1.45–1.65 bigger flower
+    // Pick the showcase variant for this orchid slot
+    const variant = ORCHID_VARIANTS[i % ORCHID_VARIANTS.length];
+    const flower = _buildLotusFlower(rng, variant);
+    flower.scale.setScalar(1.45 + rng() * 0.20); // 1.45-1.65 bigger flower
     const flowerY = padY + FLOWER_LIFT_M;
     flower.position.set(x, flowerY, z);
-    flower.name = `sanctuary_orchid_flower_${i}`;
+    flower.name = `sanctuary_orchid_flower_${i}_${variant}`;
     flower.userData.anuKind = "sanctuary_orchid_flower";
     flower.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
     flower.userData.initialX = x;
