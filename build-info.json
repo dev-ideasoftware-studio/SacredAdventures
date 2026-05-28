@@ -1,8 +1,9 @@
 {
-  "subject": "fix: Map basic idle animation to look and fix pool/dock swimming detection bug",
-  "isoDate": "2026-05-28T00:25:37-05:00",
+  "subject": "feat: Add short commit SHA build version to the sw v35 bottom footer badge",
+  "isoDate": "2026-05-28T00:27:01-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v35",
+  "commit": "082b576",
   "dirty": false,
-  "generatedAt": "2026-05-28T05:25:43.794Z"
+  "generatedAt": "2026-05-28T05:27:01.250Z"
 }

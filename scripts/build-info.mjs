@@ -20,6 +20,11 @@ const branch  = git("git rev-parse --abbrev-ref HEAD");
 const porcelain = git("git status --porcelain");
 const dirty = porcelain.length > 0;
 
+let commit = "?";
+try {
+  commit = git("git rev-parse --short HEAD");
+} catch {}
+
 let swVersion = "?";
 try {
   const sw = readFileSync("sw.js", "utf8");
@@ -27,6 +32,6 @@ try {
   if (m) swVersion = m[1];
 } catch { /* sw.js may not exist in some checkouts */ }
 
-const info = { subject, isoDate, branch, swVersion, dirty, generatedAt: new Date().toISOString() };
+const info = { subject, isoDate, branch, swVersion, commit, dirty, generatedAt: new Date().toISOString() };
 writeFileSync("build-info.json", JSON.stringify(info, null, 2) + "\n");
-console.log(`[build-info] ${branch} · sw ${swVersion} · ${isoDate} · ${subject}${dirty ? " (DIRTY)" : ""}`);
+console.log(`[build-info] ${branch} · sw ${swVersion} (${commit}) · ${isoDate} · ${subject}${dirty ? " (DIRTY)" : ""}`);

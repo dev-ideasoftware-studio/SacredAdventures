@@ -73,15 +73,18 @@ function render(info) {
   const dirtyTag = info.dirty
     ? `<span style="color:#ff5a3c;font-weight:700"> · ✱ UNCOMMITTED</span>`
     : "";
+  const commitTag = info.commit
+    ? ` (${info.commit})`
+    : "";
   const swTag = info.swVersion
-    ? ` · <span style="color:#c8a546">sw ${info.swVersion}</span>`
+    ? ` · <span style="color:#c8a546">sw ${info.swVersion}${commitTag}</span>`
     : "";
   const isoShort = (info.isoDate || "").replace("T", " ").slice(0, 16);
   const rel = relTime(info.isoDate);
   const subject = truncate(info.subject || "(no subject)", 64);
   const branch = info.branch || "?";
 
-  el.title = `branch: ${branch}\nsubject: ${info.subject}\ncommit time: ${info.isoDate}\nbuild info generated: ${info.generatedAt}\nSW cache: ${info.swVersion}\ndirty: ${info.dirty}`;
+  el.title = `branch: ${branch}\nsubject: ${info.subject}\ncommit time: ${info.isoDate}\nbuild info generated: ${info.generatedAt}\nSW cache: ${info.swVersion}\ncommit: ${info.commit}\ndirty: ${info.dirty}`;
   el.innerHTML = `<span style="color:#c8a546;font-weight:700">${branch}</span>${swTag} · <span>${subject}</span> · <span style="color:#a39577">${rel} (${isoShort})</span>${dirtyTag}`;
 }
 
