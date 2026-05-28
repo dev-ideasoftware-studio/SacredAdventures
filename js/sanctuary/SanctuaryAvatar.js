@@ -387,27 +387,67 @@ export const SanctuaryAvatarModule = {
       if (clips.length > 0) {
         this._mixer = new THREE.AnimationMixer(model);
         const isNew = AVATAR_URL.includes("Avatar-New");
-        
-        // Robust selection: look for name match first, fallback to standard
-        // Tripo indices. The idle and look pickers MUST use different regex
-        // patterns or they collide on the same clip (both used to match
-        // /look|turn/i and both fell back to clips[7], so the avatar played
-        // the 2.38s "look" cycle on repeat when standing still — read as a
-        // walking-in-place glitch). Real idle for Avatar-New is clips[4]
-        // (5.71s natural stand). User-reported 2026-05-28.
-        const idleClip = clips.find(c => /idle/i.test(c.name)) ?? (isNew ? clips[4] : clips[4]) ?? clips[0];
-        let walkClip = clips.find(c => /walk|run/i.test(c.name)) ?? (isNew ? clips[1] : clips[3]) ?? clips[1] ?? null;
+
+        // Avatar-New.glb track index → real semantic role
+        // (user-confirmed 2026-05-28). GLB exports clips as anonymous
+        // "NlaTrack.NNN" so the find-by-name regexes below never match
+        // for Avatar-New — the index fallbacks are what actually drive
+        // selection. Recording the real map here so future readers
+        // don't re-guess (and so a future export with semantic clip
+        // names DOES match the regexes):
+        //
+        //   clips[0] = "walk greet"   clips[5] = "fishing" (seated rod)
+        //   clips[1] = "heart"        clips[6] = "idle"   (standing)
+        //   clips[2] = "walk goodbye" clips[7] = "walk"   (locomotion)
+        //   clips[3] = "sit and think" clips[8] = "chop"
+        //   clips[4] = "swimming"
+        //
+        // PRIOR BUGS this remap fixes (all user-reported):
+        //   - "default is currently bad / idle is walking" — idle was
+        //     bound to clips[4] = swimming OR clips[7] = walk, so the
+        //     kid played swim or walk-in-place when standing still.
+        //   - "Sitting is what happens in pond" — swim was bound to
+        //     clips[3] = sit-and-think, so wading into the pool froze
+        //     the kid in a seated pose.
+        const idleClip = clips.find(c => /^idle$/i.test(c.name))
+          ?? (isNew ? clips[6] : clips[4])
+          ?? clips[0];
+        let walkClip = clips.find(c => /^walk$/i.test(c.name) && !/greet|goodbye/i.test(c.name))
+          ?? (isNew ? clips[7] : clips[3])
+          ?? clips[1] ?? null;
         if (walkClip === idleClip) walkClip = null;
 
-        // look = turn-in-place idle — NlaTrack.007 (2.375s)
-        let lookClip = clips.find(c => /look|turn/i.test(c.name)) ?? (isNew ? clips[7] : null) ?? null;
-        if (lookClip === idleClip) lookClip = null; // belt-and-braces: never share a clip with idle
+        // Optional accents — kept as Action references for future
+        // gesture wiring (heart blow, wave, chop). NOT auto-bound to
+        // any state in the update loop; modules can play them on demand.
+        const heartClip = clips.find(c => /heart/i.test(c.name))
+          ?? (isNew ? clips[1] : null) ?? null;
+        const greetClip = clips.find(c => /greet/i.test(c.name))
+          ?? (isNew ? clips[0] : null) ?? null;
+        const goodbyeClip = clips.find(c => /goodbye|bye/i.test(c.name))
+          ?? (isNew ? clips[2] : null) ?? null;
+        const chopClip = clips.find(c => /chop/i.test(c.name))
+          ?? (isNew ? clips[8] : null) ?? null;
+        const thinkClip = clips.find(c => /sit.*think|think/i.test(c.name))
+          ?? (isNew ? clips[3] : null) ?? null;
 
-        // swim = NlaTrack.003 for Avatar-New (7.167s)
-        let swimClip = clips.find(c => /swim|float/i.test(c.name)) ?? (isNew ? clips[3] : null) ?? null;
+        // The previous "look" action was an artifact of bad mapping
+        // (it pointed at clips[7] = actual walk). With idle pointing
+        // at the REAL idle now, "look around" can be reintroduced
+        // later as a periodic accent on top of idle. Leaving lookClip
+        // null so the existing if (this._lookAction) guards short-
+        // circuit and the standing-still branch falls through to
+        // idleAction at full weight.
+        let lookClip = null;
 
-        // sitFish = NlaTrack.005 (15.792s) — seated dock pose with rod
-        let sitFishClip = clips.find(c => /sitfish|sit.?fish|fish.?sit/i.test(c.name)) ?? (isNew ? clips[5] : null) ?? null;
+        // swim = clips[4] for Avatar-New (real swimming clip)
+        let swimClip = clips.find(c => /swim|float/i.test(c.name))
+          ?? (isNew ? clips[4] : null) ?? null;
+
+        // sitFish = clips[5] (real "fishing" seated pose) — was already
+        // correct; restating it explicitly with the right semantic.
+        let sitFishClip = clips.find(c => /^fishing$|sitfish|sit.?fish|fish.?sit/i.test(c.name))
+          ?? (isNew ? clips[5] : null) ?? null;
 
         // Strip root-motion `.position` tracks from locomotion clips so
         // the engine owns translation.
@@ -455,8 +495,23 @@ export const SanctuaryAvatarModule = {
           this._sitFishAction.play();
         }
 
+        // Log includes the source clip index where known so console
+        // readers can verify the real-semantic mapping at a glance.
+        const ix = (clip) => clip ? clips.indexOf(clip) : -1;
+        // For locomotion clips that go through _strip, identity changed
+        // — look up by name instead.
+        const ixByName = (clip) => {
+          if (!clip) return -1;
+          const i = clips.findIndex(c => c.name === clip.name);
+          return i;
+        };
         console.log(
-          `%c[SanctuaryAvatar] anim picks: idle="${idleClip.name}" walk=${walkClip ? `"${walkClip.name}"` : "<none>"} look=${lookClip ? `"${lookClip.name}"` : "<none>"} swim=${swimClip ? `"${swimClip.name}"` : "<none>"} sitFish=${sitFishClip ? `"${sitFishClip.name}"` : "<none>"}`,
+          `%c[SanctuaryAvatar] anim picks (avatar=${isNew ? "new" : "old"}): `
+          + `idle=clips[${ix(idleClip)}]="${idleClip.name}" `
+          + `walk=clips[${ixByName(walkClip)}]=${walkClip ? `"${walkClip.name}"` : "<none>"} `
+          + `swim=clips[${ixByName(swimClip)}]=${swimClip ? `"${swimClip.name}"` : "<none>"} `
+          + `sitFish=clips[${ixByName(sitFishClip)}]=${sitFishClip ? `"${sitFishClip.name}"` : "<none>"} `
+          + `look=<intentionally none>`,
           "color:#a5d6a7;",
         );
       }

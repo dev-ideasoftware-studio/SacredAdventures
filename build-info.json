@@ -1,9 +1,9 @@
 {
-  "subject": "feat(pool,fishing): rainbow lotus variants + gauge renderOrder over dock + lighter PIP glass during fishing",
-  "isoDate": "2026-05-28T04:18:44-05:00",
+  "subject": "fix(avatar): remap Avatar-New clip indices to real semantic names — idle/walk/swim/sitFish now bind to the right clips",
+  "isoDate": "2026-05-28T07:07:00-05:00",
   "branch": "dev/ideasoftware-studio",
-  "swVersion": "v35",
-  "commit": "45891bd",
+  "swVersion": "v36",
+  "commit": "8a05dd5",
   "dirty": true,
-  "generatedAt": "2026-05-28T09:18:48.296Z"
+  "generatedAt": "2026-05-28T12:07:03.050Z"
 }
