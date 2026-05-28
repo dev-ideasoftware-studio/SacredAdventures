@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sacred Adventures — Avatar Animation Tester</title>
+  
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #070f12;
+      --bg-glass: rgba(13, 27, 33, 0.75);
+      --border-color: rgba(128, 222, 234, 0.25);
+      --accent-color: #80deea;
+      --accent-hover: #b2ebf2;
+      --accent-glow: rgba(128, 222, 234, 0.4);
+      --text-main: #e0f7fa;
+      --text-muted: #80cbc4;
+      --text-gold: #fbc02d;
+      --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'Space Mono', monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-outfit);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Background premium gradient */
+    .bg-gradient {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 75% 20%, #10262d 0%, var(--bg-dark) 70%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    #tester-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    /* Glassmorphism UI Panels */
+    .panel {
+      position: absolute;
+      z-index: 10;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px) saturate(140%);
+      -webkit-backdrop-filter: blur(12px) saturate(140%);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    /* Left Control Sidebar */
+    .sidebar-left {
+      top: 20px;
+      left: 20px;
+      bottom: 20px;
+      width: 380px;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(128, 222, 234, 0.3) transparent;
+    }
+
+    .sidebar-left::-webkit-scrollbar {
+      width: 6px;
+    }
+    .sidebar-left::-webkit-scrollbar-thumb {
+      background: rgba(128, 222, 234, 0.3);
+      border-radius: 3px;
+    }
+
+    /* Right Code & Mapping Sidebar */
+    .sidebar-right {
+      top: 20px;
+      right: 20px;
+      bottom: 20px;
+      width: 440px;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(128, 222, 234, 0.3) transparent;
+    }
+
+    .sidebar-right::-webkit-scrollbar {
+      width: 6px;
+    }
+    .sidebar-right::-webkit-scrollbar-thumb {
+      background: rgba(128, 222, 234, 0.3);
+      border-radius: 3px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--text-main);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, #fff 30%, var(--accent-color) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      font-family: var(--font-mono);
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-gold);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-top: 20px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed rgba(251, 192, 45, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Pill list styling */
+    .clip-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .clip-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .clip-pill:hover {
+      background: rgba(128, 222, 234, 0.08);
+      border-color: rgba(128, 222, 234, 0.3);
+      transform: translateX(4px);
+    }
+
+    .clip-pill.active {
+      background: rgba(128, 222, 234, 0.15);
+      border-color: var(--accent-color);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .clip-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .clip-index-name {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .clip-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: rgba(128, 222, 234, 0.2);
+      color: var(--accent-color);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .clip-duration {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* Interactive Inputs & Toggles */
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .control-row-inline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--text-main);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* Custom elegant sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent-glow);
+      transition: transform 0.1s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    /* Custom Switch Toggle */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 42px;
+      height: 22px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: rgba(255, 255, 255, 0.1);
+      transition: .3s;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #ffffff;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: rgba(128, 222, 234, 0.3);
+      border-color: var(--accent-color);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+      background-color: var(--accent-color);
+      box-shadow: 0 0 6px var(--accent-glow);
+    }
+
+    /* Action Buttons */
+    .btn {
+      background: rgba(128, 222, 234, 0.12);
+      border: 1px solid var(--border-color);
+      color: var(--accent-color);
+      font-family: var(--font-outfit);
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background: var(--accent-color);
+      color: var(--bg-dark);
+      box-shadow: 0 0 15px rgba(128, 222, 234, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      box-shadow: none;
+    }
+
+    /* Mapping form structure */
+    .mapping-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .mapping-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 140px;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 6px 12px;
+    }
+
+    .mapping-label {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .mapping-original-name {
+      font-size: 12px;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    select {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-family: var(--font-outfit);
+      font-size: 12px;
+      padding: 4px 8px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:focus {
+      border-color: var(--accent-color);
+    }
+
+    /* Output Code Block */
+    .code-container {
+      position: relative;
+      flex-grow: 1;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      margin-top: 10px;
+    }
+
+    pre {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+      color: #a5d6a7;
+      overflow: auto;
+      flex-grow: 1;
+      scrollbar-width: thin;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 6px 12px;
+      font-size: 11px;
+    }
+
+    /* HUD overlay for current state */
+    .hud-overlay {
+      position: absolute;
+      bottom: 24px;
+      left: 420px;
+      right: 480px;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .hud-card {
+      background: var(--bg-glass);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .hud-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .hud-stat-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent-color);
+      font-family: var(--font-mono);
+    }
+
+    .hud-stat-lbl {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    .hud-divider {
+      width: 1px;
+      height: 30px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Loader Modal */
+    #loader-veil {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: var(--bg-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease;
+    }
+
+    .loader-spinner {
+      width: 60px;
+      height: 60px;
+      border: 3px solid rgba(128, 222, 234, 0.1);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 24px;
+      box-shadow: 0 0 20px rgba(128, 222, 234, 0.1);
+    }
+
+    .loader-text {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .loader-progress {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-gold);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Instructions overlay */
+    .help-tooltip {
+      position: absolute;
+      top: 20px;
+      left: 420px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "../vendor/three/three.module.js",
+        "three/addons/": "../vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="bg-gradient"></div>
+
+  <!-- LOADER VEIL -->
+  <div id="loader-veil">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Summoning Avatar</div>
+    <div class="loader-progress" id="loader-progress">Loading Assets...</div>
+  </div>
+
+  <canvas id="tester-canvas"></canvas>
+
+  <!-- HELP TOOLTIP -->
+  <div class="help-tooltip">
+    <span style="color: var(--text-gold)">🖱 Left Click + Drag</span> to rotate camera · 
+    <span style="color: var(--text-gold)">🖱 Right Click + Drag</span> to pan · 
+    <span style="color: var(--text-gold)">⚙ Scroll</span> to zoom
+  </div>
+
+  <!-- CONTROL PANEL (LEFT) -->
+  <div class="panel sidebar-left">
+    <h1>Avatar Anim Tester</h1>
+    <div class="subtitle">Sacred Adventures Devtool</div>
+
+    <div class="section-title">Model Status</div>
+    <div class="control-row">
+      <div style="font-size: 13px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px;">
+        <div><strong>Source:</strong> Assets/npc/Avatar-New.glb</div>
+        <div><strong>Forward Axis:</strong> Local +X (Rotated Math.PI/2 Y)</div>
+        <div id="loaded-clip-count"><strong>Clips Scanned:</strong> Loading...</div>
+      </div>
+    </div>
+
+    <div class="section-title">Global Adjustments</div>
+    
+    <div class="control-row">
+      <div class="control-row-inline">
+        <label for="slider-speed">Playback Speed</label>
+        <span id="speed-val" style="font-family: var(--font-mono); font-size: 12px; color: var(--text-gold);">1.0x</span>
+      </div>
+      <input type="range" id="slider-speed" min="0.1" max="2.0" step="0.05" value="1.0">
+    </div>
+
+    <div class="control-row-inline">
+      <label for="toggle-strip">Strip Position Tracks</label>
+      <label class="switch">
+        <input type="checkbox" id="toggle-strip" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: -8px; margin-bottom: 12px; line-height: 1.4;">
+      Prevents root-motion displacement so the avatar walks/swims/fishes exactly in-place.
+    </div>
+
+    <div class="control-row-inline">
+      <label for="toggle-loop">Loop Animations</label>
+      <label class="switch">
+        <input type="checkbox" id="toggle-loop" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="control-row-inline">
+      <label for="toggle-grid">Show Floor Grid</label>
+      <label class="switch">
+        <input type="checkbox" id="toggle-grid" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="section-title">Animation Clips</div>
+    <div class="clip-list" id="clip-list-container">
+      <!-- Generated via JS -->
+      <div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px;">
+        Loading avatar clips...
+      </div>
+    </div>
+
+    <div class="control-row-inline" style="margin-top: auto; padding-top: 16px;">
+      <button class="btn btn-secondary" id="btn-reset-cam">Reset Cam</button>
+      <button class="btn" id="btn-pose-t">Reset Pose</button>
+    </div>
+  </div>
+
+  <!-- CODE & MAPPING PANEL (RIGHT) -->
+  <div class="panel sidebar-right">
+    <div class="section-title" style="margin-top: 0;">Clip Semantic Mapping</div>
+    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.4;">
+      Observe the motion of each clip and assign its correct game-engine semantic keyword below. The code snippet will regenerate in real-time.
+    </p>
+
+    <div class="mapping-grid" id="mapping-grid-container">
+      <!-- Generated via JS -->
+    </div>
+
+    <div class="section-title">
+      Generated Code Block
+      <button class="btn copy-btn" id="btn-copy-code">Copy Code</button>
+    </div>
+    
+    <div class="code-container">
+      <pre><code id="code-output">// Loaded mapping will appear here...</code></pre>
+    </div>
+  </div>
+
+  <!-- BOTTOM HUD OVERLAY -->
+  <div class="hud-overlay">
+    <div class="hud-card">
+      <div class="hud-stat">
+        <div class="hud-stat-val" id="hud-active-idx">-</div>
+        <div class="hud-stat-lbl">Active Index</div>
+      </div>
+      <div class="hud-divider"></div>
+      <div class="hud-stat">
+        <div class="hud-stat-val" id="hud-active-name">None</div>
+        <div class="hud-stat-lbl">Clip Track Name</div>
+      </div>
+      <div class="hud-divider"></div>
+      <div class="hud-stat">
+        <div class="hud-stat-val" id="hud-active-dur">0.00s</div>
+        <div class="hud-stat-lbl">Duration</div>
+      </div>
+      <div class="hud-divider"></div>
+      <div class="hud-stat">
+        <div class="hud-stat-val" id="hud-active-semantic">unassigned</div>
+        <div class="hud-stat-lbl">Current Semantics</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THREE.JS RUNTIME SCRIPT -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+    // Current guessing configuration (to pre-populate dropdowns)
+    const PRESET_MAPPINGS = {
+      0: 'heart',
+      1: 'walk',
+      2: 'other',
+      3: 'swim',
+      4: 'idle',
+      5: 'sitFish',
+      6: 'sit',
+      7: 'look',
+      8: 'wave'
+    };
+
+    const SEMANTIC_KEYWORDS = [
+      'idle',
+      'walk',
+      'look',
+      'swim',
+      'wave',
+      'goodbye',
+      'sit',
+      'sitFish',
+      'heart',
+      'other'
+    ];
+
+    // State Variables
+    let scene, camera, renderer, controls;
+    let avatarModel = null;
+    let mixer = null;
+    let rawAnimations = [];
+    let processedClips = [];
+    let activeAction = null;
+    let activeClipIdx = 0;
+    
+    // User Mapping State
+    const activeMappings = { ...PRESET_MAPPINGS };
+
+    // DOM Elements
+    const loaderVeil = document.getElementById('loader-veil');
+    const loaderProgress = document.getElementById('loader-progress');
+    const clipListContainer = document.getElementById('clip-list-container');
+    const mappingGridContainer = document.getElementById('mapping-grid-container');
+    const codeOutput = document.getElementById('code-output');
+    const sliderSpeed = document.getElementById('slider-speed');
+    const speedVal = document.getElementById('speed-val');
+    const toggleStrip = document.getElementById('toggle-strip');
+    const toggleLoop = document.getElementById('toggle-loop');
+    const toggleGrid = document.getElementById('toggle-grid');
+    const btnResetCam = document.getElementById('btn-reset-cam');
+    const btnPoseT = document.getElementById('btn-pose-t');
+    const btnCopyCode = document.getElementById('btn-copy-code');
+    const loadedClipCount = document.getElementById('loaded-clip-count');
+
+    // HUD Elements
+    const hudActiveIdx = document.getElementById('hud-active-idx');
+    const hudActiveName = document.getElementById('hud-active-name');
+    const hudActiveDur = document.getElementById('hud-active-dur');
+    const hudActiveSemantic = document.getElementById('hud-active-semantic');
+
+    let gridHelper;
+
+    // Initialize 3D Engine
+    function init() {
+      // Scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x070f12);
+      scene.fog = new THREE.FogExp2(0x070f12, 0.03);
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 2.5, 4.5);
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('tester-canvas'), antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      // Controls
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 + 0.05; // Don't orbit below ground
+      controls.minDistance = 1;
+      controls.maxDistance = 20;
+      controls.target.set(0, 1, 0);
+
+      // Grid helper
+      gridHelper = new THREE.GridHelper(30, 30, 0x80deea, 0x183036);
+      gridHelper.position.y = -0.01;
+      scene.add(gridHelper);
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      dirLight.position.set(5, 10, 7);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.bias = -0.001;
+      scene.add(dirLight);
+
+      const rimLight = new THREE.DirectionalLight(0x80deea, 0.8);
+      rimLight.position.set(-5, 4, -5);
+      scene.add(rimLight);
+
+      // Ground shadow catcher
+      const floorMat = new THREE.ShadowMaterial({ opacity: 0.4 });
+      const floorGeo = new THREE.PlaneGeometry(100, 100);
+      const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      floorMesh.rotation.x = -Math.PI / 2;
+      floorMesh.receiveShadow = true;
+      scene.add(floorMesh);
+
+      // Listeners
+      window.addEventListener('resize', onWindowResize);
+      
+      setupUIEvents();
+      loadAvatarModel();
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // GLB Loading
+    function loadAvatarModel() {
+      loaderProgress.textContent = "Spinning up Draco decoder...";
+      
+      const dracoLoader = new DRACOLoader();
+      dracoLoader.setDecoderPath('../vendor/three/examples/jsm/libs/draco/gltf/');
+
+      const loader = new GLTFLoader();
+      loader.setDRACOLoader(dracoLoader);
+
+      loaderProgress.textContent = "Fetching Assets/npc/Avatar-New.glb...";
+
+      loader.load(
+        '../Assets/npc/Avatar-New.glb',
+        (gltf) => {
+          loaderProgress.textContent = "Assembling rig skeleton...";
+          
+          avatarModel = gltf.scene;
+          
+          // Tripo exports rig-forward on local +X. Align back to +Z facing
+          avatarModel.rotation.y = Math.PI / 2;
+          
+          avatarModel.traverse((node) => {
+            if (node.isMesh) {
+              node.castShadow = true;
+              node.receiveShadow = true;
+              
+              // Handle translucent shaders in glTF to render opaque
+              if (node.material) {
+                node.material.depthWrite = true;
+                node.material.shadowSide = THREE.DoubleSide;
+              }
+            }
+          });
+
+          scene.add(avatarModel);
+          mixer = new THREE.AnimationMixer(avatarModel);
+          rawAnimations = gltf.animations || [];
+          
+          loadedClipCount.innerHTML = `<strong>Clips Scanned:</strong> ${rawAnimations.length} clips found`;
+
+          // Process and clone clips
+          processedClips = rawAnimations.map((c) => c.clone());
+
+          // Hide loader veil
+          loaderVeil.style.opacity = '0';
+          setTimeout(() => loaderVeil.style.display = 'none', 500);
+
+          buildClipPills();
+          buildMappingGrid();
+          updateCodeOutput();
+          
+          // Autoplay clip 0
+          playAnimation(0);
+          
+          animate(0);
+        },
+        (xhr) => {
+          if (xhr.total > 0) {
+            const pct = Math.round((xhr.loaded / xhr.total) * 100);
+            loaderProgress.textContent = `Downloading GLB (${pct}%)`;
+          } else {
+            loaderProgress.textContent = `Downloading GLB (${(xhr.loaded / 1024 / 1024).toFixed(2)} MB)`;
+          }
+        },
+        (error) => {
+          console.error(error);
+          loaderProgress.textContent = "Failed to load model! See console for details.";
+          loaderProgress.style.color = "#ef9a9a";
+        }
+      );
+    }
+
+    // Animation Controls
+    function playAnimation(index) {
+      if (!mixer || processedClips.length === 0) return;
+      
+      const prevAction = activeAction;
+      activeClipIdx = index;
+      
+      // Get base clip
+      const baseClip = processedClips[index];
+      
+      // Clone it to apply filters dynamically without modifying the cached copy
+      let playClip = baseClip.clone();
+      
+      // Filter root-motion position tracks if checked
+      if (toggleStrip.checked) {
+        const keptTracks = playClip.tracks.filter((track) => {
+          // Keep all except any tracking root position displacement
+          return !track.name.endsWith('.position');
+        });
+        playClip.tracks = keptTracks;
+      }
+
+      // Re-create action with filtered tracks
+      activeAction = mixer.clipAction(playClip);
+      activeAction.enabled = true;
+      activeAction.paused = false;
+      activeAction.reset();
+
+      // Configure loops
+      const loopMode = toggleLoop.checked ? THREE.LoopRepeat : THREE.LoopOnce;
+      activeAction.setLoop(loopMode, loopMode === THREE.LoopOnce ? 1 : Infinity);
+      activeAction.clampWhenFinished = (loopMode === THREE.LoopOnce);
+
+      // Playback speed
+      const speedValFloat = parseFloat(sliderSpeed.value);
+      activeAction.setEffectiveTimeScale(speedValFloat);
+      
+      activeAction.play();
+
+      if (prevAction && prevAction !== activeAction) {
+        activeAction.crossFadeFrom(prevAction, 0.2, false);
+      }
+
+      // Update HUD
+      hudActiveIdx.textContent = `[${index}]`;
+      hudActiveName.textContent = baseClip.name;
+      hudActiveDur.textContent = `${baseClip.duration.toFixed(3)}s`;
+      hudActiveSemantic.textContent = activeMappings[index] || 'unassigned';
+      if (hudActiveSemantic.textContent === 'other') {
+        hudActiveSemantic.style.color = 'var(--text-muted)';
+      } else {
+        hudActiveSemantic.style.color = 'var(--text-gold)';
+      }
+
+      // Highlight active pill
+      document.querySelectorAll('.clip-pill').forEach((pill, i) => {
+        pill.classList.toggle('active', i === index);
+      });
+    }
+
+    // UI Builders
+    function buildClipPills() {
+      clipListContainer.innerHTML = '';
+      
+      processedClips.forEach((clip, index) => {
+        const pill = document.createElement('div');
+        pill.className = `clip-pill ${index === activeClipIdx ? 'active' : ''}`;
+        
+        pill.innerHTML = `
+          <div class="clip-info">
+            <div class="clip-index-name">
+              <span class="clip-badge">[${index}]</span>
+              <span>${clip.name}</span>
+            </div>
+            <div class="clip-duration">duration: ${clip.duration.toFixed(3)}s · ${clip.tracks.length} tracks</div>
+          </div>
+          <span style="font-size: 11px; font-weight:600; color: var(--text-gold);" id="pill-semantics-${index}">
+            ${activeMappings[index] || 'unassigned'}
+          </span>
+        `;
+
+        pill.addEventListener('click', () => {
+          playAnimation(index);
+        });
+
+        clipListContainer.appendChild(pill);
+      });
+    }
+
+    function buildMappingGrid() {
+      mappingGridContainer.innerHTML = '';
+      
+      processedClips.forEach((clip, index) => {
+        const row = document.createElement('div');
+        row.className = 'mapping-row';
+
+        const label = document.createElement('div');
+        label.className = 'mapping-label';
+        label.textContent = `INDEX [${index}]`;
+
+        const nameSpan = document.createElement('div');
+        nameSpan.className = 'mapping-original-name';
+        nameSpan.textContent = clip.name;
+        nameSpan.title = `${clip.name} (${clip.duration.toFixed(2)}s)`;
+
+        const select = document.createElement('select');
+        select.id = `select-mapping-${index}`;
+        
+        SEMANTIC_KEYWORDS.forEach((keyword) => {
+          const opt = document.createElement('option');
+          opt.value = keyword;
+          opt.textContent = keyword;
+          if (activeMappings[index] === keyword) {
+            opt.selected = true;
+          }
+          select.appendChild(opt);
+        });
+
+        select.addEventListener('change', (e) => {
+          const val = e.target.value;
+          activeMappings[index] = val;
+          
+          // Update pill label
+          const pillLabel = document.getElementById(`pill-semantics-${index}`);
+          if (pillLabel) {
+            pillLabel.textContent = val;
+          }
+          
+          // Update HUD if active
+          if (index === activeClipIdx) {
+            hudActiveSemantic.textContent = val;
+            if (val === 'other') {
+              hudActiveSemantic.style.color = 'var(--text-muted)';
+            } else {
+              hudActiveSemantic.style.color = 'var(--text-gold)';
+            }
+          }
+
+          updateCodeOutput();
+        });
+
+        row.appendChild(label);
+        row.appendChild(nameSpan);
+        row.appendChild(select);
+        mappingGridContainer.appendChild(row);
+      });
+    }
+
+    // Code generator
+    function updateCodeOutput() {
+      // Find what indices mapped to which semantics
+      const semanticsMap = {};
+      SEMANTIC_KEYWORDS.forEach((kw) => {
+        if (kw === 'other') return;
+        const matchedIndex = Object.keys(activeMappings).find((k) => activeMappings[k] === kw);
+        semanticsMap[kw] = matchedIndex !== undefined ? Number(matchedIndex) : null;
+      });
+
+      let code = `/**
+ * Generated Avatar Animation Semantic Mapping
+ * Copy & paste this block directly into SanctuaryAvatar.js and WorldAvatar.js.
+ * Active Model: Assets/npc/Avatar-New.glb
+ */
+
+// 1. Array index selection mapping inside setupAnimations(clips)
+const isNew = AVATAR_URL.includes("Avatar-New");
+
+this.semanticClips = {
+  idle: clips.find(c => /idle/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.idle}]?.name : clips[4]?.name) ?? null,
+  walk: clips.find(c => /walk|run/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.walk}]?.name : clips[1]?.name) ?? null,
+  look: clips.find(c => /look|turn/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.look}]?.name : clips[7]?.name) ?? null,
+  swim: clips.find(c => /swim|float/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.swim}]?.name : clips[3]?.name) ?? null,
+  wave: clips.find(c => /wave|greet/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.wave}]?.name : clips[8]?.name) ?? null,
+  goodbye: clips.find(c => /goodbye|bye/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.goodbye}]?.name : clips[8]?.name) ?? null,
+  sit: clips.find(c => /sit/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.sit}]?.name : clips[6]?.name) ?? null,
+  sitFish: clips.find(c => /sitfish|sit.?fish|fish.?sit/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.sitFish}]?.name : clips[5]?.name) ?? null,
+  heart: clips.find(c => /heart/i.test(c.name))?.name ?? (isNew ? clips[${semanticsMap.heart}]?.name : null) ?? null,
+};
+
+// 2. Telemetry findings mapping array update
+findings: [
+`;
+
+      processedClips.forEach((clip, index) => {
+        const semantic = activeMappings[index] || 'unassigned';
+        code += `  "NlaTrack.00${index} (${clip.duration.toFixed(3)} s): ${semantic === 'other' ? 'UNASSIGNED' : semantic} — export clip.",\n`;
+      });
+
+      code += `];`;
+
+      codeOutput.textContent = code;
+    }
+
+    // Set up events for UI Controls
+    function setupUIEvents() {
+      // Speed slider
+      sliderSpeed.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        speedVal.textContent = `${val.toFixed(2)}x`;
+        if (activeAction) {
+          activeAction.setEffectiveTimeScale(val);
+        }
+      });
+
+      // Stripping toggle
+      toggleStrip.addEventListener('change', () => {
+        // Replay current animation with new position stripping settings
+        playAnimation(activeClipIdx);
+      });
+
+      // Loop toggle
+      toggleLoop.addEventListener('change', () => {
+        playAnimation(activeClipIdx);
+      });
+
+      // Grid toggle
+      toggleGrid.addEventListener('change', (e) => {
+        gridHelper.visible = e.target.checked;
+      });
+
+      // Reset camera
+      btnResetCam.addEventListener('click', () => {
+        camera.position.set(0, 2.5, 4.5);
+        controls.target.set(0, 1, 0);
+        controls.update();
+      });
+
+      // Reset Pose button (stops playing animations and resets rig to T-pose)
+      btnPoseT.addEventListener('click', () => {
+        if (activeAction) {
+          activeAction.stop();
+          activeAction = null;
+        }
+        if (mixer) {
+          mixer.stopAllAction();
+          mixer.uncacheRoot(avatarModel);
+        }
+        // Force bind pose
+        avatarModel.traverse((node) => {
+          if (node.isBone) {
+            node.position.set(0,0,0);
+            node.rotation.set(0,0,0);
+            node.scale.set(1,1,1);
+          }
+        });
+        hudActiveIdx.textContent = `-`;
+        hudActiveName.textContent = `Bind Pose (T-Pose)`;
+        hudActiveDur.textContent = `0.00s`;
+        hudActiveSemantic.textContent = `none`;
+        document.querySelectorAll('.clip-pill').forEach((pill) => {
+          pill.classList.remove('active');
+        });
+      });
+
+      // Copy Code button
+      btnCopyCode.addEventListener('click', () => {
+        navigator.clipboard.writeText(codeOutput.textContent)
+          .then(() => {
+            const originalText = btnCopyCode.textContent;
+            btnCopyCode.textContent = "COPIED!";
+            btnCopyCode.style.background = "rgba(165, 214, 167, 0.2)";
+            btnCopyCode.style.borderColor = "#a5d6a7";
+            btnCopyCode.style.color = "#a5d6a7";
+            
+            setTimeout(() => {
+              btnCopyCode.textContent = originalText;
+              btnCopyCode.style.background = "";
+              btnCopyCode.style.borderColor = "";
+              btnCopyCode.style.color = "";
+            }, 2000);
+          })
+          .catch((err) => {
+            console.error("Failed to copy code to clipboard", err);
+            alert("Could not auto-copy. Please select and copy manually.");
+          });
+      });
+    }
+
+    // Animation Loop
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      if (mixer) {
+        mixer.update(delta);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Start everything on boot
+    init();
+
+  </script>
+</body>
+</html>
