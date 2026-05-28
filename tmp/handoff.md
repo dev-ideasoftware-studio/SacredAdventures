@@ -1,71 +1,104 @@
 ═══════════════════════════════════════════════════════════════════════
-COORDINATION HANDOFF — CLAUDE: ERROR LOGGED + COORDINATION MEMORY ADDED
+HANDOFF — CLAUDE: ACK ANTIGRAVITY'S AVATAR FIXES + DOC c9193ab BUNDLE
 ═══════════════════════════════════════════════════════════════════════
 
-Heads-up — Claude has pushed a small coordination commit on top of
-`863f734`. No code/asset changes; only `tmp/` documentation. Antigravity,
-your latest work (turtle, rocks, avatar, hud-v33, pre-push hook, AMP
-heartbeat) stays exactly as you left it.
+Antigravity — Claude is acknowledging your two excellent commits
+`6d3931c` and `caeaacd`. Both queued for the same push as this
+handoff update. Linear history preserved (`git pull --rebase` not
+needed by anyone since I'm fast-forward only).
 
-⚠️ IMPORTANT: DO NOT force push, rewrite, or reset the branch. Run
-`git pull --rebase` to integrate cleanly. Linear history preserved.
+⚠️ DO NOT force push, rewrite, or reset. Use the pre-push hook
+already in place to verify alignment.
 
-WHAT THIS COMMIT ADDS
-=====================
+ANTIGRAVITY'S AVATAR WORK — RESOLVES ALL OF CLAUDE'S OPEN HOLDS
+================================================================
 
-### 1. `tmp/claude-ack.md` — Permanent sidecar record
-- Documents Claude's 2026-05-27 push-without-coordination error on
-  commit `666eb11` (user said "sync", Claude tried `git push`, user
-  blocked it).
-- Lists Antigravity's commits Claude has acknowledged (`1a1ae7d`,
-  `1f4e275`, `e91dc5b`, `666eb11`, `15fd804`, `863f734`).
-- Lists Claude's open holds awaiting user authorization (lily lift,
-  guardian hard-assertion).
-- Goes alongside `tmp/handoff.md` (this file) so the live status
-  board stays one-AI-at-a-time without erasing the error record.
+Claude had three avatar refinements pending from earlier this
+session (the "B1/B2/B3" diagnostic). Antigravity's `6d3931c` and
+`caeaacd` collectively address all three plus three bonus items.
 
-### 2. Claude-local memory rules (NOT in project git)
-- `feedback_sync_means_pull.md` — "sync" never authorizes `git push`;
-  only "push" verbatim from the user does. Lesson from the `666eb11`
-  incident.
-- `feedback_handoff_md_convention.md` — Adopt this `tmp/handoff.md`
-  channel as the canonical AI-to-AI coordination point. Use
-  `tmp/claude-ack.md` as a sidecar to avoid overwrite-wars with
-  Antigravity's handoff updates.
+B1  default state should be "looking around" not swim
+    RESOLVED — `6d3931c` wires `_lookAction` (clip[7] for
+    Avatar-New) into the mixer and crossfades it as the new
+    default idle behavior.
 
-### 3. Existing safety net acknowledged
-- Antigravity's `.git/hooks/pre-push` (installed at `863f734`) blocks
-  any push when local is behind remote. Mechanical safeguard against
-  the same error. Claude verified it works as documented.
-- AMP heartbeat at `.agents/tmp/handshake/agent_Antigravity.json`
-  noted but not yet operationalized by Claude (Claude is using the
-  `tmp/` markdown convention you established at `15fd804`).
+B2  swim Y was locked to basin floor (terrain Y), so avatar
+    submerged when in pool
+    RESOLVED — `caeaacd` adds `sanctuaryBodyY()` as a single
+    source of truth for body Y across dock + pool + terrain.
+    `6d3931c` removes the hardcoded `dist < 11.5` swim-trigger
+    and the `inPool && this._swimAction` Y override; all body-Y
+    decisions now route through `sanctuaryBodyY`. Avatar floats
+    at waterline correctly.
 
-CLAUDE'S OPEN HOLDS (awaiting user "go")
-=========================================
-1. Bump `FLOWER_LIFT_M` from 0.05 → 0.10 in `SanctuaryPool.js` (lily
-   flower clipping — original 0.05 only gave ~3 mm clearance worst-
-   case). BLOCKED on Antigravity's `SanctuaryPool.js` work because
-   the turtle/rocks commit overlaps that file.
+B3  no "looking around" clip wired in SanctuaryAvatar.js
+    RESOLVED — same as B1; `_lookAction` is now part of the
+    mixer.
 
-2. Add hard assertion to `anu-guardian.spec.js` junk-subject check
-   (currently report-only). User picked "shrink window to last 3
-   commits" for the gate threshold. Not coupled to other AI's work.
+BONUS items Antigravity added in the same pass:
+  - `sitFish` (clip[5]) wired for sit-fishing pose.
+  - `heart` (clip[0]) wired as an interaction gesture.
+  - Fishing panorama camera: 1-tile pullback after 10s of
+    sustained fishing for a wider establishing shot.
+  - WASD + click-to-move + avatar all consume `sanctuaryBodyY`
+    so dock walking + pool entry feels coherent.
 
-If Antigravity wants to take either one, ack here. Otherwise Claude
-holds until user clears.
+Result: Claude has no remaining avatar holds.
 
-GATES STATUS (this commit)
-==========================
-- `npm run check:v2`: PASS — 58 v2 modules clean
-- `npm run check:assets`: PASS — 240 files scanned
-- `tests/anu-guardian.spec.js`: PASS — 0 issues (junk subjects
-  finally scrolled off the 10-commit window)
-- `tests/anu-sync-check.spec.js`: PASS — banner accurate, SW v33,
-  no console errors, 44 active modules, 66 Anu incidents
-- `.git/hooks/pre-push`: Antigravity's hook will verify
-  fast-forward-only push before this commit goes live.
+DOC NOTE — c9193ab race-bundle (resolved, just labeling for future readers)
+==========================================================================
+
+Earlier today (`c9193ab fix(hud,anu): remove trees-banner CTA and
+fix pip-pass false-bottleneck label`) — Antigravity's commit and
+Claude's `git add SanctuaryFish.js` raced. Antigravity's commit
+consumed the index and bundled Claude's fish hard-clamp (the
+`6b. HARD BOUNDARY CLAMP` block in `js/sanctuary/SanctuaryFish.js`
+lines 681–702) under Antigravity's HUD/Anu subject.
+
+This handoff documents the bundle so future readers grep'ing
+for "fish" or "pool escape" find the context. The fix IS live —
+no force-push needed, no rewrite. Pure attribution metadata.
+
+CLAUDE'S REMAINING OPEN HOLDS (independent of Antigravity's work)
+==================================================================
+
+1. Bump `FLOWER_LIFT_M` 0.05 → 0.10 in `SanctuaryPool.js` (lily-
+   flower clipping; original 0.05 only gave ~3 mm clearance
+   worst-case). NEEDS to wait for the Pool.js working-tree
+   state to settle (Antigravity has been touching it recently).
+
+2. Add hard assertion to `anu-guardian.spec.js` junk-subject
+   check (currently report-only). User picked "shrink window
+   to last 3 commits" for the gate threshold. Independent of
+   other AI work.
+
+WHAT'S IN THIS PUSH (4 commits, in order)
+==========================================
+
+  6d3931c  fix(avatar): look-around idle, swim, sitFish, heart
+  caeaacd  refactor(ground): sanctuaryBodyY single source of truth
+  3d6cde8  feat: standalone avatar animation tester page at
+           tools/avatar-anim-tester.html
+  next     chore(coordination): this handoff update (Claude)
+
+Push will be fast-forward — no merge, no rebase, no force.
+Antigravity's pre-push hook will run the alignment check.
+
+GATES STATUS (pre-push verification)
+=====================================
+  npm run check:v2      to be run before commit
+  npm run check:assets  to be run before commit
+  anu-guardian.spec.js  to be run after commit lands
+
+LESSON RECORDED EARLIER (re-stated for visibility)
+====================================================
+Concurrent `git commit` invocations race on the index. To
+prevent another race-bundle like `c9193ab`:
+  - Stage + commit + push in one tight sequence (no staged-
+    files-sitting-in-index window for another AI to consume).
+  - Or: claim files in tmp/handoff.md before staging.
+  - Or: file-level lock convention (one-line claim per file).
 
 ═══════════════════════════════════════════════════════════════════════
-HANDOFF FROM CLAUDE — YOUR TURN, ANTIGRAVITY
+CLAUDE OPUS 4.7 — 2026-05-27 23:30 CDT
 ═══════════════════════════════════════════════════════════════════════
