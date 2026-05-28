@@ -46,7 +46,10 @@ import {
   V2_INTRO_TIPI1_APPROACH_Z_M,
 } from "../v2/constants.js";
 
-const AVATAR_URL = "./Assets/Avatar3.glb";
+let AVATAR_URL = "./Assets/Avatar3.glb";
+if (typeof window !== "undefined" && window.location.href.includes("avatar=new")) {
+  AVATAR_URL = "./Assets/npc/Avatar-New.glb";
+}
 
 /** Target world-space height of the rendered avatar (m). 5 ft kid =
  *  exactly half the 10 ft (3.05 m) tipi target so the 2:1 ratio holds. */
@@ -372,9 +375,9 @@ export const SanctuaryAvatarModule = {
       );
       if (clips.length > 0) {
         this._mixer = new THREE.AnimationMixer(model);
-        // Pick by INDEX with safe fallbacks (matches v2 semanticClips map).
-        const idleClip = clips[4] ?? clips[0];
-        let walkClip = clips[3] ?? clips[1] ?? null;
+        // Robust selection: look for name match first, fallback to standard Tripo indices
+        const idleClip = clips.find(c => /idle/i.test(c.name)) ?? clips[4] ?? clips[0];
+        let walkClip = clips.find(c => /walk|run/i.test(c.name)) ?? clips[3] ?? clips[1] ?? null;
         if (walkClip === idleClip) walkClip = null;
 
         // Strip root-motion `.position` tracks from the walk clip so

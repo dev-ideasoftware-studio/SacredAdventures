@@ -25,7 +25,10 @@ const AVATAR_TARGET_HEIGHT = V2_AVATAR_TARGET_HEIGHT_M;
 const AVATAR_CIRCLE_RADIUS = V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M;
 /** After `syncDecalsToTerrainSlope`: rim-height rise + this — kept small so decal stays under soles, above terrain/z-fights. */
 const TRAVEL_DECAL_CLEAR_ABOVE_RIM_M = 0.015;
-const AVATAR_URL = "./Assets/Avatar3.glb";
+let AVATAR_URL = "./Assets/Avatar3.glb";
+if (typeof window !== "undefined" && window.location.href.includes("avatar=new")) {
+  AVATAR_URL = "./Assets/npc/Avatar-New.glb";
+}
 /** Travel disc / ring / arrow use renderOrder 8–10; figurine draws after (opaque pass). */
 const AVATAR_FIGURINE_RENDER_ORDER = 18;
 /**
@@ -459,13 +462,9 @@ export function createWorldAvatarController() {
       };
       this.mixer.addEventListener("finished", this._onMixerFinished);
 
-      // Resolve walk + look clip names UP FRONT (same fallback chain the
-      // semanticClips block uses below) so we can strip root-motion `.position`
-      // tracks before binding the actions. Walk and look may share a clip;
-      // the Set dedupes that case. See `_stripPositionTracks` for rationale.
-      const walkClipName = clips[3]?.name ?? clips[1]?.name ?? null;
-      const lookClipName =
-        clips[3]?.name ?? clips[2]?.name ?? clips[7]?.name ?? clips[0]?.name ?? null;
+      // Resolve walk + look clip names UP FRONT (with name-aware regex matching and index fallback)
+      const walkClipName = clips.find(c => /walk|run/i.test(c.name))?.name ?? clips[3]?.name ?? clips[1]?.name ?? null;
+      const lookClipName = clips.find(c => /look|turn/i.test(c.name))?.name ?? walkClipName ?? clips[2]?.name ?? clips[7]?.name ?? clips[0]?.name ?? null;
       const inPlaceClipNames = new Set(
         [walkClipName, lookClipName].filter(Boolean),
       );
@@ -483,25 +482,16 @@ export function createWorldAvatarController() {
       });
 
       this.semanticClips = {
-        idle: clips[4]?.name ?? clips[0]?.name ?? null,
+        idle: clips.find(c => /idle/i.test(c.name))?.name ?? clips[4]?.name ?? clips[0]?.name ?? null,
         /** Matches `look` — same NLA strip works for forward + pivot. */
         walk: walkClipName,
         look: lookClipName,
-        wave: clips[6]?.name ?? clips[8]?.name ?? clips[0]?.name ?? null,
-        goodbye: clips[6]?.name ?? clips[8]?.name ?? clips[0]?.name ?? null,
+        wave: clips.find(c => /wave|greet/i.test(c.name))?.name ?? clips[6]?.name ?? clips[8]?.name ?? clips[0]?.name ?? null,
+        goodbye: clips.find(c => /goodbye|bye/i.test(c.name))?.name ?? clips[6]?.name ?? clips[8]?.name ?? clips[0]?.name ?? null,
         /**
-         * Avatar3.glb has 9 NlaTrack.* clips, none named "sit". Durations
-         * (NlaTrack.002 = 7.17s, NlaTrack.005 = 5.88s) are in the range a
-         * seated-loop would land; .002 picked as the best guess for the
-         * first seated read. To swap at runtime in DevTools:
-         *   `const av = anuOrchestrator._registry.get("World").module._avatar;`
-         *   `av.semanticClips.sit = "NlaTrack.005"; av._locomotionKind = null;`
-         * (clearing `_locomotionKind` forces the next-frame sit decision to
-         * re-fire `play("sit", …)` even if we were already sitting). Falls
-         * back to idle's clip if neither candidate exists, so the cinematic
-         * idle path can't break on Avatars with fewer clips.
+         * Tentatively map `sit`. Falls back to idle if missing.
          */
-        sit: clips[2]?.name ?? clips[5]?.name ?? clips[4]?.name ?? null,
+        sit: clips.find(c => /sit/i.test(c.name))?.name ?? clips[2]?.name ?? clips[5]?.name ?? clips[4]?.name ?? null,
       };
       this.root.userData.anuAnimationMap = { ...this.semanticClips };
       this.root.userData.anuAnimationScan = {
