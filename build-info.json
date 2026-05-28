@@ -1,9 +1,9 @@
 {
-  "subject": "feat: Add short commit SHA build version to the sw v35 bottom footer badge",
-  "isoDate": "2026-05-28T00:27:01-05:00",
+  "subject": "feat: Restore corrected, fully-compatible standalone avatar animation tester page",
+  "isoDate": "2026-05-28T00:27:54-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v35",
-  "commit": "082b576",
+  "commit": "ae4895e",
   "dirty": false,
-  "generatedAt": "2026-05-28T05:27:01.250Z"
+  "generatedAt": "2026-05-28T05:27:54.634Z"
 }
