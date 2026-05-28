@@ -1100,13 +1100,11 @@ function buildPoolRocks(centerY) {
     const sBase = 0.015 + rng() * 0.035; // 0.015 to 0.050 m
     _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
     _quat.setFromEuler(_euler);
-    // Lift micro-pebbles +0.02 m above the basin floor so they sit
-    // ABOVE the base of the moss tufts. Otherwise the moss roots
-    // (at exact bottomY) visually cover the pebbles when looking
-    // from above — user-reported 2026-05-28: "make grass the lowest
-    // z-index". This keeps moss at the absolute floor and lifts the
-    // gravel just enough to peek through the green roots.
-    _pos.set(x, bottomY + 0.015 + rng() * 0.015 + sBase * 0.3, z);
+    // Sit on the bowl-shaped basin floor: compute local Y from the same
+    // quartic the basin mesh uses, plus a tiny lift.
+    const mInner = Math.min(1, d / SANCTUARY_POOL_RADIUS_M);
+    const mBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - mInner * mInner * mInner * mInner);
+    _pos.set(x, mBowlY + 0.015 + rng() * 0.015 + sBase * 0.3, z);
     _scl.set(sBase * (0.85 + rng() * 0.35), sBase * (0.55 + rng() * 0.25), sBase * (0.85 + rng() * 0.35));
     _m.compose(_pos, _quat, _scl);
     microMesh.setMatrixAt(i, _m);
