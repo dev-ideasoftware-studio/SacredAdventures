@@ -487,7 +487,11 @@ export function createWorldAvatarController() {
       });
 
       this.semanticClips = {
-        idle: clips.find(c => /look|turn/i.test(c.name))?.name ?? (isNew ? clips[7]?.name : clips[4]?.name) ?? clips[0]?.name ?? null,
+        // idle uses /idle/ — separate from look so the two resolve to
+        // different clips. Previously both used /look|turn/ which made
+        // them resolve to the same NlaTrack.007 (2.38s short cycle),
+        // and the avatar appeared to "walk in place" when standing.
+        idle: clips.find(c => /idle/i.test(c.name))?.name ?? (isNew ? clips[4]?.name : clips[4]?.name) ?? clips[0]?.name ?? null,
         /** Matches `look` — same NLA strip works for forward + pivot. */
         walk: walkClipName,
         look: lookClipName,

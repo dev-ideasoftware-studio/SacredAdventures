@@ -280,10 +280,15 @@ export function sanctuaryGroundY(x, z) {
   // the flat ring, hills + meadow noise re-engage.
   if (r < VILLAGE_FLAT_RADIUS) {
     if (r < SANCTUARY_POOL_RADIUS_M + VILLAGE_BANK_BLEND_M) {
-      // Bank tail-off: lift the basin lip to 0 over 2 m.
+      // Bank tail-off: linear blend from full meadowY at the lip (rim of
+      // the pool, matches the INSIDE-pool formula's value there) down
+      // to flat (0) at the flat-ring start. The prior 0.18 multiplier
+      // created a discontinuity at the rim — INSIDE evaluated to
+      // meadowY * 1.0, OUTSIDE jumped down to meadowY * 0.18, showing
+      // as a visible cliff in the meadow where the grass meets the
+      // pool. (User-reported 2026-05-28.)
       const t = (r - SANCTUARY_POOL_RADIUS_M) / VILLAGE_BANK_BLEND_M; // 0 at lip, 1 at flat start
-      // Tiny meadow whisper at the join so it doesn't read as a perfect plane.
-      return meadowY * (1 - t) * 0.18;
+      return meadowY * (1 - t);
     }
     return 0;
   }
@@ -393,8 +398,10 @@ const workerCode = `
 
     if (r < VILLAGE_FLAT_RADIUS) {
       if (r < SANCTUARY_POOL_RADIUS_M + VILLAGE_BANK_BLEND_M) {
+        // Worker copy must match the main-thread formula above or terrain
+        // meshes generated off-thread desync from runtime sampler reads.
         const t = (r - SANCTUARY_POOL_RADIUS_M) / VILLAGE_BANK_BLEND_M;
-        return meadowY * (1 - t) * 0.18;
+        return meadowY * (1 - t);
       }
       return 0;
     }

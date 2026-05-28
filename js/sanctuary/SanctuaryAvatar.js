@@ -54,9 +54,20 @@ if (typeof window !== "undefined" && window.location.href.includes("avatar=old")
 /** Target world-space height of the rendered avatar (m). 5 ft kid =
  *  exactly half the 10 ft (3.05 m) tipi target so the 2:1 ratio holds. */
 const AVATAR_TARGET_HEIGHT_M = 1.524;
-/** South of v2 Tipi 1 (0,0) — same approach slot as the main game. */
+/**
+ * Spawn point — on solid land south of the pool. The intro-approach
+ * constant (V2_INTRO_TIPI1_APPROACH_Z_M = −10.1) was computed assuming
+ * Tipi 1 sat at the world origin; the pool also centers at (0, 0) and
+ * Tipi 1 actually lives at (18, −2). The old spawn point landed the
+ * avatar 10.1 m south of pool centre — INSIDE the 12 m pool radius —
+ * which triggered swim animation on boot before the kid moved. Push
+ * 4 m further south so the avatar lands on solid meadow outside the
+ * pool circle. Other modules (js/v2/World.js:2085) still use
+ * V2_INTRO_TIPI1_APPROACH_X/Z_M as an autowalk goal; leaving the
+ * shared constant alone preserves those flows.
+ */
 const AVATAR_SPAWN_X = V2_INTRO_TIPI1_APPROACH_X_M;
-const AVATAR_SPAWN_Z = V2_INTRO_TIPI1_APPROACH_Z_M;
+const AVATAR_SPAWN_Z = V2_INTRO_TIPI1_APPROACH_Z_M - 4.0;
 /** Initial yaw: facing Tipi 1 (north / -Z). The keyboard's movement
  *  convention is fwd = (-sin yaw, 0, -cos yaw) — yaw=0 gives fwd = -Z. */
 const AVATAR_INITIAL_YAW_RAD = 0;
@@ -377,13 +388,20 @@ export const SanctuaryAvatarModule = {
         this._mixer = new THREE.AnimationMixer(model);
         const isNew = AVATAR_URL.includes("Avatar-New");
         
-        // Robust selection: look for name match first, fallback to standard Tripo indices
-        const idleClip = clips.find(c => /look|turn/i.test(c.name)) ?? (isNew ? clips[7] : clips[4]) ?? clips[0];
+        // Robust selection: look for name match first, fallback to standard
+        // Tripo indices. The idle and look pickers MUST use different regex
+        // patterns or they collide on the same clip (both used to match
+        // /look|turn/i and both fell back to clips[7], so the avatar played
+        // the 2.38s "look" cycle on repeat when standing still — read as a
+        // walking-in-place glitch). Real idle for Avatar-New is clips[4]
+        // (5.71s natural stand). User-reported 2026-05-28.
+        const idleClip = clips.find(c => /idle/i.test(c.name)) ?? (isNew ? clips[4] : clips[4]) ?? clips[0];
         let walkClip = clips.find(c => /walk|run/i.test(c.name)) ?? (isNew ? clips[1] : clips[3]) ?? clips[1] ?? null;
         if (walkClip === idleClip) walkClip = null;
 
         // look = turn-in-place idle — NlaTrack.007 (2.375s)
         let lookClip = clips.find(c => /look|turn/i.test(c.name)) ?? (isNew ? clips[7] : null) ?? null;
+        if (lookClip === idleClip) lookClip = null; // belt-and-braces: never share a clip with idle
 
         // swim = NlaTrack.003 for Avatar-New (7.167s)
         let swimClip = clips.find(c => /swim|float/i.test(c.name)) ?? (isNew ? clips[3] : null) ?? null;
@@ -520,25 +538,25 @@ export const SanctuaryAvatarModule = {
       this._swimAction.setEffectiveTimeScale(0.65 + Math.min(1.35, this._smoothSpeed / 1.2));
     } else {
       // --- ON LAND ---
+      // Standing-still default = IDLE (clip[4], 5.71s natural stand pose).
+      // The look-around clip (clip[7], 2.38s) was previously the default,
+      // but its short cycle on repeat reads as "walking in place" — user
+      // flagged this 2026-05-28. Look is kept available as an action so
+      // future work can periodically blend it in for variety, but the
+      // baseline idle is what plays when speed is below the walk threshold.
       _zero(this._sitFishAction);
       _zero(this._swimAction);
+      _zero(this._lookAction); // look stays available, just not the default
       const walkW = Math.max(0, Math.min(1, (this._smoothSpeed - 0.04) / 0.25));
-      const lookW = 1 - walkW; // look-around when standing still
+      const idleW = 1 - walkW;
       if (this._walkAction) {
         this._walkAction.setEffectiveWeight(walkW);
         this._walkAction.setEffectiveTimeScale(0.85 + Math.min(1.6, this._smoothSpeed / 1.0));
       }
-      // look-around replaces idle when standing still
-      if (this._lookAction) {
-        this._lookAction.setEffectiveWeight(lookW);
-        // Always slow, contemplative look-around speed
-        this._lookAction.setEffectiveTimeScale(0.45);
-      } else if (this._idleAction) {
-        // Fallback if look clip missing
-        this._idleAction.setEffectiveWeight(lookW);
+      if (this._idleAction) {
+        this._idleAction.setEffectiveWeight(idleW);
+        this._idleAction.setEffectiveTimeScale(1.0);
       }
-      // idle action blended to 0 (look takes its slot)
-      if (this._lookAction && this._idleAction) _zero(this._idleAction);
     }
 
     if (this._mixer) this._mixer.update(delta);

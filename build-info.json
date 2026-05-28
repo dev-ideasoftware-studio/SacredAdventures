@@ -1,9 +1,9 @@
 {
-  "subject": "feat: Restore corrected, fully-compatible standalone avatar animation tester page",
-  "isoDate": "2026-05-28T00:27:54-05:00",
+  "subject": "fix(ground,avatar): shore-cliff seam continuity + idle-not-look default + spawn outside pool",
+  "isoDate": "2026-05-28T01:32:45-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v35",
-  "commit": "ae4895e",
-  "dirty": false,
-  "generatedAt": "2026-05-28T05:27:54.634Z"
+  "commit": "e47db4d",
+  "dirty": true,
+  "generatedAt": "2026-05-28T06:32:48.904Z"
 }
