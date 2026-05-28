@@ -1,9 +1,9 @@
 {
-  "subject": "feat(fishing): add bite chance scaling and secret cheat double-F reel shortcut",
-  "isoDate": "2026-05-28T02:11:19-05:00",
+  "subject": "feat(pool,frogs): thousands of micro-rocks + moss tufts + orchid lilies + buddy frog pair",
+  "isoDate": "2026-05-28T03:41:44-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v35",
-  "commit": "7526918",
-  "dirty": false,
-  "generatedAt": "2026-05-28T07:11:25.133Z"
+  "commit": "9b69d6b",
+  "dirty": true,
+  "generatedAt": "2026-05-28T08:41:49.489Z"
 }

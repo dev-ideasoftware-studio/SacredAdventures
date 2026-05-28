@@ -44,11 +44,36 @@ const S_BASK_LILY = 1;
 const S_JUMP = 3;
 const S_STRIKE = 4;
 
+// ── Friend-frog pair (user-requested 2026-05-28) ───────────────────
+// Two extra frogs that behave as a buddy pair: leader picks a target,
+// follower mirrors ~0.4s later, both bask/jump/swim together. Every
+// ~12s they break from the lilies to chase the nearest fish for a
+// few seconds (existing fish AI flees, that's the joke), then they
+// return to a lily. Stored separately from `_frogs` so they don't
+// fall under the solo-frog state machine.
+const FRIEND_FROG_COUNT = 2;
+const FRIEND_FOLLOW_DELAY_S = 0.4;
+const FRIEND_REST_MIN_S = 5.0;
+const FRIEND_REST_MAX_S = 8.0;
+const FRIEND_CHASE_INTERVAL_S = 12.0;  // seconds between chase events
+const FRIEND_CHASE_DURATION_S = 4.5;
+const FRIEND_SWIM_SPEED = 0.9;
+// Pair modes
+const PAIR_REST = 0;
+const PAIR_JUMP = 1;
+const PAIR_CHASE = 2;
+const PAIR_RETURN = 3;
+
 let _scene = null;
 let _group = null;
 let _frogs = [];
 let _lilies = [];
 let _clock = 0;
+let _friendFrogs = [];       // length 2: [leader, follower]
+let _friendPairTimer = 0;     // seconds in current mode
+let _friendPairMode = PAIR_REST;
+let _friendChaseClock = 0;    // ticks up while NOT chasing; reset on chase
+let _friendLeaderTarget = new THREE.Vector3(); // shared target XYZ
 
 // ── Geometries & Materials ────────────────────────────────────────────────
 
@@ -396,8 +421,56 @@ export const SanctuaryFrogsModule = {
       _group.add(group);
     }
 
+    // 3. Initialize FRIEND-FROG pair (leader + follower)
+    _friendFrogs = [];
+    _friendPairMode = PAIR_REST;
+    _friendPairTimer = FRIEND_REST_MIN_S + rand() * (FRIEND_REST_MAX_S - FRIEND_REST_MIN_S);
+    _friendChaseClock = 0;
+    for (let i = 0; i < FRIEND_FROG_COUNT; i++) {
+      const fg = _buildFrog();
+      // Tint the leader slightly warmer / the follower slightly cooler so kids can tell them apart
+      fg.traverse((ch) => {
+        if (ch.isMesh && ch.material && ch.material.color) {
+          ch.material = ch.material.clone();
+          if (i === 0) {
+            ch.material.color = ch.material.color.clone().lerp(new THREE.Color(0xcfd96b), 0.35); // warm chartreuse
+          } else {
+            ch.material.color = ch.material.color.clone().lerp(new THREE.Color(0x6bcfd9), 0.30); // cool teal-green
+          }
+        }
+      });
+      // Spawn on different starting lilies, ~0.7m apart
+      const startPad = _lilies[Math.min(i, _lilies.length - 1)];
+      if (startPad) {
+        fg.position.set(
+          startPad.position.x + (i === 0 ? -0.15 : 0.15),
+          WATER_Y + 0.08,
+          startPad.position.z + (i === 0 ? -0.15 : 0.15),
+        );
+      }
+      fg.rotation.y = rand() * Math.PI * 2;
+      fg.name = i === 0 ? "sanctuary_frog_friend_leader" : "sanctuary_frog_friend_follower";
+
+      const ff = {
+        group: fg,
+        // own jump state — modeled like solo frogs
+        startPos: new THREE.Vector3(),
+        endPos: new THREE.Vector3(),
+        duration: 0,
+        timer: 0,
+        isAirborne: false,
+        // follower-only: delay before mirroring leader's command
+        followCue: null, // { mode, target, atClock }
+      };
+      _friendFrogs.push(ff);
+      _group.add(fg);
+    }
+
     scene.add(_group);
-    console.log("%c[SanctuaryFrogs] 🐸 Photoreal frogs & Lilies online.", "color:#a5d6a7;font-weight:bold;");
+    console.log(
+      `%c[SanctuaryFrogs] 🐸 Photoreal frogs & Lilies online — ${FROG_COUNT} solo + ${FRIEND_FROG_COUNT} buddy-pair.`,
+      "color:#a5d6a7;font-weight:bold;",
+    );
   },
 
   update(dt, frameCount, scene, camera) {
@@ -659,6 +732,9 @@ export const SanctuaryFrogsModule = {
         }
       }
     }
+
+    // ── Friend-frog pair update (buddy behaviour) ─────────────────────
+    _updateFriendFrogPair(scaledDt);
   },
 
   unload() {
@@ -667,5 +743,188 @@ export const SanctuaryFrogsModule = {
     _scene = null;
     _frogs = [];
     _lilies = [];
+    _friendFrogs = [];
+    _friendPairMode = PAIR_REST;
+    _friendPairTimer = 0;
+    _friendChaseClock = 0;
   }
 };
+
+// ── Friend-frog pair: leader/follower state machine ──────────────────
+// Modes:
+//   REST   — both frogs idle on a lily pad. After 5–8s pick a new
+//            target lily, fire JUMP for both (follower delayed 0.4s).
+//   JUMP   — both frogs airborne (one then the other) toward the
+//            shared target. Completes when both have landed.
+//   CHASE  — every FRIEND_CHASE_INTERVAL_S, both frogs hop in and
+//            swim toward the nearest fish for FRIEND_CHASE_DURATION_S
+//            (existing fish AI flees on its own). Returns to REST.
+//   RETURN — heading back to a lily after a chase.
+
+const _ffScratchA = new THREE.Vector3();
+const _ffScratchB = new THREE.Vector3();
+
+function _updateFriendFrogPair(dt) {
+  if (!_friendFrogs || _friendFrogs.length < 2) return;
+  const leader = _friendFrogs[0];
+  const follower = _friendFrogs[1];
+  if (!leader.group || !follower.group) return;
+
+  _friendPairTimer -= dt;
+
+  // Tick the rest-clock toward a chase event
+  if (_friendPairMode === PAIR_REST) {
+    _friendChaseClock += dt;
+  }
+
+  // Mode transition: REST → JUMP or CHASE
+  if (_friendPairMode === PAIR_REST && _friendPairTimer <= 0 && !leader.isAirborne && !follower.isAirborne) {
+    // Time to do something. ~25% of the time when chase-clock has
+    // matured, pick a fish to chase; otherwise hop to a new lily.
+    if (_friendChaseClock >= FRIEND_CHASE_INTERVAL_S && _pickNearestFish(_friendLeaderTarget)) {
+      _friendPairMode = PAIR_CHASE;
+      _friendPairTimer = FRIEND_CHASE_DURATION_S;
+      _friendChaseClock = 0;
+    } else {
+      // Pick a random lily as the new target
+      if (_lilies.length > 0) {
+        const pad = _lilies[Math.floor(Math.random() * _lilies.length)];
+        _friendLeaderTarget.copy(pad.position);
+        _friendPairMode = PAIR_JUMP;
+        _friendPairTimer = 1.2; // safety timeout — jumps usually finish well under this
+        // Leader jumps NOW
+        _startFriendJump(leader, _friendLeaderTarget, 0.7);
+        // Follower jumps after the delay (we'll trigger it when delay expires)
+        follower.followCue = { atClock: _clock + FRIEND_FOLLOW_DELAY_S, target: _friendLeaderTarget.clone() };
+      }
+    }
+  }
+
+  // Trigger follower's delayed jump cue
+  if (follower.followCue && _clock >= follower.followCue.atClock) {
+    _startFriendJump(follower, follower.followCue.target, 0.7);
+    follower.followCue = null;
+  }
+
+  // Integrate per-frog motion based on state
+  _stepFriendFrog(leader, dt);
+  _stepFriendFrog(follower, dt);
+
+  // Mode transition: JUMP completes when both have landed
+  if (_friendPairMode === PAIR_JUMP && !leader.isAirborne && !follower.isAirborne && !follower.followCue) {
+    _friendPairMode = PAIR_REST;
+    _friendPairTimer = FRIEND_REST_MIN_S + Math.random() * (FRIEND_REST_MAX_S - FRIEND_REST_MIN_S);
+  }
+
+  // CHASE mode: both swim toward the target (follower trails leader by ~0.6m)
+  if (_friendPairMode === PAIR_CHASE) {
+    // Re-pick nearest fish every 0.8s for live targeting (cheap)
+    if (Math.random() < dt * 1.25) _pickNearestFish(_friendLeaderTarget);
+
+    _swimFriendToward(leader, _friendLeaderTarget, dt, FRIEND_SWIM_SPEED);
+    // Follower trails the leader's CURRENT position (not the target) so they read as following
+    _ffScratchB.copy(leader.group.position);
+    _swimFriendToward(follower, _ffScratchB, dt, FRIEND_SWIM_SPEED * 0.92);
+
+    if (_friendPairTimer <= 0) {
+      // Chase over — head back to a random lily
+      if (_lilies.length > 0) {
+        const pad = _lilies[Math.floor(Math.random() * _lilies.length)];
+        _friendLeaderTarget.copy(pad.position);
+      }
+      _friendPairMode = PAIR_RETURN;
+      _friendPairTimer = 4.0;
+    }
+  }
+
+  // RETURN mode: swim back to a lily, then enter REST
+  if (_friendPairMode === PAIR_RETURN) {
+    _swimFriendToward(leader, _friendLeaderTarget, dt, FRIEND_SWIM_SPEED);
+    _ffScratchB.copy(leader.group.position);
+    _swimFriendToward(follower, _ffScratchB, dt, FRIEND_SWIM_SPEED * 0.92);
+
+    // Arrival check — leader within 0.4m of lily, or timeout
+    _ffScratchA.copy(_friendLeaderTarget).sub(leader.group.position);
+    _ffScratchA.y = 0;
+    if (_ffScratchA.lengthSq() < 0.16 || _friendPairTimer <= 0) {
+      // Snap onto the lily
+      leader.group.position.set(_friendLeaderTarget.x - 0.12, WATER_Y + 0.08, _friendLeaderTarget.z - 0.12);
+      follower.group.position.set(_friendLeaderTarget.x + 0.12, WATER_Y + 0.08, _friendLeaderTarget.z + 0.12);
+      _friendPairMode = PAIR_REST;
+      _friendPairTimer = FRIEND_REST_MIN_S + Math.random() * (FRIEND_REST_MAX_S - FRIEND_REST_MIN_S);
+    }
+  }
+}
+
+function _startFriendJump(ff, target, duration) {
+  ff.startPos.copy(ff.group.position);
+  ff.endPos.copy(target);
+  // Lily targets have Y at water level; aim a bit above so the frog lands on top
+  ff.endPos.y = WATER_Y + 0.08;
+  ff.duration = duration;
+  ff.timer = 0;
+  ff.isAirborne = true;
+}
+
+function _stepFriendFrog(ff, dt) {
+  if (!ff.isAirborne) return;
+  ff.timer += dt;
+  const t = Math.min(1, ff.timer / ff.duration);
+  // Parabolic arc
+  const arcHeight = Math.max(0.25, ff.startPos.distanceTo(ff.endPos) * 0.35);
+  const yArc = 4 * arcHeight * t * (1 - t);
+  ff.group.position.x = ff.startPos.x + (ff.endPos.x - ff.startPos.x) * t;
+  ff.group.position.z = ff.startPos.z + (ff.endPos.z - ff.startPos.z) * t;
+  ff.group.position.y = ff.startPos.y + (ff.endPos.y - ff.startPos.y) * t + yArc;
+  // Face the direction of travel
+  const dx = ff.endPos.x - ff.startPos.x;
+  const dz = ff.endPos.z - ff.startPos.z;
+  if (dx * dx + dz * dz > 0.0001) {
+    ff.group.rotation.y = Math.atan2(dx, dz);
+  }
+  // Pitch: head-up on takeoff, head-down on descent
+  ff.group.rotation.x = -Math.sin(t * Math.PI) * 0.35 + (t - 0.5) * 0.4;
+  if (t >= 1) {
+    ff.isAirborne = false;
+    ff.group.rotation.x = 0;
+  }
+}
+
+function _swimFriendToward(ff, target, dt, speed) {
+  // Float at the waterline + tiny bob so they read as swimming, not flying
+  _ffScratchA.copy(target).sub(ff.group.position);
+  _ffScratchA.y = 0;
+  const d = _ffScratchA.length();
+  if (d > 0.02) {
+    _ffScratchA.multiplyScalar(speed * dt / d);
+    ff.group.position.x += _ffScratchA.x;
+    ff.group.position.z += _ffScratchA.z;
+  }
+  ff.group.position.y = WATER_Y + 0.04 + Math.sin(_clock * 3 + ff.group.position.x) * 0.015;
+  // Face direction of motion
+  if (d > 0.05) {
+    const yaw = Math.atan2(target.x - ff.group.position.x, target.z - ff.group.position.z);
+    const diff = yaw - ff.group.rotation.y;
+    const norm = Math.atan2(Math.sin(diff), Math.cos(diff));
+    ff.group.rotation.y += norm * dt * 6.0;
+  }
+}
+
+function _pickNearestFish(outVec) {
+  const school = typeof window !== "undefined" ? window.__sanctuaryFishSchool : null;
+  if (!school || !school.length || !_friendFrogs[0]?.group) return false;
+  const fromX = _friendFrogs[0].group.position.x;
+  const fromZ = _friendFrogs[0].group.position.z;
+  let best = null;
+  let bestD = Infinity;
+  for (const f of school) {
+    if (!f?.position) continue;
+    const dx = f.position.x - fromX;
+    const dz = f.position.z - fromZ;
+    const dSq = dx * dx + dz * dz;
+    if (dSq < bestD) { bestD = dSq; best = f; }
+  }
+  if (!best) return false;
+  outVec.set(best.position.x, WATER_Y, best.position.z);
+  return true;
+}

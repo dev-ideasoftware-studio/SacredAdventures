@@ -963,7 +963,160 @@ function buildPoolRocks(centerY) {
   if (pebbleMesh.instanceColor) pebbleMesh.instanceColor.needsUpdate = true;
   group.add(pebbleMesh);
 
+  // ── MICRO-PEBBLES — thousands of tiny stones carpeting the basin ──
+  // Single InstancedMesh, 3000 instances of a 4-tri tetrahedron at
+  // 0.015–0.05 m. Spread across the WHOLE basin (no anchor clustering)
+  // so the pond floor reads as a continuous gravel bed under the bigger
+  // rocks and pebbles. User-requested 2026-05-28: "cover the entire pool
+  // with thousands of small tiny rock draws". 4 tris × 3000 = 12k tris
+  // for the whole carpet, in 1 instanced draw.
+  const MICRO_PEBBLE_COUNT = 3000;
+  const microGeo = new THREE.TetrahedronGeometry(1.0, 0);
+  const microMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.94,
+    metalness: 0.02,
+    flatShading: true,
+  });
+  const microMesh = new THREE.InstancedMesh(microGeo, microMat, MICRO_PEBBLE_COUNT);
+  microMesh.castShadow = false;
+  microMesh.receiveShadow = true;
+  microMesh.layers.enable(1);
+  microMesh.name = "sanctuary_pool_micro_pebbles";
+  microMesh.userData.anuKind = "sanctuary_pool_micro_pebble";
+  microMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  // Mix mossy greens into the micro-pebble palette so the gravel bed
+  // reads as "alive / damp" instead of a uniform dry pile.
+  const microPalette = [
+    new THREE.Color(0x554838), // ochre stone (re-use)
+    new THREE.Color(0x3a3025), // dirty brown
+    new THREE.Color(0x4a4035), // medium silt
+    new THREE.Color(0x665540), // pale sand
+    new THREE.Color(0x3d4a2a), // mossy green (interweave)
+    new THREE.Color(0x4a5a36), // brighter moss
+    new THREE.Color(0x2f3a24), // dark moss
+    new THREE.Color(0x5b4a35), // wet sand
+  ];
+  for (let i = 0; i < MICRO_PEBBLE_COUNT; i++) {
+    const theta = rng() * Math.PI * 2;
+    const dNorm = Math.sqrt(rng()); // sqrt → uniform area distribution (not biased to centre)
+    const d = 0.55 + dNorm * (SANCTUARY_POOL_RADIUS_M * 0.88 - 0.55);
+    const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
+    const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
+    const sBase = 0.015 + rng() * 0.035; // 0.015 to 0.050 m
+    _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
+    _quat.setFromEuler(_euler);
+    _pos.set(x, bottomY - 0.005 + rng() * 0.015 + sBase * 0.3, z);
+    _scl.set(sBase * (0.85 + rng() * 0.35), sBase * (0.55 + rng() * 0.25), sBase * (0.85 + rng() * 0.35));
+    _m.compose(_pos, _quat, _scl);
+    microMesh.setMatrixAt(i, _m);
+    microMesh.setColorAt(i, microPalette[Math.floor(rng() * microPalette.length)]);
+  }
+  microMesh.instanceMatrix.needsUpdate = true;
+  if (microMesh.instanceColor) microMesh.instanceColor.needsUpdate = true;
+  group.add(microMesh);
+
+  // ── MOSS TUFTS — green blades interwoven with the rocks ───────────
+  // 1500 instanced crossed-quad tufts (4 tris each), 0.03–0.08 m tall.
+  // Each tuft is two thin planes crossed at 90° so the silhouette
+  // reads from any angle. Half the tufts are placed AT existing rock
+  // anchor positions (offset slightly) so they grow *between* the
+  // rocks like wet moss; the other half scatter free across the floor.
+  const MOSS_COUNT = 1500;
+  const mossGeo = _buildMossTuftGeometry();
+  const mossMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.88,
+    metalness: 0.0,
+    flatShading: false,
+    side: THREE.DoubleSide, // crossed quads visible from both sides
+    transparent: false,
+  });
+  const mossMesh = new THREE.InstancedMesh(mossGeo, mossMat, MOSS_COUNT);
+  mossMesh.castShadow = false;
+  mossMesh.receiveShadow = true;
+  mossMesh.layers.enable(1);
+  mossMesh.name = "sanctuary_pool_moss_tufts";
+  mossMesh.userData.anuKind = "sanctuary_pool_moss_tuft";
+  mossMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  const mossPalette = [
+    new THREE.Color(0x4a6b2a), // bright moss
+    new THREE.Color(0x384e1f), // wet moss (dark, saturated)
+    new THREE.Color(0x6b5a35), // dead grass tan
+    new THREE.Color(0x5c6a3a), // olive
+    new THREE.Color(0x39522d), // fern
+    new THREE.Color(0x6b4a2c), // copper-rust (autumn debris)
+  ];
+  for (let i = 0; i < MOSS_COUNT; i++) {
+    let x, z;
+    if (rockAnchors.length && rng() < 0.55) {
+      // 55%: grow near an existing rock anchor — interweaves with stones
+      const anchor = rockAnchors[Math.floor(rng() * rockAnchors.length)];
+      const clusterR = anchor.r * 0.6 + rng() * 0.35;
+      const clusterTheta = rng() * Math.PI * 2;
+      x = anchor.x + Math.cos(clusterTheta) * clusterR;
+      z = anchor.z + Math.sin(clusterTheta) * clusterR;
+    } else {
+      // 45%: free scatter across the floor
+      const theta = rng() * Math.PI * 2;
+      const dNorm = Math.sqrt(rng());
+      const d = 0.65 + dNorm * (SANCTUARY_POOL_RADIUS_M * 0.86 - 0.65);
+      x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
+      z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
+    }
+    // Clamp inside basin + clear of drain
+    const dx = x - SANCTUARY_POOL_CENTER_X;
+    const dz = z - SANCTUARY_POOL_CENTER_Z;
+    const dC = Math.hypot(dx, dz);
+    const maxR = SANCTUARY_POOL_RADIUS_M * 0.86;
+    if (dC > maxR) { const s = maxR / dC; x = SANCTUARY_POOL_CENTER_X + dx * s; z = SANCTUARY_POOL_CENTER_Z + dz * s; }
+    if (dC < 0.55) { const s = 0.55 / Math.max(0.01, dC); x = SANCTUARY_POOL_CENTER_X + dx * s; z = SANCTUARY_POOL_CENTER_Z + dz * s; }
+
+    const tuftH = 0.03 + rng() * 0.05;          // 0.03–0.08 m tall
+    const tuftW = tuftH * (0.6 + rng() * 0.6);  // slight width variance
+    _euler.set(0, rng() * Math.PI * 2, 0);       // random Y rotation only — tufts stand upright
+    _quat.setFromEuler(_euler);
+    _pos.set(x, bottomY, z);
+    _scl.set(tuftW, tuftH, tuftW);
+    _m.compose(_pos, _quat, _scl);
+    mossMesh.setMatrixAt(i, _m);
+    mossMesh.setColorAt(i, mossPalette[Math.floor(rng() * mossPalette.length)]);
+  }
+  mossMesh.instanceMatrix.needsUpdate = true;
+  if (mossMesh.instanceColor) mossMesh.instanceColor.needsUpdate = true;
+  group.add(mossMesh);
+
   return group;
+}
+
+/**
+ * Crossed-quad "tuft" geometry — two narrow vertical planes meeting at
+ * 90° so the tuft silhouette is visible from every horizontal viewing
+ * angle. Origin at the base (Y=0), tuft grows up to Y=1 in local space;
+ * caller scales by the desired height. 4 triangles per tuft.
+ */
+function _buildMossTuftGeometry() {
+  const positions = new Float32Array([
+    // Plane A: along X axis
+    -0.5, 0.0, 0.0,
+     0.5, 0.0, 0.0,
+     0.5, 1.0, 0.0,
+    -0.5, 1.0, 0.0,
+    // Plane B: along Z axis (rotated 90° around Y)
+     0.0, 0.0, -0.5,
+     0.0, 0.0,  0.5,
+     0.0, 1.0,  0.5,
+     0.0, 1.0, -0.5,
+  ]);
+  const indices = new Uint16Array([
+    0, 1, 2,  0, 2, 3, // plane A front
+    4, 5, 6,  4, 6, 7, // plane B front
+  ]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  g.setIndex(new THREE.BufferAttribute(indices, 1));
+  g.computeVertexNormals();
+  return g;
 }
 
 function buildRim(centerY) {
@@ -1244,6 +1397,60 @@ function buildLilyPads(centerY) {
       group.add(flower);
     }
   }
+
+  // ── BIG ORCHID LILIES — 3 oversized centre-pool clusters ──────────
+  // User-requested 2026-05-28: bigger lilies with orchids near the
+  // centre. These are visually distinct from the regular 14 pads —
+  // 1.6× scale, paired with a slightly larger orchid-style flower
+  // (rotated lotus + warmer pink-purple tint), placed within a ~3 m
+  // ring around the pool centre so they read as the "centrepiece".
+  const ORCHID_PADS = 3;
+  const ORCHID_RING_RADIUS_M = 2.8; // close to centre, but outside the drain
+  for (let i = 0; i < ORCHID_PADS; i++) {
+    const ang = (i / ORCHID_PADS) * Math.PI * 2 + rng() * 0.5;
+    const r = ORCHID_RING_RADIUS_M * (0.75 + rng() * 0.5);
+    const x = SANCTUARY_POOL_CENTER_X + Math.cos(ang) * r;
+    const z = SANCTUARY_POOL_CENTER_Z + Math.sin(ang) * r;
+    const padY = centerY + 0.022 + rng() * 0.008;
+
+    const pad = new THREE.Mesh(padGeo, padMat);
+    pad.rotation.x = -Math.PI / 2;
+    pad.rotation.z = rng() * Math.PI * 2;
+    pad.position.set(x, padY, z);
+    pad.scale.setScalar(1.55 + rng() * 0.25); // 1.55–1.80 — clearly bigger than regular pads (0.55–1.0)
+    pad.name = `sanctuary_orchid_pad_${i}`;
+    pad.userData.anuKind = "sanctuary_lily_pad";
+    pad.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+    pad.receiveShadow = true;
+    pad.userData.initialX = x;
+    pad.userData.initialZ = z;
+    pad.userData.initialY = padY;
+    pad.userData.baseQuaternion = pad.quaternion.clone();
+    group.add(pad);
+
+    const flower = _buildLotusFlower(rng);
+    // Tint every petal toward warm pink-purple so the orchid reads
+    // distinct from the standard cream lotus
+    flower.traverse((ch) => {
+      if (ch.isMesh && ch.material && ch.material.color) {
+        // Clone the material so the regular lotus pads stay unaffected
+        ch.material = ch.material.clone();
+        ch.material.color = new THREE.Color(0xe6a8c8).lerp(ch.material.color, 0.35);
+      }
+    });
+    flower.scale.setScalar(1.45 + rng() * 0.20); // 1.45–1.65 bigger flower
+    const flowerY = padY + FLOWER_LIFT_M;
+    flower.position.set(x, flowerY, z);
+    flower.name = `sanctuary_orchid_flower_${i}`;
+    flower.userData.anuKind = "sanctuary_orchid_flower";
+    flower.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+    flower.userData.initialX = x;
+    flower.userData.initialZ = z;
+    flower.userData.initialY = flowerY;
+    flower.userData.baseQuaternion = flower.quaternion.clone();
+    group.add(flower);
+  }
+
   return group;
 }
 
