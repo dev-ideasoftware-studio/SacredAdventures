@@ -30,6 +30,7 @@
 import * as THREE from "three";
 import { ANU_SIMULATION_DOMAIN, ANU_INTERACTION_VERB } from "../v2/anu/SimulationController.js";
 import {
+  sanctuaryBodyY,
   sanctuaryGroundY,
   SANCTUARY_POOL_CENTER_X,
   SANCTUARY_POOL_CENTER_Z,
@@ -464,9 +465,10 @@ export const SanctuaryClickToMoveModule = {
     const isAvatarBody =
       typeof window !== "undefined" && window.__sanctuaryAvatar === body;
     const yLift = isAvatarBody ? 0 : 1.5;
-    const _dockSurf = typeof window !== "undefined" && window.__sanctuaryDockSurface;
-    const _dockY = _dockSurf ? _dockSurf.getY(body.position.x, body.position.z) : null;
-    body.position.y = (_dockY !== null ? _dockY : sanctuaryGroundY(body.position.x, body.position.z)) + yLift;
+    // sanctuaryBodyY handles dock, pool waterline (half-submerged swim),
+    // and terrain in one place. The +yLift only fires for the pre-avatar
+    // camera fallback (lifts the eye 1.5 m above ground).
+    body.position.y = sanctuaryBodyY(body.position.x, body.position.z) + yLift;
 
     // Yaw matches the path so a future avatar will face forward.
     this._yaw = Math.atan2(-dx, -dz);

@@ -1,8 +1,8 @@
 {
-  "subject": "fix(avatar): look-around idle, swim, sitFish(clip5), heart(clip0); fishing panorama 1-tile pullback at 10s",
-  "isoDate": "2026-05-27T23:23:43-05:00",
+  "subject": "refactor(ground): consolidate body-Y logic into sanctuaryBodyY — WASD, click-to-move, avatar all use single source of truth for dock/pool/terrain elevation",
+  "isoDate": "2026-05-27T23:25:51-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v35",
   "dirty": true,
-  "generatedAt": "2026-05-28T04:23:47.092Z"
+  "generatedAt": "2026-05-28T04:25:55.941Z"
 }

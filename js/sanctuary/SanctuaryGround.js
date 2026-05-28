@@ -212,6 +212,54 @@ function sanctuaryHillRing(x, z) {
  * into the meadow over the last 25 % of the radius. Outside the pool
  * (and its bank-blend), the meadow bump is the answer.
  */
+/**
+ * Body-anchor Y for any walking/swimming body in the sanctuary.
+ *
+ * Three modules need to know "where should the feet sit?":
+ *   SanctuaryKeyboardLook  (WASD path)
+ *   SanctuaryClickToMove   (click-walk path)
+ *   SanctuaryAvatar        (per-frame snap)
+ *
+ * Previously each module reimplemented the rules. With dock + waterline
+ * cases in play, divergence between them caused the avatar to clip below
+ * the waterline when swimming. This helper is the single source of truth.
+ *
+ *  1. If standing over the dock footprint  → return the dock surface Y.
+ *  2. Else if inside the pool circle       → float at waterY − bodyHeight/2
+ *                                            so the body is half submerged.
+ *  3. Else                                 → analytic terrain (sanctuaryGroundY).
+ *
+ * @param {number} x  world x
+ * @param {number} z  world z
+ * @param {number} [bodyHeight=1.524]  body height in metres (avatar default)
+ * @returns {number}  world Y for the body root (feet anchor)
+ */
+export function sanctuaryBodyY(x, z, bodyHeight = 1.524) {
+  // 1) Dock takes priority — kid can walk onto the dock surface
+  if (typeof window !== "undefined") {
+    const dock = window.__sanctuaryDockSurface;
+    if (dock && typeof dock.getY === "function") {
+      const dy = dock.getY(x, z);
+      if (dy !== null && dy !== undefined) return dy;
+    }
+  }
+
+  // 2) Inside the pool → float half-submerged at the waterline
+  const dx = x - SANCTUARY_POOL_CENTER_X;
+  const dz = z - SANCTUARY_POOL_CENTER_Z;
+  const dist = Math.hypot(dx, dz);
+  if (
+    dist < SANCTUARY_POOL_RADIUS_M - 0.5 &&
+    typeof window !== "undefined" &&
+    Number.isFinite(window.__sanctuaryWaterY)
+  ) {
+    return window.__sanctuaryWaterY - bodyHeight * 0.5;
+  }
+
+  // 3) Default: analytic terrain
+  return sanctuaryGroundY(x, z);
+}
+
 export function sanctuaryGroundY(x, z) {
   const meadowY = meadowBump(x, z);
   const dx = x - SANCTUARY_POOL_CENTER_X;
