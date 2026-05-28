@@ -693,8 +693,8 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
           const frame = document.getElementById("panel-frame");
           const panelDoc = frame ? frame.contentDocument : null;
           const existingPip =
-            document.getElementById("pipCanvas") ||
-            (panelDoc ? panelDoc.getElementById("pipCanvas") : null);
+            document.getElementById("v2-pip-canvas") ||
+            (panelDoc ? panelDoc.getElementById("v2-pip-canvas") : null);
 
           if (existingPip) {
             window.pipCanvas2D = existingPip;
@@ -3584,7 +3584,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         function cacheDOMElements() {
             _timeEl = document.getElementById('time-display');
             _statsEl = document.getElementById('dev-fps') || document.getElementById('stats-hud');
-            _moonFrame = document.getElementById('moondial-frame');
+            // _moonFrame = document.getElementById('moondial-frame');
         }
 // Cache after DOM ready
         setTimeout(cacheDOMElements, 100);
@@ -4968,13 +4968,13 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
           }
 
           // --- MOON DIAL UPDATE (throttled) ---
-          if (frameCount % 60 === 0 && _moonFrame && _moonFrame.contentWindow) {
-            // Use postMessage to avoid cross-origin frame reading blocks on file://
-            _moonFrame.contentWindow.postMessage(
-              { type: "UPDATE_MOON", time: gameTime },
-              "*",
-            );
-          }
+          // if (frameCount % 60 === 0 && _moonFrame && _moonFrame.contentWindow) {
+          //   // Use postMessage to avoid cross-origin frame reading blocks on file://
+          //   _moonFrame.contentWindow.postMessage(
+          //     { type: "UPDATE_MOON", time: gameTime },
+          //     "*",
+          //   );
+          // }
           // --- WILDLIFE & WIND IN FPV ONLY ---
           if (!window._isMapView) {
             if (window.butterflySystem) window.butterflySystem.update(delta); // Visual fx keep full Hz
@@ -5376,7 +5376,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
             const frame = document.getElementById("panel-frame");
             const panelDoc = frame ? frame.contentDocument : null;
             const framePip = panelDoc
-              ? panelDoc.getElementById("pipCanvas")
+              ? panelDoc.getElementById("v2-pip-canvas")
               : null;
             if (framePip) {
               window.pipCanvas2D = framePip;

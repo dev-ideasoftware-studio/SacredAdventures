@@ -19,7 +19,7 @@ async function waitForV2Boot(page) {
   await page.waitForFunction(
     () =>
       window.AnuUniverse?.isLiveSacredOrchestratorBound?.() === true &&
-      ["Anu", "World", "Trees", "PanelsPIP"].every((name) =>
+      ["Anu", "World", "Fauna", "PanelsPIP"].every((name) =>
         window.anuOrchestrator?._activeModules?.includes(name),
       ),
     null,
@@ -39,12 +39,12 @@ test("v2 boots orchestrator, Anu, world services, and PiP shell", async ({ page 
     pip: window.anuOrchestrator._pipStrategy.getSnapshot(),
     hasWorldPlayer: Boolean(window.WorldPlayer?.feet),
     hasWorldPhysics: typeof window.WorldPhysics?.getGroundY === "function",
-    hasPipCanvas: Boolean(document.getElementById("pipCanvas")),
+    hasPipCanvas: Boolean(document.getElementById("v2-pip-canvas")),
   }));
 
   expect(snapshot.bound).toBe(true);
   expect(snapshot.activeModules).toEqual(
-    expect.arrayContaining(["Anu", "World", "Trees", "PanelsPIP"]),
+    expect.arrayContaining(["Anu", "World", "Fauna", "PanelsPIP"]),
   );
   expect(snapshot.services).toEqual(
     expect.arrayContaining(["WorldPhysics", "WorldPlayer"]),

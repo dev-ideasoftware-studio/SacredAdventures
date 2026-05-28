@@ -54,7 +54,6 @@ const WARN_TREES = [
   "js/components/Component.ThreeIcons.js",
   "js/components/Component.LoadingModal.html",
   "js/components/Component.NewJournal.html",
-  "js/components/Component.MoonDial.html",
   "SacredGame.Journal.html",
   "SacredGame.Panel.html",
   "index.html",

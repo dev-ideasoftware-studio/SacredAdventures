@@ -1127,7 +1127,7 @@ export class SacredOrchestrator {
       return;
     }
 
-    const pipCanvas = document.getElementById("pipCanvas");
+    const pipCanvas = document.getElementById("v2-pip-canvas");
     if (!pipCanvas) {
       this._pipRenderedLastFrame = false;
       return;

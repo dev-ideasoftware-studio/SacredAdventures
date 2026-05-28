@@ -82,7 +82,7 @@ export const UIModule = {
           }
         }
         
-        #moondial-wrapper iframe {
+        #v2-pip-canvas {
             position: absolute;
             inset: 6px;
             width: calc(100% - 12px);
@@ -91,18 +91,6 @@ export const UIModule = {
             border-radius: 50%;
             pointer-events: none;
             z-index: 2;
-        }
-
-        #pipCanvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 88%;
-            height: 88%;
-            border-radius: 50%;
-            z-index: 1;
-            pointer-events: none;
         }
 
         #pip-click-zone {
@@ -212,16 +200,15 @@ export const UIModule = {
           <span class="compass-marker e">E</span>
           <span class="compass-marker w">W</span>
         </div>
-        <iframe id="moondial-frame" src="js/components/Component.MoonDial.html?v=v4"></iframe>
-        <canvas id="pipCanvas" width="512" height="512"></canvas>
+        <canvas id="v2-pip-canvas" width="512" height="512"></canvas>
         <div id="pip-click-zone" title="Toggle minimap view"></div>
       </div>
     `;
     document.body.appendChild(this._root);
     this._panelFrame = this._root.querySelector("#panel-frame");
-    this._moonFrame = this._root.querySelector("#moondial-frame");
+    this._moonFrame = null;
     this._compassRing = this._root.querySelector(".compass-outer-ring");
-    this._pipCanvas = this._root.querySelector("#pipCanvas");
+    this._pipCanvas = this._root.querySelector("#v2-pip-canvas");
 
     const toggle = (ev) => {
       ev.preventDefault();
@@ -270,10 +257,6 @@ export const UIModule = {
     }
 
     this._syncCompass(player.yaw);
-
-    if (this._moonFrame && this._moonFrame.contentWindow && frameCount % 15 === 0) {
-      this._moonFrame.contentWindow.postMessage({ type: "UPDATE_MOON", time: this._gameTime }, "*");
-    }
   },
 
   _syncCompass(yaw) {

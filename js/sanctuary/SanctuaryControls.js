@@ -10,7 +10,7 @@
  *                       (centred, bottom of viewport)
  *
  *   • TOP-DOWN button     — toggles top-down map view via the PIP swap
- *                            (same plumbing the v2 moondial uses; when
+ *                            (same plumbing the v2 PIP canvas uses; when
  *                            swapped the main canvas shows top-down,
  *                            PIP shows the chase view).
  *   • RESET button         — opens a "Are you sure?" modal that, on
@@ -158,7 +158,7 @@ function buildDom() {
   wrap.id = "v4-controls";
   // Legacy strip retired May-19 2026 — its functions now live on the
   // right-panel action ring (MAP / EAT / JOURNAL) and on a single-click
-  // of the moondial PIP. The DOM nodes remain so SanctuaryControls'
+  // of the PIP canvas. The DOM nodes remain so SanctuaryControls'
   // internal wiring (toggleTopDown, save, reset) still works when
   // called via `window._v4ToggleTopDown()` etc., but the visible
   // strip is hidden so it no longer overlaps the right-panel guide
@@ -272,7 +272,7 @@ export const SanctuaryControlsModule = {
     });
 
     // Expose toggleTopDown globally so the panel's MAP button and a
-    // single-click on the moondial PIP can drive top-down view without
+    // single-click on the PIP canvas can drive top-down view without
     // depending on the (now-hidden) legacy controls strip.
     if (typeof window !== "undefined") {
       window._v4ToggleTopDown = () => this._toggleTopDown();
