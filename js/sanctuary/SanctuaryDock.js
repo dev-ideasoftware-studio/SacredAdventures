@@ -34,9 +34,9 @@ import {
 
 // Geometry constants — all metres.
 const DOCK_AZIMUTH_RAD = Math.PI; // pier points to world -Z (south); player faces +Z toward it
-// 1.6 → 2.4 m (50 % wider, per user) so the player can comfortably walk
-// the planks. PLANK_COUNT stays at 8 so each plank just gets wider.
-const DOCK_WIDTH_M = 2.4;
+// 2.4 → 3.8 m (per user 2026-05-28) so the entire fishing-spot disc
+// (~3.6 m diameter) fits within the rails. PLANK_COUNT stays at 8.
+const DOCK_WIDTH_M = 3.8;
 const DOCK_LENGTH_M = 7.0;
 const DOCK_DECK_THICKNESS_M = 0.10;
 const PLANK_COUNT = 8;

@@ -131,34 +131,31 @@ function buildWaterSurface(centerY, textures) {
       `
     );
 
-    // Physically displace vertices vertically in local Z space to create real undulating 3D waves!
-    // We implement a dual-wave Gerstner Wave system (Trochoidal Wave physics) for true fluid dynamics,
-    // displacing vertices both horizontally (crowding at peaks) and vertically, with all speeds reduced by 200% more (3x slower).
+    // Concentric ripples expanding outward from the pool centre — replaces
+    // the previous two directional Gerstner waves (NE + NW) that read as
+    // diagonal "sideways" stripes from the rim. Per user 2026-05-28:
+    // "remove sideways ripples in pool, add more of the same surface
+    // ripples like the fishing gauge has around it". Two summed radial
+    // sin waves at different frequencies give a richer interference
+    // pattern than a single ring while still reading as concentric.
+    // No horizontal displacement — radial Gerstner crowding would distort
+    // the rim, and the pond is too small for the look to pay off.
     shader.vertexShader = shader.vertexShader.replace(
       "#include <begin_vertex>",
       `
       #include <begin_vertex>
-      
-      // Two interfering Gerstner Waves simulating physical fluid dynamics (steep peaks, flat troughs, ultra-meditative speed)
+
       float time = uTime;
       float vDist = length(uv - vec2(0.5));
       float shoreFade = smoothstep(0.48, 0.35, vDist);
-      
-      // Wave 1: Traveling North-East
-      vec2 d1 = normalize(vec2(0.9, 0.5));
-      float phase1 = dot(uv - vec2(0.5), d1) * 9.0 - time * 0.15;
-      float z1 = sin(phase1) * 0.005; // Ultra-flat wave height for a pond
-      float h1 = cos(phase1) * 0.003;
-      
-      // Wave 2: Traveling North-West (interference wave)
-      vec2 d2 = normalize(vec2(-0.4, 0.9));
-      float phase2 = dot(uv - vec2(0.5), d2) * 11.5 + time * 0.12;
+
+      // Two concentric ripples expanding from pool centre (vUv 0.5,0.5)
+      float phase1 = vDist * 22.0 - time * 0.32;
+      float z1 = sin(phase1) * 0.005;
+
+      float phase2 = vDist * 36.0 - time * 0.45;
       float z2 = sin(phase2) * 0.003;
-      float h2 = cos(phase2) * 0.002;
-      
-      // Combine displacements and apply shoreline dampening
-      transformed.x += (h1 * d1.x + h2 * d2.x) * shoreFade;
-      transformed.y += (h1 * d1.y + h2 * d2.y) * shoreFade;
+
       transformed.z += (z1 + z2) * shoreFade;
       `
     );
@@ -209,11 +206,13 @@ function buildWaterSurface(centerY, textures) {
       float shimmer = 0.88 + 0.12 * sin(time * 0.2);
       causticsVal *= shimmer;
       
-      // High-performance color ripples
-      vec2 pUv = vUv * 2.0; // wider, softer ripples
-      float w1 = sin(pUv.x * 0.85 + pUv.y * 0.40 + time * 0.05);
-      float w2 = sin(pUv.x * -0.35 + pUv.y * 0.95 + time * 0.04);
-      float ripple = (w1 + w2) * 0.5;
+      // Concentric color ripples — same radial pattern as the vertex
+      // displacement so the surface shimmer reads as expanding rings
+      // from the pool centre instead of diagonal stripes.
+      float dist = length(vUv - vec2(0.5));
+      float ring1 = sin(dist * 36.0 - time * 0.45);
+      float ring2 = sin(dist * 22.0 - time * 0.30);
+      float ripple = (ring1 + ring2) * 0.5;
 
       // Color tuning: greenish-blue pond water, but desaturated ~25% from
       // the previous mossy-emerald palette so the underwater sandy basin
@@ -1354,32 +1353,29 @@ function _buildLotusFlower(rng, variant) {
   return flower;
 }
 
-// Physical wave height sampler — matches the vertex shader's dual-wave Gerstner Wave interference model
-// to allow floating lily pads and flowers to follow the undulating surface in real time.
+// Physical wave height sampler — matches the vertex shader's concentric
+// ripple pattern so floating lily pads and flowers track the same rings
+// the surface displays.
 function getWaveHeight(x, z, time) {
   const baseR = SANCTUARY_POOL_RADIUS_M * 0.97;
   const dx = x - SANCTUARY_POOL_CENTER_X;
   const dz = z - SANCTUARY_POOL_CENTER_Z;
   const uvX = dx / (baseR * 2.0) + 0.5;
   const uvY = dz / (baseR * 2.0) + 0.5;
-  
+
   const vDist = Math.hypot(uvX - 0.5, uvY - 0.5);
   // smoothstep(0.48, 0.35, vDist)
   const t = Math.max(0.0, Math.min(1.0, (vDist - 0.48) / (0.35 - 0.48)));
   const shoreFade = t * t * (3.0 - 2.0 * t);
-  
-  // Wave 1: Traveling North-East
-  const d1X = 0.9 / Math.hypot(0.9, 0.5);
-  const d1Y = 0.5 / Math.hypot(0.9, 0.5);
-  const phase1 = ((uvX - 0.5) * d1X + (uvY - 0.5) * d1Y) * 9.0 - time * 0.15;
+
+  // Two concentric ripples expanding from pool centre — must match the
+  // vertex shader exactly or lily pads drift out of sync with the surface.
+  const phase1 = vDist * 22.0 - time * 0.32;
   const z1 = Math.sin(phase1) * 0.005;
-  
-  // Wave 2: Traveling North-West (interference wave)
-  const d2X = -0.4 / Math.hypot(-0.4, 0.9);
-  const d2Y = 0.9 / Math.hypot(-0.4, 0.9);
-  const phase2 = ((uvX - 0.5) * d2X + (uvY - 0.5) * d2Y) * 11.5 + time * 0.12;
+
+  const phase2 = vDist * 36.0 - time * 0.45;
   const z2 = Math.sin(phase2) * 0.003;
-  
+
   return (z1 + z2) * shoreFade;
 }
 

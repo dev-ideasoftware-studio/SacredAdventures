@@ -1081,12 +1081,12 @@ export const SanctuaryFishingModule = {
     if (spot) {
       const discMat = new THREE.MeshBasicMaterial({
         color: 0x68d4ff, transparent: true, opacity: 0.45,
-        depthTest: false, depthWrite: false, side: THREE.DoubleSide,
+        depthTest: true, depthWrite: false, side: THREE.DoubleSide,
       });
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(SPOT_DISC_RADIUS_M, 56), discMat);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(SPOT_DISC_RADIUS_M * 0.70, 56), discMat);
       disc.rotation.x = -Math.PI / 2;
       disc.position.set(spot.x, (spot.y ?? 0) + 0.03, spot.z);
-      disc.renderOrder = 9970;
+      disc.renderOrder = 15;
       disc.name = "sanctuary_fishing_spot_disc";
       disc.userData.anuKind = "sanctuary_fishing_spot_disc";
       disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;

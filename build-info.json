@@ -1,9 +1,9 @@
 {
-  "subject": "perf(pip): disable ortho fragment discard clipping and super-cull all trees to maximize FPS",
-  "isoDate": "2026-05-28T16:27:50-05:00",
+  "subject": "chore(sync): sync pool concentric-ripples, dock width, and fishing spot disc updates",
+  "isoDate": "2026-05-28T16:55:29-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "989362d",
+  "commit": "7a5c904",
   "dirty": true,
-  "generatedAt": "2026-05-28T21:27:53.987Z"
+  "generatedAt": "2026-05-28T21:55:33.586Z"
 }
