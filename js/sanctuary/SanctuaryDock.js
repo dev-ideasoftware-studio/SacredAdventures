@@ -164,14 +164,16 @@ function buildPosts(group, dockY) {
       // shadow contribution at chase-cam is invisible.
       post.castShadow = false;
       post.receiveShadow = false;
-      // renderOrder = 15 so the post draws AFTER the player travel
-      // circle (disc=4, ring=9, arrow=10). The circle's materials have
-      // depthTest:false so opaque planks can't naturally occlude them
-      // — the only sort handle is renderOrder. User-requested
-      // 2026-05-28 (9× asked, "very annoyed stage"): circle is too
-      // high z-index for the rails — fix dock-side. Posts now visually
-      // pass IN FRONT of the disc where they overlap.
-      post.renderOrder = 15;
+      // User-requested 2026-05-28 (25× asked): "fix z-index of dock
+      // guard rails clipped by the player borders. raise z-index of
+      // dock railing". Bumped 15 → 25 so posts draw AFTER the player
+      // disc body (18), arrow (19), and ring border (20). The post's
+      // depthTest:true + depthWrite:true means the post pixel wins
+      // anywhere it overlaps the decals, regardless of the decals'
+      // depthTest:false. Posts are vertical structures the player
+      // expects to see ON TOP of their selection circle (it's a
+      // railing, not paint), so it sorts above everything decal-side.
+      post.renderOrder = 25;
       post.name = `sanctuary_dock_post`;
       post.userData.anuKind = "sanctuary_dock_post";
       post.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;
@@ -215,10 +217,11 @@ function buildRails(group, dockY) {
       // nothing visible to the shadow map.
       rail.castShadow = false;
       rail.receiveShadow = false;
-      // renderOrder = 15 so the rail draws AFTER the player travel
-      // circle (max renderOrder 10). Same reason as the posts above —
-      // circle uses depthTest:false so only renderOrder can sort it.
-      rail.renderOrder = 15;
+      // User-requested 2026-05-28 (25× asked): rails draw AFTER every
+      // player decal (disc 18, arrow 19, ring 20). Same recipe as the
+      // posts above — depthTest:true + depthWrite:true wins over
+      // depthTest:false decals at any pixel they overlap.
+      rail.renderOrder = 25;
       rail.name = railY === topY ? "sanctuary_dock_rail_top" : "sanctuary_dock_rail_mid";
       rail.userData.anuKind = "sanctuary_dock_rail";
       rail.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;
@@ -244,10 +247,11 @@ function buildRails(group, dockY) {
       // for ~zero visible contribution.
       baluster.castShadow = false;
       baluster.receiveShadow = false;
-      // renderOrder = 15 so balusters draw AFTER the player travel
-      // circle (max renderOrder 10) — same fix as the posts + rails
-      // above. User-requested 2026-05-28 (9× asked).
-      baluster.renderOrder = 15;
+      // User-requested 2026-05-28 (25× asked): balusters draw AFTER
+      // every player decal so the vertical pickets visibly pass IN
+      // FRONT of the disc/arrow/border where they cross. Same recipe
+      // as the posts and rails above (renderOrder 25, depthTest:true).
+      baluster.renderOrder = 25;
       baluster.name = "sanctuary_dock_baluster";
       baluster.userData.anuKind = "sanctuary_dock_baluster";
       baluster.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;

@@ -1219,7 +1219,14 @@ export class SacredOrchestrator {
       // Camera sits 4 m above the water surface, looking straight down
       const WATER_Y = -0.05;
       this._pipOrtho.position.set(bp.x, WATER_Y + 4.0, bp.z);
-      this._pipOrtho.up.set(0, 0, -1);
+      // User-requested 2026-05-28: "just spin the camera 90 degrees to
+      // right so the spectrum is at the top half — keep it simple just
+      // change the angle of the cam in the pip".
+      // Old up=(0,0,-1) put PIP top = world -Z; arc was landing at the
+      // right of PIP. Spinning the camera 90° clockwise around the
+      // look axis (-Y) rotates the up vector from -Z to +X, which
+      // brings the colored arc to the TOP half of the PIP frame.
+      this._pipOrtho.up.set(1, 0, 0);
       this._pipOrtho.lookAt(bp.x, WATER_Y, bp.z);
       this._pipRenderer.render(this.scene, this._pipOrtho);
 

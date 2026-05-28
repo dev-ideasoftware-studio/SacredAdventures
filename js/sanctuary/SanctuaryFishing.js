@@ -532,7 +532,10 @@ function _update3DGauge(g, frac, labelText, isReeling, time, camera) {
   // direction the player camera is approaching from. Cover/clear half
   // sits at the bottom, dial face is split horizontally — exactly the
   // "half and half top and bottom" the user has been requesting.
-  g.rotation.z = -g.rotation.y;
+  // Companion to the PIP-camera up=(1,0,0) spin in Orchestrator.js (2026-05-28).
+  // The PIP camera's new up vector means PIP TOP = world +X (was -Z).
+  // To land the arc at world +X we need θy + θz = -π/2, so θz = -θy - π/2.
+  g.rotation.z = -g.rotation.y - Math.PI / 2;
 
   // Needle: FAIL(π) → CAUGHT!(0)
   const ng = g.userData.needleGroup;
@@ -2332,7 +2335,9 @@ export const SanctuaryFishingModule = {
             // (see _update3DGauge for the math). Without this, the
             // lite-update path leaves rotation.z stale and the arc
             // walks around the PIP as the player moves.
-            this._gauge3d.rotation.z = -this._gauge3d.rotation.y;
+            // Matches the formula in _update3DGauge — arc lands at world +X
+            // which is TOP of the spun PIP frame (up=(1,0,0)).
+            this._gauge3d.rotation.z = -this._gauge3d.rotation.y - Math.PI / 2;
           }
         }
       } else {
