@@ -311,20 +311,29 @@ function buildDrainHole(centerY) {
  * pending diff from the parallel editor. Not called from anywhere.
  * @deprecated turtle shellMat now uses a plain color in buildTurtle().
  */
-function _makeTurtleShellTexture_LEGACY_UNUSED() {
-  const SZ = 256;
+function _makeTurtleShellTexture() {
+  const SZ = 512;
   const cv = document.createElement("canvas");
   cv.width = SZ; cv.height = SZ;
   const ctx = cv.getContext("2d");
   const cx = SZ / 2, cy = SZ / 2;
 
-  // Base shell color — deep olive green
-  ctx.fillStyle = "#273f1d";
+  // Base shell color — deep muddy green-brown blend
+  ctx.fillStyle = "#1e2b14";
   ctx.fillRect(0, 0, SZ, SZ);
 
+  // Add earthy, sandy noise background
+  for (let i = 0; i < 4000; i++) {
+    const rx = Math.random() * SZ;
+    const ry = Math.random() * SZ;
+    const size = 1 + Math.random() * 2;
+    ctx.fillStyle = Math.random() < 0.5 ? "rgba(35, 25, 15, 0.15)" : "rgba(42, 60, 28, 0.15)";
+    ctx.fillRect(rx, ry, size, size);
+  }
+
   // Draw hexagonal scutes (plates)
-  ctx.strokeStyle = "#ffe082"; // golden-yellow seams
-  ctx.lineWidth = 2.0;
+  ctx.strokeStyle = "#140e0a"; // dark, muddy brown/black seams
+  ctx.lineWidth = 4.0;
 
   const drawHex = (x, y, r) => {
     ctx.beginPath();
@@ -338,14 +347,18 @@ function _makeTurtleShellTexture_LEGACY_UNUSED() {
     ctx.closePath();
     ctx.stroke();
 
-    // Fill with slightly varied shades of green/brown
-    ctx.fillStyle = `rgba(${30 + Math.floor(Math.random() * 20)}, ${50 + Math.floor(Math.random() * 30)}, ${20 + Math.floor(Math.random() * 15)}, 0.85)`;
+    // Fill with slightly varied shades of moss, slate, mud
+    const rVal = 18 + Math.floor(Math.random() * 12);
+    const gVal = 28 + Math.floor(Math.random() * 16);
+    const bVal = 14 + Math.floor(Math.random() * 10);
+    ctx.fillStyle = `rgba(${rVal}, ${gVal}, ${bVal}, 0.85)`;
     ctx.fill();
 
-    // Inner growth rings inside each scute for photo-real detail
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
-    ctx.lineWidth = 1.0;
-    for (let r2 = r - 6; r2 > 4; r2 -= 6) {
+    // Growth rings inside each scute
+    ctx.lineWidth = 1.2;
+    for (let r2 = r - 10; r2 > 8; r2 -= 10) {
+      const alpha = 0.15 + (1 - r2 / r) * 0.25;
+      ctx.strokeStyle = `rgba(10, 8, 5, ${alpha})`;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
@@ -356,34 +369,60 @@ function _makeTurtleShellTexture_LEGACY_UNUSED() {
       }
       ctx.closePath();
       ctx.stroke();
+
+      // Slightly lighter highlight ring to catch light
+      ctx.strokeStyle = `rgba(45, 60, 30, ${alpha * 0.6})`;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
+        const px = x + Math.cos(angle) * (r2 - 2);
+        const py = y + Math.sin(angle) * (r2 - 2);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
     }
-    ctx.strokeStyle = "#ffe082";
-    ctx.lineWidth = 2.0;
+    ctx.strokeStyle = "#140e0a";
+    ctx.lineWidth = 4.0;
   };
 
   // Central column of scutes
-  drawHex(cx, cy, 32);
-  drawHex(cx, cy - 54, 30);
-  drawHex(cx, cy + 54, 30);
-  drawHex(cx, cy - 100, 24);
-  drawHex(cx, cy + 100, 24);
+  drawHex(cx, cy, 64);
+  drawHex(cx, cy - 108, 60);
+  drawHex(cx, cy + 108, 60);
+  drawHex(cx, cy - 200, 48);
+  drawHex(cx, cy + 200, 48);
 
   // Left column of scutes
-  drawHex(cx - 48, cy - 27, 28);
-  drawHex(cx - 48, cy + 27, 28);
-  drawHex(cx - 45, cy - 81, 24);
-  drawHex(cx - 45, cy + 81, 24);
+  drawHex(cx - 96, cy - 54, 56);
+  drawHex(cx - 96, cy + 54, 56);
+  drawHex(cx - 90, cy - 162, 48);
+  drawHex(cx - 90, cy + 162, 48);
 
   // Right column of scutes
-  drawHex(cx + 48, cy - 27, 28);
-  drawHex(cx + 48, cy + 27, 28);
-  drawHex(cx + 45, cy - 81, 24);
-  drawHex(cx + 45, cy + 81, 24);
+  drawHex(cx + 96, cy - 54, 56);
+  drawHex(cx + 96, cy + 54, 56);
+  drawHex(cx + 90, cy - 162, 48);
+  drawHex(cx + 90, cy + 162, 48);
 
-  // Edge shading
-  const edgeGrad = ctx.createRadialGradient(cx, cy, SZ * 0.35, cx, cy, SZ * 0.5);
+  // Scatter bright/dark moss overlay spots across the texture
+  for (let i = 0; i < 25; i++) {
+    const rx = Math.random() * SZ;
+    const ry = Math.random() * SZ;
+    const rSize = 10 + Math.random() * 25;
+    const mossGrad = ctx.createRadialGradient(rx, ry, 0, rx, ry, rSize);
+    mossGrad.addColorStop(0, Math.random() < 0.6 ? "rgba(42, 68, 30, 0.4)" : "rgba(22, 16, 10, 0.5)");
+    mossGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = mossGrad;
+    ctx.beginPath(); ctx.arc(rx, ry, rSize, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Edge shading radial gradient (vignette)
+  const edgeGrad = ctx.createRadialGradient(cx, cy, SZ * 0.32, cx, cy, SZ * 0.5);
   edgeGrad.addColorStop(0, "rgba(0,0,0,0)");
-  edgeGrad.addColorStop(1, "rgba(10,20,5,0.85)");
+  edgeGrad.addColorStop(0.7, "rgba(10, 15, 6, 0.5)");
+  edgeGrad.addColorStop(1.0, "rgba(5, 7, 3, 0.85)");
   ctx.fillStyle = edgeGrad;
   ctx.beginPath(); ctx.arc(cx, cy, SZ / 2, 0, Math.PI * 2); ctx.fill();
 
@@ -405,125 +444,302 @@ function buildTurtle(centerY, textures) {
 
   const y = centerY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.08; // slightly above floor
 
-  // materials — plain olive-green dome (no scute/vignette canvas texture)
+  // High-fidelity photorealistic canvas texture for the carapace
+  const shellTex = _makeTurtleShellTexture();
+
   const shellMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x2f4a22),
-    roughness: 0.55,
-    metalness: 0.12,
+    map: shellTex,
+    bumpMap: shellTex,
+    bumpScale: 0.035, // physical scute crevices and growth rings
+    roughnessMap: shellTex,
+    roughness: 0.5,
+    metalness: 0.08,
   });
 
   const skinMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x354b27),
-    roughness: 0.85,
+    color: new THREE.Color(0x232d1d), // slate mossy dark green
+    roughness: 0.88,
     metalness: 0.02,
     bumpMap: textures?.normal,
-    bumpScale: 0.015,
+    bumpScale: 0.02, // skin folds/scales
   });
 
-  // plastronMat removed with the plastron disc (see "2. Plastron" below).
+  const plastronMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0x1f1912), // dark muddy plastron
+    roughness: 0.85,
+    metalness: 0.02,
+  });
 
   const eyeMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x000000),
-    roughness: 0.1,
-    metalness: 0.9,
+    color: new THREE.Color(0x0a0c0a),
+    roughness: 0.08,
+    metalness: 0.95,
   });
 
-  const eyeGlintMat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(0xffffff),
+  const clawMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0xa59074), // dark tan horn claws
+    roughness: 0.65,
+    metalness: 0.15,
   });
 
-  // 1. Carapace (Shell)
-  // Domed shell
-  const shellGeo = new THREE.SphereGeometry(0.65, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+  // 1. Carapace (Detailed Shell Dome)
+  const shellGeo = new THREE.SphereGeometry(0.65, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2);
   const shellMesh = new THREE.Mesh(shellGeo, shellMat);
-  shellMesh.scale.set(1.15, 0.55, 1.45); // majestic large turtle shell (~2.0m long, ~1.6m wide - bigger than drain!)
+  shellMesh.scale.set(1.15, 0.55, 1.45); // majestic large shell
   shellMesh.position.y = 0.08;
   shellMesh.castShadow = true;
   shellMesh.receiveShadow = true;
   group.add(shellMesh);
 
-  // 2. Plastron (REMOVED 2026-05-27) — the cylinder had rotation.x = -π/2
-  // which tipped its flat circular faces forward/backward instead of
-  // laying them flat. From side/oblique angles this read as a stray
-  // "circle on the side of the turtle". Per user spec: remove it. The
-  // turtle reads fine underwater with just the carapace; the missing
-  // belly disc is hidden by the basin floor + water.
+  // Carapace Rim / Flared Skirt (marginal scutes)
+  const rimGeo = new THREE.TorusGeometry(0.65, 0.035, 6, 32);
+  const rimMesh = new THREE.Mesh(rimGeo, shellMat);
+  rimMesh.scale.set(1.17, 1.47, 0.4);
+  rimMesh.rotation.x = Math.PI / 2;
+  rimMesh.position.y = 0.07;
+  rimMesh.castShadow = true;
+  rimMesh.receiveShadow = true;
+  group.add(rimMesh);
 
-  // 3. Head & Neck
-  const neckGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.35, 16);
+  // 2. Plastron (Belly Plate)
+  const plastronGeo = new THREE.BoxGeometry(0.9, 0.04, 1.25);
+  const plastron = new THREE.Mesh(plastronGeo, plastronMat);
+  plastron.position.y = 0.05;
+  plastron.castShadow = true;
+  plastron.receiveShadow = true;
+  group.add(plastron);
+
+  // Helper for clawed, organic legs
+  function buildClawedLeg(isFront, isLeft) {
+    const leg = new THREE.Group();
+    const side = isLeft ? 1 : -1;
+
+    // Thigh / upper joint pointing outwards
+    const thighGeo = new THREE.CylinderGeometry(isFront ? 0.09 : 0.07, isFront ? 0.11 : 0.09, 0.35, 8);
+    const thigh = new THREE.Mesh(thighGeo, skinMat);
+    thigh.rotation.z = side * Math.PI / 3; // angled outwards
+    thigh.rotation.y = side * Math.PI / 6;
+    thigh.position.set(side * 0.15, -0.05, 0);
+    thigh.castShadow = true;
+    leg.add(thigh);
+
+    // Foot pointing forward-outwards
+    const footGeo = new THREE.BoxGeometry(isFront ? 0.16 : 0.12, 0.03, isFront ? 0.20 : 0.14);
+    const foot = new THREE.Mesh(footGeo, skinMat);
+    foot.position.set(side * 0.30, -0.12, isFront ? 0.10 : -0.06);
+    foot.rotation.y = -side * 0.15;
+    foot.castShadow = true;
+    leg.add(foot);
+
+    // Claws on the tip of foot (horn-colored cones)
+    const clawGeo = new THREE.ConeGeometry(0.012, 0.045, 4);
+    const clawCount = isFront ? 4 : 3;
+    for (let c = 0; c < clawCount; c++) {
+      const claw = new THREE.Mesh(clawGeo, clawMat);
+      const offset = (c - (clawCount - 1) / 2) * 0.032;
+      claw.position.set(
+        side * 0.30 + offset * Math.cos(-side * 0.15),
+        -0.125,
+        (isFront ? 0.10 : -0.06) + (isFront ? 0.11 : 0.08)
+      );
+      claw.rotation.x = Math.PI / 2.2; // angled forward/down
+      claw.rotation.y = -side * 0.15 + offset * 0.35; // fan out
+      claw.castShadow = true;
+      leg.add(claw);
+    }
+
+    return leg;
+  }
+
+  // 3. Head & Neck (Snout profile & Sleepy eyelids)
+  const neckGeo = new THREE.CylinderGeometry(0.09, 0.12, 0.38, 16);
   const neck = new THREE.Mesh(neckGeo, skinMat);
   neck.position.set(0, 0.1, 0.7);
-  neck.rotation.x = Math.PI / 3; // angled forward/up
+  neck.rotation.x = Math.PI / 3;
   neck.castShadow = true;
   group.add(neck);
 
-  const headGeo = new THREE.SphereGeometry(0.18, 16, 16);
-  const head = new THREE.Mesh(headGeo, skinMat);
-  head.scale.set(1.0, 0.85, 1.35); // elongated reptilian head
-  head.position.set(0, 0.22, 0.9);
-  head.castShadow = true;
-  group.add(head);
-  group.userData.headRef = head; // save reference for gentle bobbing
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 0.22, 0.9);
+  headGroup.name = "turtle_head_group";
+  group.add(headGroup);
+  group.userData.headRef = headGroup;
 
-  // Eyes
-  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 8), eyeMat);
-  eyeL.position.set(0.14, 0.04, 0.08);
-  head.add(eyeL);
-  const glintL = new THREE.Mesh(new THREE.SphereGeometry(0.007, 4, 4), eyeGlintMat);
-  glintL.position.set(0.015, 0.015, 0.015);
-  eyeL.add(glintL);
+  // Skull
+  const skullGeo = new THREE.SphereGeometry(0.15, 24, 24);
+  const skull = new THREE.Mesh(skullGeo, skinMat);
+  skull.scale.set(1.0, 0.85, 1.1);
+  skull.castShadow = true;
+  headGroup.add(skull);
 
-  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 8), eyeMat);
-  eyeR.position.set(-0.14, 0.04, 0.08);
-  head.add(eyeR);
-  const glintR = new THREE.Mesh(new THREE.SphereGeometry(0.007, 4, 4), eyeGlintMat);
-  glintR.position.set(-0.015, 0.015, 0.015);
-  eyeR.add(glintR);
+  // Tapered Snout
+  const snoutGeo = new THREE.CylinderGeometry(0.07, 0.11, 0.16, 12);
+  const snout = new THREE.Mesh(snoutGeo, skinMat);
+  snout.rotation.x = Math.PI / 2;
+  snout.position.set(0, -0.02, 0.15);
+  snout.castShadow = true;
+  headGroup.add(snout);
 
-  // 4. Flippers (4 legs)
-  // Front Flippers (large paddling flippers)
-  const frontFlipperGeo = new THREE.BoxGeometry(0.48, 0.03, 0.18);
-  const flipperL = new THREE.Mesh(frontFlipperGeo, skinMat);
-  flipperL.position.set(0.55, 0.05, 0.42);
+  // Lower Jaw
+  const jawGeo = new THREE.CylinderGeometry(0.10, 0.11, 0.06, 12);
+  const jaw = new THREE.Mesh(jawGeo, skinMat);
+  jaw.rotation.x = Math.PI / 2;
+  jaw.position.set(0, -0.07, 0.10);
+  jaw.castShadow = true;
+  headGroup.add(jaw);
+
+  // Eyes & Eyelids (80% closed / sleepy)
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.020, 12, 12), eyeMat);
+  eyeL.position.set(0.11, 0.02, 0.08);
+  headGroup.add(eyeL);
+
+  const eyelidL = new THREE.Mesh(
+    new THREE.SphereGeometry(0.022, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.65),
+    skinMat
+  );
+  eyelidL.position.copy(eyeL.position);
+  eyelidL.rotation.y = 0.2;
+  headGroup.add(eyelidL);
+
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.020, 12, 12), eyeMat);
+  eyeR.position.set(-0.11, 0.02, 0.08);
+  headGroup.add(eyeR);
+
+  const eyelidR = new THREE.Mesh(
+    new THREE.SphereGeometry(0.022, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.65),
+    skinMat
+  );
+  eyelidR.position.copy(eyeR.position);
+  eyelidR.rotation.y = -0.2;
+  headGroup.add(eyelidR);
+
+  // 4. Clawed organic legs
+  const flipperL = buildClawedLeg(true, true);
+  flipperL.position.set(0.48, 0.05, 0.42);
   flipperL.rotation.y = -0.3;
-  flipperL.castShadow = true;
   group.add(flipperL);
   group.userData.flipperLRef = flipperL;
 
-  const flipperR = new THREE.Mesh(frontFlipperGeo, skinMat);
-  flipperR.position.set(-0.55, 0.05, 0.42);
+  const flipperR = buildClawedLeg(true, false);
+  flipperR.position.set(-0.48, 0.05, 0.42);
   flipperR.rotation.y = 0.3;
-  flipperR.castShadow = true;
   group.add(flipperR);
   group.userData.flipperRRef = flipperR;
 
-  // Rear Flippers (smaller steering flippers)
-  const rearFlipperGeo = new THREE.BoxGeometry(0.32, 0.03, 0.15);
-  const flipperBL = new THREE.Mesh(rearFlipperGeo, skinMat);
-  flipperBL.position.set(0.45, 0.05, -0.45);
+  const flipperBL = buildClawedLeg(false, true);
+  flipperBL.position.set(0.38, 0.05, -0.45);
   flipperBL.rotation.y = 0.35;
-  flipperBL.castShadow = true;
   group.add(flipperBL);
   group.userData.flipperBLRef = flipperBL;
 
-  const flipperBR = new THREE.Mesh(rearFlipperGeo, skinMat);
-  flipperBR.position.set(-0.45, 0.05, -0.45);
+  const flipperBR = buildClawedLeg(false, false);
+  flipperBR.position.set(-0.38, 0.05, -0.45);
   flipperBR.rotation.y = -0.35;
-  flipperBR.castShadow = true;
   group.add(flipperBR);
   group.userData.flipperBRRef = flipperBR;
 
   // 5. Tail
-  const tailGeo = new THREE.ConeGeometry(0.06, 0.28, 8);
+  const tailGeo = new THREE.ConeGeometry(0.05, 0.25, 8);
   const tail = new THREE.Mesh(tailGeo, skinMat);
   tail.position.set(0, 0.02, -0.72);
-  tail.rotation.x = -Math.PI / 3; // pointing back and slightly down
+  tail.rotation.x = -Math.PI / 3;
   tail.castShadow = true;
   group.add(tail);
 
   // Position turtle near bottom center of the pond
   group.position.set(SANCTUARY_POOL_CENTER_X, y, SANCTUARY_POOL_CENTER_Z);
-  group.scale.set(0.9, 0.9, 0.9); // slightly scale to fit perfectly over drain
+  group.scale.set(0.9, 0.9, 0.9);
+
+  return group;
+}
+
+function buildPoolRocks(centerY) {
+  const group = new THREE.Group();
+  group.name = "sanctuary_pool_rocks";
+  group.userData.anuKind = "sanctuary_pool_rocks";
+  group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+  const rng = mulberry32(0xbeadca1a);
+
+  // 4 flat-shaded matte, high-roughness color schemes
+  const colorSchemes = [
+    { color: 0x181a1c, roughness: 0.90, metalness: 0.05 }, // slate black
+    { color: 0x27201a, roughness: 0.92, metalness: 0.02 }, // warm muddy brown
+    { color: 0x1d271a, roughness: 0.88, metalness: 0.02 }, // moss green
+    { color: 0x222a27, roughness: 0.95, metalness: 0.05 }  // algae dark gray
+  ];
+
+  const ROCKS_COUNT = 130;
+  const bottomY = centerY - SANCTUARY_POOL_DEPTH_M * 0.62;
+
+  for (let i = 0; i < ROCKS_COUNT; i++) {
+    // Determine geometry type
+    const geom = rng() < 0.55 
+      ? new THREE.DodecahedronGeometry(1.0, 0)
+      : new THREE.IcosahedronGeometry(1.0, 0);
+
+    // Choose color scheme
+    const scheme = colorSchemes[Math.floor(rng() * colorSchemes.length)];
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(scheme.color),
+      roughness: scheme.roughness,
+      metalness: scheme.metalness,
+      flatShading: true,
+    });
+
+    const mesh = new THREE.Mesh(geom, mat);
+
+    // Varied scale (small pebbles to medium river rocks and boulders)
+    let r = 0.12 + rng() * 0.48; // radius 0.12m to 0.60m
+    if (rng() < 0.15) {
+      r *= 1.4; // 15% are larger boulders up to 0.84m
+    }
+
+    // River rocks are flat (low scale y) and elongated (random scale x/z)
+    const scaleX = r * (0.85 + rng() * 0.35);
+    const scaleY = r * (0.40 + rng() * 0.30); // flat vertical height
+    const scaleZ = r * (0.85 + rng() * 0.35);
+    mesh.scale.set(scaleX, scaleY, scaleZ);
+
+    // Uniform random angle and distance from center
+    const theta = rng() * Math.PI * 2;
+    // Avoid the center drain ring: drain ring outer radius is 0.45m.
+    // Rock bounding radius is up to ~0.8m.
+    // Minimum distance from center: 0.55m + scaleX
+    const minD = 0.65 + scaleX;
+    // Maximum distance from center: basin floor radius is SANCTUARY_POOL_RADIUS_M * 0.92 = 11.04m.
+    // Let's keep a margin of 0.8m to prevent clipping through the pool bank.
+    const maxD = SANCTUARY_POOL_RADIUS_M * 0.88 - scaleX;
+    
+    // Safety check in case scale is huge
+    const actualMaxD = Math.max(minD + 0.1, maxD);
+    const d = minD + rng() * (actualMaxD - minD);
+
+    const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
+    const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
+
+    // Sink slightly into the basin floor to look resting/natural
+    const y = bottomY - 0.05 + rng() * 0.05 + scaleY * 0.3;
+
+    mesh.position.set(x, y, z);
+
+    // Random rotation
+    mesh.rotation.set(
+      rng() * Math.PI * 2,
+      rng() * Math.PI * 2,
+      rng() * Math.PI * 2
+    );
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.layers.enable(1); // Show beautiful dark silhouettes in PiP map
+
+    mesh.name = `sanctuary_pool_rock_${i}`;
+    mesh.userData.anuKind = "sanctuary_pool_rock";
+    mesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+    group.add(mesh);
+  }
 
   return group;
 }
@@ -851,6 +1067,7 @@ export const SanctuaryPoolModule = {
     root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildDrainHole", () => buildDrainHole(waterY)));
     root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildWaterSurface", () => buildWaterSurface(waterY, textures)));
     root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildRim", () => buildRim(waterY)));
+    root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildPoolRocks", () => buildPoolRocks(waterY)));
     
     // Store reference to build pads so we can update them in update() loop
     const lilies = SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildLilyPads", () => buildLilyPads(waterY));
@@ -924,41 +1141,40 @@ export const SanctuaryPoolModule = {
     if (_turtleGroup) {
       const time = this._elapsed;
       
-      // Gently crawl/swim near the bottom center over the drain
-      // slow oscillation around the center drain
-      const cx = SANCTUARY_POOL_CENTER_X + Math.sin(time * 0.15) * 0.45;
-      const cz = SANCTUARY_POOL_CENTER_Z + Math.cos(time * 0.15) * 0.2;
+      // Sleepy slow movement: Crawl/swim extremely slowly near the bottom center
+      const cx = SANCTUARY_POOL_CENTER_X + Math.sin(time * 0.03) * 0.55;
+      const cz = SANCTUARY_POOL_CENTER_Z + Math.cos(time * 0.03) * 0.35;
       _turtleGroup.position.x = cx;
       _turtleGroup.position.z = cz;
       
-      // Face the direction of movement
-      _turtleGroup.rotation.y = time * 0.15 + Math.PI / 2 + Math.sin(time * 0.3) * 0.15;
+      // Face the direction of slow movement
+      _turtleGroup.rotation.y = time * 0.03 + Math.PI / 2 + Math.sin(time * 0.06) * 0.05;
       
-      // Gentle breathing bob (Y position)
-      _turtleGroup.position.y = (this._waterY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.08) + Math.sin(time * 0.4) * 0.025;
+      // Highly subtle, slow breathing bob (Y position)
+      _turtleGroup.position.y = (this._waterY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.05) + Math.sin(time * 0.08) * 0.01;
 
-      // Animate flippers paddling out-of-phase
+      // Animate flippers/legs swimming at an ultra-slow, lazy pace
       if (_turtleGroup.userData.flipperLRef) {
-        _turtleGroup.userData.flipperLRef.rotation.z = Math.sin(time * 0.9) * 0.22;
-        _turtleGroup.userData.flipperLRef.rotation.y = -0.3 + Math.cos(time * 0.9) * 0.1;
+        _turtleGroup.userData.flipperLRef.rotation.z = Math.sin(time * 0.20) * 0.06;
+        _turtleGroup.userData.flipperLRef.rotation.y = -0.3 + Math.cos(time * 0.20) * 0.03;
       }
       if (_turtleGroup.userData.flipperRRef) {
-        _turtleGroup.userData.flipperRRef.rotation.z = -Math.sin(time * 0.9) * 0.22;
-        _turtleGroup.userData.flipperRRef.rotation.y = 0.3 - Math.cos(time * 0.9) * 0.1;
+        _turtleGroup.userData.flipperRRef.rotation.z = -Math.sin(time * 0.20) * 0.06;
+        _turtleGroup.userData.flipperRRef.rotation.y = 0.3 - Math.cos(time * 0.20) * 0.03;
       }
       
-      // Rear flippers steer out-of-phase
+      // Rear flippers steer lazily
       if (_turtleGroup.userData.flipperBLRef) {
-        _turtleGroup.userData.flipperBLRef.rotation.z = Math.cos(time * 0.9) * 0.1;
+        _turtleGroup.userData.flipperBLRef.rotation.z = Math.cos(time * 0.20) * 0.03;
       }
       if (_turtleGroup.userData.flipperBRRef) {
-        _turtleGroup.userData.flipperBRRef.rotation.z = -Math.cos(time * 0.9) * 0.1;
+        _turtleGroup.userData.flipperBRRef.rotation.z = -Math.cos(time * 0.20) * 0.03;
       }
       
-      // Gentle head bobbing
+      // Highly subtle head bobbing
       if (_turtleGroup.userData.headRef) {
-        _turtleGroup.userData.headRef.rotation.x = Math.sin(time * 0.4) * 0.06;
-        _turtleGroup.userData.headRef.rotation.y = Math.cos(time * 0.35) * 0.08;
+        _turtleGroup.userData.headRef.rotation.x = Math.sin(time * 0.10) * 0.02;
+        _turtleGroup.userData.headRef.rotation.y = Math.cos(time * 0.08) * 0.03;
       }
     }
   },

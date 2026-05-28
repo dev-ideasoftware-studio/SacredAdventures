@@ -1,8 +1,8 @@
 {
-  "subject": "feat(pip): implement self-healing WebGL context restoration and set render cadence to 6-frame stride for 120 FPS",
-  "isoDate": "2026-05-27T13:02:24-05:00",
+  "subject": "feat(sanctuary): implement photorealistic sleepy turtle and procedural basin floor rocks",
+  "isoDate": "2026-05-27T20:58:24-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v32",
   "dirty": false,
-  "generatedAt": "2026-05-27T18:02:28.025Z"
+  "generatedAt": "2026-05-28T01:58:28.596Z"
 }
