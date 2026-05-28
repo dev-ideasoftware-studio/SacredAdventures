@@ -467,11 +467,12 @@ export const SanctuaryClickToMoveModule = {
     const yLift = isAvatarBody ? 0 : 1.5;
     // sanctuaryBodyY handles dock, pool waterline (half-submerged swim),
     // and terrain in one place. The +yLift fires only for the pre-avatar
-    // camera fallback (lifts the eye 1.5 m above ground). The 4th arg
-    // to sanctuaryBodyY (0.3048 m = 1 ft) lifts the avatar above the
-    // half-submerged waterline so she wades chest-out instead of
-    // floating ribcage-down. User-requested 2026-05-28.
-    body.position.y = sanctuaryBodyY(body.position.x, body.position.z, undefined, 0.3048) + yLift;
+    // camera fallback (lifts the eye 1.5 m above ground). No lift arg
+    // passed → avatar floats at waterY − height/2 with body half
+    // submerged. User-corrected 2026-05-28: "half her model needs to
+    // always be submerged" — the earlier +1 ft lift had her wading
+    // too high; the kid needs to read as actually swimming.
+    body.position.y = sanctuaryBodyY(body.position.x, body.position.z) + yLift;
 
     // Yaw matches the path so a future avatar will face forward.
     this._yaw = Math.atan2(-dx, -dz);

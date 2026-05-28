@@ -181,6 +181,14 @@ export const SanctuaryFishModule = {
           ANU_INTERACTION_VERB.INSPECT,
           ANU_INTERACTION_VERB.HARVEST,
         ];
+        // Layer 1 — show in main PIP minimap.
+        // Layer 2 — show in fishing PIP "fish-finder" lens. The
+        // fishing gauge was removed from layer 2 (user-requested
+        // 2026-05-28: "in pip = its gone so we can see fish thrugh
+        // it"); enabling layer 2 on fish here is what makes the PIP
+        // actually display fish where the gauge used to be.
+        fish.layers.enable(1);
+        fish.layers.enable(2);
 
         const orbitFrac = 0.22 + (i / FISH_COUNT) * 0.58;
         const orbitR = SANCTUARY_POOL_RADIUS_M * orbitFrac;

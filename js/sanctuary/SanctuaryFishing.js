@@ -320,15 +320,14 @@ function _build3DGauge(scene) {
   const g = new THREE.Group();
   g.name = "v4_gauge_3d";
 
-  // Clear plastic — user-requested 2026-05-28 (9× asked): the gauge's
-  // white plastic was reading as a solid white panel in the PIP view.
-  // opacity dropped 0.90 → 0.15 so the body is now almost-glass, just
-  // a faint refractive edge. depthTest restored to true (was forced
-  // false earlier to win against dock rails, but user followed up with
-  // "blue circle clipping the siderails... fix that lower zindex" —
-  // they want the rails to occlude the gauge naturally where they
-  // overlap). renderOrder = 9990 still set at the group level so the
-  // gauge sorts ABOVE other transparents.
+  // Clear plastic — user-requested 2026-05-28 (9× asked):
+  // "just remove the white opacity ... in pip just make it crystal
+  // clear ... we can see fish through it". The gauge STAYS visible in
+  // both FPV and PIP — only the white plastic body opacity drops so
+  // the colored dial floats above the pond/fish view. Single shared
+  // material across both cameras (same low opacity in FPV and PIP).
+  // depthTest true + depthWrite false + renderOrder 9990 keeps the
+  // gauge well-behaved against dock rails/posts.
   const clearMat = new THREE.MeshPhysicalMaterial({
     color: 0xddeeff, transmission: 0.95, opacity: 0.15,
     ior: 1.5, roughness: 0.05,
@@ -467,16 +466,36 @@ function _build3DGauge(scene) {
   g.userData.isGauge3D = true;
   g.name = "fishingGauge3D";
 
-  // High renderOrder so the gauge paints AFTER the dock and stays on
-  // top of guardrails / posts even when the camera is close enough
-  // that the rails would otherwise occlude it. Combined with the
-  // depthTest:false on clearMat above this guarantees no clipping
-  // (user-reported 2026-05-28).
+  // renderOrder = 9990 so the gauge sorts ABOVE other transparents in
+  // both camera passes. depthTest stays true on every gauge material
+  // (clearMat above; inner segment/needle/label materials normalised
+  // below) so rails + posts naturally occlude the gauge where they
+  // cross (user-reported 2026-05-28: "still z-index clipping").
+  //
+  // Layer 2 = the fishing PIP camera's "isolation lens" layer. KEEP
+  // ENABLED so the gauge still shows in PIP — the user just wanted
+  // the white plastic opacity dropped (clearMat above at 0.15) so
+  // fish are visible THROUGH the gauge plastic in the PIP view, NOT
+  // the gauge fully removed. SanctuaryPool's basin floor + water
+  // and SanctuaryFish's trout also enable layer 2 to provide the
+  // visible backdrop behind the now-transparent gauge.
   g.renderOrder = 9990;
   g.traverse((child) => {
     if (child.isMesh || child.isSprite || child.isGroup) {
-      child.layers.enable(2); // PiP camera pass
+      child.layers.enable(2);
       if (child.renderOrder === 0) child.renderOrder = 9990;
+    }
+    // Normalise every material under the gauge to depth-respect rails
+    // while NOT writing depth (so inner segments are still visible
+    // through the clear plastic shell — shell has depthWrite:false
+    // which preserves underlying scene depth).
+    const mats = child.material
+      ? (Array.isArray(child.material) ? child.material : [child.material])
+      : [];
+    for (const m of mats) {
+      if (!m) continue;
+      if (m.depthTest === false) m.depthTest = true;
+      m.depthWrite = false;
     }
   });
 

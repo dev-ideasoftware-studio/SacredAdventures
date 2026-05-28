@@ -185,12 +185,12 @@ export const SanctuaryKeyboardLookModule = {
     // the same to keep its feet on the heightfield.
     // sanctuaryBodyY is the single source of truth for body anchor Y —
     // it knows about the dock (walkable surface), the pool waterline
-    // (float half-submerged when swimming), and the analytic terrain.
-    // The 4th arg (liftWhenSwimming = 0.3048 m = 1 ft) lifts the avatar
-    // above the half-submerged waterline so the kid reads as wading,
-    // matching the SanctuaryAvatar update path. User-requested
-    // 2026-05-28: "raise model out of water 1 foot".
-    const groundY = sanctuaryBodyY(body.position.x, body.position.z, undefined, 0.3048);
+    // (half-submerged when swimming), and the analytic terrain. No
+    // lift parameter passed → avatar floats at waterY − height/2 with
+    // body half submerged. User-corrected 2026-05-28: "half her model
+    // needs to always be submerged" — the earlier +1 ft lift was too
+    // high; the kid needs to read as actually swimming.
+    const groundY = sanctuaryBodyY(body.position.x, body.position.z);
     if (k[" "] && this._grounded) {
       this._bodyVy = JUMP_VEL_MPS;
       this._grounded = false;

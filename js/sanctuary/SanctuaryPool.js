@@ -236,7 +236,8 @@ function buildWaterSurface(centerY, textures) {
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(SANCTUARY_POOL_CENTER_X, centerY, SANCTUARY_POOL_CENTER_Z);
   mesh.renderOrder = 4;
-  mesh.layers.enable(1); // Show in PiP map
+  mesh.layers.enable(1); // Show in PiP minimap
+  mesh.layers.enable(2); // Show in fishing PIP fish-finder lens (gauge removed from layer 2 — backdrop for fish view)
   mesh.name = "sanctuary_pool_water";
   mesh.userData.anuId = "environment.sanctuary.pool.water";
   mesh.userData.anuKind = "sanctuary_pool_water";
@@ -376,7 +377,8 @@ function buildBasinFloor(centerY) {
     SANCTUARY_POOL_CENTER_Z,
   );
   mesh.receiveShadow = true;
-  mesh.layers.enable(1); // Show in PiP map
+  mesh.layers.enable(1); // Show in PiP minimap
+  mesh.layers.enable(2); // Show in fishing PIP fish-finder lens — backdrop for the fish view (gauge removed from layer 2)
   mesh.name = "sanctuary_pool_basin_floor";
   mesh.userData.anuId = "environment.sanctuary.pool.basin_floor";
   mesh.userData.anuKind = "sanctuary_pool_basin_floor";

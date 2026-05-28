@@ -17,7 +17,20 @@ import {
   V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M,
 } from "../v2/constants.js";
 
-const TRAVEL_DECAL_CLEAR_ABOVE_RIM_M = 0.015;
+/**
+ * Vertical gap between the avatar's travel disc/ring/arrow decals and
+ * the surface beneath. Was 0.015 m (15 mm) which is fine on flat
+ * terrain but caused visible z-fighting / flicker between the disc
+ * and the dock plank surface at oblique camera angles — the dock at
+ * Y=0.40 + disc at Y=0.415 is only ~15 mm of separation, well under
+ * the per-pixel depth-precision threshold at typical view distances.
+ *
+ * Bumped 0.015 → 0.04 (40 mm, ~1.5 inches) so the disc clearly floats
+ * above every walkable surface (dock planks, terrain bumps, sacred
+ * platform tiles). User-requested 2026-05-28 (9× asked, "getting very
+ * annoyed stage").
+ */
+const TRAVEL_DECAL_CLEAR_ABOVE_RIM_M = 0.04;
 
 /**
  * Player avatar — 1:1 `WorldAvatar.js` travel decal stack.

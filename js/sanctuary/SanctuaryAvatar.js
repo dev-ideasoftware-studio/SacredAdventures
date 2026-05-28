@@ -551,11 +551,13 @@ export const SanctuaryAvatarModule = {
     // sit above the travel disc, which is a sibling of the model
     // anchored at the root's plane.
     // Single source of truth for body Y — knows dock + pool waterline
-    // + terrain. The 4th arg (liftWhenSwimming = 0.3048 m = 1 ft) lifts
-    // the avatar above the half-submerged waterline so the kid reads
-    // as wading, not floating. User-requested 2026-05-28: "raise model
-    // out of water 1 foot".
-    cur.y = sanctuaryBodyY(cur.x, cur.z, AVATAR_TARGET_HEIGHT_M, 0.3048);
+    // + terrain. NO lift parameter passed → in-pool avatar floats at
+    // exactly waterY − height/2 (half-submerged, waterline cuts across
+    // the kid's centre). User-corrected 2026-05-28: "she is floating
+    // above, half her model needs to always be submerged" — the
+    // earlier +1 ft lift made her wade chest-out, but the kid needs to
+    // read as actually swimming, body half in water at all times.
+    cur.y = sanctuaryBodyY(cur.x, cur.z, AVATAR_TARGET_HEIGHT_M);
 
     // ── Animation state machine ──────────────────────────────────────
     // Priority (highest first):
