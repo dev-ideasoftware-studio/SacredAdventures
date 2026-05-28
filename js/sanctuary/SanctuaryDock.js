@@ -132,6 +132,14 @@ function buildPlanks(group, dockY) {
     plank.position.set(0, dockY, localZ);
     plank.castShadow = true;
     plank.receiveShadow = true;
+    // renderOrder = 15 so the plank surface (the "stool") draws AFTER
+    // the player travel circle (disc=4, ring=9, arrow=10) in the
+    // opaque pass — the circle uses depthTest:false so only renderOrder
+    // can sort it. User-requested 2026-05-28: "outer circles of player
+    // circle ... and facing arrow ... covering the stool". With plank
+    // at renderOrder 15 the stool surface paints over the disc parts
+    // that hang past the plank footprint.
+    plank.renderOrder = 15;
     plank.name = `sanctuary_dock_plank_${i}`;
     plank.userData.anuKind = "sanctuary_dock_plank";
     plank.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;
@@ -271,6 +279,9 @@ function buildSteps(group, dockY, shoreGroundY) {
     // with the deck's already.
     step.castShadow = false;
     step.receiveShadow = true;
+    // renderOrder = 15 (same as plank) so steps sort over the player
+    // travel circle. Matches the plank fix above.
+    step.renderOrder = 15;
     step.name = `sanctuary_dock_step_${i}`;
     step.userData.anuKind = "sanctuary_dock_step";
     step.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;
@@ -287,6 +298,9 @@ function buildEndCap(group, dockY) {
   cap.position.set(DOCK_LENGTH_M / 2 - 0.2, dockY + 0.27, 0);
   cap.castShadow = false;
   cap.receiveShadow = true;
+  // renderOrder = 15 — same fix as planks/steps so the bench cap
+  // sorts above the player travel circle.
+  cap.renderOrder = 15;
   cap.name = "sanctuary_dock_endcap";
   cap.userData.anuKind = "sanctuary_dock_endcap";
   cap.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;

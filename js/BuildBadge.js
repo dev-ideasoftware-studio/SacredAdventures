@@ -45,7 +45,7 @@ function render(info) {
       left: "12px",
       bottom: "12px",
       zIndex: "999999",
-      padding: "6px 18px",
+      padding: "6px 18px 6px 6px",
       borderRadius: "999px",
       background: "rgba(25, 18, 12, 0.45)",
       backdropFilter: "blur(12px) saturate(160%)",
@@ -61,6 +61,9 @@ function render(info) {
       whiteSpace: "nowrap",
       overflow: "hidden",
       textOverflow: "ellipsis",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
     });
     document.body.appendChild(el);
   }
@@ -84,8 +87,45 @@ function render(info) {
   const subject = truncate(info.subject || "(no subject)", 64);
   const branch = info.branch || "?";
 
+  // Full pastable summary — what the COPY button writes to the clipboard.
+  // User-requested 2026-05-28: "add a small copy all button to the left
+  // of build so I can provide you with it" — for fast hand-off when
+  // weird build state needs to be reported.
+  const copyText =
+    `branch: ${branch}\n` +
+    `commit: ${info.commit ?? "(none)"}\n` +
+    `subject: ${info.subject ?? "(no subject)"}\n` +
+    `commit time: ${info.isoDate ?? "(unknown)"}\n` +
+    `build-info generated: ${info.generatedAt ?? "(unknown)"}\n` +
+    `SW cache: ${info.swVersion ?? "(unknown)"}\n` +
+    `dirty: ${!!info.dirty}\n` +
+    `page URL: ${typeof location !== "undefined" ? location.href : "(no location)"}`;
+
   el.title = `branch: ${branch}\nsubject: ${info.subject}\ncommit time: ${info.isoDate}\nbuild info generated: ${info.generatedAt}\nSW cache: ${info.swVersion}\ncommit: ${info.commit}\ndirty: ${info.dirty}`;
-  el.innerHTML = `<span style="color:#c8a546;font-weight:700">${branch}</span>${swTag} · <span>${subject}</span> · <span style="color:#a39577">${rel} (${isoShort})</span>${dirtyTag}`;
+  el.innerHTML = `<button id="build-badge-copy" type="button" title="Copy build identity to clipboard" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-radius:50%;border:1px solid rgba(251,192,45,0.45);background:rgba(0,0,0,0.35);color:#f5d77a;cursor:pointer;font:600 11px/1 ui-monospace,Menlo,monospace;flex:0 0 auto;">⧉</button><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1 1 auto;"><span style="color:#c8a546;font-weight:700">${branch}</span>${swTag} · <span>${subject}</span> · <span style="color:#a39577">${rel} (${isoShort})</span>${dirtyTag}</span>`;
+
+  const copyBtn = el.querySelector("#build-badge-copy");
+  if (copyBtn) {
+    copyBtn.onclick = async (ev) => {
+      ev.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(copyText);
+        const orig = copyBtn.textContent;
+        copyBtn.textContent = "✓";
+        copyBtn.style.background = "rgba(80,180,80,0.45)";
+        copyBtn.style.color = "#e8ffd9";
+        setTimeout(() => {
+          copyBtn.textContent = orig;
+          copyBtn.style.background = "rgba(0,0,0,0.35)";
+          copyBtn.style.color = "#f5d77a";
+        }, 1400);
+      } catch (e) {
+        copyBtn.textContent = "✗";
+        copyBtn.style.color = "#ff8a6e";
+        console.warn("[BuildBadge] clipboard copy failed:", e);
+      }
+    };
+  }
 }
 
 export async function mountBuildBadge() {

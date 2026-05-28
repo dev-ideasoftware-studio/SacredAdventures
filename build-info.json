@@ -1,9 +1,9 @@
 {
-  "subject": "fix(dock): posts + rails + balusters renderOrder=15 so they sort above the player travel circle",
-  "isoDate": "2026-05-28T10:45:20-05:00",
+  "subject": "fix(dock,badge): stool surface renderOrder=15 covers player circle overhang + COPY button on build badge",
+  "isoDate": "2026-05-28T10:59:24-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "eaf117d",
+  "commit": "8accb53",
   "dirty": true,
-  "generatedAt": "2026-05-28T15:45:24.265Z"
+  "generatedAt": "2026-05-28T15:59:28.326Z"
 }
