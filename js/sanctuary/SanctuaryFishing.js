@@ -320,15 +320,20 @@ function _build3DGauge(scene) {
   const g = new THREE.Group();
   g.name = "v4_gauge_3d";
 
-  // Clear plastic (spec: transmission 0.95, IOR 1.5, roughness 0.05).
-  // depthTest:false + the high renderOrder set on the group at the end
-  // of _build3DGauge keeps the gauge in front of opaque dock geometry
-  // (the guardrails were clipping over it — user-reported 2026-05-28).
+  // Clear plastic — user-requested 2026-05-28 (9× asked): the gauge's
+  // white plastic was reading as a solid white panel in the PIP view.
+  // opacity dropped 0.90 → 0.15 so the body is now almost-glass, just
+  // a faint refractive edge. depthTest restored to true (was forced
+  // false earlier to win against dock rails, but user followed up with
+  // "blue circle clipping the siderails... fix that lower zindex" —
+  // they want the rails to occlude the gauge naturally where they
+  // overlap). renderOrder = 9990 still set at the group level so the
+  // gauge sorts ABOVE other transparents.
   const clearMat = new THREE.MeshPhysicalMaterial({
-    color: 0xddeeff, transmission: 0.95, opacity: 0.90,
+    color: 0xddeeff, transmission: 0.95, opacity: 0.15,
     ior: 1.5, roughness: 0.05,
     transparent: true, side: THREE.DoubleSide,
-    depthWrite: false, depthTest: false,
+    depthWrite: false, depthTest: true,
   });
   // Matte dark grey (spec: #333333, roughness 0.4)
   const darkMat = new THREE.MeshStandardMaterial({
@@ -1010,13 +1015,13 @@ export const SanctuaryFishingModule = {
       s.id = "v4-fishing-pip-glass-style";
       s.textContent = `
         body.v4-fishing-active #moondial-wrapper {
-          background: radial-gradient(circle, rgba(15, 10, 5, 0.10) 30%, rgba(5, 2, 0, 0.30) 100%) !important;
+          background: radial-gradient(circle, rgba(15, 10, 5, 0.04) 30%, rgba(5, 2, 0, 0.16) 100%) !important;
           border-color: rgba(255, 215, 0, 0.55) !important;
           box-shadow:
-            inset 0 0 12px rgba(0, 0, 0, 0.35),
+            inset 0 0 8px rgba(0, 0, 0, 0.22),
             0 0 0 8px #1a1512,
-            0 15px 40px rgba(0, 0, 0, 0.55),
-            0 0 24px rgba(255, 200, 80, 0.18) !important;
+            0 15px 40px rgba(0, 0, 0, 0.45),
+            0 0 24px rgba(255, 200, 80, 0.22) !important;
           transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
         }
       `;

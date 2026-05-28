@@ -234,7 +234,7 @@ function sanctuaryHillRing(x, z) {
  * @param {number} [bodyHeight=1.524]  body height in metres (avatar default)
  * @returns {number}  world Y for the body root (feet anchor)
  */
-export function sanctuaryBodyY(x, z, bodyHeight = 1.524) {
+export function sanctuaryBodyY(x, z, bodyHeight = 1.524, liftWhenSwimming = 0) {
   // 1) Dock takes priority — kid can walk onto the dock surface
   if (typeof window !== "undefined") {
     const dock = window.__sanctuaryDockSurface;
@@ -244,7 +244,14 @@ export function sanctuaryBodyY(x, z, bodyHeight = 1.524) {
     }
   }
 
-  // 2) Inside the pool → float half-submerged at the waterline
+  // 2) Inside the pool → float half-submerged at the waterline, with
+  //    an optional extra lift. User-requested 2026-05-28: "raise model
+  //    out of water 1 foot" — callers driving the avatar pass
+  //    `liftWhenSwimming = 0.3048` so the kid reads as wading with
+  //    chest above water, not floating with the waterline cutting
+  //    across her ribcage. Other bodies (e.g. frogs swimming to chase
+  //    fish) pass 0 — they should still ride at the half-submerged
+  //    waterline like real frogs.
   const dx = x - SANCTUARY_POOL_CENTER_X;
   const dz = z - SANCTUARY_POOL_CENTER_Z;
   const dist = Math.hypot(dx, dz);
@@ -253,7 +260,7 @@ export function sanctuaryBodyY(x, z, bodyHeight = 1.524) {
     typeof window !== "undefined" &&
     Number.isFinite(window.__sanctuaryWaterY)
   ) {
-    return window.__sanctuaryWaterY - bodyHeight * 0.5;
+    return window.__sanctuaryWaterY - bodyHeight * 0.5 + liftWhenSwimming;
   }
 
   // 3) Default: analytic terrain

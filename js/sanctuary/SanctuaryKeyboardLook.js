@@ -186,7 +186,11 @@ export const SanctuaryKeyboardLookModule = {
     // sanctuaryBodyY is the single source of truth for body anchor Y —
     // it knows about the dock (walkable surface), the pool waterline
     // (float half-submerged when swimming), and the analytic terrain.
-    const groundY = sanctuaryBodyY(body.position.x, body.position.z);
+    // The 4th arg (liftWhenSwimming = 0.3048 m = 1 ft) lifts the avatar
+    // above the half-submerged waterline so the kid reads as wading,
+    // matching the SanctuaryAvatar update path. User-requested
+    // 2026-05-28: "raise model out of water 1 foot".
+    const groundY = sanctuaryBodyY(body.position.x, body.position.z, undefined, 0.3048);
     if (k[" "] && this._grounded) {
       this._bodyVy = JUMP_VEL_MPS;
       this._grounded = false;

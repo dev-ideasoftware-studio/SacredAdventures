@@ -550,8 +550,12 @@ export const SanctuaryAvatarModule = {
     // (see `model.position.y += FEET_ABOVE_DISC_M` below) so its feet
     // sit above the travel disc, which is a sibling of the model
     // anchored at the root's plane.
-    // Single source of truth for body Y — knows dock + pool waterline + terrain.
-    cur.y = sanctuaryBodyY(cur.x, cur.z, AVATAR_TARGET_HEIGHT_M);
+    // Single source of truth for body Y — knows dock + pool waterline
+    // + terrain. The 4th arg (liftWhenSwimming = 0.3048 m = 1 ft) lifts
+    // the avatar above the half-submerged waterline so the kid reads
+    // as wading, not floating. User-requested 2026-05-28: "raise model
+    // out of water 1 foot".
+    cur.y = sanctuaryBodyY(cur.x, cur.z, AVATAR_TARGET_HEIGHT_M, 0.3048);
 
     // ── Animation state machine ──────────────────────────────────────
     // Priority (highest first):

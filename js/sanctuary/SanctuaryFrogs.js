@@ -33,6 +33,15 @@ function lcg(seed) {
 }
 
 const FROG_COUNT = 5;
+/**
+ * Extra "small" frogs — user-requested 2026-05-28: "ad 2 more small
+ * frogs I dont seethem often." Spawned alongside the solo school but
+ * at SMALL_FROG_SCALE so they read as tiny froglets. They share the
+ * solo state machine (BASK / SWIM / JUMP / STRIKE) so no extra
+ * update path is needed.
+ */
+const SMALL_FROG_COUNT = 2;
+const SMALL_FROG_SCALE = 0.55;
 const LILY_COUNT = 16;
 const WATER_Y = -0.6; // Pool surface level
 const FLEE_DIST_SQ = 3.5 * 3.5;
@@ -377,37 +386,61 @@ export const SanctuaryFrogsModule = {
 
     const rand = lcg(123);
 
-    // 1. Scatter Lily Pads
-    for (let i = 0; i < LILY_COUNT; i++) {
-      const pad = _buildLilyPad(rand);
-      
-      // Scatter anywhere inside the pool, keeping them away from the shore edge
-      const a = rand() * Math.PI * 2;
-      const r = rand() * (SANCTUARY_POOL_RADIUS_M - 1.5); 
-      const px = SANCTUARY_POOL_CENTER_X + Math.cos(a) * r;
-      const pz = SANCTUARY_POOL_CENTER_Z + Math.sin(a) * r;
-      
-      pad.position.set(px, WATER_Y + 0.01, pz);
-      pad.rotation.y = rand() * Math.PI * 2;
-      
-      _lilies.push(pad);
-      _group.add(pad);
+    // 1. LILY PADS — reuse the beautiful multicoloured ones from
+    // SanctuaryPool.js instead of building duplicate low-poly pads.
+    // User-requested 2026-05-28: "just use the beautiful multicolored
+    // lilies get rid of the other ones. Make sure frogs use the new
+    // ones." SanctuaryPool.js publishes its full lily-pad mesh list
+    // on window.__sanctuaryLilyPads after buildLilyPads runs.
+    if (typeof window !== "undefined" && Array.isArray(window.__sanctuaryLilyPads) && window.__sanctuaryLilyPads.length > 0) {
+      _lilies = window.__sanctuaryLilyPads.slice();
+      console.log(
+        `%c[SanctuaryFrogs] 🪷 Reusing ${_lilies.length} multi-colour lily pads from SanctuaryPool (no duplicate low-poly pads).`,
+        "color:#a5d6a7;",
+      );
+    } else {
+      // Fallback: SanctuaryPool hasn't loaded (boot order edge case).
+      // Build the legacy low-poly pads so frogs still have somewhere
+      // to land. Logged as a warning so we notice if this fires.
+      console.warn(
+        "[SanctuaryFrogs] window.__sanctuaryLilyPads not present — falling back to legacy pad build. Pool module load-order issue?",
+      );
+      for (let i = 0; i < LILY_COUNT; i++) {
+        const pad = _buildLilyPad(rand);
+        const a = rand() * Math.PI * 2;
+        const r = rand() * (SANCTUARY_POOL_RADIUS_M - 1.5);
+        const px = SANCTUARY_POOL_CENTER_X + Math.cos(a) * r;
+        const pz = SANCTUARY_POOL_CENTER_Z + Math.sin(a) * r;
+        pad.position.set(px, WATER_Y + 0.01, pz);
+        pad.rotation.y = rand() * Math.PI * 2;
+        _lilies.push(pad);
+        _group.add(pad);
+      }
     }
 
-    // 2. Initialize Frogs
-    for (let i = 0; i < FROG_COUNT; i++) {
+    // 2. Initialize Frogs (regular + small)
+    const TOTAL_FROGS = FROG_COUNT + SMALL_FROG_COUNT;
+    for (let i = 0; i < TOTAL_FROGS; i++) {
+      const isSmall = i >= FROG_COUNT;
       const group = _buildFrog();
+      if (isSmall) {
+        // Tiny froglet — same model + state machine, just scaled down
+        // so the kid spots them between the regulars (2026-05-28 ask).
+        group.scale.setScalar(SMALL_FROG_SCALE);
+        group.userData.isSmallFrog = true;
+      }
       const isLily = rand() > 0.5;
-      
+
       const f = {
         group,
         state: isLily ? S_BASK_LILY : S_SWIM,
-        timer: rand() * 5.0, // wait time before next action
+        timer: rand() * 5.0,
         startPos: new THREE.Vector3(),
         endPos: new THREE.Vector3(),
         duration: 0,
-        swimSpeed: 0.5 + rand() * 0.5,
-        targetYaw: 0
+        swimSpeed: (0.5 + rand() * 0.5) * (isSmall ? 1.15 : 1.0), // small frogs paddle slightly faster
+        targetYaw: 0,
+        isSmall,
       };
 
       if (isLily) {
@@ -468,7 +501,7 @@ export const SanctuaryFrogsModule = {
 
     scene.add(_group);
     console.log(
-      `%c[SanctuaryFrogs] 🐸 Photoreal frogs & Lilies online — ${FROG_COUNT} solo + ${FRIEND_FROG_COUNT} buddy-pair.`,
+      `%c[SanctuaryFrogs] 🐸 Photoreal frogs online — ${FROG_COUNT} solo + ${SMALL_FROG_COUNT} small + ${FRIEND_FROG_COUNT} buddy-pair. Lilies: reused from SanctuaryPool.`,
       "color:#a5d6a7;font-weight:bold;",
     );
   },
@@ -492,11 +525,20 @@ export const SanctuaryFrogsModule = {
     const scaledDt = dt * stride;
     _clock += scaledDt;
 
-    // Gentle lily pad bobbing
-    for (let i = 0; i < _lilies.length; i++) {
-      _lilies[i].position.y = WATER_Y + 0.01 + Math.sin(_clock * 1.5 + i) * 0.005;
-      _lilies[i].rotation.x = Math.sin(_clock * 1.0 + i) * 0.02;
-      _lilies[i].rotation.z = Math.cos(_clock * 1.2 + i) * 0.02;
+    // Lily pad bobbing — when reusing SanctuaryPool's pads (the typical
+    // path now per the 2026-05-28 consolidation), the pool module owns
+    // the wave-follow integrator (getWaveHeight in SanctuaryPool.js)
+    // and we MUST NOT also bob the pads or the two writers fight each
+    // frame. Only bob if we fell back to the legacy own-built pads
+    // (signalled by missing the shared global at load time).
+    const ownsBobbing = (typeof window === "undefined")
+      || !Array.isArray(window.__sanctuaryLilyPads);
+    if (ownsBobbing) {
+      for (let i = 0; i < _lilies.length; i++) {
+        _lilies[i].position.y = WATER_Y + 0.01 + Math.sin(_clock * 1.5 + i) * 0.005;
+        _lilies[i].rotation.x = Math.sin(_clock * 1.0 + i) * 0.02;
+        _lilies[i].rotation.z = Math.cos(_clock * 1.2 + i) * 0.02;
+      }
     }
 
     const rand = Math.random;

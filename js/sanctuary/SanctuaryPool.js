@@ -1006,7 +1006,13 @@ function buildPoolRocks(centerY) {
     const sBase = 0.015 + rng() * 0.035; // 0.015 to 0.050 m
     _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
     _quat.setFromEuler(_euler);
-    _pos.set(x, bottomY - 0.005 + rng() * 0.015 + sBase * 0.3, z);
+    // Lift micro-pebbles +0.02 m above the basin floor so they sit
+    // ABOVE the base of the moss tufts. Otherwise the moss roots
+    // (at exact bottomY) visually cover the pebbles when looking
+    // from above — user-reported 2026-05-28: "make grass the lowest
+    // z-index". This keeps moss at the absolute floor and lifts the
+    // gravel just enough to peek through the green roots.
+    _pos.set(x, bottomY + 0.015 + rng() * 0.015 + sBase * 0.3, z);
     _scl.set(sBase * (0.85 + rng() * 0.35), sBase * (0.55 + rng() * 0.25), sBase * (0.85 + rng() * 0.35));
     _m.compose(_pos, _quat, _scl);
     microMesh.setMatrixAt(i, _m);
@@ -1497,6 +1503,18 @@ function buildLilyPads(centerY) {
     flower.userData.initialY = flowerY;
     flower.userData.baseQuaternion = flower.quaternion.clone();
     group.add(flower);
+  }
+
+  // Expose every lily-pad mesh (regular + orchid) so other modules
+  // (notably SanctuaryFrogs) can re-use the same beautiful multicoloured
+  // lilies as their landing pads instead of building their own low-poly
+  // duplicates. User-requested 2026-05-28: "just use the beautiful
+  // multicolored lilies get rid of the other ones. Make sure frogs use
+  // the new ones."
+  if (typeof window !== "undefined") {
+    window.__sanctuaryLilyPads = group.children.filter(
+      (c) => c.userData?.anuKind === "sanctuary_lily_pad",
+    );
   }
 
   return group;

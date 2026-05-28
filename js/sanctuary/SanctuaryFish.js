@@ -17,7 +17,11 @@ import {
 } from "./SanctuaryGround.js";
 
 const FISH_OBJ_URL = "./Assets/Fish/fish.obj";
-const FISH_COUNT = 12;
+/** Trout school size. Bumped 12 → 18 on 2026-05-28 ("add more fish").
+ *  Each trout currently costs <1 FPS at the bench so the extra six
+ *  are cheap; a future InstancedMesh refactor (filed earlier) would
+ *  drop the whole school to one draw call regardless of count. */
+const FISH_COUNT = 18;
 /** Body length after scale — matches v2 guidebook trout read. */
 const FISH_TARGET_LENGTH_M = 0.44;
 const SWIM_DEPTH_CENTER_M = 0.55;
