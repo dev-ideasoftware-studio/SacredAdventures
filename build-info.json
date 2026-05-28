@@ -1,8 +1,8 @@
 {
-  "subject": "fix(hud): refactor v4-fps-orc-accordion test selectors for unified orchestrator hud and bust sw cache to v33",
-  "isoDate": "2026-05-27T21:11:01-05:00",
+  "subject": "chore(coordination): create coordination handoff notification in tmp/handoff.md",
+  "isoDate": "2026-05-27T21:19:21-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v33",
   "dirty": false,
-  "generatedAt": "2026-05-28T02:11:05.185Z"
+  "generatedAt": "2026-05-28T02:19:25.818Z"
 }
