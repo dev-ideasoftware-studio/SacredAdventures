@@ -1092,17 +1092,13 @@ export const SanctuaryFishingModule = {
       disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
       scene.add(disc);
 
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(SPOT_DISC_RADIUS_M * 0.92, SPOT_DISC_RADIUS_M, 64),
-        new THREE.MeshBasicMaterial({
-          color: 0xfbe28a, transparent: true, opacity: 0.95,
-          depthTest: false, depthWrite: false, side: THREE.DoubleSide,
-        }),
-      );
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(spot.x, (spot.y ?? 0) + 0.04, spot.z);
-      ring.renderOrder = 9971;
-      scene.add(ring);
+      // REMOVED 2026-05-28 (proven via tests/v4-disc-zindex-probe.spec.js):
+      // The gold RingGeometry(0.92, 1.0) at renderOrder 9971 was the
+      // "fish circle inner border" the user kept asking to remove. It
+      // sat above the player travel disc + SanctuaryCircles spot disc
+      // and read as a hard cream-yellow outline around the bobber. With
+      // the disc (above) + fish glyph (below) we still have the visual
+      // target marker without the inner border edge.
 
       // Animated fish glyph
       const cnv = document.createElement("canvas");
@@ -1773,12 +1769,10 @@ export const SanctuaryFishingModule = {
       }
       const ringMesh = this._circleOutlineRef;
       if (ringMesh && ringMesh.material && ringMesh.material.uniforms) {
-        // User-requested 2026-05-28: "use same circle as player has just
-        // change its base color and keep the fish. stop making the
-        // player border circles so damn hard." Keeping the border
-        // VISIBLE during fishing — only the colour morph (white ↔ blue)
-        // distinguishes the fishing state. Previous attempts to hide
-        // the ring fought the existing morph code unnecessarily.
+        // The cream border the user kept asking about turned out to be
+        // the SanctuaryFishing.js spot ring (now removed above), NOT
+        // this player_avatar_circle_outline ring. Keeping the white↔blue
+        // colour morph here since that's the established fishing cue.
         const uni = ringMesh.material.uniforms;
         const targetInner = isFishingActive
           ? this._colRingInner.set(0xb3e5fc) : this._colRingInner.set(0xffffff);
