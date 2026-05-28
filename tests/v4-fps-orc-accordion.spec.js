@@ -17,40 +17,39 @@ test('FPS HUD — ORCHESTRATOR accordion renders and expands', async ({ page }) 
   await page.waitForTimeout(7000);
 
   // ── 1. FPS HUD panel present ──────────────────────────────────────────────
-  const hud = page.locator('#v4-fps-hud');
+  const hud = page.locator('#v2-orchestrator-hud');
   await expect(hud).toBeVisible({ timeout: 5000 });
-  console.log('✓ #v4-fps-hud visible');
+  console.log('✓ #v2-orchestrator-hud visible');
 
   // ── 2. Original design tokens still in place ──────────────────────────────
   const bg = await hud.evaluate(el => getComputedStyle(el).backgroundColor);
-  // should be dark (close to rgba(10,18,14,...)) — NOT the Fredoka warm-brown
   console.log('  background:', bg);
 
   const fontFam = await hud.evaluate(el => getComputedStyle(el).fontFamily);
-  // Must NOT be Fredoka
+  // Uses Fredoka now in unified style
   const hasFredoka = fontFam.toLowerCase().includes('fredoka');
   console.log('  fontFamily:', fontFam);
-  expect(hasFredoka).toBe(false);
-  console.log('✓ Original monospace design — no Fredoka');
+  expect(hasFredoka).toBe(true);
+  console.log('✓ Unified neomorphic design — Fredoka present');
 
-  // ── 3. ANU PIPELINE header ────────────────────────────────────────────────
-  const pipelineHeader = hud.locator('div', { hasText: 'ANU PIPELINE' }).first();
+  // ── 3. ORCHESTRATOR header ────────────────────────────────────────────────
+  const pipelineHeader = hud.locator('div', { hasText: 'ORCHESTRATOR' }).first();
   await expect(pipelineHeader).toBeVisible();
-  console.log('✓ ANU PIPELINE header present');
+  console.log('✓ ORCHESTRATOR header present');
 
   // ── 4. FPS value present ──────────────────────────────────────────────────
-  const fpsSpan = page.locator('#hud-fps');
+  const fpsSpan = page.locator('#v2-fps');
   await expect(fpsSpan).toBeVisible();
   const fpsText = await fpsSpan.textContent();
   console.log(`✓ FPS value: "${fpsText}"`);
 
-  // ── 5. ORCHESTRATOR button present and collapsed ──────────────────────────
-  const orcBtn  = page.locator('#hud-orc-btn');
-  const orcBody = page.locator('#hud-orc-body');
+  // ── 5. TRACE button present and collapsed ──────────────────────────
+  const orcBtn  = page.locator('#v2-hud-trace-label');
+  const orcBody = page.locator('#v2-trace-accordion-body');
   await expect(orcBtn).toBeVisible();
   const bodyDisplay = await orcBody.evaluate(el => el.style.display);
   expect(bodyDisplay).toBe('none');
-  console.log('✓ ORCHESTRATOR button present, accordion collapsed by default');
+  console.log('✓ TRACE button present, accordion collapsed by default');
 
   // ── 6. Click expands accordion ────────────────────────────────────────────
   await orcBtn.click();
@@ -58,24 +57,24 @@ test('FPS HUD — ORCHESTRATOR accordion renders and expands', async ({ page }) 
 
   const bodyDisplayAfter = await orcBody.evaluate(el => el.style.display);
   expect(bodyDisplayAfter).not.toBe('none');
-  console.log('✓ ORCHESTRATOR accordion expanded on click');
+  console.log('✓ TRACE accordion expanded on click');
 
   // ── 7. Frame graph canvas visible ────────────────────────────────────────
-  const graph = page.locator('#hud-orc-graph');
+  const graph = page.locator('#v2-trace-spark');
   await expect(graph).toBeVisible();
   const [gw, gh] = await graph.evaluate(el => [el.width, el.height]);
   console.log(`✓ Frame graph canvas ${gw}×${gh}px present`);
 
   // ── 8. DRAW / TRI row present ─────────────────────────────────────────────
-  const drawEl = page.locator('#hud-draw');
-  const triEl  = page.locator('#hud-tri');
+  const drawEl = page.locator('#v2-draws');
+  const triEl  = page.locator('#v2-draws');
   await expect(drawEl).toBeVisible();
   await expect(triEl).toBeVisible();
-  console.log(`✓ DRAW="${await drawEl.textContent()}"  TRI="${await triEl.textContent()}" rows visible`);
+  console.log(`✓ DRAWS/TRI text="${await drawEl.textContent()}" row visible`);
 
   // ── 9. UNIVERSE sub-button present ───────────────────────────────────────
-  const uniBtn  = page.locator('#hud-uni-btn');
-  const uniBody = page.locator('#hud-uni-body');
+  const uniBtn  = page.locator('#v2-hud-universe-label');
+  const uniBody = page.locator('#v2-universe-accordion-body');
   await expect(uniBtn).toBeVisible();
   const uniDisplay = await uniBody.evaluate(el => el.style.display);
   expect(uniDisplay).toBe('none');
@@ -86,7 +85,7 @@ test('FPS HUD — ORCHESTRATOR accordion renders and expands', async ({ page }) 
   await page.waitForTimeout(200);
   const uniDisplayAfter = await uniBody.evaluate(el => el.style.display);
   expect(uniDisplayAfter).not.toBe('none');
-  const modulesEl = page.locator('#hud-modules');
+  const modulesEl = page.locator('#v2-modules');
   await expect(modulesEl).toBeVisible();
   const modsText = await modulesEl.textContent();
   console.log(`✓ UNIVERSE expanded — modules: "${modsText.slice(0, 80)}"`);
