@@ -1,9 +1,9 @@
 {
-  "subject": "fix(fishing): remove gold spot-ring + add Playwright probe for disc/dock/PIP z-index",
-  "isoDate": "2026-05-28T15:40:37-05:00",
+  "subject": "feat(pool): Bundle A — water clarity + kill moss tufts to match user's reference pond",
+  "isoDate": "2026-05-28T15:57:01-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "445bc2c",
+  "commit": "6baad2f",
   "dirty": true,
-  "generatedAt": "2026-05-28T20:40:41.588Z"
+  "generatedAt": "2026-05-28T20:57:05.679Z"
 }

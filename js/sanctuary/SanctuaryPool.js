@@ -92,15 +92,23 @@ function buildWaterSurface(centerY, textures) {
   // through from above. With 45% opacity over a saturated green tint the
   // surface was painting solid grass-green from top-down view and hiding
   // every underwater detail. Caustics + Gerstner waves untouched.
+  // 2026-05-28 — Bundle A from the pond-look matching pass against the
+  // user's reference photo (kid + crystal-clear pond + cattails). The
+  // prior teal `#0a3438` + opacity 0.28 was hiding the de-greened
+  // sandy basin texture entirely from above. Switched to a desaturated
+  // blue-grey `#7a9aa0` at opacity 0.10 + transmission-style emissive
+  // so the pebble bottom reads through clearly the way the reference
+  // photo shows. Caustics + Gerstner waves untouched (still drives the
+  // shimmer in `onBeforeCompile` below).
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x0a3438),
-    emissive: new THREE.Color(0x042022),
-    emissiveIntensity: 0.10,
-    roughness: 0.22,            // softer, more natural water reflections instead of a hard glass panel
-    metalness: 0.15,            // lower metalness so the deep green water and morphing caustics read beautifully
+    color: new THREE.Color(0x7a9aa0),
+    emissive: new THREE.Color(0x0b1518),
+    emissiveIntensity: 0.06,
+    roughness: 0.22,
+    metalness: 0.15,
     normalMap: textures.normal,
     transparent: true,
-    opacity: 0.28,              // reduced so sandy basin + rocks/pebbles read through clearly from above
+    opacity: 0.10,
     depthWrite: false,
     side: THREE.DoubleSide,
     defines: { USE_UV: "" },
@@ -1037,7 +1045,10 @@ function buildPoolRocks(centerY) {
   // planes crossed at 90° so silhouette reads from any angle. Bias is
   // now 80% rock-anchored / 20% free-scatter so the few remaining tufts
   // cluster around rocks where moss naturally grows in real ponds.
-  const MOSS_COUNT = 250;
+  // 2026-05-28 Bundle A: 250 → 0 to match reference photo (no green
+  // carpet, just smooth pebbles). Bundle C will add a small number of
+  // moss tufts back as accents near shore rocks once those land.
+  const MOSS_COUNT = 0;
   const mossGeo = _buildMossTuftGeometry();
   const mossMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
