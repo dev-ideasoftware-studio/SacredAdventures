@@ -302,9 +302,12 @@ function buildEndCap(group, dockY) {
   cap.position.set(DOCK_LENGTH_M / 2 - 0.2, dockY + 0.27, 0);
   cap.castShadow = false;
   cap.receiveShadow = true;
-  // renderOrder = 15 — same fix as planks/steps so the bench cap
-  // sorts above the player travel circle.
-  cap.renderOrder = 15;
+  // renderOrder = 20 — between the fishing-spot disc (15) and the
+  // posts/rails/balusters (25). Stool now sorts ABOVE the disc on the
+  // deck while depthTest:true still lets the avatar (default
+  // renderOrder, depth-buffered) occlude the stool naturally where
+  // the player is sitting on it. User ask 2026-05-28.
+  cap.renderOrder = 20;
   cap.name = "sanctuary_dock_endcap";
   cap.userData.anuKind = "sanctuary_dock_endcap";
   cap.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;

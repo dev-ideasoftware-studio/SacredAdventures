@@ -1,9 +1,9 @@
 {
-  "subject": "chore(sync): sync pool concentric-ripples, dock width, and fishing spot disc updates",
-  "isoDate": "2026-05-28T16:55:29-05:00",
+  "subject": "perf(pip): throttle fishing PiP to every 2 frames + fix dock endcap renderOrder",
+  "isoDate": "2026-05-28T16:57:24-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "7a5c904",
+  "commit": "fc66137",
   "dirty": true,
-  "generatedAt": "2026-05-28T21:55:33.586Z"
+  "generatedAt": "2026-05-28T21:57:28.062Z"
 }
