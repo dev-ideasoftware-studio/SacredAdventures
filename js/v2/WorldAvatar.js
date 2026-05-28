@@ -354,7 +354,16 @@ export function createWorldAvatarController() {
         disc.userData.anuId = "player.avatar.travel_circle";
         disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
         disc.userData.anuKind = "avatar_travel_circle";
-        disc.renderOrder = 8;
+        // User-requested 2026-05-28: "raise the player circle itself above
+        // the z-index of dock again". Bumped 8 → 18 + depthTest:false
+        // below so the disc body draws AFTER the dock plank/posts/rails/
+        // balusters (renderOrder 15) and ignores their depth, painting
+        // on top of them wherever they overlap. The RING border stays at
+        // renderOrder 9 with depthTest:true (see ringMat block below) so
+        // the border is still naturally occluded by dock geometry — the
+        // "borders are good" behaviour the user confirmed. Avatar
+        // figurine still wins because it's at renderOrder 10000.
+        disc.renderOrder = 18;
         root.add(disc);
 
         const innerR = AVATAR_CIRCLE_RADIUS * 0.92;
@@ -388,7 +397,7 @@ export function createWorldAvatarController() {
             transparent: false,
             opacity: 1,
             side: THREE.DoubleSide,
-            depthTest: true,
+            depthTest: false,
             depthWrite: false,
           }),
         );
@@ -398,7 +407,11 @@ export function createWorldAvatarController() {
         arrow.userData.anuId = "player.avatar.facing_arrow";
         arrow.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
         arrow.userData.anuKind = "avatar_facing_arrow";
-        arrow.renderOrder = 10;
+        // Arrow rides one above the disc body so the facing-direction
+        // marker is visible over the dock surface alongside the disc.
+        // (renderOrder 19 = disc + 1; ring at 9 still gets occluded by
+        // dock, which is what the user wants for the border.)
+        arrow.renderOrder = 19;
         root.add(arrow);
 
         /**
@@ -408,13 +421,17 @@ export function createWorldAvatarController() {
          * clearance — **not** a fixed +6 cm shim) plus `polygonOffset`
          * only on the body so torso pixels win cleanly over decal/terrain.
          */
-        discMat.depthTest = true;
+        // Disc BODY: depthTest:false (ignore terrain + dock depth), paired
+        // with the bumped renderOrder:18 above. Draws AFTER dock parts
+        // and ignores their depth, so the disc body always paints on top
+        // of the dock surface where they overlap.
+        discMat.depthTest = false;
         discMat.depthWrite = false;
         discMat.polygonOffset = false;
         ringMat.depthTest = true;
         ringMat.depthWrite = false;
         ringMat.polygonOffset = false;
-        arrow.material.depthTest = true;
+        arrow.material.depthTest = false;
         arrow.material.depthWrite = false;
         arrow.material.polygonOffset = false;
 

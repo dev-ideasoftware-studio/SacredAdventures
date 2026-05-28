@@ -72,12 +72,39 @@ export function buildPlayerV2TravelDecal(nameTag = "player_avatar") {
   disc.position.y = TRAVEL_DECAL_CLEAR_ABOVE_RIM_M;
   disc.userData.anuKind = "avatar_travel_circle";
   disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
-  disc.renderOrder = 4; // below fish (renderOrder 5) so fish swim over the player circle
+  // User-requested 2026-05-28: "raise the player circle itself above the
+  // z-index of dock again". Bumped 4 → 18 so the disc body draws AFTER
+  // dock parts (renderOrder 15). With depthTest:false the disc body
+  // then paints on top of the dock plank/posts/rails wherever they
+  // overlap — body always visible over the dock surface. Stays below
+  // the ring border (renderOrder 20, depthTest:true) so the border is
+  // still naturally occluded by dock geometry the way the user
+  // confirmed "borders are good".
+  // Trade-off: fish (renderOrder 5) now swim UNDER the disc body
+  // visually. That's acceptable for the dock fix; revisit if the user
+  // reports fish-under-disc looking off.
+  disc.renderOrder = 18;
   group.add(disc);
 
   const innerR = R * 0.92;
   const ringMat = createPhotorealTravelRingMaterial("player", innerR, R);
-  ringMat.depthTest = false;
+  // User-requested 2026-05-28: "fix z-index of borders of circle still on
+  // wrong z-index for outer white border and inner white border". The
+  // ring shader paints from innerR to outerR — both the inner-edge and
+  // outer-edge white borders the user sees are this single mesh.
+  //
+  // Old recipe (depthTest:false + renderOrder:9) drew BEFORE dock
+  // (renderOrder 15) AND ignored depth, so dock geometry couldn't
+  // occlude the ring at all. New recipe inverts that:
+  //   depthTest:true  → respect dock + avatar depth
+  //   depthWrite:false→ don't poison depth for other selection decals
+  //   renderOrder:20  → draws AFTER dock (15), so the dock-plank depth
+  //                     is already in the buffer when the ring tries
+  //                     to draw → posts/rails/balusters/planks properly
+  //                     hide the ring border where they cross it.
+  // The disc body stays depthTest:false (always visible over terrain);
+  // only the BORDER respects geometry, which is what the user wants.
+  ringMat.depthTest = true;
   ringMat.depthWrite = false;
   const ring = new THREE.Mesh(new THREE.RingGeometry(innerR, R, 96), ringMat);
   ring.name = `${nameTag}_travel_circle_outline`;
@@ -85,7 +112,7 @@ export function buildPlayerV2TravelDecal(nameTag = "player_avatar") {
   ring.position.y = TRAVEL_DECAL_CLEAR_ABOVE_RIM_M + 0.008;
   ring.userData.anuKind = "avatar_travel_circle_outline";
   ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
-  ring.renderOrder = 9;
+  ring.renderOrder = 20;
   group.add(ring);
 
   const arrowShape = new THREE.Shape()
@@ -109,7 +136,12 @@ export function buildPlayerV2TravelDecal(nameTag = "player_avatar") {
   arrow.position.y = TRAVEL_DECAL_CLEAR_ABOVE_RIM_M + 0.015;
   arrow.userData.anuKind = "avatar_facing_arrow";
   arrow.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
-  arrow.renderOrder = 10;
+  // Arrow rides one above the disc body so the facing direction is
+  // visible on top of the disc surface even where the dock plank sits
+  // between them in world Y. (renderOrder 19 = disc + 1, ring still
+  // wins at 20 because we want the bright cream border on top of the
+  // arrow tip when they overlap.)
+  arrow.renderOrder = 19;
   group.add(arrow);
 
   group.userData._travelMats = [discMat, ringMat];
