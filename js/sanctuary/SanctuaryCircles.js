@@ -49,7 +49,7 @@ const MOONLIGHT = 0xb6dff5;
  *      `js/v2/WorldAvatar.js` uses for the player disc body. Cream-white
  *      colour distinguishes the fishing target from the player's green.
  */
-const FISHING_RING_WHITE = 0xfdf6e8;   // warm cream-white (not pure)
+const FISHING_RING_WHITE = 0x68d4ff;   // beautiful light blue
 function buildFishingSpotRing(spotX, spotY, spotZ) {
   const group = new THREE.Group();
   group.name = "sanctuary_fishing_spot_ring";

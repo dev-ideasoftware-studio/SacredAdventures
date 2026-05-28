@@ -245,16 +245,18 @@ export function sanctuaryBodyY(x, z, bodyHeight = 1.524, liftWhenSwimming = 0) {
   }
 
   // 2) Inside the pool → float half-submerged at the waterline, with
-  //    an optional extra lift. User-requested 2026-05-28: "raise model
-  //    out of water 1 foot" — callers driving the avatar pass
-  //    `liftWhenSwimming = 0.3048` so the kid reads as wading with
-  //    chest above water, not floating with the waterline cutting
-  //    across her ribcage. Other bodies (e.g. frogs swimming to chase
-  //    fish) pass 0 — they should still ride at the half-submerged
-  //    waterline like real frogs.
+  //    an optional extra lift.
   const dx = x - SANCTUARY_POOL_CENTER_X;
   const dz = z - SANCTUARY_POOL_CENTER_Z;
-  const dist = Math.hypot(dx, dz);
+  
+  // Stretch pool 2x longer stretching to NE diagonal:
+  // NE aligned diagonal coordinates: u = NE major axis, v = NW minor axis.
+  const cos45 = 0.70710678;
+  const sin45 = 0.70710678;
+  const u = dx * cos45 + dz * sin45;
+  const v = -dx * sin45 + dz * cos45;
+  const dist = Math.hypot(u / 2.0, v);
+
   if (
     dist < SANCTUARY_POOL_RADIUS_M - 0.5 &&
     typeof window !== "undefined" &&
@@ -271,7 +273,13 @@ export function sanctuaryGroundY(x, z) {
   const meadowY = meadowBump(x, z);
   const dx = x - SANCTUARY_POOL_CENTER_X;
   const dz = z - SANCTUARY_POOL_CENTER_Z;
-  const r = Math.hypot(dx, dz);
+  
+  // Stretch pool 2x longer stretching to NE diagonal:
+  const cos45 = 0.70710678;
+  const sin45 = 0.70710678;
+  const u = dx * cos45 + dz * sin45;
+  const v = -dx * sin45 + dz * cos45;
+  const r = Math.hypot(u / 2.0, v);
 
   if (r < SANCTUARY_POOL_RADIUS_M) {
     // Inside the pool circle: smooth bowl that dips to -depth at centre.
@@ -287,13 +295,7 @@ export function sanctuaryGroundY(x, z) {
   // the flat ring, hills + meadow noise re-engage.
   if (r < VILLAGE_FLAT_RADIUS) {
     if (r < SANCTUARY_POOL_RADIUS_M + VILLAGE_BANK_BLEND_M) {
-      // Bank tail-off: linear blend from full meadowY at the lip (rim of
-      // the pool, matches the INSIDE-pool formula's value there) down
-      // to flat (0) at the flat-ring start. The prior 0.18 multiplier
-      // created a discontinuity at the rim — INSIDE evaluated to
-      // meadowY * 1.0, OUTSIDE jumped down to meadowY * 0.18, showing
-      // as a visible cliff in the meadow where the grass meets the
-      // pool. (User-reported 2026-05-28.)
+      // Bank tail-off: linear blend from full meadowY at the lip down to flat (0).
       const t = (r - SANCTUARY_POOL_RADIUS_M) / VILLAGE_BANK_BLEND_M; // 0 at lip, 1 at flat start
       return meadowY * (1 - t);
     }
@@ -394,7 +396,13 @@ const workerCode = `
     const meadowY = meadowBump(x, z);
     const dx = x - SANCTUARY_POOL_CENTER_X;
     const dz = z - SANCTUARY_POOL_CENTER_Z;
-    const r = Math.hypot(dx, dz);
+    
+    // Stretch pool 2x longer stretching to NE diagonal:
+    const cos45 = 0.70710678;
+    const sin45 = 0.70710678;
+    const u = dx * cos45 + dz * sin45;
+    const v = -dx * sin45 + dz * cos45;
+    const r = Math.hypot(u / 2.0, v);
 
     if (r < SANCTUARY_POOL_RADIUS_M) {
       const inner = r / SANCTUARY_POOL_RADIUS_M;

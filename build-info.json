@@ -1,9 +1,9 @@
 {
-  "subject": "perf(pip): throttle fishing PiP to every 2 frames + fix dock endcap renderOrder",
-  "isoDate": "2026-05-28T16:57:24-05:00",
+  "subject": "feat(pool): elliptical diagonal pool stretched 2x NE + blue fishing spot circle",
+  "isoDate": "2026-05-28T17:17:42-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "fc66137",
+  "commit": "5cdf9ed",
   "dirty": true,
-  "generatedAt": "2026-05-28T21:57:28.062Z"
+  "generatedAt": "2026-05-28T22:17:45.885Z"
 }

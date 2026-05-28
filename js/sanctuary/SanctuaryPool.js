@@ -67,9 +67,12 @@ function buildWaterSurface(centerY, textures) {
   const geo = new THREE.CircleGeometry(SANCTUARY_POOL_RADIUS_M * 0.97, segs, phiSegs);
   
   // Jitter the rim verts to an organic perimeter so the waterline reads
-  // natural instead of perfectly circular, scaling proportionally for concentric rings.
+  // natural instead of perfectly circular, scaling proportionally for concentric rings,
+  // and stretch the pool by 2.0x along the NE diagonal.
   const pos = geo.attributes.position;
   const baseR = SANCTUARY_POOL_RADIUS_M * 0.97;
+  const cos45 = 0.70710678;
+  const sin45 = 0.70710678;
   for (let i = 1; i < pos.count; i++) {
     const x = pos.getX(i);
     const y = pos.getY(i);
@@ -77,7 +80,23 @@ function buildWaterSurface(centerY, textures) {
     const frac = dist / baseR;
     const a = Math.atan2(y, x);
     const r = organicRimRadius(a) * 0.97 * frac;
-    pos.setXY(i, Math.cos(a) * r, Math.sin(a) * r);
+    
+    // Aligned coordinates on circle
+    const cx = Math.cos(a) * r;
+    const cy = Math.sin(a) * r;
+    
+    // Rotate to align major/minor axes (-45 deg)
+    const u = cx * cos45 + cy * sin45;
+    const v = -cx * sin45 + cy * cos45;
+    
+    // Stretch major axis by 2.0
+    const uStretched = u * 2.0;
+    
+    // Rotate back (+45 deg)
+    const rx = uStretched * cos45 - v * sin45;
+    const ry = uStretched * sin45 + v * cos45;
+    
+    pos.setXY(i, rx, ry);
   }
   geo.computeVertexNormals();
 
@@ -137,16 +156,20 @@ function buildWaterSurface(centerY, textures) {
     // "remove sideways ripples in pool, add more of the same surface
     // ripples like the fishing gauge has around it". Two summed radial
     // sin waves at different frequencies give a richer interference
-    // pattern than a single ring while still reading as concentric.
-    // No horizontal displacement — radial Gerstner crowding would distort
-    // the rim, and the pond is too small for the look to pay off.
+    // pattern than a single ring while still reading as concentric,
+    // stretched perfectly to match the 2.0x NE elliptical pool.
     shader.vertexShader = shader.vertexShader.replace(
       "#include <begin_vertex>",
       `
       #include <begin_vertex>
 
       float time = uTime;
-      float vDist = length(uv - vec2(0.5));
+      vec2 duv = uv - vec2(0.5);
+      float cos45 = 0.70710678;
+      float sin45 = 0.70710678;
+      float u = duv.x * cos45 + duv.y * sin45;
+      float v = -duv.x * sin45 + duv.y * cos45;
+      float vDist = length(vec2(u / 2.0, v));
       float shoreFade = smoothstep(0.48, 0.35, vDist);
 
       // Two concentric ripples expanding from pool centre (vUv 0.5,0.5)
@@ -176,7 +199,12 @@ function buildWaterSurface(centerY, textures) {
       #include <map_fragment>
       
       float time = uTime;
-      float distToCenter = length(vUv - vec2(0.5));
+      vec2 duv = vUv - vec2(0.5);
+      float cos45 = 0.70710678;
+      float sin45 = 0.70710678;
+      float u = duv.x * cos45 + duv.y * sin45;
+      float v = -duv.x * sin45 + duv.y * cos45;
+      float distToCenter = length(vec2(u / 2.0, v));
       float shorelineFade = smoothstep(0.48, 0.35, distToCenter); // 1 inside, 0 at edge
       
       // Sample two scrolling normal maps at different frequencies (stretched mapping)
@@ -209,7 +237,7 @@ function buildWaterSurface(centerY, textures) {
       // Concentric color ripples — same radial pattern as the vertex
       // displacement so the surface shimmer reads as expanding rings
       // from the pool centre instead of diagonal stripes.
-      float dist = length(vUv - vec2(0.5));
+      float dist = distToCenter;
       float ring1 = sin(dist * 36.0 - time * 0.45);
       float ring2 = sin(dist * 22.0 - time * 0.30);
       float ripple = (ring1 + ring2) * 0.5;
@@ -1363,7 +1391,13 @@ function getWaveHeight(x, z, time) {
   const uvX = dx / (baseR * 2.0) + 0.5;
   const uvY = dz / (baseR * 2.0) + 0.5;
 
-  const vDist = Math.hypot(uvX - 0.5, uvY - 0.5);
+  // Stretch waves 2x longer stretching to NE diagonal:
+  const cos45 = 0.70710678;
+  const sin45 = 0.70710678;
+  const u = (uvX - 0.5) * cos45 + (uvY - 0.5) * sin45;
+  const v = -(uvX - 0.5) * sin45 + (uvY - 0.5) * cos45;
+  const vDist = Math.hypot(u / 2.0, v);
+
   // smoothstep(0.48, 0.35, vDist)
   const t = Math.max(0.0, Math.min(1.0, (vDist - 0.48) / (0.35 - 0.48)));
   const shoreFade = t * t * (3.0 - 2.0 * t);
