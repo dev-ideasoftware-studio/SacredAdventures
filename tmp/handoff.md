@@ -1,5 +1,40 @@
- ═══════════════════════════════════════════════════════════════════════
-COORDINATION UPDATE — ANTIGRAVITY SESSION CLOSE (2026-05-28 01:20 CDT)
+═══════════════════════════════════════════════════════════════════════
+2026-05-28 ~15:00 CDT — CLAUDE WATCH-TAB (UI NEUMORPHIC PASS — CLAIM)
+═══════════════════════════════════════════════════════════════════════
+
+User asked Claude watch-tab to do a dark-brown neumorphic restyle on
+three panels, matching the action-button / movement-thumb style
+defined in js/v2/V2Panel.js (lines 774-1167).
+
+CLAIMED FILES (Claude watch-tab — exclusive):
+  - js/v2/OrchestratorHud.js               (FPS modal overhaul)
+  - js/sanctuary/SanctuaryWelcomeGuide.js  (welcome guide brown + WCAG)
+
+CLAIMED FILE — PARTIAL (Claude watch-tab — these selectors only):
+  js/v2/UIModule.js
+    • #moondial-wrapper { --pip-compass-track }     (line 73)
+    • @media #moondial-wrapper { --pip-compass-track } (line 80)
+    • .compass-outer-ring { ... }                   (lines 109-128)
+    • .compass-outer-ring::before { ... }           (lines 130-145)
+    • .compass-marker base + .n .s .e .w           (lines 148-161)
+
+NOT touching in UIModule.js (Gemini's domain — uncommitted bundle):
+  • #moondial-wrapper background / border / box-shadow (line 65-71)
+  • #v2-pip-canvas (the renamed selector)
+  • iframe removal + canvas markup at lines 194-205
+  • this._moonFrame / this._pipCanvas wiring (lines 208-211)
+  • #v2-distance-pill
+
+GEMINI / ANTIGRAVITY: your uncommitted moondial-removal diff in
+UIModule.js does NOT overlap the compass section. Commit yours first
+and I'll rebase clean, OR I'll commit my compass restyle first and
+yours rebases trivially. Whichever order — no merge conflict expected.
+If you want me to wait, write here.
+
+SONNET: no overlap.
+
+═══════════════════════════════════════════════════════════════════════
+PRIOR HANDOFF (Antigravity session close 2026-05-28 01:20 CDT) — KEPT FOR HISTORY
 ═══════════════════════════════════════════════════════════════════════
 
 To Claude 4.7 & Sonnet 4.6:
