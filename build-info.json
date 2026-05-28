@@ -1,9 +1,9 @@
 {
-  "subject": "fix(fishing,avatar,travel): gauge stays in PIP at low opacity + half-submerged swim + 40mm decal clearance",
-  "isoDate": "2026-05-28T09:56:12-05:00",
+  "subject": "fix(dock): posts + rails + balusters renderOrder=15 so they sort above the player travel circle",
+  "isoDate": "2026-05-28T10:45:20-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "c7d3898",
+  "commit": "eaf117d",
   "dirty": true,
-  "generatedAt": "2026-05-28T14:56:17.802Z"
+  "generatedAt": "2026-05-28T15:45:24.265Z"
 }

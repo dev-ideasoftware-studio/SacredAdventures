@@ -156,6 +156,14 @@ function buildPosts(group, dockY) {
       // shadow contribution at chase-cam is invisible.
       post.castShadow = false;
       post.receiveShadow = false;
+      // renderOrder = 15 so the post draws AFTER the player travel
+      // circle (disc=4, ring=9, arrow=10). The circle's materials have
+      // depthTest:false so opaque planks can't naturally occlude them
+      // — the only sort handle is renderOrder. User-requested
+      // 2026-05-28 (9× asked, "very annoyed stage"): circle is too
+      // high z-index for the rails — fix dock-side. Posts now visually
+      // pass IN FRONT of the disc where they overlap.
+      post.renderOrder = 15;
       post.name = `sanctuary_dock_post`;
       post.userData.anuKind = "sanctuary_dock_post";
       post.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;
@@ -199,6 +207,10 @@ function buildRails(group, dockY) {
       // nothing visible to the shadow map.
       rail.castShadow = false;
       rail.receiveShadow = false;
+      // renderOrder = 15 so the rail draws AFTER the player travel
+      // circle (max renderOrder 10). Same reason as the posts above —
+      // circle uses depthTest:false so only renderOrder can sort it.
+      rail.renderOrder = 15;
       rail.name = railY === topY ? "sanctuary_dock_rail_top" : "sanctuary_dock_rail_mid";
       rail.userData.anuKind = "sanctuary_dock_rail";
       rail.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;
@@ -224,6 +236,10 @@ function buildRails(group, dockY) {
       // for ~zero visible contribution.
       baluster.castShadow = false;
       baluster.receiveShadow = false;
+      // renderOrder = 15 so balusters draw AFTER the player travel
+      // circle (max renderOrder 10) — same fix as the posts + rails
+      // above. User-requested 2026-05-28 (9× asked).
+      baluster.renderOrder = 15;
       baluster.name = "sanctuary_dock_baluster";
       baluster.userData.anuKind = "sanctuary_dock_baluster";
       baluster.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.STRUCTURES;
