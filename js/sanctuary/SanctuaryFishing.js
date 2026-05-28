@@ -339,6 +339,18 @@ function _build3DGauge(scene) {
     clearMat
   ));
 
+  // Bottom plastic cover — semicircle r=2.0, depth=0.10, bevel=0.02 (May-27 2026 user request)
+  const coverShape = new THREE.Shape();
+  coverShape.absarc(0, 0, 2.0, Math.PI, Math.PI * 2, false);
+  coverShape.lineTo(2.0, 0);
+  g.add(new THREE.Mesh(
+    new THREE.ExtrudeGeometry(coverShape, {
+      depth: 0.10, bevelEnabled: true,
+      bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 3,
+    }),
+    clearMat
+  ));
+
   // Outer rim — arc r 1.85→2.05, depth=0.15
   g.add(new THREE.Mesh(
     new THREE.ExtrudeGeometry(
@@ -441,6 +453,13 @@ function _build3DGauge(scene) {
   g.visible = false;
   g.userData.isGauge3D = true;
   g.name = "fishingGauge3D";
+
+  // Recursively enable layer 2 on the gauge group and all its children so it renders in the PiP camera pass
+  g.traverse((child) => {
+    if (child.isMesh || child.isSprite || child.isGroup) {
+      child.layers.enable(2);
+    }
+  });
 
   scene.add(g);
   return g;

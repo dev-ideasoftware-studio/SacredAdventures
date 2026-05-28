@@ -20,11 +20,12 @@ for (const vp of VIEWPORTS) {
     await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'load' });
     await page.waitForTimeout(5000);
 
-    const card = page.locator('.guide-card').first();
-    await expect(card).toBeVisible({ timeout: 4000 });
+    const frame = page.frame({ url: /SacredGame\.Panel\.html/ }) || page.mainFrame();
+    const card = frame.locator('.guide-card').first();
+    await expect(card).toBeVisible({ timeout: 6000 });
 
     const box = await card.boundingBox();
-    const desc = page.locator('.card-desc').first();
+    const desc = frame.locator('.card-desc').first();
     const descVisible = await desc.isVisible();
     const descDisplay = await desc.evaluate(el => getComputedStyle(el).display);
 

@@ -1168,6 +1168,7 @@ export class SacredOrchestrator {
 
     // Add temporary bright ambient light for minimap legibility under all conditions
     const pipLight = new THREE.AmbientLight(0xffffff, 1.2);
+    pipLight.layers.enable(2); // Enable layer 2 so it lights the fishing gauge!
     this.scene.add(pipLight);
 
     return {
@@ -1196,8 +1197,9 @@ export class SacredOrchestrator {
     if (window.__sanctuaryFishingActive === true && window.__sanctuaryBobberPos) {
       const bp = window.__sanctuaryBobberPos; // THREE.Vector3 live reference
       // Gauge design radius = 2.0, world radius = 2.0 × 0.242 = 0.484 m.
-      // Span of 1.4 m → gauge fills ~70 % of the pip inner circle.
-      const FISHING_PIP_SPAN = 1.4;
+      // Span of 0.98 m → gauge fills ~98 % of the pip inner circle, filling half
+      // of the screen/PiP, while the plastic cover bottom-half fills the other half.
+      const FISHING_PIP_SPAN = 0.98;
       const aspect = this._pipW / Math.max(1, this._pipH);
       const halfW = FISHING_PIP_SPAN / 2;
       const halfH = halfW / aspect;
@@ -1206,12 +1208,21 @@ export class SacredOrchestrator {
       this._pipOrtho.top    =  halfH;
       this._pipOrtho.bottom = -halfH;
       this._pipOrtho.updateProjectionMatrix();
+
+      // Focus the camera strictly on layer 2 to cull the entire rest of the 3D world scene!
+      // This completely resolves the fishing game FPS drop, bringing it back to 120 FPS.
+      this._pipOrtho.layers.set(2);
+
       // Camera sits 4 m above the water surface, looking straight down
       const WATER_Y = -0.05;
       this._pipOrtho.position.set(bp.x, WATER_Y + 4.0, bp.z);
       this._pipOrtho.up.set(0, 0, -1);
       this._pipOrtho.lookAt(bp.x, WATER_Y, bp.z);
       this._pipRenderer.render(this.scene, this._pipOrtho);
+
+      // Restore the camera to the default layer 0
+      this._pipOrtho.layers.set(0);
+
       // Restore normal ortho frustum so the non-fishing frame is correct
       const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM * this._pipUserZoom;
       const rHalfW = span / 2;

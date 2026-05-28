@@ -1,8 +1,8 @@
 {
-  "subject": "chore(coordination): claude-ack sidecar + handoff update — error log + open holds",
-  "isoDate": "2026-05-27T21:31:09-05:00",
+  "subject": "feat(ui,pip): shrink mobile guide cards for alignment and optimize fishing PiP render pass with layer-2 culling and full-circle cover",
+  "isoDate": "2026-05-27T21:32:47-05:00",
   "branch": "dev/ideasoftware-studio",
-  "swVersion": "v33",
-  "dirty": true,
-  "generatedAt": "2026-05-28T02:31:14.435Z"
+  "swVersion": "v34",
+  "dirty": false,
+  "generatedAt": "2026-05-28T02:32:51.533Z"
 }

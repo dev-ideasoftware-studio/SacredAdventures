@@ -969,11 +969,11 @@ function buildLilyPads(centerY) {
   // Vertical lift for flowers above their pad. The lotus petals are cones
   // centered ~0.045 above the flower group origin with half-height 0.065,
   // so their bottoms dip ~0.02 BELOW the group origin. Lifting the flower
-  // 0.05 m above its pad keeps every petal cleanly above the pad surface
+  // 0.10 m above its pad keeps every petal cleanly above the pad surface
   // — and above the random Y of every neighboring pad (which all live
   // within centerY+0.02..+0.03), so flowers can no longer be clipped by
   // adjacent lily geometry.
-  const FLOWER_LIFT_M = 0.05;
+  const FLOWER_LIFT_M = 0.10;
   for (let i = 0; i < PADS; i++) {
     const ang = rng() * Math.PI * 2;
     // Constrain the outer spawn limit so pads do not clip through the pool edge.

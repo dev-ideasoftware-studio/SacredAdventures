@@ -1243,11 +1243,11 @@ function _panelHtml() {
 /* ── Responsive — guide cards compress; very narrow → guides hide ── */
 @media (max-width: 1100px) {
   #guides-container {
-    gap: 8px;
+    gap: 6px;
   }
   .guide-card {
-    width: clamp(48px, 9vh, 64px);
-    height: clamp(48px, 9vh, 64px);
+    width: clamp(44px, 8vh, 52px);
+    height: clamp(46px, 8vh, 54px);
     padding: 2px;
     gap: 0;
   }
@@ -1261,8 +1261,8 @@ function _panelHtml() {
   }
   .card-desc { display: none; }
   .card-icon-3d {
-    width: clamp(28px, 4.5vh, 38px);
-    height: clamp(28px, 4.5vh, 38px);
+    width: clamp(24px, 4vh, 30px);
+    height: clamp(24px, 4vh, 30px);
     aspect-ratio: 1 / 1;
     margin: 0 auto clamp(2px, 0.4vh, 4px) auto;
   }
