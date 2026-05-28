@@ -251,7 +251,6 @@
     import { SanctuaryAmbientModule      } from './js/sanctuary/SanctuaryAmbient.js';
     import { SanctuaryInventoryModule    } from './js/sanctuary/SanctuaryInventory.js';
     import { SanctuaryControlsModule     } from './js/sanctuary/SanctuaryControls.js';
-    import { SanctuaryFpsHudModule       } from './js/sanctuary/SanctuaryFpsHud.js';
     import { SanctuaryFishingModule      } from './js/sanctuary/SanctuaryFishing.js';
     import { SanctuaryWorldPlayerShimModule } from './js/sanctuary/SanctuaryWorldPlayerShim.js';
     import { SanctuaryWaterFootstepsModule } from './js/sanctuary/SanctuaryWaterFootsteps.js';
@@ -352,7 +351,6 @@
     orc.register(SanctuaryAmbientModule);
     orc.register(SanctuaryInventoryModule);
     orc.register(SanctuaryControlsModule);
-    orc.register(SanctuaryFpsHudModule);
     orc.register(SanctuaryFishingModule);
     orc.register(SanctuaryWorldPlayerShimModule);
     orc.register(SanctuaryWaterFootstepsModule);
@@ -465,8 +463,6 @@
     v4Log('weather — 🌧 toggle on the controls bar', 100, 99, 99, 99);
     await orc.activate('SanctuaryWeather');
 
-    v4Log('FPS HUD — live counter top-right', 100, 100, 100, 97);
-    await orc.activate('SanctuaryFpsHud');
 
     v4Log('fishing — cast · bite · catch · 🐟 inventory', 100, 100, 100, 98);
     await orc.activate('SanctuaryFishing');

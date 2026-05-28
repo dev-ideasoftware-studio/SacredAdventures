@@ -117,9 +117,8 @@ export function getFuzzyPipelineSnapshot(orchestrator = null) {
     V2_PIP_RENDER_EVERY_N_FRAMES <= 0
       ? 0
       : clamp01(
-          0.18 +
-            rendering.pipEffectiveStride / V2_ADAPTIVE_PIP_MAX_STRIDE +
-            (frameRatio > 1 ? 0.2 : 0),
+          rendering.pipEffectiveStride / V2_ADAPTIVE_PIP_MAX_STRIDE +
+            (frameRatio > 1 ? 0.3 : 0),
         ),
     {
       baselineStride: rendering.pipBaseline,

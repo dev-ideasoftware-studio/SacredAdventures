@@ -470,6 +470,18 @@ export const SanctuaryAvatarModule = {
     const dist = Math.hypot(cur.x, cur.z);
     const inPool = dist < 11.5;
 
+    // When swimming, float at the waterline so the avatar's body is half
+    // submerged (top half above water, bottom half below) instead of being
+    // dragged down to the bowl floor by the terrain snap. Uses the global
+    // waterY published by SanctuaryPool at load.
+    if (
+      inPool &&
+      typeof window !== "undefined" &&
+      Number.isFinite(window.__sanctuaryWaterY)
+    ) {
+      cur.y = window.__sanctuaryWaterY - AVATAR_TARGET_HEIGHT_M * 0.5;
+    }
+
     if (inPool && this._swimAction) {
       this._swimAction.setEffectiveWeight(1.0);
       if (this._walkAction) this._walkAction.setEffectiveWeight(0.0);

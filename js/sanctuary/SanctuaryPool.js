@@ -248,39 +248,53 @@ function _makeBasinFloorTexture() {
   cv.width = SZ; cv.height = SZ;
   const ctx = cv.getContext("2d");
 
-  // Warm muddy brown base
-  ctx.fillStyle = "#3a2a1a";
+  // Warm sandy-mud base (desaturated — no greenish cast)
+  ctx.fillStyle = "#3d2f20";
   ctx.fillRect(0, 0, SZ, SZ);
 
-  // Low-frequency silt blobs (uneven coverage — wet vs dry sections)
-  for (let i = 0; i < 80; i++) {
+  const cx = SZ / 2, cy = SZ / 2;
+
+  // DARK SAND CENTER — soft radial patch of settled deeper sediment.
+  // Real ponds darken toward the deep middle, not the shallow rim.
+  // Reaches ~60% of the disc with a smooth falloff.
+  const darkCenter = ctx.createRadialGradient(cx, cy, 0, cx, cy, SZ * 0.42);
+  darkCenter.addColorStop(0.00, "rgba(20, 14, 8, 0.85)");
+  darkCenter.addColorStop(0.45, "rgba(28, 20, 12, 0.55)");
+  darkCenter.addColorStop(1.00, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = darkCenter;
+  ctx.beginPath(); ctx.arc(cx, cy, SZ * 0.42, 0, Math.PI * 2); ctx.fill();
+
+  // Low-frequency silt blobs — lighter alpha so they read as variance not patches.
+  // No greens — only brown/sand tones.
+  for (let i = 0; i < 40; i++) {
     const x = Math.random() * SZ;
     const y = Math.random() * SZ;
     const r = 60 + Math.random() * 180;
     const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
     const dark = Math.random() < 0.5;
-    grad.addColorStop(0, dark ? "rgba(20, 14, 8, 0.55)" : "rgba(70, 55, 35, 0.40)");
+    grad.addColorStop(0, dark ? "rgba(24, 18, 10, 0.32)" : "rgba(86, 70, 48, 0.28)");
     grad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Sandy noise grains (high-frequency, lighter tan)
-  for (let i = 0; i < 12000; i++) {
+  // Sandy noise grains (high-freq, all sand/tan/brown — zero green hue)
+  for (let i = 0; i < 16000; i++) {
     const x = Math.random() * SZ;
     const y = Math.random() * SZ;
     const sz = 1 + Math.random() * 2;
     const tan = Math.random();
-    ctx.fillStyle = tan < 0.5 ? "rgba(180, 150, 100, 0.20)"
-                  : tan < 0.85 ? "rgba(120, 95, 60, 0.18)"
-                  :              "rgba(80, 60, 35, 0.22)";
+    ctx.fillStyle = tan < 0.45 ? "rgba(190, 158, 108, 0.22)"
+                  : tan < 0.78 ? "rgba(132, 100, 65, 0.20)"
+                  : tan < 0.92 ? "rgba(90, 68, 42, 0.24)"
+                  :              "rgba(50, 36, 22, 0.28)";
     ctx.fillRect(x, y, sz, sz);
   }
 
-  // Dirt streaks (low-amplitude sine drifts, simulating sediment currents)
-  ctx.strokeStyle = "rgba(15, 10, 5, 0.18)";
+  // Dirt streaks (sediment currents) — softer alpha so they don't read as scratches
+  ctx.strokeStyle = "rgba(20, 14, 8, 0.12)";
   ctx.lineWidth = 2.5;
-  for (let i = 0; i < 28; i++) {
+  for (let i = 0; i < 22; i++) {
     const y0 = Math.random() * SZ;
     const amp = 8 + Math.random() * 18;
     const freq = 0.005 + Math.random() * 0.01;
@@ -293,22 +307,33 @@ function _makeBasinFloorTexture() {
     ctx.stroke();
   }
 
-  // Scattered tiny pebble specks (visual hint of stones too small to mesh)
-  for (let i = 0; i < 350; i++) {
+  // Dense gravel speckling (2000 specks, varied sizes + shades — sells "natural gravel")
+  for (let i = 0; i < 2000; i++) {
     const x = Math.random() * SZ;
     const y = Math.random() * SZ;
-    const r = 2 + Math.random() * 4;
-    const shade = 30 + Math.floor(Math.random() * 60);
-    ctx.fillStyle = `rgba(${shade}, ${shade - 6}, ${shade - 12}, 0.55)`;
+    const r = 1 + Math.random() * 3.5;
+    const tier = Math.random();
+    // Mixed grays/browns/tans — no greens
+    let fill;
+    if (tier < 0.35) {
+      const s = 25 + Math.floor(Math.random() * 35);
+      fill = `rgba(${s}, ${s - 4}, ${s - 10}, 0.55)`;     // dark gravel
+    } else if (tier < 0.70) {
+      const s = 70 + Math.floor(Math.random() * 30);
+      fill = `rgba(${s}, ${s - 10}, ${s - 22}, 0.50)`;    // brown pebble
+    } else {
+      const s = 120 + Math.floor(Math.random() * 40);
+      fill = `rgba(${s}, ${s - 18}, ${s - 38}, 0.45)`;    // light sandy pebble
+    }
+    ctx.fillStyle = fill;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Edge vignette — basin gets darker toward the rim (light falloff underwater)
-  const cx = SZ / 2, cy = SZ / 2;
-  const edge = ctx.createRadialGradient(cx, cy, SZ * 0.35, cx, cy, SZ * 0.52);
+  // VERY subtle outer dim — barely there, just so the rim doesn't read as
+  // brighter than the dark center. NOT a black ring like before.
+  const edge = ctx.createRadialGradient(cx, cy, SZ * 0.40, cx, cy, SZ * 0.50);
   edge.addColorStop(0, "rgba(0,0,0,0)");
-  edge.addColorStop(0.7, "rgba(8, 5, 3, 0.40)");
-  edge.addColorStop(1.0, "rgba(4, 2, 1, 0.72)");
+  edge.addColorStop(1.0, "rgba(15, 10, 6, 0.18)");
   ctx.fillStyle = edge;
   ctx.beginPath(); ctx.arc(cx, cy, SZ / 2, 0, Math.PI * 2); ctx.fill();
 
@@ -758,14 +783,16 @@ function buildPoolRocks(centerY) {
   const rng = mulberry32(0xbeadca1a);
   const bottomY = centerY - SANCTUARY_POOL_DEPTH_M * 0.62;
 
-  // Earthy palette — sampled per-instance into instanceColor
+  // Earthy palette — sampled per-instance into instanceColor.
+  // No moss-green or algae-gray; underwater they read as "grass" against
+  // a sandy floor. All entries are sand/mud/stone tones now.
   const rockPalette = [
     new THREE.Color(0x181a1c), // slate black
-    new THREE.Color(0x27201a), // warm muddy brown
-    new THREE.Color(0x1d271a), // moss green
-    new THREE.Color(0x222a27), // algae dark gray
-    new THREE.Color(0x2a2620), // wet dirt
-    new THREE.Color(0x1a1812), // dark silt
+    new THREE.Color(0x2c241c), // warm muddy brown
+    new THREE.Color(0x382a1c), // medium clay brown
+    new THREE.Color(0x2a221a), // wet dirt
+    new THREE.Color(0x1a1612), // dark silt
+    new THREE.Color(0x4a3a26), // sandy tan stone
   ];
   const pebblePalette = [
     new THREE.Color(0x5a4a35), // sandy tan

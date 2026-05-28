@@ -678,6 +678,29 @@ export const SanctuaryFishModule = {
         fish.position.x += Math.cos(ud._currentHeading) * currentSpeed;
         fish.position.z += Math.sin(ud._currentHeading) * currentSpeed;
 
+        // 6b. HARD BOUNDARY CLAMP — defense in depth. Step 3 above sets
+        // `_wanderTargetHeading` toward center when distance > MAX_R, but
+        // step 4 (player avoidance) OVERWRITES that with `angleAway` from
+        // the player. If the player is between the fish and the pool
+        // center, "away from player" points OUTWARD and at flee speed
+        // (up to 3.5× swim speed) the fish crosses the boundary before
+        // the gradual heading rotation (1.2 rad/s) can turn it around.
+        // Once XZ is past the pool radius, fish Y still sits at water
+        // level — well below the bank terrain — so the fish appears to
+        // "disappear into the ground." This clamp projects the position
+        // back to the boundary circle and resets both the current and
+        // target heading inward, so the next frame can't re-escape.
+        const dxClamp = fish.position.x - this._cx;
+        const dzClamp = fish.position.z - this._cz;
+        const distClamp = Math.hypot(dxClamp, dzClamp);
+        if (distClamp > MAX_R) {
+          const k = MAX_R / distClamp;
+          fish.position.x = this._cx + dxClamp * k;
+          fish.position.z = this._cz + dzClamp * k;
+          ud._currentHeading = Math.atan2(-dzClamp, -dxClamp);
+          ud._wanderTargetHeading = ud._currentHeading;
+        }
+
         // 7. Depth Bobbing
         const orbitPhase = ud.orbitPhase ?? 0;
         const midY = ud.fishMidY ?? this._fishCenterY;

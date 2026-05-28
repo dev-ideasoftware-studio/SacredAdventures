@@ -1,8 +1,8 @@
 {
-  "subject": "feat(avatar): Avatar-New default with 3-way swim/walk/idle crossfade, pond boundaries, PiP throttle removal, sw v35",
-  "isoDate": "2026-05-27T22:14:53-05:00",
+  "subject": "fix(hud,anu): remove trees-banner CTA and fix pip-pass false-bottleneck label",
+  "isoDate": "2026-05-27T22:27:43-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v35",
   "dirty": false,
-  "generatedAt": "2026-05-28T03:14:58.115Z"
+  "generatedAt": "2026-05-28T03:27:47.612Z"
 }
