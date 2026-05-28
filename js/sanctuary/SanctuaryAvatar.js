@@ -36,7 +36,7 @@
 import * as THREE from "three";
 import { GLTFLoaderWithDraco } from "../v2/gltfLoaderSetup.js";
 import { ANU_SIMULATION_DOMAIN, ANU_INTERACTION_VERB } from "../v2/anu/SimulationController.js";
-import { sanctuaryGroundY } from "./SanctuaryGround.js";
+import { sanctuaryBodyY, sanctuaryGroundY, SANCTUARY_POOL_CENTER_X, SANCTUARY_POOL_CENTER_Z } from "./SanctuaryGround.js";
 import {
   buildPlayerV2TravelDecal,
   touchSanctuaryTravelCircleTime,
@@ -382,33 +382,39 @@ export const SanctuaryAvatarModule = {
         let walkClip = clips.find(c => /walk|run/i.test(c.name)) ?? (isNew ? clips[1] : clips[3]) ?? clips[1] ?? null;
         if (walkClip === idleClip) walkClip = null;
 
+        // look = turn-in-place idle — NlaTrack.007 (2.375s)
+        let lookClip = clips.find(c => /look|turn/i.test(c.name)) ?? (isNew ? clips[7] : null) ?? null;
+
+        // swim = NlaTrack.003 for Avatar-New (7.167s)
         let swimClip = clips.find(c => /swim|float/i.test(c.name)) ?? (isNew ? clips[3] : null) ?? null;
 
-        // Strip root-motion `.position` tracks from the walk clip so
-        // the engine owns translation. Clone the clip first so we don't
-        // mutate the gltf.animations[3] shared reference.
-        if (walkClip) {
-          const keep = walkClip.tracks.filter((t) => !t.name.endsWith(".position"));
-          if (keep.length !== walkClip.tracks.length) {
-            const stripped = walkClip.clone();
-            stripped.tracks = keep;
-            walkClip = stripped;
-          }
-        }
+        // sitFish = NlaTrack.005 (15.792s) — seated dock pose with rod
+        let sitFishClip = clips.find(c => /sitfish|sit.?fish|fish.?sit/i.test(c.name)) ?? (isNew ? clips[5] : null) ?? null;
 
-        // Strip root-motion `.position` tracks from the swim clip too
-        if (swimClip) {
-          const keep = swimClip.tracks.filter((t) => !t.name.endsWith(".position"));
-          if (keep.length !== swimClip.tracks.length) {
-            const stripped = swimClip.clone();
-            stripped.tracks = keep;
-            swimClip = stripped;
-          }
-        }
+        // Strip root-motion `.position` tracks from locomotion clips so
+        // the engine owns translation.
+        const _strip = (clip) => {
+          if (!clip) return clip;
+          const keep = clip.tracks.filter((t) => !t.name.endsWith(".position"));
+          if (keep.length === clip.tracks.length) return clip;
+          const stripped = clip.clone();
+          stripped.tracks = keep;
+          return stripped;
+        };
+        walkClip    = _strip(walkClip);
+        swimClip    = _strip(swimClip);
+        sitFishClip = _strip(sitFishClip);
 
         this._idleAction = this._mixer.clipAction(idleClip);
         this._idleAction.setLoop(THREE.LoopRepeat, Infinity);
         this._idleAction.play();
+
+        if (lookClip) {
+          this._lookAction = this._mixer.clipAction(lookClip);
+          this._lookAction.setLoop(THREE.LoopRepeat, Infinity);
+          this._lookAction.setEffectiveWeight(0);
+          this._lookAction.play();
+        }
         
         if (walkClip) {
           this._walkAction = this._mixer.clipAction(walkClip);
@@ -424,8 +430,15 @@ export const SanctuaryAvatarModule = {
           this._swimAction.play();
         }
 
+        if (sitFishClip) {
+          this._sitFishAction = this._mixer.clipAction(sitFishClip);
+          this._sitFishAction.setLoop(THREE.LoopRepeat, Infinity);
+          this._sitFishAction.setEffectiveWeight(0);
+          this._sitFishAction.play();
+        }
+
         console.log(
-          `%c[SanctuaryAvatar] anim picks (v2 indices): idle="${idleClip.name}" walk=${walkClip ? `"${walkClip.name}"` : "<none>"} swim=${swimClip ? `"${swimClip.name}"` : "<none>"}`,
+          `%c[SanctuaryAvatar] anim picks: idle="${idleClip.name}" walk=${walkClip ? `"${walkClip.name}"` : "<none>"} look=${lookClip ? `"${lookClip.name}"` : "<none>"} swim=${swimClip ? `"${swimClip.name}"` : "<none>"} sitFish=${sitFishClip ? `"${sitFishClip.name}"` : "<none>"}`,
           "color:#a5d6a7;",
         );
       }
@@ -464,37 +477,64 @@ export const SanctuaryAvatarModule = {
     // (see `model.position.y += FEET_ABOVE_DISC_M` below) so its feet
     // sit above the travel disc, which is a sibling of the model
     // anchored at the root's plane.
-    cur.y = sanctuaryGroundY(cur.x, cur.z);
+    // Single source of truth for body Y — knows dock + pool waterline + terrain.
+    cur.y = sanctuaryBodyY(cur.x, cur.z, AVATAR_TARGET_HEIGHT_M);
 
-    // Sanctuary pool check: centered at (0, 0), radius 12.0. If distance is < 11.5, play swim animation.
-    const dist = Math.hypot(cur.x, cur.z);
-    const inPool = dist < 11.5;
+    // ── Animation state machine ──────────────────────────────────────
+    // Priority (highest first):
+    //   1. FISHING  → sitFish (NlaTrack.005, 15.792 s seated dock pose)
+    //   2. IN POOL  → swim   (NlaTrack.003, 7.167 s)
+    //   3. WALKING  → walk   (NlaTrack.001, 5.375 s)
+    //   4. STANDING → look   (NlaTrack.007, 2.375 s turn-in-place idle)
+    //
+    // Sanctuary pool is centred at SANCTUARY_POOL_CENTER_X/Z = (0,0),
+    // radius 12.0 m. Use 11.5 m as the blend threshold.
 
-    // When swimming, float at the waterline so the avatar's body is half
-    // submerged (top half above water, bottom half below) instead of being
-    // dragged down to the bowl floor by the terrain snap. Uses the global
-    // waterY published by SanctuaryPool at load.
-    if (
-      inPool &&
-      typeof window !== "undefined" &&
-      Number.isFinite(window.__sanctuaryWaterY)
-    ) {
-      cur.y = window.__sanctuaryWaterY - AVATAR_TARGET_HEIGHT_M * 0.5;
-    }
+    const isFishing = typeof window !== "undefined" && window.__sanctuaryFishingActive === true;
+    const dist = Math.hypot(cur.x - SANCTUARY_POOL_CENTER_X, cur.z - SANCTUARY_POOL_CENTER_Z);
+    const inPool = !isFishing && dist < 11.5;
 
-    if (inPool && this._swimAction) {
+    // All actions (zero all first, then raise the winner to 1)
+    const _zero = (a) => { if (a) a.setEffectiveWeight(0.0); };
+
+    if (isFishing && this._sitFishAction) {
+      // --- FISHING: frozen seated dock pose ---
+      _zero(this._swimAction);
+      _zero(this._walkAction);
+      _zero(this._lookAction);
+      _zero(this._idleAction);
+      this._sitFishAction.setEffectiveWeight(1.0);
+      this._sitFishAction.setEffectiveTimeScale(1.0);
+    } else if (inPool && this._swimAction) {
+      // --- IN POOL: swim always, speed-scaled ---
+      _zero(this._sitFishAction);
+      _zero(this._walkAction);
+      _zero(this._lookAction);
+      _zero(this._idleAction);
       this._swimAction.setEffectiveWeight(1.0);
-      if (this._walkAction) this._walkAction.setEffectiveWeight(0.0);
-      if (this._idleAction) this._idleAction.setEffectiveWeight(0.0);
-      this._swimAction.setEffectiveTimeScale(0.8 + Math.min(1.2, this._smoothSpeed / 1.0));
+      // Match swim cadence to speed: slow paddle at low speed, faster thrash when sprinting
+      this._swimAction.setEffectiveTimeScale(0.65 + Math.min(1.35, this._smoothSpeed / 1.2));
     } else {
-      if (this._swimAction) this._swimAction.setEffectiveWeight(0.0);
-      if (this._idleAction && this._walkAction) {
-        const walkW = Math.max(0, Math.min(1, (this._smoothSpeed - 0.04) / 0.25));
+      // --- ON LAND ---
+      _zero(this._sitFishAction);
+      _zero(this._swimAction);
+      const walkW = Math.max(0, Math.min(1, (this._smoothSpeed - 0.04) / 0.25));
+      const lookW = 1 - walkW; // look-around when standing still
+      if (this._walkAction) {
         this._walkAction.setEffectiveWeight(walkW);
-        this._idleAction.setEffectiveWeight(1 - walkW);
         this._walkAction.setEffectiveTimeScale(0.85 + Math.min(1.6, this._smoothSpeed / 1.0));
       }
+      // look-around replaces idle when standing still
+      if (this._lookAction) {
+        this._lookAction.setEffectiveWeight(lookW);
+        // Always slow, contemplative look-around speed
+        this._lookAction.setEffectiveTimeScale(0.45);
+      } else if (this._idleAction) {
+        // Fallback if look clip missing
+        this._idleAction.setEffectiveWeight(lookW);
+      }
+      // idle action blended to 0 (look takes its slot)
+      if (this._lookAction && this._idleAction) _zero(this._idleAction);
     }
 
     if (this._mixer) this._mixer.update(delta);
@@ -508,8 +548,10 @@ export const SanctuaryAvatarModule = {
     this._root = null;
     this._mixer = null;
     this._idleAction = null;
+    this._lookAction = null;
     this._walkAction = null;
     this._swimAction = null;
+    this._sitFishAction = null;
     this._model = null;
     this._shell = null;
     this._travelMats = null;

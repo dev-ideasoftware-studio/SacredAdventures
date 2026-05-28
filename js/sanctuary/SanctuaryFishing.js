@@ -186,12 +186,16 @@ const BITE_RANGE_PCT = 0.40;   // adds 0–40 % → max 75 %
 const SURGE_BONUS    = 0.15;   // +15 % on surge turns
 
 // ── Camera ────────────────────────────────────────────────────────────
-// 15 ft above water, 4 ft behind avatar. Look target blends 22% toward
-// avatar so the camera sees fish approaching the hook, not just the pool.
-const CAM_LIFT_M    = 4.572;   // 15 ft (+5 ft from v1)
-const CAM_BACK_M    = 1.219;   // 4 ft behind avatar
-const CAM_LERP_RATE = 6.0;
-const CAM_LOOK_BIAS = 0.22;    // fraction toward avatar from pool centre
+// Initial fishing cam: 15 ft above water, 4 ft behind avatar.
+// After 10 s idle: pulls back to 1 tile (≈10.85 m) behind avatar and
+// 22 ft above water for a cinematic panorama of the dock + pond.
+const CAM_LIFT_M      = 4.572;   // 15 ft (initial)
+const CAM_BACK_M      = 1.219;   // 4 ft behind avatar (initial)
+const PANORAMA_LIFT_M = 6.706;   // 22 ft (panorama)
+const PANORAMA_BACK_M = 10.853;  // 1 × V2_HEX_FLAT_WIDTH ≈ 10.85 m (panorama pullback)
+const PANORAMA_ENTER_S = 10.0;   // seconds before panorama kicks in
+const CAM_LERP_RATE   = 6.0;
+const CAM_LOOK_BIAS   = 0.22;    // fraction toward avatar from pool centre
 
 // ── Ripples ───────────────────────────────────────────────────────────
 const RIPPLE_MAX         = 5;
@@ -1707,8 +1711,10 @@ export const SanctuaryFishingModule = {
       }
     }
 
-    // ── Camera ────────────────────────────────────────────────────
-    // 10 ft above water, 4 ft behind avatar, locked on pool centre.
+    // ── Camera ──────────────────────────────────────────────────────────
+    // Phase 1 (0–10 s): 15 ft above, 4 ft behind — tight on dock + pond.
+    // Phase 2 (≥10 s): 3 s smooth blend to 22 ft / 1-tile panorama with
+    // gentle orbit sway so the static fishing wait looks cinematic.
     if (this._camera && avatar) {
       const inFishing = this._phase !== PHASE.IDLE;
       if (inFishing) {
@@ -1721,31 +1727,32 @@ export const SanctuaryFishingModule = {
         const bkX = toAvX / toAvLen;
         const bkZ = toAvZ / toAvLen;
 
+        // Panorama blend: 0 at 10 s, 1 at 13 s
+        const panoramaT = Math.max(0, Math.min(1, (this._fishingCamTimer - PANORAMA_ENTER_S) / 3.0));
+
         let rotBkX = bkX;
         let rotBkZ = bkZ;
-        let finalCamLift = CAM_LIFT_M;
-        let finalCamBack = CAM_BACK_M;
-        let lookTarget = this._poolCentre;
 
-        if (this._fishingCamTimer >= 10.0) {
-          const t = this._fishingCamTimer - 10.0;
+        if (panoramaT > 0) {
+          const t = this._fishingCamTimer - PANORAMA_ENTER_S;
           const angleOffset = Math.sin(t * 0.15) * 0.6; // gentle sway left & right
-          const heightOffset = Math.sin(t * 0.22) * 0.8; // gentle height change
-          const distanceOffset = Math.cos(t * 0.1) * 1.0; // gentle distance change
-
           const cosTh = Math.cos(angleOffset);
           const sinTh = Math.sin(angleOffset);
           rotBkX = bkX * cosTh - bkZ * sinTh;
           rotBkZ = bkX * sinTh + bkZ * cosTh;
+        }
 
-          finalCamLift += heightOffset;
-          finalCamBack += distanceOffset;
+        // Lerp lift + back distance from close-up to panorama
+        const finalCamLift = CAM_LIFT_M + (PANORAMA_LIFT_M - CAM_LIFT_M) * panoramaT;
+        const finalCamBack = CAM_BACK_M + (PANORAMA_BACK_M - CAM_BACK_M) * panoramaT;
 
-          // Midpoint gaze target between avatar and the cast target in water (static, no bobber wiggle shake)
-          const playerPos = avatar.position;
-          const fishPos = (this._bobber && this._bobber.visible && this._castTarget) ? this._castTarget : this._poolCentre;
-          this._lookTarget.addVectors(playerPos, fishPos).multiplyScalar(0.5);
-          this._lookTarget.y += 0.6; // lift to frame action
+        // Look target: close = pool centre; panorama = midpoint avatar↔pool
+        let lookTarget = this._poolCentre;
+        if (panoramaT > 0) {
+          const fishPos = (this._bobber?.visible && this._castTarget) ? this._castTarget : this._poolCentre;
+          this._lookTarget.addVectors(avatar.position, fishPos).multiplyScalar(0.5);
+          this._lookTarget.y += 0.6;
+          this._lookTarget.lerp(this._poolCentre, 1 - panoramaT);
           lookTarget = this._lookTarget;
         }
 
@@ -1754,9 +1761,8 @@ export const SanctuaryFishingModule = {
           WATER_Y_M + finalCamLift,
           avatar.position.z + rotBkZ * finalCamBack,
         );
-        const camTarget = this._camTarget;
         const k = 1 - Math.exp(-CAM_LERP_RATE * delta);
-        this._camera.position.lerp(camTarget, k);
+        this._camera.position.lerp(this._camTarget, k);
         this._camera.lookAt(lookTarget);
       } else {
         this._fishingCamTimer = 0;

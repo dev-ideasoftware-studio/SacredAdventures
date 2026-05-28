@@ -468,8 +468,10 @@ export function createWorldAvatarController() {
       const walkClipName = clips.find(c => /walk|run/i.test(c.name))?.name ?? (isNew ? clips[1]?.name : clips[3]?.name) ?? clips[1]?.name ?? null;
       const lookClipName = clips.find(c => /look|turn/i.test(c.name))?.name ?? (isNew ? clips[7]?.name : walkClipName) ?? clips[2]?.name ?? null;
       const swimClipName = clips.find(c => /swim|float/i.test(c.name))?.name ?? (isNew ? clips[3]?.name : null) ?? null;
+      // sitFish: seated fishing dock pose — NlaTrack.005 (15.792 s)
+      const sitFishClipName = clips.find(c => /sitfish|sit.?fish|fish.?sit/i.test(c.name))?.name ?? (isNew ? clips[5]?.name : null) ?? null;
       const inPlaceClipNames = new Set(
-        [walkClipName, lookClipName, swimClipName].filter(Boolean),
+        [walkClipName, lookClipName, swimClipName, sitFishClipName].filter(Boolean),
       );
 
       clips.forEach((clip, index) => {
@@ -492,21 +494,25 @@ export function createWorldAvatarController() {
         swim: swimClipName,
         wave: clips.find(c => /wave|greet/i.test(c.name))?.name ?? (isNew ? clips[8]?.name : clips[6]?.name) ?? clips[0]?.name ?? null,
         goodbye: clips.find(c => /goodbye|bye/i.test(c.name))?.name ?? (isNew ? clips[8]?.name : clips[6]?.name) ?? clips[0]?.name ?? null,
-        /**
-         * Tentatively map `sit`. Falls back to idle if missing.
-         */
         sit: clips.find(c => /sit/i.test(c.name))?.name ?? (isNew ? clips[6]?.name : clips[2]?.name) ?? null,
+        /** sitFish: seated dock fishing pose (Avatar-New NlaTrack.005, 15.792 s). */
+        sitFish: sitFishClipName,
+        /** heart: hand-heart gesture (Avatar-New NlaTrack.000, 3.500 s). */
+        heart: clips.find(c => /heart/i.test(c.name))?.name ?? (isNew ? clips[0]?.name : null) ?? null,
       };
       this.root.userData.anuAnimationMap = { ...this.semanticClips };
       this.root.userData.anuAnimationScan = {
         scannedClipCount: clips.length,
         findings: [
-          "NlaTrack.004: mapped idle; quiet standing loop.",
-          "NlaTrack.003: forward walk + turn-in-place (look); NlaTrack.001 fallback if missing. `.position` tracks stripped at bind time (see `_stripPositionTracks`) so the engine owns translation and the clip plays in-place.",
-          "NlaTrack.007 (~15s) is a look fallback only if shorter clips are missing. `.position` tracks stripped at bind time when it stands in for walk/look.",
-          "NlaTrack.006: mapped wave/goodbye; strongest greeting gesture candidate.",
-          "NlaTrack.008: very short alternate gesture; kept as fallback candidate.",
-          "NlaTrack.002 (~7s) tentatively mapped to `sit` — used by cinematic idle when the player is on a building platform.",
+          "NlaTrack.000 (3.500 s): heart — player makes a heart with hands (gesture).",
+          "NlaTrack.001 (5.375 s): walk. `.position` stripped at bind time.",
+          "NlaTrack.002 (5.875 s): UNASSIGNED — unknown emote, ~6 s medium loop.",
+          "NlaTrack.003 (7.167 s): swim. `.position` stripped at bind time.",
+          "NlaTrack.004 (5.708 s): idle — quiet standing loop.",
+          "NlaTrack.005 (15.792 s): sitFish — seated dock pose with fishing rod. `.position` stripped.",
+          "NlaTrack.006 (15.583 s): sit — cinematic idle on platform.",
+          "NlaTrack.007 (2.375 s): look — turn-in-place / look-around idle. `.position` stripped.",
+          "NlaTrack.008 (6.625 s): wave/goodbye gesture.",
         ],
       };
     },
