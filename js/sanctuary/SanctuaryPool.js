@@ -87,16 +87,20 @@ function buildWaterSurface(centerY, textures) {
   // shift), emissive 0x051d1c → 0x042022 (matches the darker base).
   // Specular reflection is refined with softer roughness/metalness so the
   // deep green watercolor and active morphing caustics read beautifully.
-  // Opacity is reduced to 0.58 to allow clear visibility into the depths!
+  // May-27 2026 user fix: opacity 0.45 → 0.28 + emissive 0.18 → 0.10 so
+  // the sandy basin texture + 745 instanced rocks/pebbles actually read
+  // through from above. With 45% opacity over a saturated green tint the
+  // surface was painting solid grass-green from top-down view and hiding
+  // every underwater detail. Caustics + Gerstner waves untouched.
   const mat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0x0a3438),
     emissive: new THREE.Color(0x042022),
-    emissiveIntensity: 0.18,
+    emissiveIntensity: 0.10,
     roughness: 0.22,            // softer, more natural water reflections instead of a hard glass panel
     metalness: 0.15,            // lower metalness so the deep green water and morphing caustics read beautifully
     normalMap: textures.normal,
     transparent: true,
-    opacity: 0.45,              // reduced further to easily see the fish underneath
+    opacity: 0.28,              // reduced so sandy basin + rocks/pebbles read through clearly from above
     depthWrite: false,
     side: THREE.DoubleSide,
     defines: { USE_UV: "" },
@@ -211,9 +215,13 @@ function buildWaterSurface(centerY, textures) {
       float w2 = sin(pUv.x * -0.35 + pUv.y * 0.95 + time * 0.04);
       float ripple = (w1 + w2) * 0.5;
 
-      // Color tuning: Shifting deep bottom colors to a gorgeous mossy emerald green
-      vec3 deepColor = mix(vec3(0.005, 0.12, 0.08), vec3(0.015, 0.18, 0.12), 0.5 + ripple * 0.10);
-      vec3 shallowColor = mix(vec3(0.03, 0.22, 0.19), vec3(0.08, 0.35, 0.28), 0.5 + ripple * 0.10);
+      // Color tuning: greenish-blue pond water, but desaturated ~25% from
+      // the previous mossy-emerald palette so the underwater sandy basin
+      // and gravel/rock detail can read through the 0.28-opacity surface.
+      // Blue channel slightly elevated to push toward "natural pond water"
+      // rather than "algae-green pool".
+      vec3 deepColor = mix(vec3(0.012, 0.10, 0.11), vec3(0.022, 0.14, 0.16), 0.5 + ripple * 0.10);
+      vec3 shallowColor = mix(vec3(0.04, 0.18, 0.20), vec3(0.09, 0.28, 0.30), 0.5 + ripple * 0.10);
       vec3 baseWaterColor = mix(deepColor, shallowColor, smoothstep(0.1, 0.5, distToCenter));
       
       // Caustic highlight blending — vibrant, soft bioluminescent teal glow

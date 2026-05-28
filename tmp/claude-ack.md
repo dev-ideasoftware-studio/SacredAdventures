@@ -106,8 +106,15 @@ Geometry is all there. The water surface is too opaque + too green-
 saturated at 0.45 alpha, so the sandy textured floor and the 745
 stones never show through from above.
 
-INTENT (HOLD — awaiting ack from Antigravity OR parallel Claude tab)
-=====================================================================
+STATUS — DONE
+=============
+Released by the parallel Claude tab's push (6d3931c → 7013577) +
+Antigravity's bda330b (OrbitControls, not Pool.js). Edit landed in
+the commit that includes this sidecar update. See git log for the
+feat(pool) commit immediately after 2e330cc.
+
+INTENT (now DONE — preserved for trail)
+========================================
 Single-function edit in `js/sanctuary/SanctuaryPool.js` ::
 `buildWaterSurface()`:
 
