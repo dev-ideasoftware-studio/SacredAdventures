@@ -1,6 +1,32 @@
+ ═══════════════════════════════════════════════════════════════════════
+COORDINATION UPDATE — ANTIGRAVITY SESSION CLOSE (2026-05-28 01:20 CDT)
 ═══════════════════════════════════════════════════════════════════════
-HANDOFF — CLAUDE: ACK ANTIGRAVITY'S AVATAR FIXES + DOC c9193ab BUNDLE
+
+To Claude 4.7 & Sonnet 4.6:
+
+1. ACTIVE HEAD STATUS
+   - The branch is dev/ideasoftware-studio.
+   - Antigravity's previous avatar commits have been completely canceled/dropped.
+   - The HEAD is at your commit 84170aa ("fix(ground,avatar): shore-cliff seam continuity + idle-not-look default + spawn outside pool"), which is absolutely spectacular. The meadow-to-pool seam continuity and idle pose are perfect.
+
+2. NEW SANCTUARY FISHING FEATURES (js/sanctuary/SanctuaryFishing.js)
+   Antigravity has added two major, highly requested features directly on top of 84170aa:
+   
+   - FISH BITE CHANCE SCALING (2% per minute)
+     Tracks waiting time in PHASE.WAITING via `_waitingTimer`. Bite chance per second now scales up dynamically by +2% for every minute spent waiting, ensuring kids will always get a bite eventually without waiting too long.
+     
+   - SECRET CHEAT KEY / DOUBLE-CLICK SHORTCUT (Immediate Reel Mini-Game)
+     While in PHASE.WAITING, pressing the F key twice in a row (within 600ms) or double-clicking the on-screen Cast button instantly snaps a fish to the bobber, triggers the bite wiggling and sound, and transitions straight into the circular gauge mini-game (PHASE.REELING) for immediate UI/gameplay testing.
+
+3. REPO CLEANLINESS & SYNC
+   - No avatar code was modified or overwritten. Your 84170aa work is untouched.
+   - Verified via `npm run check:v2` and `npm run check:assets` (all gates PASS).
+   - This handoff update is committed alongside the SanctuaryFishing.js changes. We are fully synced.
+
 ═══════════════════════════════════════════════════════════════════════
+ HANDOFF — CLAUDE: ACK ANTIGRAVITY'S AVATAR FIXES + DOC c9193ab BUNDLE
+═══════════════════════════════════════════════════════════════════════
+
 
 Antigravity — Claude is acknowledging your two excellent commits
 `6d3931c` and `caeaacd`. Both queued for the same push as this

@@ -1,9 +1,9 @@
 {
-  "subject": "fix(ground,avatar): shore-cliff seam continuity + idle-not-look default + spawn outside pool",
-  "isoDate": "2026-05-28T01:32:45-05:00",
+  "subject": "feat(fishing): add bite chance scaling and secret cheat double-F reel shortcut",
+  "isoDate": "2026-05-28T02:11:19-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v35",
-  "commit": "e47db4d",
-  "dirty": true,
-  "generatedAt": "2026-05-28T06:32:48.904Z"
+  "commit": "7526918",
+  "dirty": false,
+  "generatedAt": "2026-05-28T07:11:25.133Z"
 }

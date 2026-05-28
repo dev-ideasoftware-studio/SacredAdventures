@@ -912,6 +912,7 @@ export const SanctuaryFishingModule = {
   _turnCount:   0,
   _turnElapsed: 0,
   _surgeEvery:  2,
+  _waitingTimer: 0.0,
 
   // 3-D interest gauge
   _gauge3d:    null,
@@ -1166,7 +1167,19 @@ export const SanctuaryFishingModule = {
     
     this._gauge3d = _build3DGauge(scene);
 
-    this._onClick = () => this._tryAction();
+    this._onClick = () => {
+      const inFishing = this._phase !== PHASE.IDLE;
+      if (inFishing && this._phase === PHASE.WAITING) {
+        const now = Date.now();
+        const lastClick = this._lastClickTime || 0;
+        this._lastClickTime = now;
+        if (now - lastClick < 600) {
+          this._triggerSecretDebugBite();
+          return;
+        }
+      }
+      this._tryAction();
+    };
     this._btn.addEventListener("click", this._onClick);
 
     this._miniGameNeedle = 0.5;
@@ -1198,6 +1211,17 @@ export const SanctuaryFishingModule = {
         } else if (e.key === " " || e.key === "Enter") {
           e.preventDefault();
           this._handleCorrectionInput();
+        } else if (key === "f") {
+          e.preventDefault();
+          if (this._phase === PHASE.WAITING) {
+            const now = Date.now();
+            const lastPress = this._lastFPress || 0;
+            this._lastFPress = now;
+            if (now - lastPress < 600) {
+              this._triggerSecretDebugBite();
+              return;
+            }
+          }
         } else {
           e.preventDefault();
         }
@@ -1329,6 +1353,7 @@ export const SanctuaryFishingModule = {
       this._turnElapsed = 0;
       this._surgeEvery  = 1 + Math.floor(Math.random() * 3);  // 1, 2, or 3
       this._interestCheckTimer = 10.0; // Force immediate check on entry
+      this._waitingTimer = 0.0;
     }
     if (this._statusPill) {
       const label = {
@@ -1451,6 +1476,29 @@ export const SanctuaryFishingModule = {
     } else if (this._phase === PHASE.BITE) {
       this._setPhase(PHASE.REELING);
     }
+  },
+
+  _triggerSecretDebugBite() {
+    let fishMesh = window.__interestedFish;
+    if (!fishMesh) {
+      const school = window.__sanctuaryFishSchool || [];
+      if (school.length > 0) {
+        fishMesh = school[Math.floor(Math.random() * school.length)];
+        window.__interestedFish = fishMesh;
+      }
+    }
+    if (fishMesh) {
+      fishMesh.position.copy(this._bobber.position);
+      fishMesh.userData.interestTimer = 10.0;
+    }
+    playFishingTone('bite');
+    this._setPhase(PHASE.BITE);
+    setTimeout(() => {
+      if (this._phase === PHASE.BITE) {
+        this._setPhase(PHASE.REELING);
+      }
+    }, 100);
+    console.log("%c[SanctuaryFishing] Debug secret activated: Fish took bait, entering gauge!", "color:#ff8a65;font-weight:bold;");
   },
 
   _handleCorrectionInput() {
@@ -1823,6 +1871,8 @@ export const SanctuaryFishingModule = {
           this._castTarget.z,
         );
 
+        this._waitingTimer = (this._waitingTimer || 0) + delta;
+
         // Turn-based bite / interested fish check
         this._interestCheckTimer = (this._interestCheckTimer || 0) + delta;
         if (this._interestCheckTimer >= 10.0) {
@@ -1875,7 +1925,9 @@ export const SanctuaryFishingModule = {
             this._interestCheckTimer = 8.0; // re-pick soon (cooldown ~2s)
           } else {
             // Chance increases every second. Once close enough, takes the bait.
-            const biteChancePerSec = 0.08 + (fishMesh.userData.interestTimer * 0.15);
+            // May-28 2026: increase fish chance by 2% per minute of waiting in WAITING phase
+            const minutesWaiting = (this._waitingTimer || 0) / 60.0;
+            const biteChancePerSec = 0.08 + (fishMesh.userData.interestTimer * 0.15) + (minutesWaiting * 0.02);
             if (distToLure < 0.35 && Math.random() < biteChancePerSec * delta) {
               playFishingTone('bite');
               this._setPhase(PHASE.BITE);
