@@ -236,16 +236,104 @@ function buildWaterSurface(centerY, textures) {
   return mesh;
 }
 
+/**
+ * Procedural sandy/dirty pond-floor texture (canvas-baked).
+ * Returns map + bumpMap + roughnessMap — three textures sharing the same
+ * canvas so light catches micro-relief and the basin reads as silt + sand
+ * with darker dirt streaks, not a flat painted disc.
+ */
+function _makeBasinFloorTexture() {
+  const SZ = 1024;
+  const cv = document.createElement("canvas");
+  cv.width = SZ; cv.height = SZ;
+  const ctx = cv.getContext("2d");
+
+  // Warm muddy brown base
+  ctx.fillStyle = "#3a2a1a";
+  ctx.fillRect(0, 0, SZ, SZ);
+
+  // Low-frequency silt blobs (uneven coverage — wet vs dry sections)
+  for (let i = 0; i < 80; i++) {
+    const x = Math.random() * SZ;
+    const y = Math.random() * SZ;
+    const r = 60 + Math.random() * 180;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    const dark = Math.random() < 0.5;
+    grad.addColorStop(0, dark ? "rgba(20, 14, 8, 0.55)" : "rgba(70, 55, 35, 0.40)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Sandy noise grains (high-frequency, lighter tan)
+  for (let i = 0; i < 12000; i++) {
+    const x = Math.random() * SZ;
+    const y = Math.random() * SZ;
+    const sz = 1 + Math.random() * 2;
+    const tan = Math.random();
+    ctx.fillStyle = tan < 0.5 ? "rgba(180, 150, 100, 0.20)"
+                  : tan < 0.85 ? "rgba(120, 95, 60, 0.18)"
+                  :              "rgba(80, 60, 35, 0.22)";
+    ctx.fillRect(x, y, sz, sz);
+  }
+
+  // Dirt streaks (low-amplitude sine drifts, simulating sediment currents)
+  ctx.strokeStyle = "rgba(15, 10, 5, 0.18)";
+  ctx.lineWidth = 2.5;
+  for (let i = 0; i < 28; i++) {
+    const y0 = Math.random() * SZ;
+    const amp = 8 + Math.random() * 18;
+    const freq = 0.005 + Math.random() * 0.01;
+    const phase = Math.random() * Math.PI * 2;
+    ctx.beginPath();
+    for (let x = 0; x < SZ; x += 4) {
+      const y = y0 + Math.sin(x * freq + phase) * amp;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Scattered tiny pebble specks (visual hint of stones too small to mesh)
+  for (let i = 0; i < 350; i++) {
+    const x = Math.random() * SZ;
+    const y = Math.random() * SZ;
+    const r = 2 + Math.random() * 4;
+    const shade = 30 + Math.floor(Math.random() * 60);
+    ctx.fillStyle = `rgba(${shade}, ${shade - 6}, ${shade - 12}, 0.55)`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Edge vignette — basin gets darker toward the rim (light falloff underwater)
+  const cx = SZ / 2, cy = SZ / 2;
+  const edge = ctx.createRadialGradient(cx, cy, SZ * 0.35, cx, cy, SZ * 0.52);
+  edge.addColorStop(0, "rgba(0,0,0,0)");
+  edge.addColorStop(0.7, "rgba(8, 5, 3, 0.40)");
+  edge.addColorStop(1.0, "rgba(4, 2, 1, 0.72)");
+  ctx.fillStyle = edge;
+  ctx.beginPath(); ctx.arc(cx, cy, SZ / 2, 0, Math.PI * 2); ctx.fill();
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  return tex;
+}
+
 function buildBasinFloor(centerY) {
-  // Slightly smaller, slightly darker disc just below the water surface
-  // — gives the pool depth without exposing the carved terrain.
-  const geo = new THREE.CircleGeometry(SANCTUARY_POOL_RADIUS_M * 0.92, 32);
-  // Color is blended to have a 40% dark brownish tint matching the earthy basin depth.
+  // Higher-res disc so the procedural texture has fragments to interpolate
+  // across (32 segs was fine for a flat color; 64 gives the silt streaks
+  // and edge vignette smoother curvature at the rim).
+  const geo = new THREE.CircleGeometry(SANCTUARY_POOL_RADIUS_M * 0.92, 64);
+  const floorTex = _makeBasinFloorTexture();
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x031d16).lerp(new THREE.Color(0x2a1c0d), 0.4), // deep mossy green with 40% dark brownish tint
-    roughness: 1.0,
+    color: 0xffffff, // let the texture carry the color
+    map: floorTex,
+    bumpMap: floorTex,
+    bumpScale: 0.06,
+    roughnessMap: floorTex,
+    roughness: 0.95,
     metalness: 0.0,
-    flatShading: false,
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.rotation.x = -Math.PI / 2;
@@ -653,6 +741,14 @@ function buildTurtle(centerY, textures) {
   return group;
 }
 
+/**
+ * Pond-floor rocks + pebbles, batched via InstancedMesh so the whole stone
+ * field is 3 draw calls (dodec rocks · icos rocks · pebbles) instead of
+ * one draw per stone. ~700 total stones for "carpet of river-floor" feel.
+ *
+ * Deterministic via mulberry32(0xbeadca1a) so the layout is reproducible
+ * across boots and screenshot diffs.
+ */
 function buildPoolRocks(centerY) {
   const group = new THREE.Group();
   group.name = "sanctuary_pool_rocks";
@@ -660,86 +756,177 @@ function buildPoolRocks(centerY) {
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
   const rng = mulberry32(0xbeadca1a);
-
-  // 4 flat-shaded matte, high-roughness color schemes
-  const colorSchemes = [
-    { color: 0x181a1c, roughness: 0.90, metalness: 0.05 }, // slate black
-    { color: 0x27201a, roughness: 0.92, metalness: 0.02 }, // warm muddy brown
-    { color: 0x1d271a, roughness: 0.88, metalness: 0.02 }, // moss green
-    { color: 0x222a27, roughness: 0.95, metalness: 0.05 }  // algae dark gray
-  ];
-
-  const ROCKS_COUNT = 130;
   const bottomY = centerY - SANCTUARY_POOL_DEPTH_M * 0.62;
 
-  for (let i = 0; i < ROCKS_COUNT; i++) {
-    // Determine geometry type
-    const geom = rng() < 0.55 
-      ? new THREE.DodecahedronGeometry(1.0, 0)
-      : new THREE.IcosahedronGeometry(1.0, 0);
+  // Earthy palette — sampled per-instance into instanceColor
+  const rockPalette = [
+    new THREE.Color(0x181a1c), // slate black
+    new THREE.Color(0x27201a), // warm muddy brown
+    new THREE.Color(0x1d271a), // moss green
+    new THREE.Color(0x222a27), // algae dark gray
+    new THREE.Color(0x2a2620), // wet dirt
+    new THREE.Color(0x1a1812), // dark silt
+  ];
+  const pebblePalette = [
+    new THREE.Color(0x5a4a35), // sandy tan
+    new THREE.Color(0x6b5a40), // cream stone
+    new THREE.Color(0x3a3025), // dirty brown
+    new THREE.Color(0x4a4035), // medium silt
+    new THREE.Color(0x554838), // ochre pebble
+  ];
 
-    // Choose color scheme
-    const scheme = colorSchemes[Math.floor(rng() * colorSchemes.length)];
-    const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(scheme.color),
-      roughness: scheme.roughness,
-      metalness: scheme.metalness,
-      flatShading: true,
-    });
+  const ROCKS_DODEC_COUNT = 175;
+  const ROCKS_ICOS_COUNT  = 150;
+  const PEBBLE_COUNT      = 420;
 
-    const mesh = new THREE.Mesh(geom, mat);
+  const dodecGeo  = new THREE.DodecahedronGeometry(1.0, 0);
+  const icosGeo   = new THREE.IcosahedronGeometry(1.0, 0);
+  const pebbleGeo = new THREE.OctahedronGeometry(1.0, 0);
 
-    // Varied scale (small pebbles to medium river rocks and boulders)
-    let r = 0.12 + rng() * 0.48; // radius 0.12m to 0.60m
-    if (rng() < 0.15) {
-      r *= 1.4; // 15% are larger boulders up to 0.84m
+  const rockMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, // per-instance color carries tint
+    roughness: 0.92,
+    metalness: 0.04,
+    flatShading: true,
+  });
+  const pebbleMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.88,
+    metalness: 0.03,
+    flatShading: true,
+  });
+
+  const _m = new THREE.Matrix4();
+  const _pos = new THREE.Vector3();
+  const _quat = new THREE.Quaternion();
+  const _euler = new THREE.Euler();
+  const _scl = new THREE.Vector3();
+
+  // Track rock centers so pebbles can cluster near them (realistic settling).
+  /** @type {{x:number, z:number, r:number}[]} */
+  const rockAnchors = [];
+
+  /** Populate an InstancedMesh of rocks (flat, elongated river-stone shape). */
+  const populateRocks = (mesh, count, palette) => {
+    for (let i = 0; i < count; i++) {
+      let r = 0.12 + rng() * 0.48; // 0.12–0.60m
+      if (rng() < 0.15) r *= 1.4;  // 15% larger boulders → 0.84m
+
+      const scaleX = r * (0.85 + rng() * 0.35);
+      const scaleY = r * (0.40 + rng() * 0.30); // flat vertical
+      const scaleZ = r * (0.85 + rng() * 0.35);
+
+      const theta = rng() * Math.PI * 2;
+      const minD = 0.65 + scaleX;
+      const maxD = SANCTUARY_POOL_RADIUS_M * 0.88 - scaleX;
+      const actualMaxD = Math.max(minD + 0.1, maxD);
+      const d = minD + rng() * (actualMaxD - minD);
+
+      const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
+      const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
+      const y = bottomY - 0.05 + rng() * 0.05 + scaleY * 0.3;
+
+      _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
+      _quat.setFromEuler(_euler);
+      _pos.set(x, y, z);
+      _scl.set(scaleX, scaleY, scaleZ);
+      _m.compose(_pos, _quat, _scl);
+      mesh.setMatrixAt(i, _m);
+
+      const tint = palette[Math.floor(rng() * palette.length)];
+      mesh.setColorAt(i, tint);
+
+      rockAnchors.push({ x, z, r: Math.max(scaleX, scaleZ) });
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  };
+
+  const dodecMesh = new THREE.InstancedMesh(dodecGeo, rockMat, ROCKS_DODEC_COUNT);
+  dodecMesh.castShadow = true;
+  dodecMesh.receiveShadow = true;
+  dodecMesh.layers.enable(1);
+  dodecMesh.name = "sanctuary_pool_rocks_dodec";
+  dodecMesh.userData.anuKind = "sanctuary_pool_rock";
+  dodecMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  populateRocks(dodecMesh, ROCKS_DODEC_COUNT, rockPalette);
+  group.add(dodecMesh);
+
+  const icosMesh = new THREE.InstancedMesh(icosGeo, rockMat, ROCKS_ICOS_COUNT);
+  icosMesh.castShadow = true;
+  icosMesh.receiveShadow = true;
+  icosMesh.layers.enable(1);
+  icosMesh.name = "sanctuary_pool_rocks_icos";
+  icosMesh.userData.anuKind = "sanctuary_pool_rock";
+  icosMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  populateRocks(icosMesh, ROCKS_ICOS_COUNT, rockPalette);
+  group.add(icosMesh);
+
+  // Pebbles — small octahedrons clustered near rock anchors so they read
+  // as gravel settled around bigger stones, not a uniform field.
+  const pebbleMesh = new THREE.InstancedMesh(pebbleGeo, pebbleMat, PEBBLE_COUNT);
+  pebbleMesh.castShadow = false; // pebbles are tiny — shadow noise not worth it
+  pebbleMesh.receiveShadow = true;
+  pebbleMesh.layers.enable(1);
+  pebbleMesh.name = "sanctuary_pool_pebbles";
+  pebbleMesh.userData.anuKind = "sanctuary_pool_pebble";
+  pebbleMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+  for (let i = 0; i < PEBBLE_COUNT; i++) {
+    let x, z;
+    if (rockAnchors.length && rng() < 0.7) {
+      // 70%: cluster near a random rock anchor (offset ≤ 0.6m)
+      const anchor = rockAnchors[Math.floor(rng() * rockAnchors.length)];
+      const clusterR = anchor.r * 0.4 + rng() * 0.6;
+      const clusterTheta = rng() * Math.PI * 2;
+      x = anchor.x + Math.cos(clusterTheta) * clusterR;
+      z = anchor.z + Math.sin(clusterTheta) * clusterR;
+    } else {
+      // 30%: free scatter across the basin
+      const theta = rng() * Math.PI * 2;
+      const minD = 0.55;
+      const maxD = SANCTUARY_POOL_RADIUS_M * 0.88;
+      const d = minD + rng() * (maxD - minD);
+      x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
+      z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
     }
 
-    // River rocks are flat (low scale y) and elongated (random scale x/z)
+    // Clamp inside basin so cluster offsets don't poke through the rim
+    const dxFromCenter = x - SANCTUARY_POOL_CENTER_X;
+    const dzFromCenter = z - SANCTUARY_POOL_CENTER_Z;
+    const distFromCenter = Math.sqrt(dxFromCenter * dxFromCenter + dzFromCenter * dzFromCenter);
+    const maxBasinR = SANCTUARY_POOL_RADIUS_M * 0.88;
+    if (distFromCenter > maxBasinR) {
+      const scale = maxBasinR / distFromCenter;
+      x = SANCTUARY_POOL_CENTER_X + dxFromCenter * scale;
+      z = SANCTUARY_POOL_CENTER_Z + dzFromCenter * scale;
+    }
+    // Also keep clear of the drain
+    if (distFromCenter < 0.55) {
+      const scale = 0.55 / Math.max(0.01, distFromCenter);
+      x = SANCTUARY_POOL_CENTER_X + dxFromCenter * scale;
+      z = SANCTUARY_POOL_CENTER_Z + dzFromCenter * scale;
+    }
+
+    const r = 0.04 + rng() * 0.08; // 0.04–0.12m
     const scaleX = r * (0.85 + rng() * 0.35);
-    const scaleY = r * (0.40 + rng() * 0.30); // flat vertical height
+    const scaleY = r * (0.50 + rng() * 0.25);
     const scaleZ = r * (0.85 + rng() * 0.35);
-    mesh.scale.set(scaleX, scaleY, scaleZ);
+    const y = bottomY - 0.02 + rng() * 0.03 + scaleY * 0.3;
 
-    // Uniform random angle and distance from center
-    const theta = rng() * Math.PI * 2;
-    // Avoid the center drain ring: drain ring outer radius is 0.45m.
-    // Rock bounding radius is up to ~0.8m.
-    // Minimum distance from center: 0.55m + scaleX
-    const minD = 0.65 + scaleX;
-    // Maximum distance from center: basin floor radius is SANCTUARY_POOL_RADIUS_M * 0.92 = 11.04m.
-    // Let's keep a margin of 0.8m to prevent clipping through the pool bank.
-    const maxD = SANCTUARY_POOL_RADIUS_M * 0.88 - scaleX;
-    
-    // Safety check in case scale is huge
-    const actualMaxD = Math.max(minD + 0.1, maxD);
-    const d = minD + rng() * (actualMaxD - minD);
+    _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
+    _quat.setFromEuler(_euler);
+    _pos.set(x, y, z);
+    _scl.set(scaleX, scaleY, scaleZ);
+    _m.compose(_pos, _quat, _scl);
+    pebbleMesh.setMatrixAt(i, _m);
 
-    const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
-    const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
-
-    // Sink slightly into the basin floor to look resting/natural
-    const y = bottomY - 0.05 + rng() * 0.05 + scaleY * 0.3;
-
-    mesh.position.set(x, y, z);
-
-    // Random rotation
-    mesh.rotation.set(
-      rng() * Math.PI * 2,
-      rng() * Math.PI * 2,
-      rng() * Math.PI * 2
-    );
-
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.layers.enable(1); // Show beautiful dark silhouettes in PiP map
-
-    mesh.name = `sanctuary_pool_rock_${i}`;
-    mesh.userData.anuKind = "sanctuary_pool_rock";
-    mesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
-
-    group.add(mesh);
+    const tint = pebblePalette[Math.floor(rng() * pebblePalette.length)];
+    pebbleMesh.setColorAt(i, tint);
   }
+  pebbleMesh.instanceMatrix.needsUpdate = true;
+  if (pebbleMesh.instanceColor) pebbleMesh.instanceColor.needsUpdate = true;
+  group.add(pebbleMesh);
 
   return group;
 }

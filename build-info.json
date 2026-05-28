@@ -1,8 +1,8 @@
 {
-  "subject": "feat(avatar): enable dynamic loading of Avatar-New.glb in main game loader and three-icons badge",
-  "isoDate": "2026-05-27T21:49:27-05:00",
+  "subject": "feat(pool): textured sandy/dirty basin floor + instance-batched rocks + pebble layer",
+  "isoDate": "2026-05-27T22:09:57-05:00",
   "branch": "dev/ideasoftware-studio",
-  "swVersion": "v34",
-  "dirty": false,
-  "generatedAt": "2026-05-28T02:49:31.455Z"
+  "swVersion": "v35",
+  "dirty": true,
+  "generatedAt": "2026-05-28T03:10:01.754Z"
 }
