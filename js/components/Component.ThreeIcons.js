@@ -266,7 +266,10 @@ class ThreeIconManager {
         const loader = new window.THREE.GLTFLoader();
         loader.setDRACOLoader(dracoLoader);
  
-        const AVATAR_URL = "./Assets/Avatar3.glb";
+        let AVATAR_URL = "./Assets/Avatar3.glb";
+        if (typeof window !== "undefined" && window.location.href.includes("avatar=new")) {
+            AVATAR_URL = "./Assets/npc/Avatar-New.glb";
+        }
  
         loader.load(AVATAR_URL, (gltf) => {
             const avatar = gltf.scene;

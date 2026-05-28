@@ -1,8 +1,8 @@
 {
-  "subject": "feat(ui,pip): shrink mobile guide cards for alignment and optimize fishing PiP render pass with layer-2 culling and full-circle cover",
-  "isoDate": "2026-05-27T21:32:47-05:00",
+  "subject": "feat(avatar): enable dynamic loading of Avatar-New.glb in main game loader and three-icons badge",
+  "isoDate": "2026-05-27T21:49:27-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v34",
   "dirty": false,
-  "generatedAt": "2026-05-28T02:32:51.533Z"
+  "generatedAt": "2026-05-28T02:49:31.455Z"
 }

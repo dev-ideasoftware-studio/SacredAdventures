@@ -142,7 +142,11 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                     dracoLoader.setDecoderPath('vendor/three/examples/jsm/libs/draco/gltf/');
                     gltfLoader.setDRACOLoader(dracoLoader);
                     
-                    gltfLoader.load("Assets/Avatar3.glb", (gltf) => {
+                    let AVATAR_URL = "Assets/Avatar3.glb";
+                    if (typeof window !== "undefined" && window.location.href.includes("avatar=new")) {
+                      AVATAR_URL = "Assets/npc/Avatar-New.glb";
+                    }
+                    gltfLoader.load(AVATAR_URL, (gltf) => {
                       const avatar = gltf.scene;
                       // Move entire avatar asset securely into Layer 1 (Ghost to FPV, Visible to Minimap)
                       avatar.traverse((child) => {
@@ -223,18 +227,20 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                           avatar,
                         );
 
+                        const clips = gltf.animations;
+                        const isNew = AVATAR_URL.includes("Avatar-New");
+
                         window._avIdleClip =
-                          gltf.animations.length > 7
-                            ? gltf.animations[7]
-                            : gltf.animations[0];
+                          clips.find(c => /idle/i.test(c.name)) ??
+                          (isNew ? clips[4] : (clips.length > 7 ? clips[7] : clips[0]));
+
                         window._avWalkClip =
-                          gltf.animations.length > 5
-                            ? gltf.animations[5]
-                            : null;
+                          clips.find(c => /walk|run/i.test(c.name)) ??
+                          (isNew ? clips[3] : (clips.length > 5 ? clips[5] : null));
+
                         window._avWaveClip =
-                          gltf.animations.length > 1
-                            ? gltf.animations[1]
-                            : null;
+                          clips.find(c => /wave|greet/i.test(c.name)) ??
+                          (isNew ? clips[6] : (clips.length > 1 ? clips[1] : null));
 
                         // POPULATE ANIMATION PANEL FOR TESTING
                         const animPanel =
