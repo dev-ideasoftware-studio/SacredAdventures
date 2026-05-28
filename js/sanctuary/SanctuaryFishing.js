@@ -328,8 +328,12 @@ function _build3DGauge(scene) {
   // material across both cameras (same low opacity in FPV and PIP).
   // depthTest true + depthWrite false + renderOrder 9990 keeps the
   // gauge well-behaved against dock rails/posts.
+  // 2026-05-28 follow-up: opacity 0.15 → 0.04 because the user said the
+  // PIP fish-view "looks weird, its white washed". Dropping the cover
+  // alpha further lets the live scene fish (layer 2) read clearly
+  // through the dial without the pale-blue plastic tint dominating.
   const clearMat = new THREE.MeshPhysicalMaterial({
-    color: 0xddeeff, transmission: 0.95, opacity: 0.15,
+    color: 0xddeeff, transmission: 0.98, opacity: 0.04,
     ior: 1.5, roughness: 0.05,
     transparent: true, side: THREE.DoubleSide,
     depthWrite: false, depthTest: true,
@@ -399,7 +403,17 @@ function _build3DGauge(scene) {
     g.add(spr);
   });
 
-  // Inner koi-fish plane (CanvasTexture redrawn each frame)
+  // Inner koi-fish plane (CanvasTexture redrawn each frame) — HIDDEN by
+  // default 2026-05-28. User: "just show the fish in the cam as it is,
+  // its white washed, and static and should not be crossing the center
+  // of the pip ... needs to act like its alive". The dial-painted koi
+  // was a flat canvas decal that read as a static washed-out overlay
+  // sitting on the dial center. With it hidden, the PIP cover plastic
+  // (clearMat opacity dropped further below) reveals the LIVE swimming
+  // sanctuary fish on layer 2 — they're already enabled on the fishing
+  // PIP isolation lens and provide the "alive" motion the user wants.
+  // The canvas/tex are kept in userData so any future code path that
+  // wants to opt back in just sets fishPlane.visible = true.
   const fishCanvas = document.createElement("canvas");
   fishCanvas.width = fishCanvas.height = 256;
   const fishTex = new THREE.CanvasTexture(fishCanvas);
@@ -410,9 +424,11 @@ function _build3DGauge(scene) {
     })
   );
   fishPlane.position.z = 0.12;
+  fishPlane.visible = false;
   g.add(fishPlane);
   g.userData.fishCanvas = fishCanvas;
   g.userData.fishTex    = fishTex;
+  g.userData.fishPlane  = fishPlane;
 
   // State-label sprite (WAITING... / CURIOUS / etc.)
   const lblCanvas = document.createElement("canvas");
@@ -1421,6 +1437,25 @@ export const SanctuaryFishingModule = {
       window._v2InputSuppressed = (p !== PHASE.IDLE);
       window._v4InputSuppressed = (p !== PHASE.IDLE);
       window.__sanctuaryFishingActive = (p !== PHASE.IDLE);
+    }
+
+    // User-requested 2026-05-28: "borders of player circle = shut off
+    // while fishing." Toggle the visibility of the player travel-disc
+    // outline (the white inner+outer ring built in WorldAvatar.js as
+    // `player_avatar_circle_outline`) whenever fishing phase changes.
+    // Disc body + facing arrow stay visible so the player can still see
+    // where they're rooted; only the bright cream border ring is hidden
+    // because it visually clashes with the close-up fishing PIP frame.
+    if (typeof window !== "undefined" && window.WorldPlayer) {
+      const fishingOn = (p !== PHASE.IDLE);
+      const root = window.WorldPlayer.root || window.WorldPlayer.group || null;
+      if (root && typeof root.traverse === "function") {
+        root.traverse((child) => {
+          if (child && child.name === "player_avatar_circle_outline") {
+            child.visible = !fishingOn;
+          }
+        });
+      }
     }
     // Toggle body class so the PIP frosted-plastic ring lightens during
     // fishing — gives the kid a clearer "fish-finder" look-through to

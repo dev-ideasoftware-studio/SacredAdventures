@@ -1,9 +1,9 @@
 {
-  "subject": "fix(dock,pip): rails renderOrder 25 above decals + spin PIP camera 90 right",
-  "isoDate": "2026-05-28T14:41:32-05:00",
+  "subject": "fix(fishing): hide static dial koi + drop cover opacity + hide player border while fishing",
+  "isoDate": "2026-05-28T14:59:47-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "e9b216b",
+  "commit": "304561f",
   "dirty": true,
-  "generatedAt": "2026-05-28T19:41:36.555Z"
+  "generatedAt": "2026-05-28T19:59:51.792Z"
 }
