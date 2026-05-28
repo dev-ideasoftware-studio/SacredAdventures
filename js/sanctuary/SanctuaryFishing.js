@@ -367,14 +367,12 @@ function _build3DGauge(scene) {
     clearMat
   ));
 
-  // Outer rim — arc r 1.85→2.05, depth=0.15
-  g.add(new THREE.Mesh(
-    new THREE.ExtrudeGeometry(
-      _arcShape(0, Math.PI, 1.85, 2.05, 72),
-      { depth: 0.15, bevelEnabled: false }
-    ),
-    clearMat
-  ));
+  // Outer rim — REMOVED 2026-05-28 per user: "borders should be same
+  // as player circles, so remove the borders from the fish circle".
+  // The chunky extruded clear-plastic rim was the "border" that didn't
+  // match the player travel disc style. Without it the gauge reads as
+  // a flat coloured semicircle dial on the water — closer to the
+  // simple disc+arrow look the player circle has.
 
   // 5 colored arc segments (r 0.85→1.82, 0.03 radian gaps)
   const SEG_ARC = Math.PI / 5;
@@ -403,17 +401,12 @@ function _build3DGauge(scene) {
     g.add(spr);
   });
 
-  // Inner koi-fish plane (CanvasTexture redrawn each frame) — HIDDEN by
-  // default 2026-05-28. User: "just show the fish in the cam as it is,
-  // its white washed, and static and should not be crossing the center
-  // of the pip ... needs to act like its alive". The dial-painted koi
-  // was a flat canvas decal that read as a static washed-out overlay
-  // sitting on the dial center. With it hidden, the PIP cover plastic
-  // (clearMat opacity dropped further below) reveals the LIVE swimming
-  // sanctuary fish on layer 2 — they're already enabled on the fishing
-  // PIP isolation lens and provide the "alive" motion the user wants.
-  // The canvas/tex are kept in userData so any future code path that
-  // wants to opt back in just sets fishPlane.visible = true.
+  // Inner koi-fish plane (CanvasTexture redrawn each frame). Restored
+  // 2026-05-28 after user said "keep the fish" — the dial koi is the
+  // fish they want shown. Static-looking concern is resolved by the
+  // animation pass in drawGaugeFish which gets called every frame from
+  // _update3DGauge; the white-washed concern is resolved by dropping
+  // the clearMat opacity below.
   const fishCanvas = document.createElement("canvas");
   fishCanvas.width = fishCanvas.height = 256;
   const fishTex = new THREE.CanvasTexture(fishCanvas);
@@ -424,11 +417,9 @@ function _build3DGauge(scene) {
     })
   );
   fishPlane.position.z = 0.12;
-  fishPlane.visible = false;
   g.add(fishPlane);
   g.userData.fishCanvas = fishCanvas;
   g.userData.fishTex    = fishTex;
-  g.userData.fishPlane  = fishPlane;
 
   // State-label sprite (WAITING... / CURIOUS / etc.)
   const lblCanvas = document.createElement("canvas");
@@ -1439,24 +1430,12 @@ export const SanctuaryFishingModule = {
       window.__sanctuaryFishingActive = (p !== PHASE.IDLE);
     }
 
-    // User-requested 2026-05-28: "borders of player circle = shut off
-    // while fishing." Toggle the visibility of the player travel-disc
-    // outline (the white inner+outer ring built in WorldAvatar.js as
-    // `player_avatar_circle_outline`) whenever fishing phase changes.
-    // Disc body + facing arrow stay visible so the player can still see
-    // where they're rooted; only the bright cream border ring is hidden
-    // because it visually clashes with the close-up fishing PIP frame.
-    if (typeof window !== "undefined" && window.WorldPlayer) {
-      const fishingOn = (p !== PHASE.IDLE);
-      const root = window.WorldPlayer.root || window.WorldPlayer.group || null;
-      if (root && typeof root.traverse === "function") {
-        root.traverse((child) => {
-          if (child && child.name === "player_avatar_circle_outline") {
-            child.visible = !fishingOn;
-          }
-        });
-      }
-    }
+    // (2026-05-28 reverted: previously hid the player border while
+    // fishing. User pushed back — "use same circle as player has just
+    // change its base color and keep the fish. stop making the player
+    // border circles so damn hard." The existing per-frame colour
+    // morph in the update loop already shifts the border white↔blue
+    // when fishing flips on — no visibility toggle needed.)
     // Toggle body class so the PIP frosted-plastic ring lightens during
     // fishing — gives the kid a clearer "fish-finder" look-through to
     // the close-up gauge + pond beneath. CSS rule is injected once in
@@ -1794,8 +1773,13 @@ export const SanctuaryFishingModule = {
       }
       const ringMesh = this._circleOutlineRef;
       if (ringMesh && ringMesh.material && ringMesh.material.uniforms) {
+        // User-requested 2026-05-28: "use same circle as player has just
+        // change its base color and keep the fish. stop making the
+        // player border circles so damn hard." Keeping the border
+        // VISIBLE during fishing — only the colour morph (white ↔ blue)
+        // distinguishes the fishing state. Previous attempts to hide
+        // the ring fought the existing morph code unnecessarily.
         const uni = ringMesh.material.uniforms;
-
         const targetInner = isFishingActive
           ? this._colRingInner.set(0xb3e5fc) : this._colRingInner.set(0xffffff);
         const targetOuter = isFishingActive
