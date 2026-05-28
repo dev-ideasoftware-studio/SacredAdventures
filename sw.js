@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v34";
+const CACHE_VERSION = "v35";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 
@@ -86,7 +86,7 @@ const SHELL_FILES = [
   "./Assets/tree.glb",
   "./Assets/bush.glb",
   "./Assets/pond1.glb",
-  "./Assets/Avatar3.glb",
+  "./Assets/npc/Avatar-New.glb",
   "./Assets/flora/reeds.glb",
   "./Assets/frog.png",
   "./Assets/bark.png",

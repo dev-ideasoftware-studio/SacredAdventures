@@ -1206,8 +1206,11 @@ export const WorldModule = {
       !!this._avatar?.semanticClips?.sit &&
       this._isPlayerOnBuildingPlatform(body.position.x, body.position.z);
 
+    const inPond = Math.hypot(body.position.x - 10, body.position.z - 26) < 5.0;
+
     let desiredLocomotion = "idle";
     if (modalBlocksLocomotion) desiredLocomotion = "idle";
+    else if (inPond && this._avatar?.semanticClips?.swim) desiredLocomotion = "swim";
     else if (walkIntent) desiredLocomotion = "walk";
     else if (turnOnly) desiredLocomotion = "look";
     else if (this._cinematicSitActive) desiredLocomotion = "sit";
@@ -1233,11 +1236,13 @@ export const WorldModule = {
         const reason =
           desiredLocomotion === "walk"
             ? "move"
-            : desiredLocomotion === "look"
-              ? "turn-in-place"
-              : desiredLocomotion === "sit"
-                ? "cinematic-rest-on-platform"
-                : "idle";
+            : desiredLocomotion === "swim"
+              ? "swimming-in-pond"
+              : desiredLocomotion === "look"
+                ? "turn-in-place"
+                : desiredLocomotion === "sit"
+                  ? "cinematic-rest-on-platform"
+                  : "idle";
         this._avatar.syncLocomotionIfNeeded(desiredLocomotion, reason);
       }
       this._avatar.syncWalkAnimToHorizontalSpeed(

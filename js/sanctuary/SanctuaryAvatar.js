@@ -46,9 +46,9 @@ import {
   V2_INTRO_TIPI1_APPROACH_Z_M,
 } from "../v2/constants.js";
 
-let AVATAR_URL = "./Assets/Avatar3.glb";
-if (typeof window !== "undefined" && window.location.href.includes("avatar=new")) {
-  AVATAR_URL = "./Assets/npc/Avatar-New.glb";
+let AVATAR_URL = "./Assets/npc/Avatar-New.glb";
+if (typeof window !== "undefined" && window.location.href.includes("avatar=old")) {
+  AVATAR_URL = "./Assets/Avatar3.glb";
 }
 
 /** Target world-space height of the rendered avatar (m). 5 ft kid =
@@ -375,10 +375,14 @@ export const SanctuaryAvatarModule = {
       );
       if (clips.length > 0) {
         this._mixer = new THREE.AnimationMixer(model);
+        const isNew = AVATAR_URL.includes("Avatar-New");
+        
         // Robust selection: look for name match first, fallback to standard Tripo indices
-        const idleClip = clips.find(c => /idle/i.test(c.name)) ?? clips[4] ?? clips[0];
-        let walkClip = clips.find(c => /walk|run/i.test(c.name)) ?? clips[3] ?? clips[1] ?? null;
+        const idleClip = clips.find(c => /idle/i.test(c.name)) ?? (isNew ? clips[4] : clips[4]) ?? clips[0];
+        let walkClip = clips.find(c => /walk|run/i.test(c.name)) ?? (isNew ? clips[1] : clips[3]) ?? clips[1] ?? null;
         if (walkClip === idleClip) walkClip = null;
+
+        let swimClip = clips.find(c => /swim|float/i.test(c.name)) ?? (isNew ? clips[3] : null) ?? null;
 
         // Strip root-motion `.position` tracks from the walk clip so
         // the engine owns translation. Clone the clip first so we don't
@@ -392,18 +396,37 @@ export const SanctuaryAvatarModule = {
           }
         }
 
+        // Strip root-motion `.position` tracks from the swim clip too
+        if (swimClip) {
+          const keep = swimClip.tracks.filter((t) => !t.name.endsWith(".position"));
+          if (keep.length !== swimClip.tracks.length) {
+            const stripped = swimClip.clone();
+            stripped.tracks = keep;
+            swimClip = stripped;
+          }
+        }
+
         this._idleAction = this._mixer.clipAction(idleClip);
         this._idleAction.setLoop(THREE.LoopRepeat, Infinity);
         this._idleAction.play();
+        
         if (walkClip) {
           this._walkAction = this._mixer.clipAction(walkClip);
           this._walkAction.setLoop(THREE.LoopRepeat, Infinity);
           this._walkAction.setEffectiveWeight(0);
           this._walkAction.play();
         }
+
+        if (swimClip) {
+          this._swimAction = this._mixer.clipAction(swimClip);
+          this._swimAction.setLoop(THREE.LoopRepeat, Infinity);
+          this._swimAction.setEffectiveWeight(0);
+          this._swimAction.play();
+        }
+
         console.log(
-          `%c[SanctuaryAvatar] anim picks (v2 indices): idle=clips[4]="${idleClip.name}" walk=clips[3]=${walkClip ? `"${walkClip.name}" (.position tracks stripped)` : "<none>"}`,
-          walkClip ? "color:#a5d6a7;" : "color:#ff8a3d;font-weight:bold;",
+          `%c[SanctuaryAvatar] anim picks (v2 indices): idle="${idleClip.name}" walk=${walkClip ? `"${walkClip.name}"` : "<none>"} swim=${swimClip ? `"${swimClip.name}"` : "<none>"}`,
+          "color:#a5d6a7;",
         );
       }
 
@@ -443,17 +466,25 @@ export const SanctuaryAvatarModule = {
     // anchored at the root's plane.
     cur.y = sanctuaryGroundY(cur.x, cur.z);
 
-    // Animation blend. Threshold lowered to 0.04 m/s and ramp shortened
-    // to 0.25 m/s — walk clip now reads at the first detectable step
-    // instead of waiting for the avatar to reach 0.6 m/s before showing
-    // anything. The smoothing EMA used to mask short bursts of motion
-    // (a single-tile click-to-move arc) behind the idle pose.
-    if (this._idleAction && this._walkAction) {
-      const walkW = Math.max(0, Math.min(1, (this._smoothSpeed - 0.04) / 0.25));
-      this._walkAction.setEffectiveWeight(walkW);
-      this._idleAction.setEffectiveWeight(1 - walkW);
-      this._walkAction.setEffectiveTimeScale(0.85 + Math.min(1.6, this._smoothSpeed / 1.0));
+    // Sanctuary pool check: centered at (0, 0), radius 12.0. If distance is < 11.5, play swim animation.
+    const dist = Math.hypot(cur.x, cur.z);
+    const inPool = dist < 11.5;
+
+    if (inPool && this._swimAction) {
+      this._swimAction.setEffectiveWeight(1.0);
+      if (this._walkAction) this._walkAction.setEffectiveWeight(0.0);
+      if (this._idleAction) this._idleAction.setEffectiveWeight(0.0);
+      this._swimAction.setEffectiveTimeScale(0.8 + Math.min(1.2, this._smoothSpeed / 1.0));
+    } else {
+      if (this._swimAction) this._swimAction.setEffectiveWeight(0.0);
+      if (this._idleAction && this._walkAction) {
+        const walkW = Math.max(0, Math.min(1, (this._smoothSpeed - 0.04) / 0.25));
+        this._walkAction.setEffectiveWeight(walkW);
+        this._idleAction.setEffectiveWeight(1 - walkW);
+        this._walkAction.setEffectiveTimeScale(0.85 + Math.min(1.6, this._smoothSpeed / 1.0));
+      }
     }
+
     if (this._mixer) this._mixer.update(delta);
 
     touchSanctuaryTravelCircleTime(this._travelMats);
@@ -466,6 +497,7 @@ export const SanctuaryAvatarModule = {
     this._mixer = null;
     this._idleAction = null;
     this._walkAction = null;
+    this._swimAction = null;
     this._model = null;
     this._shell = null;
     this._travelMats = null;

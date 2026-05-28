@@ -142,9 +142,9 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                     dracoLoader.setDecoderPath('vendor/three/examples/jsm/libs/draco/gltf/');
                     gltfLoader.setDRACOLoader(dracoLoader);
                     
-                    let AVATAR_URL = "Assets/Avatar3.glb";
-                    if (typeof window !== "undefined" && window.location.href.includes("avatar=new")) {
-                      AVATAR_URL = "Assets/npc/Avatar-New.glb";
+                    let AVATAR_URL = "Assets/npc/Avatar-New.glb";
+                    if (typeof window !== "undefined" && window.location.href.includes("avatar=old")) {
+                      AVATAR_URL = "Assets/Avatar3.glb";
                     }
                     gltfLoader.load(AVATAR_URL, (gltf) => {
                       const avatar = gltf.scene;
@@ -236,11 +236,15 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
                         window._avWalkClip =
                           clips.find(c => /walk|run/i.test(c.name)) ??
-                          (isNew ? clips[3] : (clips.length > 5 ? clips[5] : null));
+                          (isNew ? clips[1] : (clips.length > 5 ? clips[5] : null));
 
                         window._avWaveClip =
                           clips.find(c => /wave|greet/i.test(c.name)) ??
-                          (isNew ? clips[6] : (clips.length > 1 ? clips[1] : null));
+                          (isNew ? clips[8] : (clips.length > 1 ? clips[1] : null));
+
+                        window._avSwimClip =
+                          clips.find(c => /swim|float/i.test(c.name)) ??
+                          (isNew ? clips[3] : null) ?? null;
 
                         // POPULATE ANIMATION PANEL FOR TESTING
                         const animPanel =
@@ -252,6 +256,35 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                           animContainer.innerHTML = ""; // Clear old buttons
 
                           // Default to playing Idle so we know it works
+                          if (window._avWaveClip) {
+                            window._avWaveAction =
+                              window._playerAvatarMixer.clipAction(
+                                window._avWaveClip,
+                              );
+                          }
+                          if (window._avSwimClip) {
+                            // Filter out X/Z root motion from swim clip too
+                            window._avSwimClip.tracks.forEach((track) => {
+                              if (track.name.endsWith(".position")) {
+                                const vals = track.values;
+                                if (vals.length >= 3) {
+                                  const startX = vals[0];
+                                  const startZ = vals[2];
+                                  for (let i = 0; i < vals.length; i += 3) {
+                                    vals[i] = startX;
+                                    vals[i + 2] = startZ;
+                                  }
+                                }
+                              }
+                            });
+                            window._avSwimAction =
+                              window._playerAvatarMixer.clipAction(
+                                window._avSwimClip,
+                              );
+                            window._avSwimAction.play();
+                            window._avSwimAction.setEffectiveWeight(0);
+                          }
+
                           if (window._currentAvAction)
                             window._currentAvAction.stop();
                           window._currentAvAction =
@@ -4069,64 +4102,74 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
             // Crossfade animation states
             if (window._avIdleAction && window._avWalkAction) {
-              if (isMoving && !window._avIsWalking) {
-                window._avIsWalking = true;
-                window._avWalkAction.reset().play();
-                window._avWalkAction.crossFadeFrom(
-                  window._avIdleAction,
-                  0.3,
-                  true,
-                );
-                // Mirror onto pip clone
-                if (
-                  window._avatarPipMixer &&
-                  window._avWalkClip &&
-                  window._avIdleClip
-                ) {
-                  const pipWalk = window._avatarPipMixer.clipAction(
-                    window._avWalkClip,
-                  );
-                  const pipIdle = window._avatarPipMixer.clipAction(
-                    window._avIdleClip,
-                  );
-                  pipWalk.reset().play();
-                  pipWalk.crossFadeFrom(pipIdle, 0.3, true);
+              if (window._avLocomotionState === undefined) {
+                window._avLocomotionState = window._avIsWalking ? "walk" : "idle";
+              }
+
+              // Sanctuary pool check: centered at (0, 0), radius 12.0m, water boundary at 11.5m
+              const px = camera.position.x;
+              const pz = camera.position.z;
+              const inPool = Math.hypot(px, pz) < 11.5;
+
+              let desiredState = "idle";
+              if (inPool && window._avSwimAction) {
+                desiredState = "swim";
+              } else if (isMoving) {
+                desiredState = "walk";
+              }
+
+              if (window._avLocomotionState !== desiredState) {
+                const prevState = window._avLocomotionState;
+                window._avLocomotionState = desiredState;
+                window._avIsWalking = (desiredState === "walk");
+
+                const actionsMap = {
+                  idle: window._avIdleAction,
+                  walk: window._avWalkAction,
+                  swim: window._avSwimAction,
+                };
+                const clipsMap = {
+                  idle: window._avIdleClip,
+                  walk: window._avWalkClip,
+                  swim: window._avSwimClip,
+                };
+
+                const prevAction = actionsMap[prevState];
+                const nextAction = actionsMap[desiredState];
+
+                if (nextAction) {
+                  nextAction.reset().play();
+                  if (prevAction) {
+                    nextAction.crossFadeFrom(prevAction, 0.3, true);
+                  } else {
+                    nextAction.setEffectiveWeight(1.0);
+                  }
                 }
+
+                // Mirror onto pip clone
+                if (window._avatarPipMixer) {
+                  const prevClip = clipsMap[prevState];
+                  const nextClip = clipsMap[desiredState];
+                  if (nextClip) {
+                    const pipNext = window._avatarPipMixer.clipAction(nextClip);
+                    pipNext.reset().play();
+                    if (prevClip) {
+                      const pipPrev = window._avatarPipMixer.clipAction(prevClip);
+                      pipNext.crossFadeFrom(pipPrev, 0.3, true);
+                    } else {
+                      pipNext.setEffectiveWeight(1.0);
+                    }
+                  }
+                }
+
+                // Notify control panel iframe of the state change
                 const panelFrame = document.getElementById("panel-frame");
-                if (panelFrame && panelFrame.contentWindow)
+                if (panelFrame && panelFrame.contentWindow) {
                   panelFrame.contentWindow.postMessage(
-                    { type: "AVATAR_ANIM_CHANGE", anim: "walk" },
+                    { type: "AVATAR_ANIM_CHANGE", anim: desiredState },
                     "*",
                   );
-              } else if (!isMoving && window._avIsWalking) {
-                window._avIsWalking = false;
-                window._avIdleAction.reset().play();
-                window._avIdleAction.crossFadeFrom(
-                  window._avWalkAction,
-                  0.3,
-                  true,
-                );
-                // Mirror onto pip clone
-                if (
-                  window._avatarPipMixer &&
-                  window._avIdleClip &&
-                  window._avWalkClip
-                ) {
-                  const pipIdle = window._avatarPipMixer.clipAction(
-                    window._avIdleClip,
-                  );
-                  const pipWalk = window._avatarPipMixer.clipAction(
-                    window._avWalkClip,
-                  );
-                  pipIdle.reset().play();
-                  pipIdle.crossFadeFrom(pipWalk, 0.3, true);
                 }
-                const panelFrame = document.getElementById("panel-frame");
-                if (panelFrame && panelFrame.contentWindow)
-                  panelFrame.contentWindow.postMessage(
-                    { type: "AVATAR_ANIM_CHANGE", anim: "idle" },
-                    "*",
-                  );
               }
             }
           }

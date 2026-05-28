@@ -1105,14 +1105,17 @@ export class SacredOrchestrator {
     const isTopDown = document.body.classList.contains("v4-top-down-view");
     const isFishingActive =
       window.__sanctuaryFishingActive === true && window.__sanctuaryBobberPos != null;
-    // During fishing: throttle PIP to every 4th frame (~15fps) — gauge still looks live
-    // but we stop burning a full 60fps second render pass over the pond.
+    // During fishing: render the PIP every frame. The old throttle (every
+    // 8th frame ≈ 7.5 FPS at 60Hz) existed when the PIP camera rendered the
+    // full pond scene each pass — expensive enough to need an 8× stride.
+    // As of commit 5770a05 the PIP camera is layer-restricted to layer 2
+    // (gauge mesh only via `this._pipOrtho.layers.set(2)`), so each pass
+    // now shades a handful of cover/dial polygons. Cost per pass is tiny;
+    // throttling buys nothing and visibly costs PIP smoothness. User spec
+    // (2026-05-27): "PIP cam needs to be very high resolution and high FPS."
     if (isFishingActive) {
+      // Keep the counter for any downstream consumers; do NOT skip rendering.
       this._fishingPipFrame = ((this._fishingPipFrame ?? 0) + 1);
-      if (this._fishingPipFrame % 8 !== 0) {
-        this._pipRenderedLastFrame = false;
-        return;
-      }
     } else if (!isTopDown && !shouldRenderPipSceneThisFrame()) {
       this._pipRenderedLastFrame = false;
       return;
