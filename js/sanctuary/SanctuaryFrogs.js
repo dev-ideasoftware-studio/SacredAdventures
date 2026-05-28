@@ -60,7 +60,12 @@ const S_STRIKE = 4;
 // few seconds (existing fish AI flees, that's the joke), then they
 // return to a lily. Stored separately from `_frogs` so they don't
 // fall under the solo-frog state machine.
-const FRIEND_FROG_COUNT = 2;
+// User-requested 2026-05-28: "remove the friend 2 frogs they look stupid".
+// Setting count to 0 (rather than deleting the entire pair pipeline) keeps
+// the state-machine code paths inert without touching every reference —
+// the init loop, _updateFriendFrogPair, and _friendFrogs[] all become
+// no-ops because every iterator / length check short-circuits at zero.
+const FRIEND_FROG_COUNT = 0;
 const FRIEND_FOLLOW_DELAY_S = 0.4;
 const FRIEND_REST_MIN_S = 5.0;
 const FRIEND_REST_MAX_S = 8.0;
@@ -232,15 +237,24 @@ function _buildFrog() {
   footGeo.scale(1, 0.1, 1); // flatten
   footGeo.rotateX(Math.PI / 2); // point forward
 
-  // Hind Left Leg (folded)
-  const thighGeo = new THREE.CapsuleGeometry(0.015, 0.06, 4, 8);
+  // Hind Left Leg (folded) — named so animation loop can find + flex it.
+  // Anchor hip a touch closer to body and use a longer thigh so the leg
+  // reads as a "frog leg" rather than a stub (user-asked 2026-05-28:
+  // "where are frog legs"). Default crouch pose, animation extends.
+  const thighGeo = new THREE.CapsuleGeometry(0.014, 0.085, 4, 8);
   const legHL = new THREE.Mesh(thighGeo, legMat);
-  legHL.position.set(-0.08, 0.04, -0.05);
+  legHL.name = "leg_hind_L";
+  legHL.position.set(-0.075, 0.035, -0.045);
   legHL.rotation.x = Math.PI / 2;
   legHL.rotation.z = Math.PI / 4;
-  
+  legHL.userData.basePose = {
+    x: Math.PI / 2,
+    y: 0,
+    z: Math.PI / 4,
+  };
+
   const footHL = new THREE.Mesh(footGeo, legMat);
-  footHL.position.set(0, -0.04, 0.04);
+  footHL.position.set(0, -0.05, 0.05);
   footHL.rotation.x = -Math.PI / 2;
   footHL.rotation.z = -Math.PI / 4;
   legHL.add(footHL);
@@ -248,12 +262,18 @@ function _buildFrog() {
 
   // Hind Right Leg (folded)
   const legHR = new THREE.Mesh(thighGeo, legMat);
-  legHR.position.set(0.08, 0.04, -0.05);
+  legHR.name = "leg_hind_R";
+  legHR.position.set(0.075, 0.035, -0.045);
   legHR.rotation.x = Math.PI / 2;
   legHR.rotation.z = -Math.PI / 4;
+  legHR.userData.basePose = {
+    x: Math.PI / 2,
+    y: 0,
+    z: -Math.PI / 4,
+  };
 
   const footHR = new THREE.Mesh(footGeo, legMat);
-  footHR.position.set(0, -0.04, 0.04);
+  footHR.position.set(0, -0.05, 0.05);
   footHR.rotation.x = -Math.PI / 2;
   footHR.rotation.z = Math.PI / 4;
   legHR.add(footHR);
@@ -262,8 +282,10 @@ function _buildFrog() {
   // Front Left Leg
   const armGeo = new THREE.CapsuleGeometry(0.01, 0.04, 4, 8);
   const armL = new THREE.Mesh(armGeo, legMat);
+  armL.name = "leg_front_L";
   armL.position.set(-0.06, 0.03, 0.08);
   armL.rotation.x = Math.PI / 6;
+  armL.userData.basePose = { x: Math.PI / 6, y: 0, z: 0 };
 
   const footFL = new THREE.Mesh(footGeo, legMat);
   footFL.position.set(0, -0.03, 0.02);
@@ -273,8 +295,10 @@ function _buildFrog() {
 
   // Front Right Leg
   const armR = new THREE.Mesh(armGeo, legMat);
+  armR.name = "leg_front_R";
   armR.position.set(0.06, 0.03, 0.08);
   armR.rotation.x = Math.PI / 6;
+  armR.userData.basePose = { x: Math.PI / 6, y: 0, z: 0 };
 
   const footFR = new THREE.Mesh(footGeo, legMat);
   footFR.position.set(0, -0.03, 0.02);
@@ -282,7 +306,88 @@ function _buildFrog() {
   armR.add(footFR);
   frog.add(armR);
 
+  // Cache the four limb refs on the group for cheap per-frame access.
+  frog.userData.limbs = {
+    hindL:  legHL,
+    hindR:  legHR,
+    frontL: armL,
+    frontR: armR,
+  };
+
   return frog;
+}
+
+/**
+ * Animate the frog's four limbs based on its current state.
+ *   • JUMP:  hind legs EXTEND back at takeoff, TUCK during arc apex,
+ *            REACH forward to land. Front arms tuck during flight.
+ *   • SWIM:  alternating hind-leg breaststroke kick (~3 Hz) +
+ *            front arms held loosely. Speed scales with f.swimSpeed.
+ *   • BASK/SIT: drift gently back to the resting base pose.
+ *
+ * Called from the per-frog update loop with the live state and t∈[0,1]
+ * jump progress (-1 if not jumping). Operates purely on rotation so
+ * there's no allocation per frame.
+ */
+function _animateFrogLimbs(f, state, t, clock) {
+  const limbs = f.group?.userData?.limbs;
+  if (!limbs) return;
+  const { hindL, hindR, frontL, frontR } = limbs;
+  if (!hindL || !hindR || !frontL || !frontR) return;
+
+  if (state === S_JUMP || state === S_STRIKE) {
+    // Hind-leg extension curve: legs SHOOT BACK at takeoff (t≈0–0.15),
+    // TUCK toward body during arc (t≈0.3–0.7), REACH forward for
+    // landing (t≈0.85–1). Pi-pulse approximation via two cosines.
+    const tt = Math.max(0, Math.min(1, t));
+    // extension: -1 (tucked) → +1 (extended back). At takeoff push back,
+    // mid-arc tuck, end-arc push forward.
+    const ext = (tt < 0.2)
+      ? 1.0 - (tt / 0.2)       // 1 → 0  push back, then release
+      : (tt < 0.7)
+        ? -(tt - 0.2) / 0.5    //  0 → -1 tuck under body
+        :  (tt - 0.85) / 0.15 - 1; // -1 → 0 reach forward
+    // Apply: positive ext = thigh rotates DOWN (toes back).
+    const baseX = Math.PI / 2;
+    hindL.rotation.x = baseX + ext * 0.9;
+    hindR.rotation.x = baseX + ext * 0.9;
+    // Splay slightly on extension so it reads as a kick not a stab.
+    hindL.rotation.z = (Math.PI / 4)  + ext * 0.25;
+    hindR.rotation.z = (-Math.PI / 4) - ext * 0.25;
+    // Front arms tuck against chest in flight.
+    const tuck = 0.8;
+    frontL.rotation.x = (Math.PI / 6) + tuck * (1 - Math.abs(ext));
+    frontR.rotation.x = (Math.PI / 6) + tuck * (1 - Math.abs(ext));
+    return;
+  }
+
+  if (state === S_SWIM) {
+    // Breaststroke kick: ~3 Hz extend/retract on hind legs, alternating
+    // slightly between L/R so it's not stiff-symmetrical.
+    const omega = (1.5 + (f.swimSpeed || 0.5) * 2.0); // Hz scaled by speed
+    const kick = Math.sin(clock * Math.PI * 2 * omega);
+    const kickR = Math.sin(clock * Math.PI * 2 * omega + 0.35);
+    const baseX = Math.PI / 2;
+    hindL.rotation.x = baseX + kick  * 0.6;
+    hindR.rotation.x = baseX + kickR * 0.6;
+    hindL.rotation.z = (Math.PI / 4)  + kick  * 0.15;
+    hindR.rotation.z = (-Math.PI / 4) + kickR * 0.15;
+    // Front arms paddle small + out of phase with hind.
+    const armWave = Math.sin(clock * Math.PI * 2 * omega + Math.PI);
+    frontL.rotation.x = (Math.PI / 6) + armWave * 0.2;
+    frontR.rotation.x = (Math.PI / 6) - armWave * 0.2;
+    return;
+  }
+
+  // Default (BASK_LILY etc.): drift back to base pose at ~6/s.
+  const k = 0.15;
+  for (const limb of [hindL, hindR, frontL, frontR]) {
+    const b = limb.userData.basePose;
+    if (!b) continue;
+    limb.rotation.x += (b.x - limb.rotation.x) * k;
+    limb.rotation.y += (b.y - limb.rotation.y) * k;
+    limb.rotation.z += (b.z - limb.rotation.z) * k;
+  }
 }
 
 // ── AI Logic ──────────────────────────────────────────────────────────────
@@ -501,7 +606,7 @@ export const SanctuaryFrogsModule = {
 
     scene.add(_group);
     console.log(
-      `%c[SanctuaryFrogs] 🐸 Photoreal frogs online — ${FROG_COUNT} solo + ${SMALL_FROG_COUNT} small + ${FRIEND_FROG_COUNT} buddy-pair. Lilies: reused from SanctuaryPool.`,
+      `%c[SanctuaryFrogs] 🐸 Photoreal frogs online — ${FROG_COUNT} solo + ${SMALL_FROG_COUNT} small (buddy-pair retired 2026-05-28). Lilies: reused from SanctuaryPool.`,
       "color:#a5d6a7;font-weight:bold;",
     );
   },
@@ -555,6 +660,14 @@ export const SanctuaryFrogsModule = {
         // match the lily pad bob, or water bob
         f.group.position.y += Math.sin(_clock * 4.0) * 0.0005;
       }
+
+      // Per-frog limb animation — runs every state (basking drifts back
+      // to pose, swim breaststroke kick, jump extend-tuck-reach).
+      // jumpT only valid during JUMP/STRIKE; use -1 otherwise.
+      const jumpT = (f.state === S_JUMP || f.state === S_STRIKE)
+        ? (f.duration > 0 ? Math.min(1, f.timer / f.duration) : 0)
+        : -1;
+      _animateFrogLimbs(f, f.state, jumpT, _clock);
 
       if (f.state === S_JUMP) {
         f.timer += scaledDt;

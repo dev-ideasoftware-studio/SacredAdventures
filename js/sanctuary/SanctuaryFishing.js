@@ -458,6 +458,12 @@ function _build3DGauge(scene) {
   // so the yaw rotates around true world-Y regardless of the X tilt.
   g.rotation.order = "YXZ";
   g.rotation.x = -Math.PI / 2;
+  // rotation.z is now driven PER-FRAME in _update3DGauge to compensate
+  // for the billboard rotation.y so the colored arc ALWAYS lands at the
+  // TOP of the PIP top-down camera view. See the in-frame comment there
+  // for the math. Static initial value is 0; will be overwritten on the
+  // first update tick.
+  g.rotation.z = 0;
   g.scale.setScalar(GAUGE_3D_SCALE);
   // Sit atop the water surface: group origin = WATER_Y_M so base plate
   // rests on the surface; dial face (local z≈0.12) floats ~29mm above water.
@@ -514,6 +520,19 @@ function _update3DGauge(g, frac, labelText, isReeling, time, camera) {
     // atan2(dx, dz): angle from +Z toward camera; arc opens toward camera.
     g.rotation.y = Math.atan2(dx, dz);
   }
+  // User-requested 2026-05-28 (22x): "put gauge in top, half and half —
+  // top and bottom". The fishing PIP is an ORTHO TOP-DOWN camera with
+  // up=(0,0,-1), so the PIP frame's TOP edge corresponds to world -Z.
+  // After YXZ rotation, the colored arc (local +Y in 2D plane) lands at
+  // world direction (-sin(θy+θz), 0, -cos(θy+θz)). To make that always
+  // equal (0, 0, -1) (= world -Z = TOP of PIP frame), we need
+  // θy + θz = 0, i.e. θz = -θy. Setting rotation.z each frame cancels
+  // the billboard's effect on the arc's PIP position so the colored
+  // semicircle is the TOP HALF of the PIP gauge regardless of which
+  // direction the player camera is approaching from. Cover/clear half
+  // sits at the bottom, dial face is split horizontally — exactly the
+  // "half and half top and bottom" the user has been requesting.
+  g.rotation.z = -g.rotation.y;
 
   // Needle: FAIL(π) → CAUGHT!(0)
   const ng = g.userData.needleGroup;
@@ -2126,17 +2145,13 @@ export const SanctuaryFishingModule = {
         }
 
         if (this._landingProgress >= 1.0) {
-          // 15% escape roll
-          if (Math.random() < 0.15) {
-            playFishingTone('fail');
-            showWoWCombatText("It got away!", false);
-            if (window.__interestedFish) {
-              window.__interestedFish.userData.isStruggling = false;
-              window.__interestedFish.userData.interestTimer = 0;
-              window.__interestedFish = null;
-            }
-            this._endIdle(false);
-          } else {
+          // User-requested 2026-05-28: "auto land the fish for players".
+          // Removed the 15% escape roll at landing — kid players were
+          // losing fish after a 12-second auto-reel, which reads as
+          // unfair punishment rather than skill. Landing is now
+          // guaranteed once the auto-progress completes; the only
+          // failure path remains BITE_WINDOW timeout (still in BITE).
+          {
             // Success! Attach fish to avatar side and grant reward!
             playFishingTone('success');
             showWoWCombatText("You caught a fish!", true);
@@ -2313,6 +2328,11 @@ export const SanctuaryFishingModule = {
             const dx = this._camera.position.x - this._gauge3d.position.x;
             const dz = this._camera.position.z - this._gauge3d.position.z;
             this._gauge3d.rotation.y = Math.atan2(dx, dz);
+            // Compensate billboard so colored arc stays at TOP of PIP
+            // (see _update3DGauge for the math). Without this, the
+            // lite-update path leaves rotation.z stale and the arc
+            // walks around the PIP as the player moves.
+            this._gauge3d.rotation.z = -this._gauge3d.rotation.y;
           }
         }
       } else {

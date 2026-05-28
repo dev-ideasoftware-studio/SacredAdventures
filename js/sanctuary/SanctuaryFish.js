@@ -409,94 +409,145 @@ export const SanctuaryFishModule = {
               window.__sanctuaryFishingSpawnRipple(fish.position.x, fish.position.z);
             }
           } else {
-            // ── Interest behaviour: jump arc → horizontal approach ──
-            // Fish jumps out of the water with a splash, then swims
-            // horizontally toward the lure — always facing the hook,
-            // Y clamped below the surface so they never "fly".
+            // ── Interest behaviour (user-rewritten 2026-05-28) ──
+            // "if a fish is interested it will be below the bait looking
+            //  up at it, slowly wigling it will not cross the center
+            //  until it bites ... sink lower when they want the fish
+            //  and diagonal facing up to strike"
+            //
+            // Three-phase state machine on `ud._interestPhase`:
+            //   sink   → approach the bait from below, sinking deeper
+            //            and drifting toward XZ alignment with the bait.
+            //   hover  → linger ~50 cm BELOW the bait, slow tail wiggle,
+            //            diagonal-up pitch (face the lure), and a hard
+            //            radius clamp so the fish NEVER crosses the
+            //            bait's XZ centre until it bites.
+            //   strike → diagonal-up lunge from below toward the bait;
+            //            on contact the legacy "isStruggling" branch
+            //            takes over (set elsewhere). Phase auto-fires
+            //            from hover after a randomised dwell.
             const targetX = bPos.x;
             const targetZ = bPos.z;
             const waterSurfaceY =
               typeof window !== "undefined" && Number.isFinite(window.__sanctuaryWaterY)
                 ? window.__sanctuaryWaterY
                 : -0.05;
+            // Bait sits at the water surface; the fish hovers 50 cm
+            // below it.  Pool basin floor at the centre is ~waterY-1.0,
+            // so 50 cm leaves clear water above + below — fish never
+            // bumps the basin.
+            const HOVER_DEPTH_BELOW_BAIT_M = 0.50;
+            const hoverY = waterSurfaceY - HOVER_DEPTH_BELOW_BAIT_M;
+            // Minimum XZ distance from bait centre — fish cannot
+            // cross this line until it transitions to `strike`.
+            const NO_CROSS_RADIUS_M = 0.18;
+            // Pitch (radians) for "diagonal up" — ~25° above horizontal.
+            const DIAGONAL_UP_PITCH_RAD = 0.44;
 
             const dx = targetX - fish.position.x;
             const dz = targetZ - fish.position.z;
             const dist = Math.hypot(dx, dz);
 
             // Initialise interest state on the first frame interested.
-            // Baby fish skip the jump — they're too small to breach the surface.
             if (!ud._interestPhase) {
-              if (ud.isBabyFish) {
-                ud._interestPhase = "approach"; // no jump for tiny fish
-              } else {
-                ud._interestPhase = "jump";
-                ud._jumpTimer = 0;
-                ud._jumpPeakSplashed = false;
-                // Entry ripple at the fish's current position
-                if (typeof window !== "undefined" && window.__sanctuaryFishingSpawnRipple) {
-                  window.__sanctuaryFishingSpawnRipple(fish.position.x, fish.position.z);
-                }
+              ud._interestPhase = "sink";
+              ud._interestTimer = 0;
+              ud._strikeDwell = 4.0 + Math.random() * 4.0; // 4-8 s of hovering
+              // Entry ripple at the fish's current position.
+              if (typeof window !== "undefined" && window.__sanctuaryFishingSpawnRipple) {
+                window.__sanctuaryFishingSpawnRipple(fish.position.x, fish.position.z);
+              }
+            }
+            ud._interestTimer += delta;
+
+            // ── SINK ── descend + drift in toward the bait XZ
+            if (ud._interestPhase === "sink") {
+              if (dist > NO_CROSS_RADIUS_M) {
+                const speed = 0.35 * delta;
+                fish.position.x += (dx / dist) * speed;
+                fish.position.z += (dz / dist) * speed;
+              }
+              // Sink toward hover depth (smooth, ~1.5 s to settle).
+              fish.position.y += (hoverY - fish.position.y) * Math.min(1.0, 1.5 * delta);
+
+              // Face the bait diagonal-up
+              if (dist > 0.01) {
+                const heading = Math.atan2(dz, dx);
+                fish.rotation.set(DIAGONAL_UP_PITCH_RAD * 0.5, -heading + Math.PI, 0);
+              }
+
+              // Settled criterion: close to hover depth AND outside
+              // the no-cross radius (so we don't slam through).
+              const yDelta = Math.abs(fish.position.y - hoverY);
+              if (yDelta < 0.05 && dist <= NO_CROSS_RADIUS_M + 0.08) {
+                ud._interestPhase = "hover";
+                ud._interestTimer = 0;
               }
             }
 
-            if (ud._interestPhase === "jump") {
-              const JUMP_DURATION = 0.55;
-              ud._jumpTimer += delta;
-              const jumpFrac = Math.min(1.0, ud._jumpTimer / JUMP_DURATION);
-              // Sine arc — peak height 0.28 m above water surface
-              const jumpHeight = Math.sin(jumpFrac * Math.PI) * 0.28;
-              fish.position.y = waterSurfaceY + jumpHeight;
-
-              // Drift gently toward the lure during the arc
-              if (dist > 0.1) {
-                fish.position.x += (dx / dist) * 0.06 * delta;
-                fish.position.z += (dz / dist) * 0.06 * delta;
+            // ── HOVER ── stay below bait, slow wiggle, never cross centre
+            else if (ud._interestPhase === "hover") {
+              // Hard clamp: if drift brought us inside no-cross radius,
+              // push back out toward the closest edge of the ring.
+              if (dist < NO_CROSS_RADIUS_M) {
+                const nx = -dx / Math.max(0.001, dist);
+                const nz = -dz / Math.max(0.001, dist);
+                fish.position.x = targetX + nx * NO_CROSS_RADIUS_M;
+                fish.position.z = targetZ + nz * NO_CROSS_RADIUS_M;
               }
+              // Drift gently along the ring (slow orbit ~0.05 rad/s)
+              // so the fish doesn't look frozen.
+              const ringAngle = Math.atan2(-dz, -dx) + delta * 0.05;
+              const ringR = NO_CROSS_RADIUS_M + 0.04 + Math.sin(t * 0.6) * 0.02;
+              fish.position.x = targetX + Math.cos(ringAngle) * ringR;
+              fish.position.z = targetZ + Math.sin(ringAngle) * ringR;
+              // Vertical bob — very gentle, ±1 cm around hover depth.
+              fish.position.y = hoverY + Math.sin(t * 1.2) * 0.012;
 
-              // Face the lure (Y-axis only — no pitch)
-              if (dist > 0.01) {
-                const heading = Math.atan2(dz, dx);
-                fish.rotation.set(0, -heading + Math.PI, 0);
+              // Always face the bait, diagonal-up.  Tail wiggle goes
+              // into a small rotation-Z oscillation (not Y heading) so
+              // the body roll reads as "thinking, swaying", not panic.
+              const heading = Math.atan2(targetZ - fish.position.z, targetX - fish.position.x);
+              const tailWiggle = Math.sin(t * 2.4) * 0.10;
+              fish.rotation.set(DIAGONAL_UP_PITCH_RAD, -heading + Math.PI, tailWiggle);
+
+              // After the random dwell, commit to strike.
+              if (ud._interestTimer >= ud._strikeDwell) {
+                ud._interestPhase = "strike";
+                ud._interestTimer = 0;
               }
+            }
 
-              // Peak splash at ~50% of arc
-              if (!ud._jumpPeakSplashed && jumpFrac > 0.45) {
-                ud._jumpPeakSplashed = true;
+            // ── STRIKE ── diagonal-up lunge from below
+            else if (ud._interestPhase === "strike") {
+              const STRIKE_DURATION = 0.55;
+              const frac = Math.min(1.0, ud._interestTimer / STRIKE_DURATION);
+              // Ease-out: fast launch, slow approach to the bait.
+              const ease = 1 - (1 - frac) * (1 - frac);
+              // Interpolate from hover position toward bait position.
+              const startX = targetX + (fish.position.x - targetX) * (1 - ease);
+              const startZ = targetZ + (fish.position.z - targetZ) * (1 - ease);
+              const startY = hoverY + (waterSurfaceY - 0.06 - hoverY) * ease;
+              fish.position.set(startX, startY, startZ);
+              // Pitch increases through the strike — by impact she's
+              // angled steeply up at ~40°.
+              const strikePitch = DIAGONAL_UP_PITCH_RAD + ease * 0.30;
+              const heading = Math.atan2(dz, dx);
+              fish.rotation.set(strikePitch, -heading + Math.PI, 0);
+
+              // Splash at the half-way point of the strike
+              if (!ud._strikeSplashed && frac > 0.55) {
+                ud._strikeSplashed = true;
                 if (typeof window !== "undefined" && window.__sanctuaryFishingSpawnRipple) {
-                  window.__sanctuaryFishingSpawnRipple(fish.position.x, fish.position.z);
+                  window.__sanctuaryFishingSpawnRipple(targetX, targetZ);
                 }
               }
-
-              if (ud._jumpTimer >= JUMP_DURATION) {
-                ud._interestPhase = "approach";
-                // Landing splash
-                if (typeof window !== "undefined" && window.__sanctuaryFishingSpawnRipple) {
-                  window.__sanctuaryFishingSpawnRipple(fish.position.x, fish.position.z);
-                }
-              }
-            } else {
-              // Approach phase: swim horizontally toward lure, stay just below surface
-              if (dist > 0.05) {
-                const speed = 0.29 * delta;
-                fish.position.x += (dx / dist) * speed;
-                fish.position.z += (dz / dist) * speed;
-              } else {
-                fish.position.x = targetX;
-                fish.position.z = targetZ;
-              }
-
-              // Smooth Y toward just-below surface (visible to player)
-              const approachY = waterSurfaceY - 0.10;
-              fish.position.y += (approachY - fish.position.y) * Math.min(1.0, 5.0 * delta);
-              // Hard clamp: never above surface
-              if (fish.position.y > waterSurfaceY - 0.04) fish.position.y = waterSurfaceY - 0.04;
-
-              // Face the lure — Y-axis rotation only, no pitch (no flying look)
-              if (dist > 0.01) {
-                const heading = Math.atan2(dz, dx);
-                const wiggle = Math.sin(t * 3.5) * 0.08;
-                fish.rotation.set(0, -heading + Math.PI + wiggle, 0);
+              // On reaching the bait, hand off to the existing struggle
+              // path (set externally when the bite is registered).
+              if (frac >= 1.0) {
+                // Lock to the bait, let `isStruggling` take over next frame.
+                fish.position.set(targetX, waterSurfaceY - 0.06, targetZ);
+                ud._interestPhase = "hooked";
               }
             }
           }

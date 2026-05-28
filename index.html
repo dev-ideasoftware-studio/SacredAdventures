@@ -3,6 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--
+    User-requested 2026-05-28: "add no-caching for the main scene".
+    Belt-and-braces against stale HTML: the service worker (sw.js)
+    already busts on cache version bump, but proxies/CDNs in front of
+    GitHub Pages occasionally hold an older index.html for minutes,
+    which then loads a mismatched manifest of JS modules. These three
+    headers tell every cache (browser, proxy, CDN) to revalidate on
+    every load. Module JS itself is still cache-controlled by the SW.
+  -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Sacred Adventures v4 — Sanctuary</title>
   <!--
     Sanctuary build (May-17 2026). Per the user:

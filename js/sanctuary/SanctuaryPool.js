@@ -987,16 +987,20 @@ function buildPoolRocks(centerY) {
   microMesh.name = "sanctuary_pool_micro_pebbles";
   microMesh.userData.anuKind = "sanctuary_pool_micro_pebble";
   microMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
-  // Mix mossy greens into the micro-pebble palette so the gravel bed
-  // reads as "alive / damp" instead of a uniform dry pile.
+  // User-requested 2026-05-28 (12x): "where is the sand at bottom of
+  // pond, only see grass textures". The green tints below were drowning
+  // the sandy basin texture from above. Dropped all three moss-green
+  // colors and added more sand/tan variants so the gravel bed reads as
+  // SAND-COLOURED gravel, not a green carpet. The actual moss tufts
+  // (1500 → 250 below) provide the few green accents we still want.
   const microPalette = [
-    new THREE.Color(0x554838), // ochre stone (re-use)
+    new THREE.Color(0x554838), // ochre stone
     new THREE.Color(0x3a3025), // dirty brown
     new THREE.Color(0x4a4035), // medium silt
     new THREE.Color(0x665540), // pale sand
-    new THREE.Color(0x3d4a2a), // mossy green (interweave)
-    new THREE.Color(0x4a5a36), // brighter moss
-    new THREE.Color(0x2f3a24), // dark moss
+    new THREE.Color(0x806a48), // light dry sand
+    new THREE.Color(0x6b5638), // warm sand
+    new THREE.Color(0x4a3a25), // dark wet sand
     new THREE.Color(0x5b4a35), // wet sand
   ];
   for (let i = 0; i < MICRO_PEBBLE_COUNT; i++) {
@@ -1024,13 +1028,16 @@ function buildPoolRocks(centerY) {
   if (microMesh.instanceColor) microMesh.instanceColor.needsUpdate = true;
   group.add(microMesh);
 
-  // ── MOSS TUFTS — green blades interwoven with the rocks ───────────
-  // 1500 instanced crossed-quad tufts (4 tris each), 0.03–0.08 m tall.
-  // Each tuft is two thin planes crossed at 90° so the silhouette
-  // reads from any angle. Half the tufts are placed AT existing rock
-  // anchor positions (offset slightly) so they grow *between* the
-  // rocks like wet moss; the other half scatter free across the floor.
-  const MOSS_COUNT = 1500;
+  // ── MOSS TUFTS — sparse green blades scattered across the rocks ───
+  // 250 instanced crossed-quad tufts (4 tris each), 0.03–0.06 m tall.
+  // User-requested 2026-05-28 (12x): "where is the sand at bottom of
+  // pond, only see grass". Dropped from 1500 → 250 so the sandy basin
+  // and gravel are dominant — moss is now occasional accents around the
+  // rocks, not a green carpet covering the floor. Each tuft is two thin
+  // planes crossed at 90° so silhouette reads from any angle. Bias is
+  // now 80% rock-anchored / 20% free-scatter so the few remaining tufts
+  // cluster around rocks where moss naturally grows in real ponds.
+  const MOSS_COUNT = 250;
   const mossGeo = _buildMossTuftGeometry();
   const mossMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -1057,15 +1064,15 @@ function buildPoolRocks(centerY) {
   ];
   for (let i = 0; i < MOSS_COUNT; i++) {
     let x, z;
-    if (rockAnchors.length && rng() < 0.55) {
-      // 55%: grow near an existing rock anchor — interweaves with stones
+    if (rockAnchors.length && rng() < 0.80) {
+      // 80%: grow near an existing rock anchor — interweaves with stones
       const anchor = rockAnchors[Math.floor(rng() * rockAnchors.length)];
       const clusterR = anchor.r * 0.6 + rng() * 0.35;
       const clusterTheta = rng() * Math.PI * 2;
       x = anchor.x + Math.cos(clusterTheta) * clusterR;
       z = anchor.z + Math.sin(clusterTheta) * clusterR;
     } else {
-      // 45%: free scatter across the floor
+      // 20%: free scatter across the floor
       const theta = rng() * Math.PI * 2;
       const dNorm = Math.sqrt(rng());
       const d = 0.65 + dNorm * (SANCTUARY_POOL_RADIUS_M * 0.86 - 0.65);
