@@ -37,12 +37,17 @@ const GOLD = 0xfbc02d;
 const MOONLIGHT = 0xb6dff5;
 
 /**
- * Fishing-spot ring — simplified per user spec (May-25 2026):
- *   "remove yellow borders around fishing circle, just slowly pulse
- *    the white border"
+ * Fishing-spot circle — rewritten 2026-05-28 per user:
+ *   "fishing circle has exact same type circle as the player has
+ *    — same design = same zindex and remove the fish circle inner border"
  *
- * Was: gold outer ring + gold inner ring + 4 gold tick marks (very busy)
- * Now: ONE soft white ring that gently breathes opacity. Calm and clean.
+ * Was: hollow RingGeometry(0.92, 0.99) — the 0.92 inner edge read as
+ *      a visible "inner border" the user wanted gone.
+ * Now: SOLID CircleGeometry(0.99) — single flat disc, no inner edge.
+ *      Mirrors the player travel-disc structure (one solid CircleGeometry)
+ *      and sits at renderOrder 18 + depthTest:false, the same recipe
+ *      `js/v2/WorldAvatar.js` uses for the player disc body. Cream-white
+ *      colour distinguishes the fishing target from the player's green.
  */
 const FISHING_RING_WHITE = 0xfdf6e8;   // warm cream-white (not pure)
 function buildFishingSpotRing(spotX, spotY, spotZ) {
@@ -52,31 +57,33 @@ function buildFishingSpotRing(spotX, spotY, spotZ) {
   group.userData.anuKind = "sanctuary_fishing_spot_ring";
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
   // Lift higher (+0.06 vs old +0.03) so even if the spotY is slightly
-  // off, the ring sits cleanly above the deck.
+  // off, the disc sits cleanly above the deck.
   group.position.set(spotX, spotY + 0.06, spotZ);
 
-  // Single thin white ring, slow opacity pulse driven from update().
-  // depthTest: false → composite OVER any geometry that would otherwise
-  // occlude (e.g. the dock deck) so kids always see the fishing target.
-  const ringGeo = new THREE.RingGeometry(0.92, 0.99, 56);
-  const ringMat = new THREE.MeshBasicMaterial({
+  // Solid disc — no inner border. Matches the player travel-disc
+  // structure (single CircleGeometry, no concentric ring outline) and
+  // uses the same renderOrder 18 + depthTest:false recipe so it
+  // composites above dock deck the way the player disc does.
+  const discGeo = new THREE.CircleGeometry(0.99, 56);
+  const discMat = new THREE.MeshBasicMaterial({
     color: FISHING_RING_WHITE,
     transparent: true,
     opacity: 0.62,
     depthWrite: false,
-    depthTest: false,            // ← ring always shows through
+    depthTest: false,            // ← disc always shows through dock
     side: THREE.DoubleSide,
     toneMapped: false,
   });
-  const ring = new THREE.Mesh(ringGeo, ringMat);
-  ring.rotation.x = -Math.PI / 2;
-  ring.renderOrder = 999;        // render after EVERYTHING else
-  ring.userData.anuKind = "sanctuary_fishing_spot_ring_white";
-  ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
-  group.add(ring);
+  const disc = new THREE.Mesh(discGeo, discMat);
+  disc.rotation.x = -Math.PI / 2;
+  disc.renderOrder = 18;         // same z-index as the player disc body
+  disc.userData.anuKind = "sanctuary_fishing_spot_disc";
+  disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  group.add(disc);
 
-  // Stash the material so update() can pulse opacity.
-  group.userData._whiteRingMat = ringMat;
+  // Stash the material so update() can pulse opacity (key name kept
+  // for back-compat with the existing pulse logic in update()).
+  group.userData._whiteRingMat = discMat;
   return group;
 }
 

@@ -1,9 +1,9 @@
 {
-  "subject": "revert(fishing): un-hide dial koi + un-hide player border + drop gauge outer rim",
-  "isoDate": "2026-05-28T15:09:27-05:00",
+  "subject": "fix(circles): fishing-spot disc matches player travel-disc design — solid circle, renderOrder 18",
+  "isoDate": "2026-05-28T15:25:13-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "6b7b5f8",
+  "commit": "6af0c43",
   "dirty": true,
-  "generatedAt": "2026-05-28T20:09:30.972Z"
+  "generatedAt": "2026-05-28T20:25:17.518Z"
 }
