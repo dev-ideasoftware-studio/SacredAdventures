@@ -190,7 +190,10 @@ export const SanctuaryFishModule = {
         fish.layers.enable(1);
         fish.layers.enable(2);
 
-        const orbitFrac = 0.22 + (i / FISH_COUNT) * 0.58;
+        // orbitFrac in [0.22, 0.72] → max orbit ≈ 8.6 m, stays inside the
+        // bowl-water intersection (~9.5 m) so fish never appear embedded
+        // in the rim slope.
+        const orbitFrac = 0.22 + (i / FISH_COUNT) * 0.50;
         const orbitR = SANCTUARY_POOL_RADIUS_M * orbitFrac;
         const orbitDir = i % 2 === 0 ? 1 : -1;
         fish.userData.orbitR = orbitR;
@@ -691,7 +694,11 @@ export const SanctuaryFishModule = {
         const dxFromCenter = fish.position.x - this._cx;
         const dzFromCenter = fish.position.z - this._cz;
         const distFromCenter = Math.hypot(dxFromCenter, dzFromCenter);
-        const MAX_R = SANCTUARY_POOL_RADIUS_M * 0.85; // keep inside pool
+        // The bowl carve rises ABOVE waterline beyond r ≈ 0.79 * poolRadius
+        // (`1 - inner² = WATER_DROP / POOL_DEPTH`). Beyond that the fish would
+        // swim into the visible rim slope. Clamp comfortably inside (0.75) so
+        // there's a small water-margin between the school's orbit and the rim.
+        const MAX_R = SANCTUARY_POOL_RADIUS_M * 0.75;
         
         if (distFromCenter > MAX_R) {
           // Force target heading towards the pool center

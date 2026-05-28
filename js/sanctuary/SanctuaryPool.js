@@ -382,13 +382,59 @@ function _makeBasinFloorTexture() {
 }
 
 function buildBasinFloor(centerY) {
-  // Higher-res disc so the procedural texture has fragments to interpolate
-  // across (32 segs was fine for a flat color; 64 gives the silt streaks
-  // and edge vignette smoother curvature at the rim).
-  const geo = new THREE.CircleGeometry(SANCTUARY_POOL_RADIUS_M * 0.92, 64);
+  // BOWL-SHAPED basin floor — 2026-05-28: was a flat disc at -1.0 m which
+  // sat well below the bowl-shaped terrain carve, exposing the grass-
+  // textured terrain mesh as the visible "pool wall". The user reported
+  // the grass texture showing underwater at the rim. Fix: sculpt the
+  // disc to follow the same quartic bowl curve as the terrain so the
+  // sand texture drapes over the entire bowl slope, hiding the grass.
+  const RADIUS = SANCTUARY_POOL_RADIUS_M * 0.96;
+  const SEGS = 96;
+  const RINGS = 24;
+  const geo = new THREE.CircleGeometry(RADIUS, SEGS, 0, Math.PI * 2);
+  // CircleGeometry has 1 center vertex + (segs+1) rim vertices. To get a
+  // properly tessellated bowl we need more rings, so build a ring-based
+  // disc manually instead.
+  const positions = [];
+  const indices = [];
+  const uvs = [];
+  positions.push(0, 0, -SANCTUARY_POOL_DEPTH_M);  // centre vertex
+  uvs.push(0.5, 0.5);
+  for (let ring = 1; ring <= RINGS; ring++) {
+    const ringR = (ring / RINGS) * RADIUS;
+    const inner = ringR / SANCTUARY_POOL_RADIUS_M;
+    const bowl = 1 - inner * inner * inner * inner;     // quartic — matches terrain
+    const localZ = -SANCTUARY_POOL_DEPTH_M * bowl;       // depth below water surface
+    for (let i = 0; i <= SEGS; i++) {
+      const theta = (i / SEGS) * Math.PI * 2;
+      const x = Math.cos(theta) * ringR;
+      const y = Math.sin(theta) * ringR;
+      positions.push(x, y, localZ);
+      uvs.push(0.5 + x / (RADIUS * 2), 0.5 + y / (RADIUS * 2));
+    }
+  }
+  // Triangulate: centre → ring 1 fan, then ring-to-ring strips.
+  for (let i = 0; i < SEGS; i++) {
+    indices.push(0, 1 + i, 1 + i + 1);
+  }
+  for (let ring = 1; ring < RINGS; ring++) {
+    const rowA = 1 + (ring - 1) * (SEGS + 1);
+    const rowB = 1 + ring * (SEGS + 1);
+    for (let i = 0; i < SEGS; i++) {
+      indices.push(rowA + i, rowB + i, rowB + i + 1);
+      indices.push(rowA + i, rowB + i + 1, rowA + i + 1);
+    }
+  }
+  const sculpted = new THREE.BufferGeometry();
+  sculpted.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  sculpted.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  sculpted.setIndex(indices);
+  sculpted.computeVertexNormals();
+  geo.dispose();
+
   const floorTex = _makeBasinFloorTexture();
   const mat = new THREE.MeshStandardMaterial({
-    color: 0xffffff, // let the texture carry the color
+    color: 0xffffff,
     map: floorTex,
     bumpMap: floorTex,
     bumpScale: 0.06,
@@ -396,11 +442,15 @@ function buildBasinFloor(centerY) {
     roughness: 0.95,
     metalness: 0.0,
   });
-  const mesh = new THREE.Mesh(geo, mat);
+  const mesh = new THREE.Mesh(sculpted, mat);
   mesh.rotation.x = -Math.PI / 2;
+  // After the X-rotation, local z displacements map to world Y. To match
+  // the terrain bowl (rim at meadow≈0, centre at −DEPTH), the mesh origin
+  // sits at meadow level. Tiny +0.02 m lift avoids z-fighting with the
+  // terrain bowl underneath.
   mesh.position.set(
     SANCTUARY_POOL_CENTER_X,
-    centerY - SANCTUARY_POOL_DEPTH_M * 0.62,
+    0.02,
     SANCTUARY_POOL_CENTER_Z,
   );
   mesh.receiveShadow = true;
@@ -839,9 +889,12 @@ function buildPoolRocks(centerY) {
     new THREE.Color(0x554838), // ochre pebble
   ];
 
-  const ROCKS_DODEC_COUNT = 175;
-  const ROCKS_ICOS_COUNT  = 150;
-  const PEBBLE_COUNT      = 420;
+  // 2026-05-28: user-requested "more boulders" — bumped each rock tier by
+  // ~50 %, scaled by the new 25 %-larger pool. Pebble count up too so the
+  // bigger basin doesn't read sparse around the new rim.
+  const ROCKS_DODEC_COUNT = 260;
+  const ROCKS_ICOS_COUNT  = 225;
+  const PEBBLE_COUNT      = 620;
 
   const dodecGeo  = new THREE.DodecahedronGeometry(1.0, 0);
   const icosGeo   = new THREE.IcosahedronGeometry(1.0, 0);
@@ -888,7 +941,12 @@ function buildPoolRocks(centerY) {
 
       const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
       const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
-      const y = bottomY - 0.05 + rng() * 0.05 + scaleY * 0.3;
+      // 2026-05-28: basin floor is now bowl-shaped (quartic), so rocks must
+      // sit on the LOCAL floor at their radius, not a uniform deepest-bottom Y.
+      // Quartic bowl Y at this rock's distance from centre:
+      const rInner = Math.min(1, d / SANCTUARY_POOL_RADIUS_M);
+      const bowlY = -SANCTUARY_POOL_DEPTH_M * (1 - rInner * rInner * rInner * rInner);
+      const y = bowlY + 0.02 + rng() * 0.04 + scaleY * 0.3;
 
       _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
       _quat.setFromEuler(_euler);
@@ -976,7 +1034,10 @@ function buildPoolRocks(centerY) {
     const scaleX = r * (0.85 + rng() * 0.35);
     const scaleY = r * (0.50 + rng() * 0.25);
     const scaleZ = r * (0.85 + rng() * 0.35);
-    const y = bottomY - 0.02 + rng() * 0.03 + scaleY * 0.3;
+    // Sit pebble on local bowl floor (same quartic as basin floor mesh).
+    const pInner = Math.min(1, distFromCenter / SANCTUARY_POOL_RADIUS_M);
+    const pBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - pInner * pInner * pInner * pInner);
+    const y = pBowlY + 0.015 + rng() * 0.02 + scaleY * 0.3;
 
     _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
     _quat.setFromEuler(_euler);

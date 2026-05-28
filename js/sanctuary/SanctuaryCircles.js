@@ -32,6 +32,11 @@ import {
   SANCTUARY_POOL_RADIUS_M,
   sanctuaryGroundY,
 } from "./SanctuaryGround.js";
+import {
+  createPhotorealTravelDiscMaterial,
+  createPhotorealTravelRingMaterial,
+  touchTravelCircleTime,
+} from "../v2/anu/TravelFloorCircleMaterials.js";
 
 const GOLD = 0xfbc02d;
 const MOONLIGHT = 0xb6dff5;
@@ -49,7 +54,7 @@ const MOONLIGHT = 0xb6dff5;
  *      `js/v2/WorldAvatar.js` uses for the player disc body. Cream-white
  *      colour distinguishes the fishing target from the player's green.
  */
-const FISHING_RING_WHITE = 0x68d4ff;   // beautiful light blue
+const FISHING_RING_BLUE = 0x68d4ff;   // beautiful light blue
 function buildFishingSpotRing(spotX, spotY, spotZ) {
   const group = new THREE.Group();
   group.name = "sanctuary_fishing_spot_ring";
@@ -60,30 +65,43 @@ function buildFishingSpotRing(spotX, spotY, spotZ) {
   // off, the disc sits cleanly above the deck.
   group.position.set(spotX, spotY + 0.06, spotZ);
 
-  // Solid disc — no inner border. Matches the player travel-disc
-  // structure (single CircleGeometry, no concentric ring outline) and
-  // uses the same renderOrder 18 + depthTest:false recipe so it
-  // composites above dock deck the way the player disc does.
-  const discGeo = new THREE.CircleGeometry(0.99, 56);
-  const discMat = new THREE.MeshBasicMaterial({
-    color: FISHING_RING_WHITE,
-    transparent: true,
-    opacity: 0.62,
-    depthWrite: false,
-    depthTest: false,            // ← disc always shows through dock
-    side: THREE.DoubleSide,
-    toneMapped: false,
-  });
-  const disc = new THREE.Mesh(discGeo, discMat);
+  const AVATAR_CIRCLE_RADIUS = 0.99;
+
+  // 1. Solid disc — matches player's travel disc geometry & material
+  const discMat = createPhotorealTravelDiscMaterial("fishing", AVATAR_CIRCLE_RADIUS);
+  discMat.depthTest = false;
+  discMat.depthWrite = false;
+  discMat.polygonOffset = false;
+
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(AVATAR_CIRCLE_RADIUS, 72),
+    discMat,
+  );
+  disc.name = "player_avatar_travel_circle_fishing_spot";
   disc.rotation.x = -Math.PI / 2;
   disc.renderOrder = 18;         // same z-index as the player disc body
   disc.userData.anuKind = "sanctuary_fishing_spot_disc";
   disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
   group.add(disc);
 
-  // Stash the material so update() can pulse opacity (key name kept
-  // for back-compat with the existing pulse logic in update()).
+  // 2. Ring outline — matches player's travel outline geometry & material
+  const innerR = AVATAR_CIRCLE_RADIUS * 0.92;
+  const ringMat = createPhotorealTravelRingMaterial("fishing", innerR, AVATAR_CIRCLE_RADIUS);
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(innerR, AVATAR_CIRCLE_RADIUS, 96),
+    ringMat,
+  );
+  ring.name = "player_avatar_circle_outline_fishing_spot";
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.008; // slightly above disc
+  ring.userData.anuKind = "sanctuary_fishing_spot_ring_outline";
+  ring.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+  ring.renderOrder = 9;          // same z-index as the player ring outline
+  group.add(ring);
+
+  // Stash materials so update() can update time uniforms and pulse opacity
   group.userData._whiteRingMat = discMat;
+  group.userData._ringOutlineMat = ringMat;
   return group;
 }
 
@@ -238,11 +256,21 @@ export const SanctuaryCirclesModule = {
     const t = this._elapsed;
 
     // Fishing-spot ring — slow OPACITY pulse only (no rotation, no scale).
-    // Single white ring breathes between ~0.32 and ~0.70 opacity over a
-    // ~5-second cycle (much slower than the old 1.7 Hz scale wiggle).
+    // Breathes both the disc and the outline ring opacity uniforms between
+    // ~0.32 and ~0.70 over a ~5-second cycle. Animates grain time.
     if (this._fishingRing) {
       const mat = this._fishingRing.userData?._whiteRingMat;
-      if (mat) mat.opacity = 0.32 + (Math.sin(t * 1.2) * 0.5 + 0.5) * 0.38;
+      const ringMat = this._fishingRing.userData?._ringOutlineMat;
+      const opacity = 0.32 + (Math.sin(t * 1.2) * 0.5 + 0.5) * 0.38;
+      
+      if (mat) {
+        if (mat.uniforms?.uOpacity) mat.uniforms.uOpacity.value = opacity;
+        touchTravelCircleTime(mat, t);
+      }
+      if (ringMat) {
+        if (ringMat.uniforms?.uOpacity) ringMat.uniforms.uOpacity.value = opacity;
+        touchTravelCircleTime(ringMat, t);
+      }
     }
 
     // Perimeter ring — subtle opacity breathing.

@@ -1,9 +1,9 @@
 {
-  "subject": "feat(pool): elliptical diagonal pool stretched 2x NE + blue fishing spot circle",
-  "isoDate": "2026-05-28T17:17:42-05:00",
+  "subject": "feat(circles): recreate fishing spot circle as a 1:1 photoreal blue copy of player circle",
+  "isoDate": "2026-05-28T17:35:33-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "5cdf9ed",
+  "commit": "97f307f",
   "dirty": true,
-  "generatedAt": "2026-05-28T22:17:45.885Z"
+  "generatedAt": "2026-05-28T22:35:38.019Z"
 }

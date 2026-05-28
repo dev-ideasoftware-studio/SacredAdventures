@@ -68,7 +68,7 @@ async function loadTerrainTextures() {
 // where to terminate the pier.
 export const SANCTUARY_POOL_CENTER_X = 0;
 export const SANCTUARY_POOL_CENTER_Z = 0;
-export const SANCTUARY_POOL_RADIUS_M = 12.0;
+export const SANCTUARY_POOL_RADIUS_M = 15.0;   // +25% — 2026-05-28
 export const SANCTUARY_POOL_DEPTH_M = 1.6;
 /** Water surface sits this far BELOW the natural ground around it. */
 export const SANCTUARY_WATER_DROP_M = 0.6;
@@ -244,29 +244,41 @@ export function sanctuaryBodyY(x, z, bodyHeight = 1.524, liftWhenSwimming = 0) {
     }
   }
 
-  // 2) Inside the pool → float half-submerged at the waterline, with
-  //    an optional extra lift.
+  // 2) Pool transition — the rim is where the "sink into shore" bug used to
+  //    live. Previously this function teleported the body from terrain Y
+  //    (on the bowl slope, well below meadow level) straight to swim-Y when
+  //    `dist < poolRadius - 0.5`, producing a 1 m drop right at the waterline.
+  //
+  //    Correct behaviour, matching real pond physics:
+  //      • inside the pool, body Y = max(terrain Y, swim Y)
+  //      • on the rim slope where the bowl is still ABOVE waterline → stand
+  //        on the dirt (terrain wins)
+  //      • inside the bowl where the bowl carves BELOW waterline → swim
+  //        (swim Y wins)
+  //    No discontinuity at the waterline — the transition is a smooth max.
   const dx = x - SANCTUARY_POOL_CENTER_X;
   const dz = z - SANCTUARY_POOL_CENTER_Z;
-  
-  // Stretch pool 2x longer stretching to NE diagonal:
-  // NE aligned diagonal coordinates: u = NE major axis, v = NW minor axis.
+
+  // NE-stretched ellipse coordinate (same shape as sanctuaryGroundY uses)
   const cos45 = 0.70710678;
   const sin45 = 0.70710678;
   const u = dx * cos45 + dz * sin45;
   const v = -dx * sin45 + dz * cos45;
   const dist = Math.hypot(u / 2.0, v);
 
+  const groundY = sanctuaryGroundY(x, z);
+
   if (
-    dist < SANCTUARY_POOL_RADIUS_M - 0.5 &&
+    dist < SANCTUARY_POOL_RADIUS_M &&
     typeof window !== "undefined" &&
     Number.isFinite(window.__sanctuaryWaterY)
   ) {
-    return window.__sanctuaryWaterY - bodyHeight * 0.5 + liftWhenSwimming;
+    const swimY = window.__sanctuaryWaterY - bodyHeight * 0.5 + liftWhenSwimming;
+    return Math.max(groundY, swimY);
   }
 
-  // 3) Default: analytic terrain
-  return sanctuaryGroundY(x, z);
+  // 3) Outside the pool: analytic terrain
+  return groundY;
 }
 
 export function sanctuaryGroundY(x, z) {
@@ -282,10 +294,15 @@ export function sanctuaryGroundY(x, z) {
   const r = Math.hypot(u / 2.0, v);
 
   if (r < SANCTUARY_POOL_RADIUS_M) {
-    // Inside the pool circle: smooth bowl that dips to -depth at centre.
-    const inner = r / SANCTUARY_POOL_RADIUS_M;     // 0 at centre, 1 at rim
-    const bowl = 1 - inner * inner;                // 1 at centre, 0 at rim
-    const blend = Math.min(1, (1 - inner) / 0.25); // last 25 % blends to meadow
+    // Inside the pool circle: bowl that dips to -depth at centre.
+    // 2026-05-28: exponent 2 → 4 (steeper rim) so the bowl stays BELOW the
+    // waterline out to r ≈ 0.89 * R = 13.4 m. Previously crossed waterline
+    // at r ≈ 9.5 m so the outer ring of the water mesh was buried under
+    // the rising grass-textured terrain, exposing the "sink into shore"
+    // visual bug.
+    const inner = r / SANCTUARY_POOL_RADIUS_M;        // 0 at centre, 1 at rim
+    const bowl = 1 - inner * inner * inner * inner;   // steeper-rim quartic
+    const blend = Math.min(1, (1 - inner) / 0.25);    // last 25 % blends to meadow
     return meadowY * (1 - blend) - SANCTUARY_POOL_DEPTH_M * bowl;
   }
 
@@ -316,7 +333,7 @@ const workerCode = `
   const VALLEY_MOUTH_BLEND_RAD = 0.35;
   const SANCTUARY_POOL_CENTER_X = 0;
   const SANCTUARY_POOL_CENTER_Z = 0;
-  const SANCTUARY_POOL_RADIUS_M = 12.0;
+  const SANCTUARY_POOL_RADIUS_M = 15.0;   // keep in sync with main-thread export
   const SANCTUARY_POOL_DEPTH_M = 1.6;
   const VILLAGE_FLAT_RADIUS = 26;
   const VILLAGE_BANK_BLEND_M = 2;
@@ -405,8 +422,9 @@ const workerCode = `
     const r = Math.hypot(u / 2.0, v);
 
     if (r < SANCTUARY_POOL_RADIUS_M) {
+      // Worker copy must match main-thread quartic bowl carve.
       const inner = r / SANCTUARY_POOL_RADIUS_M;
-      const bowl = 1 - inner * inner;
+      const bowl = 1 - inner * inner * inner * inner;
       const blend = Math.min(1, (1 - inner) / 0.25);
       return meadowY * (1 - blend) - SANCTUARY_POOL_DEPTH_M * bowl;
     }

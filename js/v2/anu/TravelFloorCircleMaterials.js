@@ -15,23 +15,32 @@ export function createPhotorealTravelDiscMaterial(kind, outerRadius) {
   // metallic sheen (uSpec) dropped from 0.55 → 0.18 so it reads as matte
   // timber, not foil. Grain bumped 0.14 → 0.20 so the fragment-shader noise
   // reads as wood grain rather than a flat tint.
+  // Fishing kind: soft blue gradient that perfectly matches player's circle during fishing.
   const isNpc = kind === "npc";
+  const isFishing = kind === "fishing";
   const uTime = { value: 0 };
   const uOuter = { value: outerRadius };
-  const inner = isNpc
-    ? new THREE.Color(0x3a2412) // aged oak shadow
-    : new THREE.Color(0x0d260d);
-  const mid = isNpc
-    ? new THREE.Color(0x8b5a2b) // walnut / cinnamon
-    : new THREE.Color(0x2e7d32);
-  const rim = isNpc
-    ? new THREE.Color(0xd4a574) // blonde pine highlight
-    : new THREE.Color(0x7cb342);
+  
+  const inner = new THREE.Color(0x0d260d);
+  const mid = new THREE.Color(0x2e7d32);
+  const rim = new THREE.Color(0x7cb342);
+  
+  if (isNpc) {
+    inner.setHex(0x3a2412); // aged oak shadow
+    mid.setHex(0x8b5a2b);   // walnut / cinnamon
+    rim.setHex(0xd4a574);   // blonde pine highlight
+  } else if (isFishing) {
+    inner.setHex(0x06182c); // deep blue shadow
+    mid.setHex(0x1565c0);   // medium ocean blue
+    rim.setHex(0x64b5f6);   // light blue rim
+  }
+  
   const uInner = { value: inner };
   const uMid = { value: mid };
   const uRim = { value: rim };
   const uSpec = { value: isNpc ? 0.18 : 0.22 };
   const uGrain = { value: isNpc ? 0.20 : 0.09 };
+  const uOpacity = { value: 1.0 };
 
   const vs = `
 uniform float uOuter;
@@ -51,6 +60,7 @@ uniform vec3 uRim;
 uniform float uSpec;
 uniform float uGrain;
 uniform float uTime;
+uniform float uOpacity;
 varying float vRn;
 varying vec2 vHashUv;
 
@@ -71,7 +81,7 @@ void main() {
   base += glint * mix(0.35, 1.0, edge);
   float ao = mix(1.0, 0.82, smoothstep(0.2, 1.0, r));
   base *= ao;
-  gl_FragColor = vec4(base, 1.0);
+  gl_FragColor = vec4(base, uOpacity);
 }
 `;
 
@@ -84,10 +94,11 @@ void main() {
       uSpec,
       uGrain,
       uTime,
+      uOpacity,
     },
     vertexShader: vs,
     fragmentShader: fs,
-    transparent: false,
+    transparent: true,
     depthTest: true,
     depthWrite: false,
     side: THREE.DoubleSide,
@@ -103,13 +114,28 @@ export function createPhotorealTravelRingMaterial(
   // Walnut inner → blonde pine outer with the metallic sheen (uMetal) dropped
   // from 0.62 → 0.10 so the rim reads as a soft carved-timber border, not a
   // gilded ring.
+  // Fishing kind: soft blue gradient rim outline.
   const isNpc = kind === "npc";
+  const isFishing = kind === "fishing";
   const uTime = { value: 0 };
   const uInnerR = { value: innerRadius };
   const uOuterR = { value: outerRadius };
-  const uInner = { value: new THREE.Color(isNpc ? 0x6b3e1f : 0xffffff) };
-  const uOuter = { value: new THREE.Color(isNpc ? 0xd4a574 : 0xffffff) };
+  
+  const inner = new THREE.Color(0xffffff);
+  const outer = new THREE.Color(0xffffff);
+  
+  if (isNpc) {
+    inner.setHex(0x6b3e1f);
+    outer.setHex(0xd4a574);
+  } else if (isFishing) {
+    inner.setHex(0xb3e5fc);
+    outer.setHex(0x0288d1);
+  }
+
+  const uInner = { value: inner };
+  const uOuter = { value: outer };
   const uMetal = { value: isNpc ? 0.10 : 0.08 };
+  const uOpacity = { value: 1.0 };
 
   const vs = `
 uniform float uInnerR;
@@ -129,6 +155,7 @@ uniform vec3 uInner;
 uniform vec3 uOuter;
 uniform float uMetal;
 uniform float uTime;
+uniform float uOpacity;
 varying float vT;
 varying vec2 vHp;
 
@@ -143,7 +170,7 @@ void main() {
   col += (sc - 0.5) * 0.04 * (1.0 + uMetal * 2.0);
   float glint = pow(max(0.0, vT), 5.0) * uMetal * 0.45;
   col += glint;
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(col, uOpacity);
 }
 `;
 
@@ -155,10 +182,11 @@ void main() {
       uOuter,
       uMetal,
       uTime,
+      uOpacity,
     },
     vertexShader: vs,
     fragmentShader: fs,
-    transparent: false,
+    transparent: true,
     depthTest: true,
     depthWrite: false,
     side: THREE.DoubleSide,
