@@ -1045,11 +1045,27 @@ export class SacredOrchestrator {
           o.userData?.anuKind === "tipi_group" ||
           o.userData?.anuKind === "npc_yellowbutterfly" ||
           o.userData?.anuKind === "npc_bringshappiness" ||
+          o.userData?.anuKind === "tree" ||
+          o.userData?.anuKind === "flora" ||
+          o.userData?.anuKind?.includes("tree") ||
+          o.userData?.anuKind?.includes("flora") ||
           (o.name && (
             o.name.includes("tipi") ||
             o.name.includes("Tipi") ||
             o.name.includes("smoke") ||
-            o.name.includes("Smoke")
+            o.name.includes("Smoke") ||
+            o.name.includes("tree") ||
+            o.name.includes("Tree") ||
+            o.name.includes("pine") ||
+            o.name.includes("Pine") ||
+            o.name.includes("trunk") ||
+            o.name.includes("Trunk") ||
+            o.name.includes("branch") ||
+            o.name.includes("Branch") ||
+            o.name.includes("leaf") ||
+            o.name.includes("Leaf") ||
+            o.name.includes("foliage") ||
+            o.name.includes("Foliage")
           ))
         );
 

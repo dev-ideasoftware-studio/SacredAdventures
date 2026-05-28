@@ -1,9 +1,9 @@
 {
-  "subject": "refactor(pip): remove SVG moondial iframe, render top-down PIP canvas in wrapper",
-  "isoDate": "2026-05-28T16:16:34-05:00",
+  "subject": "perf(pip): disable ortho fragment discard clipping and super-cull all trees to maximize FPS",
+  "isoDate": "2026-05-28T16:27:50-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "97ab491",
+  "commit": "989362d",
   "dirty": true,
-  "generatedAt": "2026-05-28T21:16:37.896Z"
+  "generatedAt": "2026-05-28T21:27:53.987Z"
 }
