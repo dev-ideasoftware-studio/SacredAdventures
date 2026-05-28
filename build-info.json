@@ -1,8 +1,8 @@
 {
-  "subject": "chore(coordination): update coordination handoff with latest HEAD and safety gates",
-  "isoDate": "2026-05-27T21:23:36-05:00",
+  "subject": "chore(coordination): claude-ack sidecar + handoff update — error log + open holds",
+  "isoDate": "2026-05-27T21:31:09-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v33",
-  "dirty": false,
-  "generatedAt": "2026-05-28T02:23:40.411Z"
+  "dirty": true,
+  "generatedAt": "2026-05-28T02:31:14.435Z"
 }
