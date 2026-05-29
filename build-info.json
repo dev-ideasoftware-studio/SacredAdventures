@@ -1,9 +1,9 @@
 {
-  "subject": "chore(sync): adjust pool micro-pebbles vertical settlement to match terrain basin Y",
-  "isoDate": "2026-05-28T17:35:47-05:00",
+  "subject": "chore(maps): force-reset active map in localStorage to scene0 + coordinate handoff",
+  "isoDate": "2026-05-29T01:17:08-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v36",
-  "commit": "c618ac8",
+  "commit": "709f36f",
   "dirty": true,
-  "generatedAt": "2026-05-28T22:35:51.215Z"
+  "generatedAt": "2026-05-29T06:17:12.487Z"
 }
