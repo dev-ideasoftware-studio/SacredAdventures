@@ -589,6 +589,8 @@ export const SanctuaryFrogsModule = {
       _group.add(group);
     }
 
+    if (typeof window !== "undefined") window.__sanctuaryFrogs = _frogs;
+
     // 3. Initialize FRIEND-FROG pair (leader + follower)
     _friendFrogs = [];
     _friendPairMode = PAIR_REST;

@@ -442,7 +442,7 @@ function buildDrainHole(centerY) {
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
   // Sits at the bottom center of the carved pool basin
-  const y = centerY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.005; // Elevated a tiny bit to prevent z-fighting with basin floor
+  const y = centerY - SANCTUARY_POOL_DEPTH_M + 0.005; // Elevated a tiny bit to prevent z-fighting with basin floor
 
   // Outer bronze rustic ring
   const ringGeo = new THREE.RingGeometry(0.35, 0.45, 32);
@@ -614,7 +614,7 @@ function buildTurtle(centerY, textures) {
   group.userData.anuKind = "sanctuary_pool_turtle";
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FAUNA;
 
-  const y = centerY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.08; // slightly above floor
+  const y = centerY - SANCTUARY_POOL_DEPTH_M + 0.08; // slightly above floor
 
   // High-fidelity photorealistic canvas texture for the carapace
   const shellTex = _makeTurtleShellTexture();
@@ -1143,11 +1143,15 @@ function buildPoolRocks(centerY) {
     if (dC > maxR) { const s = maxR / dC; x = SANCTUARY_POOL_CENTER_X + dx * s; z = SANCTUARY_POOL_CENTER_Z + dz * s; }
     if (dC < 0.55) { const s = 0.55 / Math.max(0.01, dC); x = SANCTUARY_POOL_CENTER_X + dx * s; z = SANCTUARY_POOL_CENTER_Z + dz * s; }
 
+    // Sit moss flush on the local bowl floor (same quadratic as basin floor mesh).
+    const mInner = Math.min(1, dC / SANCTUARY_POOL_RADIUS_M);
+    const mBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - mInner * mInner);
+    const y = mBowlY + 0.01 + rng() * 0.01;
     const tuftH = 0.03 + rng() * 0.05;          // 0.03–0.08 m tall
     const tuftW = tuftH * (0.6 + rng() * 0.6);  // slight width variance
     _euler.set(0, rng() * Math.PI * 2, 0);       // random Y rotation only — tufts stand upright
     _quat.setFromEuler(_euler);
-    _pos.set(x, bottomY, z);
+    _pos.set(x, y, z);
     _scl.set(tuftW, tuftH, tuftW);
     _m.compose(_pos, _quat, _scl);
     mossMesh.setMatrixAt(i, _m);
@@ -1938,7 +1942,7 @@ export const SanctuaryPoolModule = {
       _turtleGroup.rotation.y = time * 0.03 + Math.PI / 2 + Math.sin(time * 0.06) * 0.05;
       
       // Highly subtle, slow breathing bob (Y position)
-      _turtleGroup.position.y = (this._waterY - SANCTUARY_POOL_DEPTH_M * 0.62 + 0.05) + Math.sin(time * 0.08) * 0.01;
+      _turtleGroup.position.y = (this._waterY - SANCTUARY_POOL_DEPTH_M + 0.05) + Math.sin(time * 0.08) * 0.01;
 
       // Animate flippers/legs swimming at an ultra-slow, lazy pace
       if (_turtleGroup.userData.flipperLRef) {

@@ -350,6 +350,7 @@ export const SanctuaryFloraModule = {
   _root: null,
 
   async load(scene) {
+    if (typeof window !== "undefined") window.__sanctuaryFloraTimeUniform = _floraTimeUniform;
     if (this._root) return;
     this._scene = scene;
     const rng = mulberry32(0x77f10ea);

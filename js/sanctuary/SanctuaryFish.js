@@ -337,6 +337,27 @@ async function loadSanctuaryFishGeometry(url) {
   return { geometry: geom, fishLen };
 }
 
+function _buildSmallFishGeometry() {
+  const geom = new THREE.BufferGeometry();
+  // Double-pyramid 3D shape representing a small fish (8 faces, 6 vertices)
+  const vertices = new Float32Array([
+    0.0, 0.0, 0.045,    // 0: head (forward along Z)
+    0.0, 0.0, -0.065,   // 1: tail (backward along Z)
+    0.012, 0.0, 0.0,    // 2: left side (X+)
+    -0.012, 0.0, 0.0,   // 3: right side (X-)
+    0.0, 0.015, -0.008, // 4: top fin (Y+)
+    0.0, -0.012, -0.008 // 5: bottom (Y-)
+  ]);
+  const indices = new Uint16Array([
+    0, 2, 4,  0, 4, 3,  0, 3, 5,  0, 5, 2, // head to middle (4 faces)
+    1, 4, 2,  1, 3, 4,  1, 5, 3,  1, 2, 5  // tail to middle (4 faces)
+  ]);
+  geom.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geom.setIndex(new THREE.BufferAttribute(indices, 1));
+  geom.computeVertexNormals();
+  return geom;
+}
+
 let _lastFrameCount = 0;
 
 export const SanctuaryFishModule = {
@@ -361,6 +382,12 @@ export const SanctuaryFishModule = {
   _butterflyActiveTime: 0,
   _butterflyStartPos: null,
   _butterflyFlyInTimer: 0,
+
+  _smallFishGeometry: null,
+  _smallFishMaterial: null,
+  _smallFishMesh: null,
+  _smallFishData: [],
+  _smallFishGroups: [],
 
   async load(scene) {
     if (this._root) return;
@@ -601,6 +628,70 @@ export const SanctuaryFishModule = {
       this._butterflyActiveTime = 0;
       this._butterflyFlyInTimer = 0;
 
+      // ── Small Schooling Fish Initialization (Phase 3) ──
+      this._smallFishGeometry = _buildSmallFishGeometry();
+      this._smallFishMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff6e40, // coral neon orange / gold
+        emissive: 0x3e2723,
+        emissiveIntensity: 0.25,
+        roughness: 0.15,
+        metalness: 0.65,
+        flatShading: true,
+      });
+
+      const SMALL_FISH_COUNT = 32;
+      this._smallFishMesh = new THREE.InstancedMesh(
+        this._smallFishGeometry,
+        this._smallFishMaterial,
+        SMALL_FISH_COUNT
+      );
+      this._smallFishMesh.castShadow = false;
+      this._smallFishMesh.receiveShadow = false;
+      this._smallFishMesh.name = "sanctuary_small_fish_school";
+      this._smallFishMesh.userData.anuKind = "sanctuary_small_fish";
+      this._smallFishMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FAUNA;
+      this._smallFishMesh.layers.enable(1); // Show in PIP minimap
+      this._smallFishMesh.layers.enable(2); // Show in fish-finder lens
+      this._root.add(this._smallFishMesh);
+
+      // Setup 4 schooling groups
+      const NUM_GROUPS = 4;
+      this._smallFishGroups = [];
+      this._smallFishData = [];
+
+      for (let g = 0; g < NUM_GROUPS; g++) {
+        // Group leader
+        const groupAngle = (g / NUM_GROUPS) * Math.PI * 2 + rng() * 0.5;
+        const groupR = SANCTUARY_POOL_RADIUS_M * (0.3 + rng() * 0.4);
+        this._smallFishGroups.push({
+          x: this._cx + Math.cos(groupAngle) * groupR,
+          z: this._cz + Math.sin(groupAngle) * groupR,
+          y: this._fishCenterY + (rng() - 0.5) * 0.4,
+          heading: rng() * Math.PI * 2,
+          speed: 0.25 + rng() * 0.15,
+          orbitR: groupR,
+          orbitSpeed: (0.015 + rng() * 0.01) * (rng() > 0.5 ? 1 : -1),
+        });
+      }
+
+      for (let i = 0; i < SMALL_FISH_COUNT; i++) {
+        const groupIdx = i % NUM_GROUPS;
+        const rad = 0.2 + rng() * 0.45;
+        const ang = rng() * Math.PI * 2;
+        this._smallFishData.push({
+          groupIdx,
+          offsetX: Math.cos(ang) * rad,
+          offsetZ: Math.sin(ang) * rad,
+          offsetY: (rng() - 0.5) * 0.2,
+          x: this._cx,
+          y: this._fishCenterY,
+          z: this._cz,
+          heading: rng() * Math.PI * 2,
+          wigglePhase: rng() * Math.PI * 2,
+          wiggleSpeed: 10 + rng() * 5,
+        });
+      }
+
     } catch (err) {
       console.warn("[SanctuaryFish] fish.obj load failed:", err);
     }
@@ -626,6 +717,78 @@ export const SanctuaryFishModule = {
     this._fishBioTime += delta * stride;
     const tb = this._fishBioTime;
     const t = this._elapsed;
+
+    // ── Small Schooling Fish Schooling Simulation Update (Phase 3) ──
+    if (this._smallFishMesh && this._smallFishData.length > 0) {
+      const NUM_GROUPS = 4;
+
+      // 1. Update Group Leaders (Orbital wander inside the pond)
+      for (let g = 0; g < NUM_GROUPS; g++) {
+        const leader = this._smallFishGroups[g];
+        // Slow orbital progression
+        const ang = Math.atan2(leader.z - this._cz, leader.x - this._cx) + leader.orbitSpeed * delta * stride;
+        leader.x = this._cx + Math.cos(ang) * leader.orbitR;
+        leader.z = this._cz + Math.sin(ang) * leader.orbitR;
+        leader.y = this._fishCenterY + Math.sin(t * 0.6 + g) * 0.18;
+        leader.heading = ang + Math.PI / 2 * (leader.orbitSpeed > 0 ? 1 : -1);
+      }
+
+      // 2. Update each individual fish in the school
+      const _m = new THREE.Matrix4();
+      const _pos = new THREE.Vector3();
+      const _quat = new THREE.Quaternion();
+      const _euler = new THREE.Euler();
+      const _scl = new THREE.Vector3(1, 1, 1);
+
+      for (let i = 0; i < this._smallFishData.length; i++) {
+        const fishData = this._smallFishData[i];
+        const leader = this._smallFishGroups[fishData.groupIdx];
+
+        // Organic flocking oscillation offset from group leader
+        const groupWobbleX = Math.sin(t * 2.2 + i * 0.4) * 0.15;
+        const groupWobbleZ = Math.cos(t * 2.2 + i * 0.4) * 0.15;
+        const targetX = leader.x + fishData.offsetX + groupWobbleX;
+        const targetZ = leader.z + fishData.offsetZ + groupWobbleZ;
+        const targetY = leader.y + fishData.offsetY + Math.sin(t * 3.5 + i) * 0.05;
+
+        // Smooth follow/lerp physics toward target position
+        const followSpeed = 3.5 * delta * stride;
+        fishData.x += (targetX - fishData.x) * Math.min(1.0, followSpeed);
+        fishData.z += (targetZ - fishData.z) * Math.min(1.0, followSpeed);
+        fishData.y += (targetY - fishData.y) * Math.min(1.0, followSpeed);
+
+        // Calculate heading from actual velocity
+        const dx = targetX - fishData.x;
+        const dz = targetZ - fishData.z;
+        const targetHeading = Math.atan2(dz, dx);
+        
+        // Low-pass filter heading rotation
+        let dH = targetHeading - fishData.heading;
+        while (dH > Math.PI) dH -= Math.PI * 2;
+        while (dH < -Math.PI) dH += Math.PI * 2;
+        fishData.heading += dH * Math.min(1.0, 4.0 * delta * stride);
+
+        // Micro tail wiggle animation
+        const wiggle = Math.sin(t * fishData.wiggleSpeed + fishData.wigglePhase) * 0.18;
+
+        _pos.set(fishData.x, fishData.y, fishData.z);
+        _euler.set(0, -fishData.heading + Math.PI + wiggle, 0);
+        _quat.setFromEuler(_euler);
+        _m.compose(_pos, _quat, _scl);
+        this._smallFishMesh.setMatrixAt(i, _m);
+      }
+      this._smallFishMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // ── Safe Low-Frequency Funny Jump Event Roll (Phase 4) ──
+    this._funnyJumpCheckTimer = (this._funnyJumpCheckTimer || 0) + delta * stride;
+    if (this._funnyJumpCheckTimer >= 5.0) {
+      this._funnyJumpCheckTimer = 0.0;
+      // 5% chance per minute = 5% * 5s / 60s = 0.00416 (0.416% chance per check)
+      if (Math.random() < 0.00416) {
+        this._triggerFunnyEatJump();
+      }
+    }
 
     // 30-minute pool reset: resets all fish growth scale back to 1.0
     this._poolResetTimer = (this._poolResetTimer || 0) + delta * stride;
@@ -740,6 +903,216 @@ export const SanctuaryFishModule = {
       const baseScale = ud.baseScaleFactor || 1.0;
       const currentScale = baseScale * ud.growthScale;
       fish.scale.setScalar(currentScale);
+
+      // ── HILARIOUS HIJACKED JUMP-AND-EAT PREY STATE MACHINE (Phase 4) ──
+      if (ud._funnyEatState) {
+        ud._funnyEatTimer += delta * stride;
+        const target = ud._funnyEatTarget;
+        const JUMP_DURATION = 1.2; // 1.2 seconds of cinematic leap
+        const PEAK_HEIGHT = 1.45; // Spectacular high vertical leap!
+        
+        if (ud._funnyEatState === "approach") {
+          // Approach phase: swim rapidly directly underneath the target prey
+          const tx = target.pos.x;
+          const tz = target.pos.z;
+          const dx = tx - fish.position.x;
+          const dz = tz - fish.position.z;
+          const dist = Math.hypot(dx, dz);
+          
+          if (dist > 0.35 && ud._funnyEatTimer < 1.5) {
+            // Rapid charge under the prey
+            const chargeSpeed = 3.6 * delta * stride;
+            fish.position.x += (dx / dist) * chargeSpeed;
+            fish.position.z += (dz / dist) * chargeSpeed;
+            // Face the target
+            const hdg = Math.atan2(dz, dx);
+            ud._currentHeading = hdg;
+            fish.rotation.set(0, -hdg + Math.PI, 0);
+          } else {
+            // Underneath target! Initiate the glorious leap!
+            ud._funnyEatState = "leap";
+            ud._funnyEatTimer = 0.0;
+            ud._funnyEatStartPos = fish.position.clone();
+            
+            // Spawn entry ripple!
+            if (typeof window !== "undefined" && typeof window.sanctuaryPulse === "function") {
+              window.sanctuaryPulse(fish.position.x, fish.position.z);
+            }
+          }
+        } 
+        else if (ud._funnyEatState === "leap") {
+          // Leap phase: parabolic vertical motion + forward drift
+          const tLeap = Math.min(1.0, ud._funnyEatTimer / JUMP_DURATION);
+          const arc = -4 * (tLeap - 0.5) * (tLeap - 0.5) + 1; // Parabolic profile [0 -> 1 -> 0]
+          
+          // Drift from jump start toward the target coordinates
+          fish.position.lerpVectors(ud._funnyEatStartPos, target.pos, tLeap);
+          
+          // Apply parabolic elevation
+          const normalY = ud.fishMidY ?? this._fishCenterY;
+          fish.position.y = normalY + PEAK_HEIGHT * arc;
+          
+          // Dynamic rotations: Pitch up on climb, face forward, Pitch down on fall
+          const pitch = (1.0 - 2.0 * tLeap) * 1.1; // [1.1 -> 0 -> -1.1] radians
+          const hdg = Math.atan2(target.pos.z - ud._funnyEatStartPos.z, target.pos.x - ud._funnyEatStartPos.x);
+          fish.rotation.set(pitch, -hdg + Math.PI, 0);
+          
+          // ── Capture Window at the apex ──
+          if (tLeap >= 0.45 && tLeap <= 0.55) {
+            // Consume the prey!
+            let preyMesh = null;
+            let preyName = "";
+            if (target.type === "dragonfly") {
+              if (target.obj.alive) {
+                target.obj.alive = false;
+                target.obj.respawnTimer = 12.0; // Respawn in 12s
+                preyName = "Dragonfly 🪰💨";
+              }
+            } else if (target.type === "butterfly") {
+              if (this._butterflySprite.visible) {
+                this._butterflySprite.visible = false;
+                this._butterflyTimer = -15.0; // Stagger next butterfly spawner
+                this._butterflyActiveTime = 0.0;
+                preyName = "Butterfly 🦋😋";
+              }
+            } else if (target.type === "butterfly_ritual") {
+              if (target.obj.visible) {
+                target.obj.visible = false;
+                preyName = "Butterfly 🦋🍭";
+                // Let them respawn after ritual disperse
+                setTimeout(() => { if (target.obj) target.obj.visible = true; }, 10000);
+              }
+            } else if (target.type === "frog") {
+              if (target.obj.group.visible) {
+                target.obj.group.visible = false;
+                preyName = "Frog 🐸💥";
+                // Add funny dangling frog legs!
+                if (!ud._frogLegs) {
+                  ud._frogLegs = _buildFrogLegs();
+                  fish.add(ud._frogLegs);
+                }
+                // Respawn frog in 12s
+                setTimeout(() => {
+                  if (target.obj && target.obj.group) {
+                    target.obj.group.visible = true;
+                    target.obj.state = 0; // Swim state
+                    target.obj.timer = 3.0;
+                    target.obj.group.position.set(this._cx + (Math.random() - 0.5) * 4.0, -0.68, this._cz + (Math.random() - 0.5) * 4.0);
+                  }
+                }, 12000);
+              }
+            }
+            
+            if (preyName && !ud._funnyEatCaptured) {
+              ud._funnyEatCaptured = true;
+              
+              // 1. Splash ripple at apex prey capture coordinates
+              if (typeof window !== "undefined" && typeof window.sanctuaryPulse === "function") {
+                window.sanctuaryPulse(target.pos.x, target.pos.z);
+              }
+              
+              // 2. Synthesize a funny high-pitched splash/snap sound
+              if (typeof window !== "undefined" && window.AudioContext) {
+                try {
+                  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                  const osc = audioCtx.createOscillator();
+                  const gain = audioCtx.createGain();
+                  osc.connect(gain);
+                  gain.connect(audioCtx.destination);
+                  osc.type = "sine";
+                  osc.frequency.setValueAtTime(420, audioCtx.currentTime);
+                  osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.15);
+                  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                  osc.start();
+                  osc.stop(audioCtx.currentTime + 0.15);
+                } catch (e) {}
+              }
+
+              // 3. Display hilarious Floating Combat Text!
+              const funnyPhrases = [
+                `NOM NOM NOM! ${preyName}`,
+                `BURP! Tastes like ${target.type === "frog" ? "chicken 🐸" : "candy 🍭"}`,
+                `EPIC SNACK! ${preyName}`,
+                `GET IN MY BELLY! ${preyName}`,
+                `YUMMY! ${preyName}`,
+                `CRUNCHY! 😋`
+              ];
+              const phrase = funnyPhrases[Math.floor(Math.random() * funnyPhrases.length)];
+              
+              if (typeof window !== "undefined") {
+                const textFunc = window.showWoWCombatText || window.anuOrchestrator?._activeModuleInstances?.SanctuaryFishing?.showWoWCombatText;
+                if (typeof textFunc === "function") {
+                  textFunc(phrase, true);
+                } else {
+                  // Fallback: simple floating combat text
+                  const el = document.createElement("div");
+                  el.textContent = phrase.toUpperCase();
+                  Object.assign(el.style, {
+                    position: "fixed", left: "50%", top: "35%", transform: "translate(-50%, -50%)",
+                    zIndex: "100000", pointerEvents: "none", userSelect: "none",
+                    font: "900 38px 'Fredoka One', 'Outfit', sans-serif", color: "#ffa726",
+                    textShadow: "0 0 10px rgba(0,0,0,0.9), 0 3px 12px rgba(0,0,0,0.95)",
+                    transition: "all 1.5s ease-out"
+                  });
+                  document.body.appendChild(el);
+                  requestAnimationFrame(() => {
+                    el.style.opacity = "0";
+                    el.style.transform = "translate(-50%, -220%) scale(1.3)";
+                  });
+                  setTimeout(() => el.remove(), 1500);
+                }
+              }
+            }
+          }
+          
+          if (tLeap >= 1.0) {
+            // Landing: return to water
+            ud._funnyEatState = "landing";
+            ud._funnyEatTimer = 0.0;
+            
+            // Landing splash ripple
+            if (typeof window !== "undefined" && typeof window.sanctuaryPulse === "function") {
+              window.sanctuaryPulse(fish.position.x, fish.position.z);
+            }
+          }
+        }
+        else if (ud._funnyEatState === "landing") {
+          // Landing phase: fish dives back under water and dissolves frog legs if present
+          const tLand = Math.min(1.0, ud._funnyEatTimer / 1.5);
+          const normalY = ud.fishMidY ?? this._fishCenterY;
+          
+          // Dive slightly below water and slowly float back up
+          const diveDepth = normalY - 0.28;
+          fish.position.y += (diveDepth - fish.position.y) * Math.min(1.0, 5.0 * delta * stride);
+          
+          // Shrink frog legs to 0 as it digests
+          if (ud._frogLegs) {
+            const s = Math.max(0.001, 1.0 - tLand);
+            ud._frogLegs.scale.setScalar(s);
+          }
+          
+          if (tLand >= 1.0) {
+            // Restore normal state
+            if (ud._frogLegs) {
+              fish.remove(ud._frogLegs);
+              ud._frogLegs.traverse((o) => o.geometry?.dispose?.());
+              ud._frogLegs = null;
+            }
+            // Clear tracking references
+            if (target && target.obj && target.obj.userData) {
+              target.obj.userData.targetedBy = null;
+            }
+            ud._funnyEatState = null;
+            ud._funnyEatTarget = null;
+            ud._funnyEatCaptured = false;
+          }
+        }
+        
+        // Skip standard updates while in hijacked funny jump
+        if (fish.renderOrder !== 5) fish.renderOrder = 5;
+        continue;
+      }
 
       // ── Dragonfly Hunt & Parabolic Jump State Machine ──
       if (ud._dfJumpState === "jump") {
@@ -1222,6 +1595,98 @@ export const SanctuaryFishModule = {
         if (fish.renderOrder !== 5) fish.renderOrder = 5;
       }
     }
+  },
+
+  _triggerFunnyEatJump() {
+    // 1. Gather all candidates that are alive/active and located inside or near the pool boundary
+    const candidates = [];
+
+    // Dragonflies
+    const dragonflies = window.__sanctuaryDragonflies;
+    if (dragonflies) {
+      for (const df of dragonflies) {
+        if (df.alive && !df.targetedBy && df.sprite && df.sprite.position.y > 0) {
+          const dx = df.sprite.position.x - this._cx;
+          const dz = df.sprite.position.z - this._cz;
+          if (Math.hypot(dx, dz) < SANCTUARY_POOL_RADIUS_M * 0.95) {
+            candidates.push({ type: "dragonfly", obj: df, pos: df.sprite.position });
+          }
+        }
+      }
+    }
+
+    // Hovering Butterfly (the local one in SanctuaryFish.js)
+    if (this._butterflySprite && this._butterflySprite.visible && this._butterflyActiveTime > 0.0 && !this._butterflySprite.userData?.targetedBy) {
+      const dx = this._butterflySprite.position.x - this._cx;
+      const dz = this._butterflySprite.position.z - this._cz;
+      if (Math.hypot(dx, dz) < SANCTUARY_POOL_RADIUS_M * 0.95) {
+        candidates.push({ type: "butterfly", obj: this._butterflySprite, pos: this._butterflySprite.position });
+      }
+    }
+
+    // Seated Butterflies (if any explore near the pool)
+    const bMod = window.anuOrchestrator?._activeModuleInstances?.SanctuaryButterflies;
+    if (bMod && bMod._butterflies) {
+      for (const bf of bMod._butterflies) {
+        if (bf.visible && !bf.userData?.targetedBy) {
+          const dx = bf.position.x - this._cx;
+          const dz = bf.position.z - this._cz;
+          if (Math.hypot(dx, dz) < SANCTUARY_POOL_RADIUS_M * 0.95) {
+            candidates.push({ type: "butterfly_ritual", obj: bf, pos: bf.position });
+          }
+        }
+      }
+    }
+
+    // Frogs
+    const frogs = window.__sanctuaryFrogs;
+    if (frogs) {
+      for (const fr of frogs) {
+        // Frog must be basking or swimming, not already airborne/jumping (state 3) or eaten
+        if (fr.group && fr.group.visible && fr.state !== 3 && !fr.group.userData?.targetedBy) {
+          const dx = fr.group.position.x - this._cx;
+          const dz = fr.group.position.z - this._cz;
+          if (Math.hypot(dx, dz) < SANCTUARY_POOL_RADIUS_M * 0.95) {
+            candidates.push({ type: "frog", obj: fr, pos: fr.group.position });
+          }
+        }
+      }
+    }
+
+    if (candidates.length === 0) return;
+
+    // Pick a random candidate
+    const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+
+    // 2. Select a real swimming fish mesh from the school to perform the jump
+    // Exclude fish currently struggling on a hook, interested, or already jumping
+    const eligibleFish = this._fishMeshes.filter((fish) => {
+      const ud = fish.userData;
+      return !ud.isStruggling && !ud._dfJumpState && !ud._funnyEatState && !ud._frogEatState && !ud._interestPhase;
+    });
+
+    if (eligibleFish.length === 0) return;
+    
+    // Pick a random eligible fish
+    const fish = eligibleFish[Math.floor(Math.random() * eligibleFish.length)];
+    const ud = fish.userData;
+
+    // 3. Initiate the hilarious hijacked jump state!
+    ud._funnyEatState = "approach"; // phases: approach -> leap -> landing
+    ud._funnyEatTimer = 0.0;
+    ud._funnyEatTarget = candidate;
+    ud._funnyEatCaptured = false;
+    
+    candidate.obj.userData = candidate.obj.userData || {};
+    candidate.obj.userData.targetedBy = fish.name;
+    if (candidate.type === "dragonfly") {
+      candidate.obj.targetedBy = fish.name;
+    }
+
+    console.log(
+      `%c[FunnyJump] 🚀 Fish ${fish.name} is jumping to eat a ${candidate.type} at (${candidate.pos.x.toFixed(2)}, ${candidate.pos.z.toFixed(2)})!`,
+      "color:#f57c00;font-weight:bold;"
+    );
   },
 
   unload(scene) {

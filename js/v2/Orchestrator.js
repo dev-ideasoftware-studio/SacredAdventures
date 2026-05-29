@@ -1210,6 +1210,45 @@ export class SacredOrchestrator {
     pipLight.layers.enable(2); // Enable layer 2 so it lights the fishing gauge!
     this.scene.add(pipLight);
 
+    // Freeze all time-based uniforms during the PIP render pass to completely remove all animations
+    const stashedUniforms = [];
+    if (window._globalTime) {
+      stashedUniforms.push({
+        uniform: window._globalTime,
+        value: window._globalTime.value,
+      });
+      window._globalTime.value = 0;
+    }
+    if (window.__sanctuaryFloraTimeUniform) {
+      stashedUniforms.push({
+        uniform: window.__sanctuaryFloraTimeUniform,
+        value: window.__sanctuaryFloraTimeUniform.value,
+      });
+      window.__sanctuaryFloraTimeUniform.value = 0;
+    }
+    this.scene.traverse((obj) => {
+      if (obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        for (const mat of mats) {
+          if (mat.uniforms && mat.uniforms.uTime) {
+            stashedUniforms.push({
+              uniform: mat.uniforms.uTime,
+              value: mat.uniforms.uTime.value,
+            });
+            mat.uniforms.uTime.value = 0;
+          }
+          if (mat.userData && mat.userData.uTimeRef) {
+            stashedUniforms.push({
+              uniform: mat.userData.uTimeRef,
+              value: mat.userData.uTimeRef.value,
+            });
+            mat.userData.uTimeRef.value = 0;
+          }
+        }
+      }
+    });
+    window.__isRenderingPip = true;
+
     return {
       cullStash: this._stashAnuCullablesForPipRender(wp.feet),
       fog,
@@ -1218,6 +1257,7 @@ export class SacredOrchestrator {
       yaw: wp.yaw || 0,
       mainMap: wp.mainCanvasMapView === true,
       pipLight,
+      stashedUniforms,
     };
   }
 
@@ -1390,6 +1430,13 @@ export class SacredOrchestrator {
     if (state.pipLight) {
       this.scene.remove(state.pipLight);
     }
+
+    if (state.stashedUniforms) {
+      for (const entry of state.stashedUniforms) {
+        entry.uniform.value = entry.value;
+      }
+    }
+    window.__isRenderingPip = false;
   }
 
   /**

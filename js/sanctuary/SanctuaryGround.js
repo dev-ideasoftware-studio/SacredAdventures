@@ -69,7 +69,7 @@ async function loadTerrainTextures() {
 export const SANCTUARY_POOL_CENTER_X = 0;
 export const SANCTUARY_POOL_CENTER_Z = 0;
 export const SANCTUARY_POOL_RADIUS_M = 12.0;
-export const SANCTUARY_POOL_DEPTH_M = 3.05;
+export const SANCTUARY_POOL_DEPTH_M = 3.65;
 /** Water surface sits this far BELOW the natural ground around it. */
 export const SANCTUARY_WATER_DROP_M = 0.6;
 
@@ -313,7 +313,7 @@ const workerCode = `
   const SANCTUARY_POOL_CENTER_X = 0;
   const SANCTUARY_POOL_CENTER_Z = 0;
   const SANCTUARY_POOL_RADIUS_M = 12.0;
-  const SANCTUARY_POOL_DEPTH_M = 3.05;
+  const SANCTUARY_POOL_DEPTH_M = 3.65;
   const VILLAGE_FLAT_RADIUS = 26;
   const VILLAGE_BANK_BLEND_M = 2;
   const HILL_RING_INNER_R_M = 28;

@@ -42,9 +42,10 @@ test('Validate Sanctuary Trout Jumps, Console Errors and Take Beautiful Screensh
   console.log("Navigating to http://127.0.0.1:5505/index.html...");
   await page.goto('http://127.0.0.1:5505/index.html', { waitUntil: 'load' });
 
-  // 2. Wait 12 seconds for the scene to boot and run.
-  console.log("Waiting 12 seconds for the scene to fully load, boot, and run...");
-  await page.waitForTimeout(12000);
+  // 2. Wait for the scene to fully boot and dismiss the loading iframe.
+  console.log("Waiting for the loading iframe to be dismissed...");
+  await page.waitForFunction(() => !document.getElementById("v4-loading-iframe"), { timeout: 60000 });
+  await page.waitForTimeout(2000);
 
   // Set high-resolution viewport (1920x1080) for a beautiful shot
   console.log("Setting viewport to 1920x1080...");
@@ -141,7 +142,7 @@ test('Validate Sanctuary Trout Jumps, Console Errors and Take Beautiful Screensh
   await page.waitForTimeout(425);
 
   // 8. Take a beautiful screenshot of the sanctuary pool scene
-  const screenshotPath = '/Users/Me/.gemini/antigravity/brain/407e6ee5-54c9-49b6-ab39-abd82ab17b24/sanctuary_trout.png';
+  const screenshotPath = '/Users/Me/.gemini/antigravity/brain/c19544df-aa45-4610-8528-a657bd3ea47d/sanctuary_trout.png';
   console.log(`Taking high-resolution screenshot and saving to ${screenshotPath}...`);
   await page.screenshot({ 
     path: screenshotPath,
@@ -162,7 +163,7 @@ test('Validate Sanctuary Trout Jumps, Console Errors and Take Beautiful Screensh
   expect(fishJumpsStatus.active).toBe(true);
   
   // Save results data report as JSON to the artifact folder
-  const resultsReportPath = '/Users/Me/.gemini/antigravity/brain/407e6ee5-54c9-49b6-ab39-abd82ab17b24/validation_results.json';
+  const resultsReportPath = '/Users/Me/.gemini/antigravity/brain/c19544df-aa45-4610-8528-a657bd3ea47d/validation_results.json';
   const reportData = {
     fishJumpsStatus,
     errors,

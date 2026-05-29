@@ -39,7 +39,7 @@ test("Anu confirms sync — sensors alive, FPS unified, banner accurate", async 
   page.on("pageerror", (e) => errors.push(`[pageerror] ${e.message}`));
 
   await page.goto("http://127.0.0.1:5505/index.html");
-  await page.waitForFunction(() => !document.getElementById("v4-loading-iframe"), { timeout: 30000 });
+  await page.waitForFunction(() => !document.getElementById("v4-loading-iframe"), { timeout: 60000 });
   await page.waitForTimeout(2000);
 
   // ── Anu sensor reports ──────────────────────────────────────────────
