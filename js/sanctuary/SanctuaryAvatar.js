@@ -596,7 +596,10 @@ export const SanctuaryAvatarModule = {
     if (typeof window !== "undefined" && window.__sanctuaryDockSurface) {
       onDock = (window.__sanctuaryDockSurface.getY(cur.x, cur.z) !== null);
     }
-    const inPool = !isFishing && !onDock && dist < 11.5;
+    const waterY = (typeof window !== "undefined" && Number.isFinite(window.__sanctuaryWaterY)) ? window.__sanctuaryWaterY : -0.6;
+    const swimmingY = waterY - AVATAR_TARGET_HEIGHT_M * 0.5;
+    const groundY = sanctuaryGroundY(cur.x, cur.z);
+    const inPool = !isFishing && !onDock && dist < 12.0 && (swimmingY > groundY);
 
     // All actions (zero all first, then raise the winner to 1)
     const _zero = (a) => { if (a) a.setEffectiveWeight(0.0); };

@@ -864,9 +864,9 @@ function buildPoolRocks(centerY) {
   // 2026-05-28: user-requested "more boulders" — bumped each rock tier by
   // ~50 %, scaled by the new 25 %-larger pool. Pebble count up too so the
   // bigger basin doesn't read sparse around the new rim.
-  const ROCKS_DODEC_COUNT = 260;
-  const ROCKS_ICOS_COUNT  = 225;
-  const PEBBLE_COUNT      = 620;
+  const ROCKS_DODEC_COUNT = 520; // Doubled from 260
+  const ROCKS_ICOS_COUNT  = 450; // Doubled from 225
+  const PEBBLE_COUNT      = 1240; // Doubled from 620
 
   const dodecGeo  = new THREE.DodecahedronGeometry(1.0, 0);
   const icosGeo   = new THREE.IcosahedronGeometry(1.0, 0);
@@ -909,7 +909,7 @@ function buildPoolRocks(centerY) {
       const minD = 0.65 + scaleX;
       const maxD = SANCTUARY_POOL_RADIUS_M * 0.88 - scaleX;
       const actualMaxD = Math.max(minD + 0.1, maxD);
-      const d = minD + rng() * (actualMaxD - minD);
+      const d = minD + Math.pow(rng(), 1.5) * (actualMaxD - minD); // Biased toward the center of the pool
 
       const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
       const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
@@ -980,7 +980,7 @@ function buildPoolRocks(centerY) {
       const theta = rng() * Math.PI * 2;
       const minD = 0.55;
       const maxD = SANCTUARY_POOL_RADIUS_M * 0.88;
-      const d = minD + rng() * (maxD - minD);
+      const d = minD + Math.pow(rng(), 1.5) * (maxD - minD); // Biased toward the center of the pool
       x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
       z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
     }

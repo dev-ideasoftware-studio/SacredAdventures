@@ -244,27 +244,25 @@ export function sanctuaryBodyY(x, z, bodyHeight = 1.524, liftWhenSwimming = 0) {
     }
   }
 
-  // 2) Inside the pool → float half-submerged at the waterline, with
-  //    an optional extra lift. User-requested 2026-05-28: "raise model
-  //    out of water 1 foot" — callers driving the avatar pass
-  //    `liftWhenSwimming = 0.3048` so the kid reads as wading with
-  //    chest above water, not floating with the waterline cutting
-  //    across her ribcage. Other bodies (e.g. frogs swimming to chase
-  //    fish) pass 0 — they should still ride at the half-submerged
-  //    waterline like real frogs.
+  const groundY = sanctuaryGroundY(x, z);
+
+  // 2) Inside the pool → float half-submerged at the waterline, but only if
+  //    the water is deeper than the standable ground depth.
   const dx = x - SANCTUARY_POOL_CENTER_X;
   const dz = z - SANCTUARY_POOL_CENTER_Z;
   const dist = Math.hypot(dx, dz);
   if (
-    dist < SANCTUARY_POOL_RADIUS_M - 0.5 &&
+    dist < SANCTUARY_POOL_RADIUS_M &&
     typeof window !== "undefined" &&
     Number.isFinite(window.__sanctuaryWaterY)
   ) {
-    return window.__sanctuaryWaterY - bodyHeight * 0.5 + liftWhenSwimming;
+    const swimmingY = window.__sanctuaryWaterY - bodyHeight * 0.5 + liftWhenSwimming;
+    // Walk on the pond floor if it is shallower than the swimming flotation depth
+    return Math.max(groundY, swimmingY);
   }
 
   // 3) Default: analytic terrain
-  return sanctuaryGroundY(x, z);
+  return groundY;
 }
 
 export function sanctuaryGroundY(x, z) {
