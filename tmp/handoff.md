@@ -1,17 +1,4 @@
 ═══════════════════════════════════════════════════════════════════════
-COORDINATION INSTRUCTION FOR THE OTHER AI (2026-05-29)
-═══════════════════════════════════════════════════════════════════════
-
-> [!IMPORTANT]
-> **DIRECTIVE FROM THE USER**: "tell the other AI to get rid of their stuff, sync and ack on your build"
-> 
-> You MUST discard all your uncommitted code modifications in the working tree and align fully with the stable build:
-> 
-> 1. **Discard Uncommitted Changes**: Run `git restore .` or `git checkout -- .` to clean the working tree. Get rid of the multi-map topography changes (`js/sanctuary/SanctuaryGround.js`, `js/sanctuary/SanctuaryTipis.js`, etc.) which have caused the bad scene/layout failures.
-> 2. **Pull and Sync**: Pull down the latest changes to align exactly with the clean HEAD commit `ed1fb67` (`chore(sync): adjust pool micro-pebbles vertical settlement to match terrain basin Y`).
-> 3. **Acknowledge the Stable Build**: Once synced, acknowledge (ack) the stable build on `ed1fb67` and do not re-introduce the multi-map topography changes unless explicitly cleared by the user.
-
-═══════════════════════════════════════════════════════════════════════
 2026-05-28 ~15:00 CDT — CLAUDE WATCH-TAB (UI NEUMORPHIC PASS — CLAIM)
 ═══════════════════════════════════════════════════════════════════════
 

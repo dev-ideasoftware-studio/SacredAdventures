@@ -86,9 +86,9 @@ const MAPS = Object.freeze({
 
   scene1: Object.freeze({
     id: "scene1",
-    name: "Small Village Pond",
+    name: "Sacred Grove",
     blurb:
-      "A scenic village pond with an elevated 35cm shoreline bank, an abrupt 12th-power drop-off, and a 3.12m deep basin floor.",
+      "Tight wooded valley. Pond off-centre. Steep walls, no mountains visible — you're inside the grove.",
     terrain: Object.freeze({
       // Tighter clearing, steeper rise. The valley walls press inward
       // so the grove reads as enclosed.
@@ -173,20 +173,6 @@ const DEFAULT_MAP_ID = "scene0";
  */
 export function getActiveMapId() {
   if (typeof window === "undefined") return DEFAULT_MAP_ID;
-  try {
-    const resetDone = window.localStorage?.getItem("v2.maps.reset_done_v4");
-    if (!resetDone) {
-      window.localStorage?.setItem(STORAGE_KEY, DEFAULT_MAP_ID);
-      window.localStorage?.setItem("v2.maps.reset_done_v4", "true");
-      console.log(`[MapsConfig] Auto-resetting active map in localStorage to "${DEFAULT_MAP_ID}"...`);
-      setTimeout(() => {
-        window.location.reload();
-      }, 50);
-      return DEFAULT_MAP_ID;
-    }
-  } catch (_e) {
-    // Ignore private storage exceptions
-  }
   try {
     const qs = new URLSearchParams(window.location.search).get("map");
     if (qs && MAPS[qs]) return qs;
