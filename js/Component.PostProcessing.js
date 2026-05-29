@@ -43,19 +43,19 @@ window.setupPostProcessing = function(scene, camera, renderer) {
     const composer = new EffectComposer(renderer);
     composer.addPass(renderScene);
 
-    // 2. High-Fidelity Depth of Field (Shift-Tilt / Macro)
+    // 2. High-Fidelity Depth of Field (Shift-Tilt / Macro / Toy miniature look)
     const bokehPass = new BokehPass(scene, camera, {
-        focus: 10.0,
-        aperture: 0.0001,
-        maxblur: 0.005,
+        focus: 14.0,
+        aperture: 0.015,
+        maxblur: 0.025,
         width: window.innerWidth,
         height: window.innerHeight
     });
-    // Initial setting: disabled for stable 60FPS baseline; FuzzyBrain will override upwards
-    bokehPass.enabled = false;
+    // Force enabled by default for authentic toy diorama aesthetics
+    bokehPass.enabled = true;
     composer.addPass(bokehPass);
     
-    // 3. Immersive Vignette Shader
+    // 3. Immersive Vignette & Optical FX Shader
     const vignetteShader = {
         uniforms: {
             "tDiffuse": { value: null },
@@ -83,8 +83,43 @@ window.setupPostProcessing = function(scene, camera, renderer) {
                 // Distance from exact center screen
                 vec2 center = vec2(0.5, 0.5);
                 float dist = distance(vUv, center);
-                // Heavy toy diorama shadow scaling
-                float vignette = smoothstep(0.3, 0.75, dist);
+                
+                // 3-stage radial focus blur:
+                // Inner 1/3 (dist < 0.24) is perfect center focus.
+                // Middle 1/3 (0.24 <= dist < 0.48) is 30% less focused.
+                // Outer 1/3 (dist >= 0.48) is 30% less focused than that.
+                float blurAmount = 0.0;
+                if (dist > 0.24) {
+                    if (dist > 0.48) {
+                        blurAmount = 0.008; // heavy outer blur
+                    } else {
+                        // middle blur with smooth boundary transition from perfect center
+                        float transition = smoothstep(0.24, 0.28, dist);
+                        blurAmount = mix(0.0, 0.003, transition);
+                    }
+                }
+                
+                // Sample texture with beautiful radial blur disc if needed
+                if (blurAmount > 0.0) {
+                    vec4 sum = vec4(0.0);
+                    sum += texture2D(tDiffuse, vUv + vec2(-0.707 * blurAmount, -0.707 * blurAmount));
+                    sum += texture2D(tDiffuse, vUv + vec2(0.707 * blurAmount, -0.707 * blurAmount));
+                    sum += texture2D(tDiffuse, vUv + vec2(-0.707 * blurAmount, 0.707 * blurAmount));
+                    sum += texture2D(tDiffuse, vUv + vec2(0.707 * blurAmount, 0.707 * blurAmount));
+                    sum += texture2D(tDiffuse, vUv + vec2(0.0, -blurAmount));
+                    sum += texture2D(tDiffuse, vUv + vec2(0.0, blurAmount));
+                    sum += texture2D(tDiffuse, vUv + vec2(-blurAmount, 0.0));
+                    sum += texture2D(tDiffuse, vUv + vec2(blurAmount, 0.0));
+                    texel = sum / 8.0;
+                }
+                
+                // Volumetric atmospheric haze overlay (warm/cool misty atmosphere)
+                vec3 hazeColor = vec3(0.92, 0.94, 0.96);
+                float hazeStrength = clamp(dist * 0.25 + blurAmount * 15.0, 0.0, 0.35);
+                texel.rgb = mix(texel.rgb, hazeColor, hazeStrength);
+
+                // Heavy, rich toy-diorama vignette
+                float vignette = smoothstep(0.28, 0.72, dist) * 0.75;
                 
                 // Tipi Mask (pierce the vignette so the bright tipi shines through)
                 float tipiDist = distance(vUv, tipiScreenPos);

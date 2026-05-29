@@ -76,8 +76,8 @@ export const SanctuaryWaterFootstepsModule = {
       isMoving = this._speed > MOVE_THRESHOLD;
     }
 
-    const wantWater = inPond  && isMoving;
-    const wantWalk  = !inPond && isMoving;
+    const wantWater = inPond  && isMoving && !window.__sanctuaryMuted;
+    const wantWalk  = !inPond && isMoving && !window.__sanctuaryMuted;
 
     this._fade(this._water, wantWater ? VOL_WATER : 0, delta);
     this._fade(this._walk,  wantWalk  ? VOL_WALK  : 0, delta);

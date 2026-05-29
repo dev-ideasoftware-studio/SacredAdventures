@@ -69,7 +69,7 @@ async function loadTerrainTextures() {
 export const SANCTUARY_POOL_CENTER_X = 0;
 export const SANCTUARY_POOL_CENTER_Z = 0;
 export const SANCTUARY_POOL_RADIUS_M = 12.0;
-export const SANCTUARY_POOL_DEPTH_M = 1.6;
+export const SANCTUARY_POOL_DEPTH_M = 3.05;
 /** Water surface sits this far BELOW the natural ground around it. */
 export const SANCTUARY_WATER_DROP_M = 0.6;
 
@@ -313,7 +313,7 @@ const workerCode = `
   const SANCTUARY_POOL_CENTER_X = 0;
   const SANCTUARY_POOL_CENTER_Z = 0;
   const SANCTUARY_POOL_RADIUS_M = 12.0;
-  const SANCTUARY_POOL_DEPTH_M = 1.6;
+  const SANCTUARY_POOL_DEPTH_M = 3.05;
   const VILLAGE_FLAT_RADIUS = 26;
   const VILLAGE_BANK_BLEND_M = 2;
   const HILL_RING_INNER_R_M = 28;
@@ -530,6 +530,37 @@ async function buildTerrainAsync(textures) {
     metalness: 0.0,
     flatShading: false,
   });
+
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uPoolCenter = { value: new THREE.Vector2(SANCTUARY_POOL_CENTER_X, SANCTUARY_POOL_CENTER_Z) };
+    shader.uniforms.uPoolRadius = { value: SANCTUARY_POOL_RADIUS_M };
+    shader.uniforms.uPoolDarkColor = { value: new THREE.Color(0x1e2216) }; // dark greenish brown
+
+    shader.vertexShader = shader.vertexShader.replace(
+      `void main() {`,
+      `varying vec3 vWorldPosition;\nvoid main() {`
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      `#include <worldpos_vertex>`,
+      `#include <worldpos_vertex>\nvWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      `void main() {`,
+      `varying vec3 vWorldPosition;\nuniform vec2 uPoolCenter;\nuniform float uPoolRadius;\nuniform vec3 uPoolDarkColor;\nvoid main() {`
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      `#include <map_fragment>`,
+      `#include <map_fragment>\n
+      float distToPool = length(vWorldPosition.xz - uPoolCenter);\n
+      float noise = sin(vWorldPosition.x * 0.8 + vWorldPosition.z * 0.6) * 0.45\n
+                  + cos(vWorldPosition.x * 0.4 - vWorldPosition.z * 0.9) * 0.35\n
+                  + sin(vWorldPosition.x * 0.15 + vWorldPosition.z * 0.2) * 0.60;\n
+      float noisyDist = distToPool + noise;\n
+      float blend = smoothstep(uPoolRadius - 1.8, uPoolRadius - 0.2, noisyDist);\n
+      diffuseColor.rgb = mix(uPoolDarkColor, diffuseColor.rgb, blend);\n`
+    );
+  };
 
   // Assemble the geometry and mesh with assertPerformance on assembly
   const mesh = SanctuarySceneConstructor.assertPerformance("SanctuaryGround.buildTerrainAssembly", () => {

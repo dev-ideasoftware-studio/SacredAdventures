@@ -61,17 +61,19 @@ function _injectStylesOnce() {
   st.id = "sanctuary-welcome-guide-css";
   st.textContent = `
     /* ── Welcome Guide overlay ──────────────────────────────────────
-     * Centered horizontally on screen, anchored in the TOP THIRD of the
-     * viewport so it floats above the player model without ever covering
-     * the avatar. Highest practical z-index — must sit on top of every
-     * other HUD layer (PIP / OrchestratorHud / Panels / banner / etc.).
+     * Centered perfectly in the viewport across all viewports (desktop,
+     * tablet, and mobile landscape/portrait). Highest practical z-index
+     * — sits on top of all HUD elements. Includes robust viewport-height
+     * safety styling to guarantee skip/next buttons are never clipped.
      * ──────────────────────────────────────────────────────────────── */
     #sanctuary-welcome-guide {
       position: fixed;
-      top: 350px;                               /* directly under PIP */
-      left: 50%;                                /* center anchor */
-      transform: translateX(-50%);
+      top: 50%;                                 /* perfect vertical center */
+      left: 50%;                                /* perfect horizontal center */
+      transform: translate(-50%, -50%);
       width: min(560px, calc(100vw - 60px));
+      max-height: 90vh;                         /* protect small viewports */
+      overflow-y: auto;                         /* scroll when content overflows */
       z-index: 2147483600;                      /* near MAX_INT32 */
       padding: 28px 32px 24px;
       border-radius: 22px;
@@ -92,7 +94,7 @@ function _injectStylesOnce() {
     }
     #sanctuary-welcome-guide.is-hidden {
       opacity: 0;
-      transform: translateX(-50%) translateY(-12px);
+      transform: translate(-50%, calc(-50% - 12px));
       pointer-events: none;
     }
 
@@ -284,30 +286,32 @@ function _injectStylesOnce() {
       outline: none;
     }
 
-    /* Mobile (≤ 768 px): top 1/3 viewport centered with calc width */
+    /* Mobile (≤ 768 px): perfectly centered and responsive across all viewports */
     @media (max-width: 768px) {
       #sanctuary-welcome-guide {
-        top: 8vh;
+        top: 50%;
         bottom: auto;
         left: 50%;
-        transform: translateX(-50%);
-        width: calc(100vw - 60px);
-        padding: 14px 18px 16px;
-        border-radius: 16px;
+        transform: translate(-50%, -50%);
+        width: calc(100vw - 40px);
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 22px 20px 18px;
+        border-radius: 18px;
       }
       #sanctuary-welcome-guide.is-hidden {
-        transform: translateX(-50%) translateY(-12px);
+        transform: translate(-50%, calc(-50% - 12px));
         opacity: 0;
         pointer-events: none;
       }
       #sanctuary-welcome-guide .swg-pill {
-        margin-top: -26px;
+        margin-top: -28px;
         padding: 5px 14px;
         font-size: 10.5px;
         letter-spacing: 2px;
       }
-      #sanctuary-welcome-guide .swg-title { font-size: 21px; margin-bottom: 8px; }
-      #sanctuary-welcome-guide .swg-body  { font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+      #sanctuary-welcome-guide .swg-title { font-size: 22px; margin-bottom: 8px; }
+      #sanctuary-welcome-guide .swg-body  { font-size: 13.5px; line-height: 1.5; margin-bottom: 12px; }
       #sanctuary-welcome-guide .swg-skip  { padding: 7px 16px; font-size: 12px; }
       #sanctuary-welcome-guide .swg-next  { padding: 8px 18px; font-size: 13px; }
       #sanctuary-welcome-guide .swg-dot   { width: 6px; height: 6px; }

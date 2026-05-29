@@ -256,31 +256,31 @@ function _makeBasinFloorTexture() {
   cv.width = SZ; cv.height = SZ;
   const ctx = cv.getContext("2d");
 
-  // Warm sandy-mud base (desaturated — no greenish cast)
-  ctx.fillStyle = "#3d2f20";
+  // Darker greenish-brown silt base
+  ctx.fillStyle = "#1e2216";
   ctx.fillRect(0, 0, SZ, SZ);
 
   const cx = SZ / 2, cy = SZ / 2;
 
-  // DARK SAND CENTER — soft radial patch of settled deeper sediment.
+  // DARK SILT CENTER — soft radial patch of settled deeper sediment.
   // Real ponds darken toward the deep middle, not the shallow rim.
   // Reaches ~60% of the disc with a smooth falloff.
   const darkCenter = ctx.createRadialGradient(cx, cy, 0, cx, cy, SZ * 0.42);
-  darkCenter.addColorStop(0.00, "rgba(20, 14, 8, 0.85)");
-  darkCenter.addColorStop(0.45, "rgba(28, 20, 12, 0.55)");
+  darkCenter.addColorStop(0.00, "rgba(10, 12, 8, 0.90)");
+  darkCenter.addColorStop(0.45, "rgba(18, 20, 14, 0.65)");
   darkCenter.addColorStop(1.00, "rgba(0, 0, 0, 0)");
   ctx.fillStyle = darkCenter;
   ctx.beginPath(); ctx.arc(cx, cy, SZ * 0.42, 0, Math.PI * 2); ctx.fill();
 
   // Low-frequency silt blobs — lighter alpha so they read as variance not patches.
-  // No greens — only brown/sand tones.
+  // Dark organic mud/moss tones.
   for (let i = 0; i < 40; i++) {
     const x = Math.random() * SZ;
     const y = Math.random() * SZ;
     const r = 60 + Math.random() * 180;
     const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
     const dark = Math.random() < 0.5;
-    grad.addColorStop(0, dark ? "rgba(24, 18, 10, 0.32)" : "rgba(86, 70, 48, 0.28)");
+    grad.addColorStop(0, dark ? "rgba(12, 14, 10, 0.35)" : "rgba(45, 48, 35, 0.30)");
     grad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
@@ -321,17 +321,17 @@ function _makeBasinFloorTexture() {
     const y = Math.random() * SZ;
     const r = 1 + Math.random() * 3.5;
     const tier = Math.random();
-    // Mixed grays/browns/tans — no greens
+    // Mixed grays/browns/mossy greens
     let fill;
     if (tier < 0.35) {
       const s = 25 + Math.floor(Math.random() * 35);
-      fill = `rgba(${s}, ${s - 4}, ${s - 10}, 0.55)`;     // dark gravel
+      fill = `rgba(${s - 10}, ${s - 4}, ${s - 20}, 0.55)`;     // mossy dark gravel
     } else if (tier < 0.70) {
       const s = 70 + Math.floor(Math.random() * 30);
-      fill = `rgba(${s}, ${s - 10}, ${s - 22}, 0.50)`;    // brown pebble
+      fill = `rgba(${s - 15}, ${s - 10}, ${s - 30}, 0.50)`;    // greenish brown pebble
     } else {
       const s = 120 + Math.floor(Math.random() * 40);
-      fill = `rgba(${s}, ${s - 18}, ${s - 38}, 0.45)`;    // light sandy pebble
+      fill = `rgba(${s - 25}, ${s - 20}, ${s - 45}, 0.45)`;    // light mossy pebble
     }
     ctx.fillStyle = fill;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
@@ -375,7 +375,7 @@ function buildBasinFloor(centerY) {
   for (let ring = 1; ring <= RINGS; ring++) {
     const ringR = (ring / RINGS) * RADIUS;
     const inner = ringR / SANCTUARY_POOL_RADIUS_M;
-    const bowl = 1 - inner * inner * inner * inner;     // quartic — matches terrain
+    const bowl = 1 - inner * inner;     // quadratic — matches terrain
     const localZ = -SANCTUARY_POOL_DEPTH_M * bowl;       // depth below water surface
     for (let i = 0; i <= SEGS; i++) {
       const theta = (i / SEGS) * Math.PI * 2;
@@ -913,11 +913,9 @@ function buildPoolRocks(centerY) {
 
       const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * d;
       const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
-      // 2026-05-28: basin floor is now bowl-shaped (quartic), so rocks must
-      // sit on the LOCAL floor at their radius, not a uniform deepest-bottom Y.
-      // Quartic bowl Y at this rock's distance from centre:
+      // quadratic bowl Y at this rock's distance from centre:
       const rInner = Math.min(1, d / SANCTUARY_POOL_RADIUS_M);
-      const bowlY = -SANCTUARY_POOL_DEPTH_M * (1 - rInner * rInner * rInner * rInner);
+      const bowlY = -SANCTUARY_POOL_DEPTH_M * (1 - rInner * rInner);
       const y = bowlY + 0.02 + rng() * 0.04 + scaleY * 0.3;
 
       _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
@@ -1006,9 +1004,9 @@ function buildPoolRocks(centerY) {
     const scaleX = r * (0.85 + rng() * 0.35);
     const scaleY = r * (0.50 + rng() * 0.25);
     const scaleZ = r * (0.85 + rng() * 0.35);
-    // Sit pebble on local bowl floor (same quartic as basin floor mesh).
+    // Sit pebble on local bowl floor (same quadratic as basin floor mesh).
     const pInner = Math.min(1, distFromCenter / SANCTUARY_POOL_RADIUS_M);
-    const pBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - pInner * pInner * pInner * pInner);
+    const pBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - pInner * pInner);
     const y = pBowlY + 0.015 + rng() * 0.02 + scaleY * 0.3;
 
     _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
@@ -1073,9 +1071,9 @@ function buildPoolRocks(centerY) {
     _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
     _quat.setFromEuler(_euler);
     // Sit on the bowl-shaped basin floor: compute local Y from the same
-    // quartic the basin mesh uses, plus a tiny lift.
+    // quadratic the basin mesh uses, plus a tiny lift.
     const mInner = Math.min(1, d / SANCTUARY_POOL_RADIUS_M);
-    const mBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - mInner * mInner * mInner * mInner);
+    const mBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - mInner * mInner);
     _pos.set(x, mBowlY + 0.015 + rng() * 0.015 + sBase * 0.3, z);
     _scl.set(sBase * (0.85 + rng() * 0.35), sBase * (0.55 + rng() * 0.25), sBase * (0.85 + rng() * 0.35));
     _m.compose(_pos, _quat, _scl);
@@ -1220,6 +1218,235 @@ function buildRim(centerY) {
   mesh.userData.anuKind = "sanctuary_pool_moss_rim";
   mesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
   return mesh;
+}
+
+function buildShorelineRocks(centerY) {
+  const group = new THREE.Group();
+  group.name = "sanctuary_pool_shoreline_rocks";
+  group.userData.anuKind = "sanctuary_pool_shoreline_rocks";
+  group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+  const rng = mulberry32(0xd0c410c5);
+
+  const shorePalette = [
+    new THREE.Color(0x282c22), // mossy dark green-gray
+    new THREE.Color(0x322d26), // warm slate grey
+    new THREE.Color(0x242721), // deep forest moss
+    new THREE.Color(0x3e382f), // charcoal granite
+    new THREE.Color(0x1a1c18), // wet charcoal
+    new THREE.Color(0x443a2e), // dry lichen brown
+  ];
+
+  const ROCKS_COUNT = 72;
+
+  for (let i = 0; i < ROCKS_COUNT; i++) {
+    const theta = (i / ROCKS_COUNT) * Math.PI * 2;
+    
+    // Avoid dock entrance (south dock direction is Math.PI)
+    // Dock entrance covers theta around Math.PI, check +/- 0.38 rad
+    const angleDiff = Math.abs(theta - Math.PI);
+    if (angleDiff < 0.38) {
+      continue;
+    }
+
+    const rngVal = rng();
+    let geo;
+    if (rngVal < 0.5) {
+      geo = new THREE.DodecahedronGeometry(1.0, 2); // rounded dodecahedron
+    } else {
+      geo = new THREE.IcosahedronGeometry(1.0, 2); // rounded icosahedron
+    }
+
+    // Scale - highly diverse realistic sizes (0.8m to 3.0m)
+    const scaleX = 0.8 + rng() * 2.2;
+    const scaleY = 0.6 + rng() * 1.8;
+    const scaleZ = 0.8 + rng() * 2.2;
+
+    // Radius matching organic rim curve
+    const r = organicRimRadius(theta) + (rng() * 0.4 - 0.1);
+    const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * r;
+    const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * r;
+
+    // Ground elevation
+    const groundY = sanctuaryGroundY(x, z);
+    const y = groundY - scaleY * 0.35; // slightly embedded so it doesn't float
+
+    // Material
+    const color = shorePalette[Math.floor(rng() * shorePalette.length)];
+    const mat = new THREE.MeshStandardMaterial({
+      color: color,
+      roughness: 0.15, // wet, glistening look for stone parts
+      metalness: 0.08,
+      flatShading: false, // beautifully rounded/smooth organic look!
+    });
+
+    mat.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace(
+        `void main() {`,
+        `varying vec3 vWorldNormal;\nvarying vec3 vWorldPosition;\nvoid main() {`
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        `#include <worldpos_vertex>`,
+        `#include <worldpos_vertex>\n
+        vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);\n
+        vWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `void main() {`,
+        `varying vec3 vWorldNormal;\nvarying vec3 vWorldPosition;\nvoid main() {`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <opaque_fragment>`,
+        `
+        // Calculate organic moss blending based on world-space up normal + positional noise
+        float noise = sin(vWorldPosition.x * 3.5) * cos(vWorldPosition.z * 3.5) * 0.18 + sin(vWorldPosition.y * 6.0) * 0.08;
+        float mossStrength = smoothstep(0.35, 0.60, vWorldNormal.y + noise);
+        
+        // Beautiful velvet-moss green blend
+        vec3 mossColor1 = vec3(0.20, 0.35, 0.12); // deep forest moss
+        vec3 mossColor2 = vec3(0.32, 0.48, 0.18); // bright velvet moss
+        vec3 finalMossColor = mix(mossColor1, mossColor2, 0.5 + 0.5 * sin(vWorldPosition.x * 1.5 + vWorldPosition.z * 1.5));
+        
+        // Blend final diffuse color
+        diffuseColor.rgb = mix(diffuseColor.rgb, finalMossColor, mossStrength);
+        
+        // Blend roughness (moss is extremely matte/rough, wet stone is glistening)
+        float finalRoughness = mix(0.15, 0.95, mossStrength);
+        float finalMetalness = mix(0.08, 0.0, mossStrength);
+        ` + `\n#include <opaque_fragment>`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <roughnessmap_fragment>`,
+        `#include <roughnessmap_fragment>\nroughnessFactor = finalRoughness;`
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <metalnessmap_fragment>`,
+        `#include <metalnessmap_fragment>\nmetalnessFactor = finalMetalness;`
+      );
+    };
+
+    const rockMesh = new THREE.Mesh(geo, mat);
+    rockMesh.position.set(x, y, z);
+    rockMesh.scale.set(scaleX, scaleY, scaleZ);
+    rockMesh.rotation.set(
+      rng() * Math.PI * 2,
+      rng() * Math.PI * 2,
+      rng() * Math.PI * 2
+    );
+    rockMesh.castShadow = true;
+    rockMesh.receiveShadow = true;
+    rockMesh.layers.enable(1); // Enable map layer
+
+    rockMesh.name = `sanctuary_shoreline_rock_${i}`;
+    rockMesh.userData.anuKind = "sanctuary_shoreline_rock";
+    rockMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+    group.add(rockMesh);
+  }
+
+  // Additional: Add outer boulders specifically on the left side of the shore (x < 0) to break up transition lines
+  const OUTER_ROCKS_COUNT = 24;
+  for (let j = 0; j < OUTER_ROCKS_COUNT; j++) {
+    // Left side covers angles roughly from 90 degrees (Math.PI/2) to 270 degrees (3*Math.PI/2)
+    // Left is centered on Math.PI (180 degrees)
+    const theta = Math.PI * 0.65 + (j / OUTER_ROCKS_COUNT) * Math.PI * 0.70;
+
+    const rngVal = rng();
+    let geo;
+    if (rngVal < 0.5) {
+      geo = new THREE.DodecahedronGeometry(1.0, 2);
+    } else {
+      geo = new THREE.IcosahedronGeometry(1.0, 2);
+    }
+
+    // Diverse sizes for outer boulders (0.6m to 2.2m)
+    const scaleX = 0.6 + rng() * 1.6;
+    const scaleY = 0.5 + rng() * 1.3;
+    const scaleZ = 0.6 + rng() * 1.6;
+
+    // Radius places them outer (grassy meadow transition zone)
+    const r = organicRimRadius(theta) + 1.2 + rng() * 2.2;
+    const x = SANCTUARY_POOL_CENTER_X + Math.cos(theta) * r;
+    const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * r;
+
+    const groundY = sanctuaryGroundY(x, z);
+    const y = groundY - scaleY * 0.35; // slightly embedded
+
+    const color = shorePalette[Math.floor(rng() * shorePalette.length)];
+    const mat = new THREE.MeshStandardMaterial({
+      color: color,
+      roughness: 0.18,
+      metalness: 0.05,
+      flatShading: false,
+    });
+
+    mat.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace(
+        `void main() {`,
+        `varying vec3 vWorldNormal;\nvarying vec3 vWorldPosition;\nvoid main() {`
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        `#include <worldpos_vertex>`,
+        `#include <worldpos_vertex>\n
+        vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);\n
+        vWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `void main() {`,
+        `varying vec3 vWorldNormal;\nvarying vec3 vWorldPosition;\nvoid main() {`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <opaque_fragment>`,
+        `
+        float noise = sin(vWorldPosition.x * 3.5) * cos(vWorldPosition.z * 3.5) * 0.18 + sin(vWorldPosition.y * 6.0) * 0.08;
+        float mossStrength = smoothstep(0.35, 0.60, vWorldNormal.y + noise);
+        
+        vec3 mossColor1 = vec3(0.20, 0.35, 0.12);
+        vec3 mossColor2 = vec3(0.32, 0.48, 0.18);
+        vec3 finalMossColor = mix(mossColor1, mossColor2, 0.5 + 0.5 * sin(vWorldPosition.x * 1.5 + vWorldPosition.z * 1.5));
+        
+        diffuseColor.rgb = mix(diffuseColor.rgb, finalMossColor, mossStrength);
+        
+        float finalRoughness = mix(0.18, 0.95, mossStrength);
+        float finalMetalness = mix(0.05, 0.0, mossStrength);
+        ` + `\n#include <opaque_fragment>`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <roughnessmap_fragment>`,
+        `#include <roughnessmap_fragment>\nroughnessFactor = finalRoughness;`
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <metalnessmap_fragment>`,
+        `#include <metalnessmap_fragment>\nmetalnessFactor = finalMetalness;`
+      );
+    };
+
+    const rockMesh = new THREE.Mesh(geo, mat);
+    rockMesh.position.set(x, y, z);
+    rockMesh.scale.set(scaleX, scaleY, scaleZ);
+    rockMesh.rotation.set(
+      rng() * Math.PI * 2,
+      rng() * Math.PI * 2,
+      rng() * Math.PI * 2
+    );
+    rockMesh.castShadow = true;
+    rockMesh.receiveShadow = true;
+    rockMesh.layers.enable(1);
+
+    rockMesh.name = `sanctuary_outer_shoreline_rock_${j}`;
+    rockMesh.userData.anuKind = "sanctuary_shoreline_rock";
+    rockMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
+
+    group.add(rockMesh);
+  }
+
+  return group;
 }
 
 function mulberry32(seed) {
@@ -1627,6 +1854,7 @@ export const SanctuaryPoolModule = {
     root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildWaterSurface", () => buildWaterSurface(waterY, textures)));
     root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildRim", () => buildRim(waterY)));
     root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildPoolRocks", () => buildPoolRocks(waterY)));
+    root.add(SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildShorelineRocks", () => buildShorelineRocks(waterY)));
     
     // Store reference to build pads so we can update them in update() loop
     const lilies = SanctuarySceneConstructor.assertPerformance("SanctuaryPool.buildLilyPads", () => buildLilyPads(waterY));

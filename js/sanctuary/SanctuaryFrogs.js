@@ -503,6 +503,36 @@ export const SanctuaryFrogsModule = {
         `%c[SanctuaryFrogs] 🪷 Reusing ${_lilies.length} multi-colour lily pads from SanctuaryPool (no duplicate low-poly pads).`,
         "color:#a5d6a7;",
       );
+    }
+
+    if (typeof window !== "undefined") {
+      window.__sanctuaryFrogsRegenerate = () => {
+        if (Array.isArray(window.__sanctuaryLilyPads) && window.__sanctuaryLilyPads.length > 0) {
+          _lilies = window.__sanctuaryLilyPads.slice();
+          console.log("[SanctuaryFrogs] 🐸 Re-aligned frog target lily pads list!");
+          const rL = lcg(456);
+          for (const f of _frogs) {
+            if (f.state === S_BASK_LILY) {
+              f.group.position.copy(_getRandomLilyPos(rL, null));
+            }
+          }
+          for (let i = 0; i < _friendFrogs.length; i++) {
+            const ff = _friendFrogs[i];
+            const startPad = _lilies[Math.min(i, _lilies.length - 1)];
+            if (startPad) {
+              ff.group.position.set(
+                startPad.position.x + (i === 0 ? -0.15 : 0.15),
+                WATER_Y + 0.08,
+                startPad.position.z + (i === 0 ? -0.15 : 0.15),
+              );
+            }
+          }
+        }
+      };
+    }
+
+    if (typeof window !== "undefined" && Array.isArray(window.__sanctuaryLilyPads) && window.__sanctuaryLilyPads.length > 0) {
+      // already slice-handled above
     } else {
       // Fallback: SanctuaryPool hasn't loaded (boot order edge case).
       // Build the legacy low-poly pads so frogs still have somewhere

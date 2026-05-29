@@ -178,29 +178,9 @@ export const SanctuaryFishJumpsModule = {
   },
 
   update(delta) {
-    if (!this._root) return;
-    this._elapsed += delta;
-
-    if (!this._active && this._elapsed >= this._nextJumpAtS) {
-      this._startJump();
-    }
-
-    if (this._active) {
-      const a = this._active;
-      const t = (this._elapsed - a.t0) / JUMP_DURATION_S; // 0..1
-      if (t >= 1) {
-        this._endJump();
-        return;
-      }
-      const arc = -4 * (t - 0.5) * (t - 0.5) + 1; // 0 at edges, 1 at midpoint
-      a.mesh.position.set(
-        a.x + a.dirX * t,
-        this._waterY + JUMP_PEAK_M * arc,
-        a.z + a.dirZ * t,
-      );
-      const pitch = (1 - 2 * t) * 0.9;
-      a.mesh.rotation.set(0, Math.atan2(a.dirX, a.dirZ), pitch);
-    }
+    // REMOVED 2026-05-29 per user request: "dont have jumping fish that pop up."
+    // Only real swimming fish will perform a jump when catching dragonflies.
+    return;
   },
 
   unload(scene) {

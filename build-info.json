@@ -1,9 +1,9 @@
 {
-  "subject": "feat(sanctuary): closer and lower cinematic panorama fishing camera",
-  "isoDate": "2026-05-29T04:01:23-05:00",
+  "subject": "feat(sanctuary): center-screen responsive welcome guide, organic shore, and mossy boulders",
+  "isoDate": "2026-05-29T16:27:24-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "eb07787",
-  "dirty": true,
-  "generatedAt": "2026-05-29T09:01:26.720Z"
+  "commit": "cfb8168",
+  "dirty": false,
+  "generatedAt": "2026-05-29T21:27:27.610Z"
 }

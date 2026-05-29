@@ -62,10 +62,10 @@ export const UIModule = {
           cursor: default;
           overflow: visible;
           isolation: isolate;
-          background: radial-gradient(circle, rgba(15, 10, 5, 0.4) 30%, rgba(5, 2, 0, 0.9) 100%);
-          border: 3px solid rgba(255, 215, 0, 0.4);
+          background: transparent;
+          border: 3px solid rgba(255, 215, 0, 0.45);
           box-shadow: 
-              inset 0 0 30px rgba(0, 0, 0, 0.9),
+              0 10px 30px rgba(0, 0, 0, 0.5),
               0 0 0 8px #1a1512, /* Outer Iron Chassis */
               0 15px 40px rgba(0, 0, 0, 0.8), /* Volumetric shadow */
               0 0 20px rgba(255, 180, 50, 0.1);

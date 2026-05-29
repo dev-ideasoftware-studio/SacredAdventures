@@ -516,9 +516,9 @@ export const SanctuaryClickToMoveModule = {
       const _dy = _ds ? _ds.getY(x, z) : null;
       const y = (_dy !== null ? _dy : sanctuaryGroundY(x, z)) + GROUND_LIFT_M;
       dummy.position.set(x, y, z);
-      // Lay flat then yaw, mirror Z for left foot.
+      // Lay flat then yaw, mirror Y for left foot (keeps Z-normal pointing up so it stays flat and properly lit).
       dummy.rotation.set(-Math.PI / 2, yaw, 0);
-      dummy.scale.set(1, 1, side);
+      dummy.scale.set(1, side, 1);
       dummy.updateMatrix();
       dashes.setMatrixAt(i, dummy.matrix);
     }

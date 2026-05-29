@@ -163,6 +163,38 @@ const STYLE = `
   }
 
   #v4-village-build .vb-btn:active { transform: translateY(0); }
+
+  /* 🗺 Village Map Selector Styling */
+  #v4-village-build .vb-select-container {
+    margin-bottom: 10px;
+    pointer-events: auto;
+  }
+  #v4-village-build .vb-select-container select {
+    width: 100%;
+    background: linear-gradient(180deg, rgba(40,26,20,0.94), rgba(15,10,8,0.97));
+    border: 1px solid rgba(255,217,122,0.30);
+    border-bottom: 2px solid rgba(251,192,45,0.65);
+    border-radius: 4px;
+    color: #ffe9a8;
+    padding: 6px 10px;
+    font-family: 'Fredoka', 'Segoe UI', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.0px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    outline: none;
+    transition: border-color 150ms ease, background 150ms ease;
+  }
+  #v4-village-build .vb-select-container select:hover {
+    border-color: rgba(251,192,45,0.85);
+    background: linear-gradient(180deg, rgba(60,38,24,0.95), rgba(28,18,12,0.99));
+  }
+  #v4-village-build .vb-select-container select option {
+    background: #1e1408;
+    color: #ffe9a8;
+    font-family: 'Fredoka', 'Segoe UI', sans-serif;
+  }
 `;
 
 function ensureStyle() {
@@ -177,6 +209,43 @@ function buildPanel() {
   const wrap = document.createElement("div");
   wrap.id = "v4-village-build";
   wrap.userData = { anuSimulationDomain: ANU_SIMULATION_DOMAIN.PLAYER };
+
+  // 🗺 Map Selection Section
+  const mapHdr = document.createElement("div");
+  mapHdr.className = "vb-header";
+  mapHdr.textContent = "🗺 VILLAGE MAP";
+  wrap.appendChild(mapHdr);
+
+  const mapSelContainer = document.createElement("div");
+  mapSelContainer.className = "vb-select-container";
+  
+  const mapSelect = document.createElement("select");
+  mapSelect.id = "v4-map-type-select";
+  
+  const activeMap = (typeof window !== "undefined" && window.__sanctuaryMapType) || "1";
+
+  const optionsData = [
+    { value: "1", text: "Map 1: Small Village Pond" },
+    { value: "2", text: "Map 2: Large Basin & Streams" },
+    { value: "3", text: "Map 3: Deep Mountain Valley" },
+    { value: "4", text: "Map 4: Winding River Plain" },
+    { value: "5", text: "Map 5: Sacred Forest Glade" }
+  ];
+
+  optionsData.forEach(opt => {
+    const el = document.createElement("option");
+    el.value = opt.value;
+    el.textContent = opt.text;
+    if (opt.value === activeMap) el.selected = true;
+    mapSelect.appendChild(el);
+  });
+
+  mapSelContainer.appendChild(mapSelect);
+  wrap.appendChild(mapSelContainer);
+
+  const mapDiv = document.createElement("div");
+  mapDiv.className = "vb-divider";
+  wrap.appendChild(mapDiv);
 
   // Header
   const hdr = document.createElement("div");
@@ -236,6 +305,9 @@ export const SanctuaryToolPaletteModule = {
     ensureStyle();
     this._wrap = buildPanel();
 
+    const activeMap = (typeof window !== "undefined" && window.__sanctuaryMapType) || "1";
+    window.__sanctuaryMapType = activeMap;
+
     // ── Tool selection ─────────────────────────────────────────────
     this._wrap.querySelector(".vb-grid").addEventListener("click", (ev) => {
       const tile = ev.target.closest(".vb-tool");
@@ -243,6 +315,48 @@ export const SanctuaryToolPaletteModule = {
       this._setActive(tile.dataset.tool);
     });
     this._setActive(this._activeId);
+
+    // ── Map Selection ──────────────────────────────────────────────
+    this._wrap.querySelector("#v4-map-type-select")?.addEventListener("change", async (ev) => {
+      const type = ev.target.value;
+      window.__sanctuaryMapType = type;
+      console.log("[VillageBuild] 🗺 Transitioning to Map Type: " + type);
+
+      // 1) Update ground mapType and live ES6 bindings
+      if (window.SanctuaryGround?.setMapType) {
+        window.SanctuaryGround.setMapType(type);
+      }
+
+      // 2) Regenerate terrain mesh in place
+      if (window.__regenerateTerrain) {
+        await window.__regenerateTerrain();
+      }
+
+      // 3) Regenerate tipis
+      if (window.__regenerateTipis) {
+        await window.__regenerateTipis();
+      }
+
+      // 4) Regenerate NPCs
+      if (window.__regenerateTipiNpcs) {
+        await window.__regenerateTipiNpcs();
+      }
+
+      // 5) Regenerate Braziers
+      if (window.__regenerateBraziers) {
+        await window.__regenerateBraziers();
+      }
+
+      // 6) Regenerate pool assets
+      if (window.__regeneratePoolObjects) {
+        await window.__regeneratePoolObjects();
+      }
+
+      // 7) Regenerate dock
+      if (window.__regenerateDock) {
+        await window.__regenerateDock();
+      }
+    });
 
     // ── Scene buttons ──────────────────────────────────────────────
     document.getElementById("v4-btn-gen-scene")?.addEventListener("click", () => {

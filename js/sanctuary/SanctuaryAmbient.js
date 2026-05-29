@@ -29,7 +29,7 @@ let _master = null;
 let _wind = null;
 let _water = null;
 let _birdsGain = null;
-let _muted = false;
+let _muted = true;
 
 function _buildNoiseBuffer(ctx, kind) {
   const SECONDS = 2.0;
@@ -181,7 +181,10 @@ export const SanctuaryAmbientModule = {
     window.addEventListener("click", this._onFirstInteraction, { once: true });
     window.addEventListener("keydown", this._onFirstInteraction, { once: true });
 
-    // Append a 🔊 button to the controls bar TOP row alongside TOP-DOWN
+    // Set global mute state to true by default per user request
+    window.__sanctuaryMuted = true;
+
+    // Append a 🔇 button to the controls bar TOP row alongside TOP-DOWN
     // + the day/night toggle.
     const controls = document.getElementById("v4-controls");
     if (controls) {
@@ -191,7 +194,7 @@ export const SanctuaryAmbientModule = {
         btn.id = "v4-btn-mute";
         btn.className = "btn-top";
         btn.type = "button";
-        btn.textContent = "🔊 SOUND";
+        btn.textContent = "🔇 MUTED";
         btn.addEventListener("click", () => this._toggleMute());
         topRow.appendChild(btn);
         this._btn = btn;
@@ -205,6 +208,7 @@ export const SanctuaryAmbientModule = {
 
   _toggleMute() {
     _muted = !_muted;
+    window.__sanctuaryMuted = _muted;
     if (_master && _ctx) {
       _master.gain.setTargetAtTime(_muted ? 0 : 1, _ctx.currentTime, 0.15);
     }

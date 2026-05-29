@@ -71,6 +71,76 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
       mat.roughness = Math.max(0.7, mat.roughness || 0.7);
       mat.metalness = 0.0;
       
+      // Inject wind sway shader logic
+      if (anuKind.includes("tree") || anuKind.includes("bush") || anuKind.includes("reeds")) {
+        mat.userData.uTime = { value: 0 };
+        SanctuaryPondTreesModule._materialsToUpdate.push(mat);
+
+        mat.onBeforeCompile = (shader) => {
+          shader.uniforms.uTime = mat.userData.uTime;
+          
+          shader.vertexShader = shader.vertexShader.replace(
+            `#include <common>`,
+            `#include <common>
+            uniform float uTime;`
+          );
+
+          let swayScale = 0.04;
+          let speedScale = 1.4;
+          if (anuKind.includes("reeds")) {
+            swayScale = 0.06;
+            speedScale = 2.0;
+          } else if (anuKind.includes("bush")) {
+            swayScale = 0.05;
+            speedScale = 1.6;
+          }
+
+          shader.vertexShader = shader.vertexShader.replace(
+            `#include <begin_vertex>`,
+            `#include <begin_vertex>
+            // Synchronized travelling wind gust wave coming from West-Southwest (1.0, 0.8)
+            vec2 windDir = vec2(0.78, 0.62);
+            
+            // Get instance translation coordinates
+            #ifdef USE_INSTANCING
+              vec3 instPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+            #else
+              vec3 instPos = vec3(modelMatrix[3][0], modelMatrix[3][1], modelMatrix[3][2]);
+            #endif
+
+            // Project translation onto wind gust direction for phase offsets
+            float distAlongWind = dot(instPos.xz, windDir);
+
+            // Travelling wind gust swells (period ~7.5s)
+            float gustSwell = 0.5 + 0.5 * sin(uTime * 0.84 - distAlongWind * 0.05);
+
+            // Multi-frequency wind noise phase for sync'd forest-wide wave
+            float windPhase = uTime * ${speedScale} - distAlongWind * 0.12;
+            float windOsc = sin(windPhase) * 0.7 + cos(windPhase * 2.1) * 0.3;
+
+            // Soft trunk sway: restricted to 1–4 degrees (0.017 to 0.07 rad)
+            float trunkAngle = (0.017 + 0.035 * gustSwell * (0.5 + 0.5 * windOsc)) * (${swayScale} / 0.04);
+            float h = max(0.0, position.y);
+            float trunkSway = h * trunkAngle;
+
+            // Branches/leaves: sway/flutter based on radial distance from trunk axis (position.xz)
+            float radialDist = length(position.xz);
+            // Higher frequency branch wiggling phase
+            float branchPhase = uTime * (${speedScale} * 2.8) + position.x * 2.0 + position.z * 2.0 + distAlongWind * 0.3;
+            float branchSway = sin(branchPhase) * (${swayScale} * 0.6) * radialDist * (h * 0.12 + 0.15);
+
+            // Apply soft trunk sway along wind direction
+            transformed.x += windDir.x * trunkSway;
+            transformed.z += windDir.y * trunkSway;
+
+            // Apply high-frequency branch fluttering/wiggling
+            transformed.x += cos(branchPhase) * (${swayScale} * 0.35) * radialDist;
+            transformed.z += branchSway;
+            `
+          );
+        };
+      }
+      
       const bakedGeo = child.geometry.clone();
       bakedGeo.applyMatrix4(child.matrixWorld);
       
@@ -91,9 +161,13 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
 export const SanctuaryPondTreesModule = {
   name: "SanctuaryPondTrees",
   _scene: null,
+  _materialsToUpdate: [],
+  _time: 0,
 
   async load(scene) {
     this._scene = scene;
+    this._materialsToUpdate = [];
+    this._time = 0;
     const rand = lcg(101);
 
     // Save original fog so unload() can restore it
@@ -247,13 +321,20 @@ export const SanctuaryPondTreesModule = {
   },
 
   update(dt) {
-    // Instanced GLBs are statically batched to the GPU. Zero CPU overhead per frame.
+    this._time += dt;
+    for (let i = 0; i < this._materialsToUpdate.length; i++) {
+      const mat = this._materialsToUpdate[i];
+      if (mat.userData.uTime) {
+        mat.userData.uTime.value = this._time;
+      }
+    }
   },
 
   unload() {
     if (_group && this._scene) this._scene.remove(_group);
     if (this._scene && _origFog !== undefined) this._scene.fog = _origFog;
     _group  = null;
+    this._materialsToUpdate = [];
     this._scene = null;
   },
 };

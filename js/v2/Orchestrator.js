@@ -887,16 +887,18 @@ export class SacredOrchestrator {
     const isTopDown = document.body.classList.contains("v4-top-down-view");
     const isFishing = (typeof window !== "undefined") &&
       window.__sanctuaryFishingActive === true;
-    // Fishing: render the close-up at full device DPR and a bigger cap —
-    // the frustum is 1.4 m and the scene is already culled to the pond,
-    // so the cost stays small while the gauge & fish read sharp instead
-    // of pixelated. Top-down: full DPR for the map. Default: light minimap.
-    const dprClamp = 2.0;
-    const pr = Math.min(window.devicePixelRatio || 1, dprClamp);
+    if (isFishing) {
+      return { w: 1024, h: 1024 };
+    }
+    const dprClamp = 3.0;
+    // Always use a generous pixel ratio for the PiP to ensure extreme high resolution and crispness,
+    // especially for reading the 3D fishing spectrum gauge close-up!
+    const pr = Math.max(2.0, Math.min(window.devicePixelRatio || 1.5, dprClamp));
     const rect = canvasEl.getBoundingClientRect();
-    const rawW = Math.max(160, Math.floor(rect.width * pr));
-    const rawH = Math.max(160, Math.floor(rect.height * pr));
-    const cap = isTopDown ? 512 : (isFishing ? 768 : 384);
+    // Increase minimum backing size to 512 to prevent tiny resolutions if rect is measured before full styling
+    const rawW = Math.max(512, Math.floor(rect.width * pr));
+    const rawH = Math.max(512, Math.floor(rect.height * pr));
+    const cap = 1024;
     return {
       w: Math.min(cap, rawW),
       h: Math.min(cap, rawH),
@@ -927,10 +929,11 @@ export class SacredOrchestrator {
     this._pipRenderer = new THREE.WebGLRenderer({
       canvas: canvasEl,
       alpha: true,
-      antialias: false,
-      powerPreference: "low-power",
+      antialias: true,
+      powerPreference: "high-performance",
       preserveDrawingBuffer: true,
     });
+    this._pipRenderer.shadowMap.enabled = false; // Disable expensive shadow rendering for the tiny PIP viewport!
     this._pipRenderer.setPixelRatio(1);
     this._pipRenderer.setSize(w, h, false);
     if (this.renderer.outputColorSpace !== undefined) {
@@ -961,11 +964,14 @@ export class SacredOrchestrator {
     this._pipPersp = new THREE.PerspectiveCamera(42, aspect, 0.12, 220);
     this._pipPersp.name = "pipPersp";
     // Enable layer 1 on both PiP cameras so they pick up the PiP-only markers.
+    // Enable layer 3 so they pick up high-poly trees/branches on the minimap.
     // Restore layer 0 so the 3D scene (terrain, standard trees, etc.) renders on the minimap.
     this._pipOrtho.layers.enable(1);
     this._pipOrtho.layers.enable(0);
+    this._pipOrtho.layers.enable(3);
     this._pipPersp.layers.enable(1);
     this._pipPersp.layers.enable(0);
+    this._pipPersp.layers.enable(3);
 
     // Warm-up: the second WebGL context has its own program cache + own
     // GPU buffer pool, so the *first* PiP render would otherwise compile
@@ -1245,8 +1251,10 @@ export class SacredOrchestrator {
       this._pipOrtho.lookAt(bp.x, WATER_Y, bp.z);
       this._pipRenderer.render(this.scene, this._pipOrtho);
 
-      // Restore the camera to the default layer 0
+      // Restore the camera to the default layers 0, 1, and 3
       this._pipOrtho.layers.set(0);
+      this._pipOrtho.layers.enable(1);
+      this._pipOrtho.layers.enable(3);
 
       // Restore normal ortho frustum so the non-fishing frame is correct
       const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM * this._pipUserZoom;

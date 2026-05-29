@@ -41,6 +41,7 @@ import {
 
 const YB_URL = "./Assets/NPC.YB.glb";
 const BHG_URL = "./Assets/NPC.BHG.glb";
+const REG_URL = "./Assets/NPC.REG.glb";
 
 function _fitSeatedNpc(model, targetH, sizeMul) {
   const box0 = new THREE.Box3().setFromObject(model);
@@ -109,10 +110,22 @@ async function _buildSeatedNpcV2(cfg) {
   root.add(facingGroup);
 
   const deckTop = tipi1SacredDeckTopY(cfg.platMesh);
+
+  const isTipi2 = cfg.anuId.includes("brings_happiness_girl");
+  const isTipi4 = cfg.anuId.includes("reg");
+  const yaw = isTipi2
+    ? (window.__sanctuaryTipi2Yaw ?? V2_TIPI_2_YAW_RAD)
+    : (isTipi4
+        ? (window.__sanctuaryTipi4Yaw ?? Math.PI / 2)
+        : (window.__sanctuaryTipi1Yaw ?? Math.PI / 2));
+
+  const wx = cfg.localZ * Math.cos(yaw) + cfg.localX * Math.sin(yaw);
+  const wz = cfg.localZ * Math.sin(yaw) - cfg.localX * Math.cos(yaw);
+
   root.position.set(
-    cfg.hexPos.x + cfg.localX,
+    cfg.hexPos.x + wx,
     deckTop + cfg.verticalTrimM - cfg.seatLowerM,
-    cfg.hexPos.z + cfg.localZ,
+    cfg.hexPos.z + wz,
   );
 
   cfg.scene.add(root);
@@ -153,17 +166,22 @@ async function _buildSeatedNpcV2(cfg) {
 export const SanctuaryTipiNpcsModule = {
   name: "SanctuaryTipiNpcs",
 
+  _scene: null,
   _yb: null,
   _bhg: null,
+  _reg: null,
 
   async load(scene) {
+    this._scene = scene;
     const tipi1Hex = window.__sanctuaryTipi1Anchor ?? { x: 0, z: 0 };
     const tipi2Hex = window.__sanctuaryTipi2Anchor ?? {
       x: V2_TIPI_2_CENTER_X_M,
       z: V2_TIPI_2_CENTER_Z_M,
     };
+    const tipi4Hex = window.__sanctuaryTipi4Anchor ?? null;
     const plat1 = window.__sanctuaryTipi1PlatMesh ?? null;
     const plat2 = window.__sanctuaryTipi2PlatMesh ?? null;
+    const plat4 = window.__sanctuaryTipi4PlatMesh ?? null;
 
     if (!plat1 || !plat2) {
       console.warn("[SanctuaryTipiNpcs] tipi platforms missing — activate SanctuaryTipis first");
@@ -230,12 +248,58 @@ export const SanctuaryTipiNpcsModule = {
     } catch (err) {
       console.warn("[SanctuaryTipiNpcs] BHG load failed:", err);
     }
+
+    if (plat4 && tipi4Hex) {
+      try {
+        this._reg = await _buildSeatedNpcV2({
+          url: REG_URL,
+          scene,
+          hexPos: tipi4Hex,
+          platMesh: plat4,
+          anuId: "population.npc.reg",
+          anuKind: "sanctuary_npc_reg",
+          rootName: "population_npc_reg_tipi4_seated",
+          meshKind: "npc_reg_tipi4_mesh",
+          facingGroupName: "population_npc_reg_facing",
+          facingKind: "npc_reg_facing_pivot",
+          modelYawRad: V2_NPC_YB_TIPI1_MODEL_YAW_RAD,
+          targetHeightM: 0.93,
+          sizeMultiplier: V2_NPC_YB_TIPI1_SIZE_MULTIPLIER,
+          localX: V2_NPC_YB_TIPI1_LOCAL_X_M,
+          localZ: 1.2,
+          verticalTrimM: V2_NPC_YB_TIPI1_VERTICAL_TRIM_M,
+          seatLowerM: 0.35,
+          circleRadiusM: V2_NPC_YB_TIPI1_GOLD_CIRCLE_RADIUS_M,
+          circleLiftM: V2_NPC_YB_TIPI1_GOLD_CIRCLE_LIFT_M,
+          aimYawBiasRad: V2_NPC_YB_TIPI1_PLAYER_AIM_YAW_BIAS_RAD,
+          travelOpts: { npcKey: "reg", npcSlug: "npc_reg" },
+        });
+        console.log("%c[Sanctuary] 🧒 REG seated (v2 travel circles)", "color:#81c784;font-weight:bold;");
+      } catch (err) {
+        console.warn("[SanctuaryTipiNpcs] REG load failed:", err);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      window.__regenerateTipiNpcs = async () => {
+        if (!this._yb && !this._bhg && !this._reg) return;
+        console.log("[SanctuaryTipiNpcs] Rebuilding npcs for map type: " + window.__sanctuaryMapType);
+
+        const cachedScene = this._scene;
+        this.unload(cachedScene);
+
+        this._scene = cachedScene;
+        await this.load(cachedScene);
+
+        console.log("[SanctuaryTipiNpcs] Npcs successfully regenerated!");
+      };
+    }
   },
 
   update(delta) {
     // Per-frame perf cut (May-19 2026): only tick NPC animation mixers
     // when the player is within range. Each mixer.update does full
-    // skeleton bone-transform math — for the seated YB + BHG that's
+    // skeleton bone-transform math — for the seated YB + BHG + REG that's
     // ~400 ms of `applyBoneTransform` over a 5-second trace. Skipping
     // it when the kid is far keeps the seated NPCs frozen mid-pose,
     // which is fine because nobody can see the subtle breathing /
@@ -245,7 +309,7 @@ export const SanctuaryTipiNpcsModule = {
     const pz = av?.position.z ?? 0;
     const NPC_ANIM_RADIUS_SQ = 30 * 30; // 30 m
 
-    for (const npc of [this._yb, this._bhg]) {
+    for (const npc of [this._yb, this._bhg, this._reg]) {
       if (!npc?.mixer || !npc.root) continue;
       const dx = px - npc.root.position.x;
       const dz = pz - npc.root.position.z;
@@ -258,7 +322,7 @@ export const SanctuaryTipiNpcsModule = {
     const t =
       (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
 
-    for (const npc of [this._yb, this._bhg]) {
+    for (const npc of [this._yb, this._bhg, this._reg]) {
       if (!npc?.facingGroup || !npc.root) continue;
       const dx = px - npc.root.position.x;
       const dz = pz - npc.root.position.z;
@@ -277,9 +341,10 @@ export const SanctuaryTipiNpcsModule = {
   },
 
   unload(scene) {
-    for (const npc of [this._yb, this._bhg]) {
+    const sceneToUse = scene || this._scene;
+    for (const npc of [this._yb, this._bhg, this._reg]) {
       if (!npc?.root) continue;
-      scene.remove(npc.root);
+      if (sceneToUse) sceneToUse.remove(npc.root);
       npc.root.traverse((o) => {
         if (o.geometry) o.geometry.dispose?.();
         const m = o.material;
@@ -289,5 +354,7 @@ export const SanctuaryTipiNpcsModule = {
     }
     this._yb = null;
     this._bhg = null;
+    this._reg = null;
+    this._scene = null;
   },
 };

@@ -57,32 +57,79 @@ function _tagTipiMeshes(tipi, tipiKind, idPrefix) {
   });
 }
 
-function _applyBhgTipi2Materials(tipi) {
+function _applyTipiCustomLine(tipi, lineColor) {
+  const placedBbox = new THREE.Box3().setFromObject(tipi);
+  const placedMidY = (placedBbox.min.y + placedBbox.max.y) * 0.5;
+
   tipi.traverse((child) => {
     if (!child.isMesh && !child.isSkinnedMesh) return;
     const sourceMats = Array.isArray(child.material) ? child.material : [child.material];
     const patchedMats = sourceMats.map((srcMat) => {
       if (!srcMat) return srcMat;
+      
+      // Only target cover fabrics that originally have texture maps!
+      if (!srcMat.map) return srcMat;
+
       const m = srcMat.clone();
-      m.name = (srcMat.name ?? "tipi2_mat") + "_bhg";
-      applyBhgStripeAndSuppressionShader(m);
+      m.name = (srcMat.name ?? "tipi_mat") + "_" + lineColor;
+      m.map = null; // STRIP TEXTURE!
+      m.color.setHex(0xfaf5e8); // premium solid off-white canvas color
+
+      const uniforms = { uTipiMidY: { value: placedMidY } };
+      m.userData.tipiUniforms = uniforms;
+
+      m.onBeforeCompile = (shader) => {
+        // Only target the main rendering pass (which contains map_fragment).
+        // This ensures depth, distance, and shadow map programs are not corrupted,
+        // avoiding WebGL INVALID_OPERATION warnings and rendering glitches in panoramic view!
+        if (!shader.fragmentShader.includes("#include <map_fragment>")) return;
+
+        shader.uniforms.uTipiMidY = uniforms.uTipiMidY;
+
+        shader.vertexShader = shader.vertexShader
+          .replace(
+            "#include <common>",
+            "#include <common>\nvarying float vTipiWorldY;",
+          )
+          .replace(
+            "#include <begin_vertex>",
+            `#include <begin_vertex>\nvTipiWorldY = (modelMatrix * vec4(transformed, 1.0)).y;`,
+          );
+
+        shader.fragmentShader = shader.fragmentShader
+          .replace(
+            "#include <common>",
+            `#include <common>\nvarying float vTipiWorldY;\nuniform float uTipiMidY;`,
+          )
+          .replace(
+            "#include <map_fragment>",
+            `#include <map_fragment>
+            {
+              float dy = vTipiWorldY - uTipiMidY;
+              // Bold horizontal line: 12cm thick, positioned slightly below midpoint for visual balance
+              float stripeHeight = 0.12;
+              float offset = -0.15;
+              if (dy > offset - stripeHeight * 0.5 && dy < offset + stripeHeight * 0.5) {
+                diffuseColor.rgb = ${
+                  lineColor === "red"
+                    ? "vec3(0.85, 0.12, 0.08)"
+                    : (lineColor === "blue" ? "vec3(0.08, 0.35, 0.85)" : "vec3(0.98, 0.96, 0.91)")
+                };
+              } else {
+                diffuseColor.rgb = vec3(0.98, 0.96, 0.91); // clean off-white canvas solid
+              }
+            }`,
+          );
+      };
+
+      m.needsUpdate = true;
       return m;
     });
     child.material = Array.isArray(child.material) ? patchedMats : patchedMats[0];
   });
-  const placedBbox = new THREE.Box3().setFromObject(tipi);
-  const placedMidY = (placedBbox.min.y + placedBbox.max.y) * 0.5;
-  tipi.traverse((o) => {
-    if (!o.isMesh && !o.isSkinnedMesh) return;
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    for (const m of mats) {
-      const u = m?.userData?.bhgUniforms;
-      if (u?.uBhgMidY) u.uBhgMidY.value = placedMidY;
-    }
-  });
 }
 
-async function _plantTipi(scene, root, gltfScene, hexPos, { key, isTipi2 }) {
+async function _plantTipi(scene, root, gltfScene, hexPos, { key, isTipi2, yaw }) {
   const platformY = sanctuaryGroundY(hexPos.x, hexPos.z);
   const platBuild = createSacredCirclePlatform({
     scene,
@@ -105,7 +152,7 @@ async function _plantTipi(scene, root, gltfScene, hexPos, { key, isTipi2 }) {
   box.getSize(size);
   const sf = V2_TIPI_YELLOW_BUTTERFLY_TARGET_HEIGHT_M / Math.max(size.y, 0.1);
   tipi.scale.set(sf, sf, sf);
-  tipi.rotation.y = isTipi2 ? V2_TIPI_2_YAW_RAD : TIPI_1_YAW_RAD;
+  tipi.rotation.y = yaw;
   tipi.updateMatrixWorld(true);
 
   box.setFromObject(tipi);
@@ -116,10 +163,16 @@ async function _plantTipi(scene, root, gltfScene, hexPos, { key, isTipi2 }) {
     hexPos.z - center.z + tipi.position.z,
   );
 
-  if (isTipi2) {
-    _applyBhgTipi2Materials(tipi);
+  if (key === "tipi_2") {
+    _applyTipiCustomLine(tipi, "red");
     _tagTipiMeshes(tipi, "sanctuary_tipi_2", "structures.sanctuary.tipi_2");
+  } else if (key === "tipi_3") {
+    _applyTipiCustomLine(tipi, "blue");
+    _tagTipiMeshes(tipi, "structures.sanctuary.tipi_3", "structures.sanctuary.tipi_3");
+  } else if (key === "tipi_4") {
+    _tagTipiMeshes(tipi, "structures.sanctuary.tipi_4", "structures.sanctuary.tipi_4");
   } else {
+    _applyTipiCustomLine(tipi, "none");
     _tagTipiMeshes(tipi, "sanctuary_tipi_1", "structures.sanctuary.tipi_1");
   }
 
@@ -145,11 +198,15 @@ export const SanctuaryTipisModule = {
   _root: null,
   _tipi1: null,
   _tipi2: null,
+  _tipi3: null,
+  _tipi4: null,
   _plat1: null,
   _plat2: null,
+  _plat3: null,
+  _plat4: null,
   _raycaster: null,
   _ndc: null,
-  _selectedKey: null,    // "tipi_1" | "tipi_2" | null
+  _selectedKey: null,    // "tipi_1" | "tipi_2" | "tipi_3" | "tipi_4" | null
   _onCanvasDown: null,
 
   async load(scene, camera, renderer) {
@@ -168,14 +225,39 @@ export const SanctuaryTipisModule = {
     scene.add(root);
     this._root = root;
 
-    const tipi1Hex = { ...TIPI_1_DEFAULT };
-    const tipi2Hex = { x: TIPI_1_DEFAULT.x + V2_TILE_WORLD * 2, z: TIPI_1_DEFAULT.z };
+    const activeMap = (typeof window !== "undefined" && window.__sanctuaryMapType) || "1";
+
+    let tipi1Hex, tipi2Hex, tipi3Hex, tipi4Hex;
+    let yaw1, yaw2, yaw3, yaw4;
+
+    if (activeMap === "2") {
+      tipi1Hex = { x: -28.0, z: 0.0 };      // West
+      tipi2Hex = { x: 20.0, z: -20.0 };     // Southeast
+      tipi3Hex = { x: -15.0, z: 24.0 };     // Northwest
+      tipi4Hex = null;
+
+      yaw1 = Math.atan2(tipi1Hex.z, -tipi1Hex.x); // 0.0
+      yaw2 = Math.atan2(tipi2Hex.z, -tipi2Hex.x); // organically toward center
+      yaw3 = Math.atan2(tipi3Hex.z, -tipi3Hex.x); // organically toward center
+      yaw4 = 0.0;
+    } else {
+      tipi1Hex = { ...TIPI_1_DEFAULT };
+      tipi2Hex = { x: TIPI_1_DEFAULT.x + V2_TILE_WORLD * 2, z: TIPI_1_DEFAULT.z };
+      tipi3Hex = null;
+      tipi4Hex = { x: 18, z: -14 }; // North of Tipi 1 on flat ground
+
+      yaw1 = TIPI_1_YAW_RAD;
+      yaw2 = V2_TIPI_2_YAW_RAD;
+      yaw3 = 0.0;
+      yaw4 = TIPI_1_YAW_RAD;
+    }
 
     try {
       const gltf = await new GLTFLoaderWithDraco().loadAsync(TIPI_GLB_URL);
       const t1 = await _plantTipi(scene, root, gltf.scene, tipi1Hex, {
         key: "tipi_1",
         isTipi2: false,
+        yaw: yaw1,
       });
       this._tipi1 = t1.tipi;
       this._plat1 = t1.platMesh;
@@ -183,21 +265,89 @@ export const SanctuaryTipisModule = {
       const t2 = await _plantTipi(scene, root, gltf.scene, tipi2Hex, {
         key: "tipi_2",
         isTipi2: true,
+        yaw: yaw2,
       });
       this._tipi2 = t2.tipi;
       this._plat2 = t2.platMesh;
 
+      let t3 = null;
+      if (activeMap === "2" && tipi3Hex) {
+        t3 = await _plantTipi(scene, root, gltf.scene, tipi3Hex, {
+          key: "tipi_3",
+          isTipi2: false,
+          yaw: yaw3,
+        });
+        this._tipi3 = t3.tipi;
+        this._plat3 = t3.platMesh;
+      }
+
+      let t4 = null;
+      if (activeMap !== "2" && tipi4Hex) {
+        t4 = await _plantTipi(scene, root, gltf.scene, tipi4Hex, {
+          key: "tipi_4",
+          isTipi2: false,
+          yaw: yaw4,
+        });
+        this._tipi4 = t4.tipi;
+        this._plat4 = t4.platMesh;
+      }
+
       if (typeof window !== "undefined") {
         window.__sanctuaryTipi1Anchor = { ...tipi1Hex };
         window.__sanctuaryTipi2Anchor = { ...tipi2Hex };
+        window.__sanctuaryTipi1Yaw = yaw1;
+        window.__sanctuaryTipi2Yaw = yaw2;
         window.__sanctuaryTipi1PlatMesh = this._plat1;
         window.__sanctuaryTipi2PlatMesh = this._plat2;
         window.__sanctuaryTipi1DeckTopY = t1.deckTopY;
         window.__sanctuaryTipi2DeckTopY = t2.deckTopY;
 
+        if (activeMap === "2" && t3) {
+          window.__sanctuaryTipi3Anchor = { ...tipi3Hex };
+          window.__sanctuaryTipi3Yaw = yaw3;
+          window.__sanctuaryTipi3PlatMesh = this._plat3;
+          window.__sanctuaryTipi3DeckTopY = t3.deckTopY;
+        } else {
+          delete window.__sanctuaryTipi3Anchor;
+          delete window.__sanctuaryTipi3Yaw;
+          delete window.__sanctuaryTipi3PlatMesh;
+          delete window.__sanctuaryTipi3DeckTopY;
+        }
+
+        if (activeMap !== "2" && t4) {
+          window.__sanctuaryTipi4Anchor = { ...tipi4Hex };
+          window.__sanctuaryTipi4Yaw = yaw4;
+          window.__sanctuaryTipi4PlatMesh = this._plat4;
+          window.__sanctuaryTipi4DeckTopY = t4.deckTopY;
+        } else {
+          delete window.__sanctuaryTipi4Anchor;
+          delete window.__sanctuaryTipi4Yaw;
+          delete window.__sanctuaryTipi4PlatMesh;
+          delete window.__sanctuaryTipi4DeckTopY;
+        }
+
         // Programmatic API — `sanctuaryMoveTipi(1, x, z)` lets kids
         // (and DevTools) reposition a tipi from anywhere.
-        window.sanctuaryMoveTipi = (n, x, z) => this._moveTipi(n === 2 ? "tipi_2" : "tipi_1", x, z);
+        window.sanctuaryMoveTipi = (n, x, z) => this._moveTipi(n === 4 ? "tipi_4" : (n === 3 ? "tipi_3" : (n === 2 ? "tipi_2" : "tipi_1")), x, z);
+
+        window.__regenerateTipis = async () => {
+          if (!this._root || !this._scene) return;
+          console.log("[SanctuaryTipis] Rebuilding tipis for map type: " + window.__sanctuaryMapType);
+
+          const cachedScene = this._scene;
+          const cachedCamera = this._camera;
+          const cachedCanvas = this._canvas;
+
+          this.unload(cachedScene);
+
+          this._scene = cachedScene;
+          this._camera = cachedCamera;
+          this._canvas = cachedCanvas;
+
+          await this.load(cachedScene, cachedCamera, { domElement: cachedCanvas });
+
+          console.log("[SanctuaryTipis] Tipis successfully regenerated!");
+        };
       }
 
       // ── Top-down click-to-move-tipi ─────────────────────────────
@@ -228,8 +378,8 @@ export const SanctuaryTipisModule = {
   /** Move a tipi + its sacred platform together. Y is recomputed from
    *  the terrain at the new XZ. Selection is cleared. */
   _moveTipi(key, x, z) {
-    const tipi = key === "tipi_2" ? this._tipi2 : this._tipi1;
-    const plat = key === "tipi_2" ? this._plat2 : this._plat1;
+    const tipi = key === "tipi_4" ? this._tipi4 : (key === "tipi_3" ? this._tipi3 : (key === "tipi_2" ? this._tipi2 : this._tipi1));
+    const plat = key === "tipi_4" ? this._plat4 : (key === "tipi_3" ? this._plat3 : (key === "tipi_2" ? this._plat2 : this._plat1));
     if (!tipi || !plat) return false;
 
     const newGroundY = sanctuaryGroundY(x, z);
@@ -241,9 +391,13 @@ export const SanctuaryTipisModule = {
 
     // Tipi shifts so its base sits on top of the platform at the new
     // ground sample — keep its existing Y offset from the deck.
-    const deckTopYOrig = key === "tipi_2"
-      ? (typeof window !== "undefined" ? window.__sanctuaryTipi2DeckTopY : 0)
-      : (typeof window !== "undefined" ? window.__sanctuaryTipi1DeckTopY : 0);
+    const deckTopYOrig = key === "tipi_4"
+      ? (typeof window !== "undefined" ? window.__sanctuaryTipi4DeckTopY : 0)
+      : (key === "tipi_3"
+        ? (typeof window !== "undefined" ? window.__sanctuaryTipi3DeckTopY : 0)
+        : (key === "tipi_2"
+          ? (typeof window !== "undefined" ? window.__sanctuaryTipi2DeckTopY : 0)
+          : (typeof window !== "undefined" ? window.__sanctuaryTipi1DeckTopY : 0)));
     const tipiDeltaY = tipi.position.y - deckTopYOrig;
     const newDeckTopY = plat.position.y + (deckTopYOrig - (deckTopYOrig - plat.position.y));
     tipi.position.set(x, newDeckTopY + tipiDeltaY, z);
@@ -251,7 +405,9 @@ export const SanctuaryTipisModule = {
     // Update published anchors so NPCs / braziers / butterflies that
     // read them on next tick land in the right place.
     if (typeof window !== "undefined") {
-      if (key === "tipi_2") window.__sanctuaryTipi2Anchor = { x, z };
+      if (key === "tipi_4") window.__sanctuaryTipi4Anchor = { x, z };
+      else if (key === "tipi_3") window.__sanctuaryTipi3Anchor = { x, z };
+      else if (key === "tipi_2") window.__sanctuaryTipi2Anchor = { x, z };
       else window.__sanctuaryTipi1Anchor = { x, z };
     }
     if (this._selectedKey === key) this._clearSelection();
@@ -265,13 +421,13 @@ export const SanctuaryTipisModule = {
   _setSelection(key) {
     this._clearSelection();
     this._selectedKey = key;
-    const tipi = key === "tipi_2" ? this._tipi2 : this._tipi1;
+    const tipi = key === "tipi_4" ? this._tipi4 : (key === "tipi_3" ? this._tipi3 : (key === "tipi_2" ? this._tipi2 : this._tipi1));
     if (tipi) tipi.scale.multiplyScalar(1.06); // visible "lift"
   },
 
   _clearSelection() {
     if (!this._selectedKey) return;
-    const tipi = this._selectedKey === "tipi_2" ? this._tipi2 : this._tipi1;
+    const tipi = this._selectedKey === "tipi_4" ? this._tipi4 : (this._selectedKey === "tipi_3" ? this._tipi3 : (this._selectedKey === "tipi_2" ? this._tipi2 : this._tipi1));
     if (tipi) tipi.scale.multiplyScalar(1 / 1.06);
     this._selectedKey = null;
   },
@@ -286,10 +442,10 @@ export const SanctuaryTipisModule = {
 
     // First, see if a tipi was clicked. Walk hits front-to-back, take
     // the first whose ancestor is one of our tipis.
-    const hits = this._raycaster.intersectObjects([this._tipi1, this._tipi2].filter(Boolean), true);
+    const hits = this._raycaster.intersectObjects([this._tipi1, this._tipi2, this._tipi3, this._tipi4].filter(Boolean), true);
     if (hits.length > 0) {
       let n = hits[0].object;
-      while (n && n !== this._tipi1 && n !== this._tipi2) n = n.parent;
+      while (n && n !== this._tipi1 && n !== this._tipi2 && n !== this._tipi3 && n !== this._tipi4) n = n.parent;
       if (n === this._tipi1) {
         ev.stopImmediatePropagation();
         ev.preventDefault();
@@ -300,6 +456,18 @@ export const SanctuaryTipisModule = {
         ev.stopImmediatePropagation();
         ev.preventDefault();
         this._setSelection("tipi_2");
+        return;
+      }
+      if (n === this._tipi3) {
+        ev.stopImmediatePropagation();
+        ev.preventDefault();
+        this._setSelection("tipi_3");
+        return;
+      }
+      if (n === this._tipi4) {
+        ev.stopImmediatePropagation();
+        ev.preventDefault();
+        this._setSelection("tipi_4");
         return;
       }
     }
@@ -326,6 +494,7 @@ export const SanctuaryTipisModule = {
 
   unload(scene) {
     if (!this._root) return;
+    const sceneToUse = scene || this._scene;
     if (this._canvas && this._onCanvasDown) {
       this._canvas.removeEventListener("mousedown", this._onCanvasDown, true);
     }
@@ -333,7 +502,7 @@ export const SanctuaryTipisModule = {
     this._canvas = null;
     this._camera = null;
     this._selectedKey = null;
-    scene.remove(this._root);
+    if (sceneToUse) sceneToUse.remove(this._root);
     this._root.traverse((o) => {
       if (o.geometry) o.geometry.dispose?.();
       const m = o.material;
@@ -341,16 +510,45 @@ export const SanctuaryTipisModule = {
       else m?.dispose?.();
     });
     this._root = null;
+    this._tipi1 = null;
+    this._tipi2 = null;
+    this._tipi3 = null;
+    this._tipi4 = null;
+
+    const platforms = [this._plat1, this._plat2, this._plat3, this._plat4];
+    for (const plat of platforms) {
+      if (plat) {
+        if (sceneToUse) sceneToUse.remove(plat);
+        plat.traverse((o) => {
+          if (o.geometry) o.geometry.dispose?.();
+          const m = o.material;
+          if (Array.isArray(m)) m.forEach((x) => x?.dispose?.());
+          else m?.dispose?.();
+        });
+      }
+    }
     this._plat1 = null;
     this._plat2 = null;
+    this._plat3 = null;
+    this._plat4 = null;
     this._scene = null;
     if (typeof window !== "undefined") {
       delete window.__sanctuaryTipi1Anchor;
       delete window.__sanctuaryTipi2Anchor;
+      delete window.__sanctuaryTipi3Anchor;
+      delete window.__sanctuaryTipi4Anchor;
+      delete window.__sanctuaryTipi1Yaw;
+      delete window.__sanctuaryTipi2Yaw;
+      delete window.__sanctuaryTipi3Yaw;
+      delete window.__sanctuaryTipi4Yaw;
       delete window.__sanctuaryTipi1PlatMesh;
       delete window.__sanctuaryTipi2PlatMesh;
+      delete window.__sanctuaryTipi3PlatMesh;
+      delete window.__sanctuaryTipi4PlatMesh;
       delete window.__sanctuaryTipi1DeckTopY;
       delete window.__sanctuaryTipi2DeckTopY;
+      delete window.__sanctuaryTipi3DeckTopY;
+      delete window.__sanctuaryTipi4DeckTopY;
     }
   },
 };

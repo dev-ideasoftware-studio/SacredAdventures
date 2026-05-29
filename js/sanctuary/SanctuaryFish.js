@@ -86,6 +86,231 @@ function mulberry32(seed) {
   };
 }
 
+function _createProceduralKoiTexture(index) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+
+  // Determine Koi style based on index
+  const styles = ["kohaku", "sanke", "showa", "tancho", "ogon"];
+  const style = styles[index % styles.length];
+
+  // Base background and shading parameters
+  let baseColor = "#fffefb"; // Pearlescent White
+  let roughness = 0.25;
+  let metalness = 0.15;
+
+  if (style === "showa") {
+    baseColor = "#151515"; // Matte sumi black
+    roughness = 0.3;
+    metalness = 0.2;
+  } else if (style === "ogon") {
+    baseColor = "#ffb300"; // Rich metallic yellow-gold
+    roughness = 0.18;
+    metalness = 0.8; // High metallic reflection!
+  }
+
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Custom deterministic RNG per fish
+  const rng = mulberry32(0xe2a81900 + index * 997);
+
+  if (style === "ogon") {
+    // Make Ogon texture ultra metallic with nice gold gradients
+    const grad = ctx.createLinearGradient(0, 0, 512, 512);
+    grad.addColorStop(0, "#ffe082");
+    grad.addColorStop(0.5, "#ffb300");
+    grad.addColorStop(1.0, "#ff8f00");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Subtle shiny scale highlights
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 12; i++) {
+      ctx.beginPath();
+      ctx.ellipse(256, 256, 40 + i * 36, 15 + i * 18, Math.PI / 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else {
+    // Red/orange organic spot patterns
+    if (style === "kohaku" || style === "sanke" || style === "showa" || style === "tancho") {
+      const redCount = style === "tancho" ? 1 : Math.floor(3 + rng() * 4);
+      
+      if (style === "tancho") {
+        // Red tancho spot on head/center of texture mapping
+        const cx = 256 + (rng() - 0.5) * 40;
+        const cy = 200 + (rng() - 0.5) * 40;
+        const r = 55 + rng() * 25;
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0, "#ff3d00");
+        grad.addColorStop(0.8, "#d84315");
+        grad.addColorStop(1.0, "rgba(216, 67, 21, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Overlaying organic red spots
+        for (let s = 0; s < redCount; s++) {
+          const rx = 100 + rng() * 312;
+          const ry = 100 + rng() * 312;
+          const maxR = 60 + rng() * 60;
+          const blobCircles = 4 + Math.floor(rng() * 5);
+          const color = rng() > 0.45 ? "#e65100" : "#d84315";
+
+          for (let c = 0; c < blobCircles; c++) {
+            const bx = rx + (rng() - 0.5) * (maxR * 0.7);
+            const by = ry + (rng() - 0.5) * (maxR * 0.7);
+            const br = (0.4 + rng() * 0.6) * maxR;
+
+            const grad = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+            grad.addColorStop(0, color);
+            grad.addColorStop(0.85, color);
+            grad.addColorStop(1.0, "rgba(0,0,0,0)");
+            ctx.fillStyle = grad;
+
+            ctx.beginPath();
+            ctx.arc(bx, by, br, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    // Black organic sumi spot patterns
+    if (style === "sanke" || style === "showa") {
+      const blackCount = Math.floor(3 + rng() * 4);
+      for (let s = 0; s < blackCount; s++) {
+        const bx = 100 + rng() * 312;
+        const by = 100 + rng() * 312;
+        const maxR = 30 + rng() * 45;
+        const blobCircles = 3 + Math.floor(rng() * 4);
+        const color = rng() > 0.5 ? "#111111" : "#212121";
+
+        for (let c = 0; c < blobCircles; c++) {
+          const cx = bx + (rng() - 0.5) * (maxR * 0.6);
+          const cy = by + (rng() - 0.5) * (maxR * 0.6);
+          const cr = (0.4 + rng() * 0.6) * maxR;
+
+          const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr);
+          grad.addColorStop(0, color);
+          grad.addColorStop(0.85, color);
+          grad.addColorStop(1.0, "rgba(0,0,0,0)");
+          ctx.fillStyle = grad;
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // High quality scale texture overlay
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.025)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < 512; x += 16) {
+      ctx.beginPath();
+      for (let y = 0; y < 512; y += 8) {
+        ctx.arc(x + (y % 16 === 0 ? 8 : 0), y, 12, 0, Math.PI);
+      }
+      ctx.stroke();
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    roughness: roughness,
+    metalness: metalness,
+  });
+
+  return { texture, material };
+}
+
+function _makeButterflyTexture() {
+  const SZ = 128;
+  const cv = document.createElement("canvas");
+  cv.width = SZ; cv.height = SZ;
+  const ctx = cv.getContext("2d");
+  
+  const cx = SZ / 2;
+  const cy = SZ / 2;
+  
+  // Draw a gorgeous yellow/orange monarch-style butterfly
+  ctx.save();
+  ctx.translate(cx, cy);
+  
+  // Wings
+  const drawWing = (side, isTop) => {
+    ctx.save();
+    ctx.scale(side, 1);
+    const grad = ctx.createRadialGradient(0, 0, 2, 10, -10, 40);
+    grad.addColorStop(0, "#ffe082"); // bright yellow center
+    grad.addColorStop(0.7, "#ff9100"); // orange outer
+    grad.addColorStop(1, "#3e2723"); // dark brown/black edge
+    ctx.fillStyle = grad;
+    
+    ctx.beginPath();
+    if (isTop) {
+      // Top wing
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(15, -35, 45, -25, 40, -5);
+      ctx.bezierCurveTo(35, 5, 15, 5, 0, 0);
+    } else {
+      // Bottom wing
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(20, 5, 30, 25, 15, 30);
+      ctx.bezierCurveTo(5, 30, 5, 15, 0, 0);
+    }
+    ctx.fill();
+    
+    // White spots on the dark edge
+    ctx.fillStyle = "#ffffff";
+    if (isTop) {
+      ctx.beginPath(); ctx.arc(36, -16, 2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(38, -8, 1.5, 0, Math.PI*2); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(22, 18, 1.5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(14, 26, 1.2, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  };
+  
+  drawWing(-1, true);  // top-left
+  drawWing(1, true);   // top-right
+  drawWing(-1, false); // bottom-left
+  drawWing(1, false);  // bottom-right
+  
+  // Body
+  const bodyGrad = ctx.createLinearGradient(0, -15, 0, 20);
+  bodyGrad.addColorStop(0, "#212121");
+  bodyGrad.addColorStop(1, "#424242");
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 4, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Antennae
+  ctx.strokeStyle = "#212121";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-1, -12); ctx.quadraticCurveTo(-6, -24, -12, -26);
+  ctx.moveTo(1, -12); ctx.quadraticCurveTo(6, -24, 12, -26);
+  ctx.stroke();
+  
+  ctx.restore();
+  
+  const texture = new THREE.CanvasTexture(cv);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /**
  * Load + center + bake Z-up OBJ → Y-up (1:1 `WorldPool2.loadCenteredFishGeometry`).
  * @returns {Promise<{ geometry: THREE.BufferGeometry, fishLen: number } | null>}
@@ -123,10 +348,19 @@ export const SanctuaryFishModule = {
   _fishBioTime: 0,
   _fishGeometry: null,
   _fishMaterial: null,
+  _fishMaterials: [],
+  _fishTextures: [],
   _fishMeshes: [],
   _fishCenterY: 0,
   _cx: SANCTUARY_POOL_CENTER_X,
   _cz: SANCTUARY_POOL_CENTER_Z,
+  
+  _butterflySprite: null,
+  _butterflyTexture: null,
+  _butterflyTimer: 0,
+  _butterflyActiveTime: 0,
+  _butterflyStartPos: null,
+  _butterflyFlyInTimer: 0,
 
   async load(scene) {
     if (this._root) return;
@@ -150,13 +384,9 @@ export const SanctuaryFishModule = {
       }
 
       const scale = FISH_TARGET_LENGTH_M / fg.fishLen;
-      const mat = new THREE.MeshStandardMaterial({
-        color: 0x2b6ffe,
-        roughness: 0.35,
-        metalness: 0.25,
-      });
       this._fishGeometry = fg.geometry;
-      this._fishMaterial = mat;
+      this._fishMaterials = [];
+      this._fishTextures = [];
 
       const waterY =
         typeof window !== "undefined" && Number.isFinite(window.__sanctuaryWaterY)
@@ -168,10 +398,26 @@ export const SanctuaryFishModule = {
       this._fishMeshes = [];
 
       for (let i = 0; i < FISH_COUNT; i++) {
-        const fish = new THREE.Mesh(fg.geometry, mat);
+        const { texture, material } = _createProceduralKoiTexture(i);
+        this._fishMaterials.push(material);
+        this._fishTextures.push(texture);
+
+        // Keep the first material as fallback/reference for any external logic
+        if (i === 0) {
+          this._fishMaterial = material;
+        }
+
+        const fish = new THREE.Mesh(fg.geometry, material);
         fish.castShadow = false;
         fish.receiveShadow = false;
-        fish.scale.setScalar(scale);
+
+        // Size variations: make 1/3 of the school young smaller koi, and 2/3 varied adult sizes
+        let sizeMultiplier = 0.7 + rng() * 0.75; // [0.7, 1.45]
+        if (i % 3 === 0) {
+          sizeMultiplier = 0.3 + rng() * 0.25; // [0.3, 0.55] - smaller young koi
+        }
+        const fishScale = scale * sizeMultiplier;
+        fish.scale.setScalar(fishScale);
         fish.name = `sanctuary_fish_${i}`;
         fish.userData.anuId = `fauna.sanctuary.fish.${i}`;
         fish.userData.anuKind = "sanctuary_fish";
@@ -209,7 +455,7 @@ export const SanctuaryFishModule = {
           ((0.04 * speedMul * orbitDir) / Math.max(0.5, orbitR / 8)) *
           (0.55 + rng() * 0.5);
         fish.userData.fishMidY = this._fishCenterY;
-        fish.userData.baseScaleFactor = scale;
+        fish.userData.baseScaleFactor = fishScale;
         fish.userData.growthScale = 1.0;
 
         // ── Realistic-motion state ────────────────────────────────────
@@ -272,7 +518,7 @@ export const SanctuaryFishModule = {
       // Spawns a tiny replacement fish (1/10 scale) that grows 10%/min.
       const _module = this;
       window.__sanctuarySpawnBabyFish = function (x, z) {
-        if (!_module._root || !_module._fishGeometry || !_module._fishMaterial) {
+        if (!_module._root || !_module._fishGeometry) {
           console.warn("[SanctuaryFish] Cannot spawn baby fish — not ready");
           return null;
         }
@@ -281,10 +527,14 @@ export const SanctuaryFishModule = {
             ? window.__sanctuaryWaterY
             : -0.05;
         const baseScale = FISH_TARGET_LENGTH_M / fg.fishLen;
-        const baby = new THREE.Mesh(_module._fishGeometry, _module._fishMaterial);
+        const idx = _module._fishMeshes.length;
+        const { texture, material } = _createProceduralKoiTexture(idx);
+        _module._fishMaterials.push(material);
+        _module._fishTextures.push(texture);
+
+        const baby = new THREE.Mesh(_module._fishGeometry, material);
         baby.castShadow = false;
         baby.receiveShadow = false;
-        const idx = _module._fishMeshes.length;
         baby.name = `sanctuary_baby_fish_${idx}`;
         baby.userData.anuId = `fauna.sanctuary.baby_fish.${Date.now()}`;
         baby.userData.anuKind = "sanctuary_baby_fish";
@@ -318,10 +568,39 @@ export const SanctuaryFishModule = {
         return baby;
       };
 
+      // Procedurally spawn 4 additional smaller baby koi fish randomly in the pond!
+      for (let k = 0; k < 4; k++) {
+        const angle = rng() * Math.PI * 2;
+        const radius = SANCTUARY_POOL_RADIUS_M * (0.2 + rng() * 0.45);
+        const bx = this._cx + Math.cos(angle) * radius;
+        const bz = this._cz + Math.sin(angle) * radius;
+        window.__sanctuarySpawnBabyFish(bx, bz);
+      }
+
       console.log(
-        `%c[Sanctuary] 🐟 ${FISH_COUNT} fish.obj trout — upright, velocity swim (target ${FISH_TARGET_LENGTH_M} m).`,
+        `%c[Sanctuary] 🐟 ${FISH_COUNT} fish.obj trout + 4 baby koi — upright, velocity swim (target ${FISH_TARGET_LENGTH_M} m).`,
         "color:#2b6ffe;font-weight:bold;",
       );
+
+      // Create procedural yellow butterfly sprite and add to root
+      this._butterflyTexture = _makeButterflyTexture();
+      const bflyMat = new THREE.SpriteMaterial({
+        map: this._butterflyTexture,
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+      });
+      this._butterflySprite = new THREE.Sprite(bflyMat);
+      this._butterflySprite.scale.set(0.28, 0.28, 1);
+      this._butterflySprite.visible = false;
+      this._butterflySprite.name = "sanctuary_testing_butterfly";
+      this._butterflySprite.renderOrder = 6;
+      this._root.add(this._butterflySprite);
+      
+      this._butterflyTimer = 0;
+      this._butterflyActiveTime = 0;
+      this._butterflyFlyInTimer = 0;
+
     } catch (err) {
       console.warn("[SanctuaryFish] fish.obj load failed:", err);
     }
@@ -358,6 +637,80 @@ export const SanctuaryFishModule = {
       console.log("%c[SanctuaryFish] 30-minute pool reset: all fish grown back to 100%!", "color:#4caf50;font-weight:bold;");
     }
 
+    // Butterfly Hovering AI Update
+    const waterSurfaceY =
+      typeof window !== "undefined" && Number.isFinite(window.__sanctuaryWaterY)
+        ? window.__sanctuaryWaterY
+        : -0.05;
+
+    if (this._butterflySprite) {
+      this._butterflyTimer += delta * stride;
+      // Spawn/reveal butterfly every 5 minutes (300 seconds)
+      if (this._butterflyTimer >= 300) {
+        this._butterflyTimer = 0;
+        this._butterflyActiveTime = 60.0; // Stay active for 60 seconds
+        
+        // Pick a random starting position at the edge of the pool
+        const ang = Math.random() * Math.PI * 2;
+        const startR = SANCTUARY_POOL_RADIUS_M * 1.1;
+        this._butterflyStartPos = new THREE.Vector3(
+          this._cx + Math.cos(ang) * startR,
+          waterSurfaceY + 1.2,
+          this._cz + Math.sin(ang) * startR
+        );
+        this._butterflySprite.position.copy(this._butterflyStartPos);
+        this._butterflySprite.visible = true;
+        this._butterflySprite.material.opacity = 1.0;
+        this._butterflyFlyInTimer = 3.0; // 3 seconds to fly in
+      }
+      
+      if (this._butterflyActiveTime > 0) {
+        this._butterflyActiveTime -= delta * stride;
+        
+        // Find the biggest koi fish
+        let biggestFish = null;
+        let maxScale = -1;
+        for (const fish of this._fishMeshes) {
+          if (fish.scale.x > maxScale) {
+            maxScale = fish.scale.x;
+            biggestFish = fish;
+          }
+        }
+        
+        if (biggestFish) {
+          const fp = biggestFish.position;
+          const targetY = waterSurfaceY + 0.35 + Math.sin(t * 8) * 0.05;
+          const flutterX = Math.sin(t * 5) * 0.18;
+          const flutterZ = Math.cos(t * 5) * 0.18;
+          
+          if (this._butterflyFlyInTimer > 0) {
+            this._butterflyFlyInTimer -= delta * stride;
+            const pct = Math.max(0, this._butterflyFlyInTimer / 3.0);
+            this._butterflySprite.position.lerpVectors(
+              new THREE.Vector3(fp.x + flutterX, targetY, fp.z + flutterZ),
+              this._butterflyStartPos,
+              1.0 - pct
+            );
+          } else {
+            this._butterflySprite.position.set(fp.x + flutterX, targetY, fp.z + flutterZ);
+          }
+          
+          // Wingbeat flutter (fast scale oscillation)
+          const bWob = 0.28 + Math.sin(t * 45) * 0.03;
+          this._butterflySprite.scale.set(bWob, bWob, 1);
+          
+          // Fade out in final 3 seconds
+          if (this._butterflyActiveTime < 3.0) {
+            this._butterflySprite.material.opacity = Math.max(0, this._butterflyActiveTime / 3.0);
+          } else {
+            this._butterflySprite.material.opacity = 1.0;
+          }
+        }
+      } else {
+        this._butterflySprite.visible = false;
+      }
+    }
+
 
     const av =
       typeof window !== "undefined" ? window.__sanctuaryAvatar : null;
@@ -388,7 +741,78 @@ export const SanctuaryFishModule = {
       const currentScale = baseScale * ud.growthScale;
       fish.scale.setScalar(currentScale);
 
+      // ── Dragonfly Hunt & Parabolic Jump State Machine ──
+      if (ud._dfJumpState === "jump") {
+        ud._dfJumpTimer += delta * stride;
+        const JUMP_DURATION_S = 0.85;
+        const JUMP_PEAK_M = 0.65;
+        const jt = Math.min(1.0, ud._dfJumpTimer / JUMP_DURATION_S);
+        
+        const arc = -4 * (jt - 0.5) * (jt - 0.5) + 1; // 0 at t=0, 1 at t=0.5, 0 at t=1.0
+        const normalY = ud.fishMidY ?? this._fishCenterY;
+        
+        // Continue moving forward along current heading during jump
+        const jumpSpeed = 0.25 * delta * stride;
+        fish.position.x += Math.cos(ud._currentHeading || 0) * jumpSpeed;
+        fish.position.z += Math.sin(ud._currentHeading || 0) * jumpSpeed;
+        fish.position.y = normalY + JUMP_PEAK_M * arc;
+        
+        // Set pitch based on jump climbing/descending
+        const pitch = (1 - 2 * jt) * 0.9;
+        fish.rotation.set(pitch, -(ud._currentHeading || 0) + Math.PI, 0);
+        
+        const targetDf = ud._dfJumpTarget;
+        
+        // At peak, consume the dragonfly
+        if (jt >= 0.45 && jt <= 0.55 && targetDf && targetDf.alive) {
+          targetDf.alive = false;
+          targetDf.targetedBy = null;
+          targetDf.respawnTimer = 8.0; // respawn in 8s
+          
+          if (typeof window !== "undefined" && typeof window.sanctuaryPulse === "function") {
+            window.sanctuaryPulse(fish.position.x, fish.position.z);
+          }
+        }
+        
+        if (jt >= 1.0) {
+          // Landing splash
+          if (typeof window !== "undefined" && typeof window.sanctuaryPulse === "function") {
+            window.sanctuaryPulse(fish.position.x, fish.position.z);
+          }
+          ud._dfJumpState = null;
+          if (targetDf) targetDf.targetedBy = null;
+          ud._dfJumpTarget = null;
+        }
+        
+        // Skip standard updates while jumping
+        if (fish.renderOrder !== 5) fish.renderOrder = 5;
+        continue;
+      }
+
+      // Check for dragonflies to hunt/jump at
+      const dragonflies = typeof window !== "undefined" ? window.__sanctuaryDragonflies : null;
       const isInterested = (typeof window !== "undefined" && window.__interestedFish === fish);
+
+      if (dragonflies && !ud.isStruggling && !isInterested && !ud._interestPhase && !ud._frogEatState && !ud._dfJumpState) {
+        for (const df of dragonflies) {
+          if (df.alive && !df.targetedBy) {
+            const dx = df.sprite.position.x - fish.position.x;
+            const dz = df.sprite.position.z - fish.position.z;
+            const horizontalDist = Math.hypot(dx, dz);
+            
+            // Scaled length of the fish (standard length is ~0.42m)
+            const oneFishLength = 0.45 * currentScale;
+            if (horizontalDist < oneFishLength) {
+              // Initiate jump!
+              ud._dfJumpState = "jump";
+              ud._dfJumpTimer = 0;
+              ud._dfJumpTarget = df;
+              df.targetedBy = fish.name;
+              break;
+            }
+          }
+        }
+      }
 
       if (isInterested) {
         const bPos = window.__sanctuaryBobberPos;
@@ -807,6 +1231,27 @@ export const SanctuaryFishModule = {
       this._root.remove(fish);
     }
     this._fishGeometry?.dispose?.();
+    if (this._fishMaterials) {
+      for (const mat of this._fishMaterials) {
+        mat.dispose();
+      }
+      this._fishMaterials = [];
+    }
+    if (this._fishTextures) {
+      for (const tex of this._fishTextures) {
+        tex.dispose();
+      }
+      this._fishTextures = [];
+    }
+    if (this._butterflySprite) {
+      this._root?.remove(this._butterflySprite);
+      this._butterflySprite.material?.dispose?.();
+      this._butterflySprite = null;
+    }
+    if (this._butterflyTexture) {
+      this._butterflyTexture.dispose();
+      this._butterflyTexture = null;
+    }
     this._fishMaterial?.dispose?.();
     this._fishMeshes = [];
     this._root = null;

@@ -274,6 +274,16 @@ export const SanctuaryAvatarModule = {
       model.scale.setScalar(sf);
       model.updateMatrixWorld(true);
 
+      // Cache bone references for foot flattening
+      this._lFoot = null;
+      this._rFoot = null;
+      model.traverse((ch) => {
+        if (ch.isBone) {
+          if (ch.name === "L_Foot") this._lFoot = ch;
+          if (ch.name === "R_Foot") this._rFoot = ch;
+        }
+      });
+
       // Drop feet to local Y=0 then lift well above the sibling travel
       // disc (which lives at root-local y = 0.015). 0.10 m of lift
       // gives a margin big enough to clear ANY animation-pose dip in
@@ -646,6 +656,26 @@ export const SanctuaryAvatarModule = {
 
     if (this._mixer) this._mixer.update(delta);
 
+    if (this._lFoot && !inPool) {
+      // Force the left foot to sit completely flat in world space
+      this._lFoot.updateMatrixWorld(true);
+      const q = new THREE.Quaternion();
+      this._lFoot.getWorldQuaternion(q);
+      
+      const euler = new THREE.Euler().setFromQuaternion(q, "YXZ");
+      euler.x = 0; // zero out world pitch
+      euler.z = 0; // zero out world roll
+      
+      const qFlat = new THREE.Quaternion().setFromEuler(euler);
+      const parent = this._lFoot.parent;
+      if (parent) {
+        parent.updateMatrixWorld(true);
+        const invParentQ = new THREE.Quaternion();
+        parent.getWorldQuaternion(invParentQ).invert();
+        this._lFoot.quaternion.copy(invParentQ).multiply(qFlat);
+      }
+    }
+
     touchSanctuaryTravelCircleTime(this._travelMats);
   },
 
@@ -663,6 +693,8 @@ export const SanctuaryAvatarModule = {
     this._shell = null;
     this._travelMats = null;
     this._scene = null;
+    this._lFoot = null;
+    this._rFoot = null;
     if (typeof window !== "undefined" && window.__sanctuaryAvatar) {
       delete window.__sanctuaryAvatar;
     }

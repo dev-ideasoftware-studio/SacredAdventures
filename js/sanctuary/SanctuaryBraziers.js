@@ -246,11 +246,53 @@ export const SanctuaryBraziersModule = {
     this._scene = scene;
     const tipi1 = window.__sanctuaryTipi1Anchor ?? { x: 18, z: -2 };
     const tipi2 = window.__sanctuaryTipi2Anchor ?? { x: 28.85, z: -2 };
+    const tipi3 = window.__sanctuaryTipi3Anchor ?? null;
+    const tipi4 = window.__sanctuaryTipi4Anchor ?? null;
+
+    const TIPI_1_YAW_RAD = Math.PI / 2;
+    const V2_TIPI_2_YAW_RAD = Math.PI / 2;
+
+    const yaw1 = window.__sanctuaryTipi1Yaw ?? TIPI_1_YAW_RAD;
+    const yaw2 = window.__sanctuaryTipi2Yaw ?? V2_TIPI_2_YAW_RAD;
+    const yaw3 = window.__sanctuaryTipi3Yaw ?? 0.0;
+    const yaw4 = window.__sanctuaryTipi4Yaw ?? TIPI_1_YAW_RAD;
 
     const placements = [
-      { anchor: { x: tipi1.x - 0.4, z: tipi1.z + 2.1 }, anuId: "structures.sanctuary.brazier_tipi1" },
-      { anchor: { x: tipi2.x - 0.4, z: tipi2.z + 2.1 }, anuId: "structures.sanctuary.brazier_tipi2" },
+      {
+        anchor: {
+          x: tipi1.x + (2.1 * Math.cos(yaw1) - 0.4 * Math.sin(yaw1)),
+          z: tipi1.z + (2.1 * Math.sin(yaw1) + 0.4 * Math.cos(yaw1)),
+        },
+        anuId: "structures.sanctuary.brazier_tipi1",
+      },
+      {
+        anchor: {
+          x: tipi2.x + (2.1 * Math.cos(yaw2) - 0.4 * Math.sin(yaw2)),
+          z: tipi2.z + (2.1 * Math.sin(yaw2) + 0.4 * Math.cos(yaw2)),
+        },
+        anuId: "structures.sanctuary.brazier_tipi2",
+      },
     ];
+
+    if (tipi3) {
+      placements.push({
+        anchor: {
+          x: tipi3.x + (2.1 * Math.cos(yaw3) - 0.4 * Math.sin(yaw3)),
+          z: tipi3.z + (2.1 * Math.sin(yaw3) + 0.4 * Math.cos(yaw3)),
+        },
+        anuId: "structures.sanctuary.brazier_tipi3",
+      });
+    }
+
+    if (tipi4) {
+      placements.push({
+        anchor: {
+          x: tipi4.x + (2.1 * Math.cos(yaw4) - 0.4 * Math.sin(yaw4)),
+          z: tipi4.z + (2.1 * Math.sin(yaw4) + 0.4 * Math.cos(yaw4)),
+        },
+        anuId: "structures.sanctuary.brazier_tipi4",
+      });
+    }
 
     for (const p of placements) {
       const b = _buildBrazier(p);
@@ -259,13 +301,30 @@ export const SanctuaryBraziersModule = {
     }
 
     // Day/night switch — light is off during the day, on at night.
-    window.addEventListener("anu:season-change", (e) => {
+    const onSeasonChange = (e) => {
       const next = e.detail?.next ?? e.detail?.season;
       this._isNight = String(next).toLowerCase().includes("night");
       for (const b of this._braziers) {
         b.light.visible = this._isNight;
       }
-    });
+    };
+    window.addEventListener("anu:season-change", onSeasonChange);
+    this._onSeasonChange = onSeasonChange;
+
+    if (typeof window !== "undefined") {
+      window.__regenerateBraziers = async () => {
+        if (this._braziers.length === 0) return;
+        console.log("[SanctuaryBraziers] Rebuilding braziers for map type: " + window.__sanctuaryMapType);
+
+        const cachedScene = this._scene;
+        this.unload(cachedScene);
+
+        this._scene = cachedScene;
+        await this.load(cachedScene);
+
+        console.log("[SanctuaryBraziers] Braziers successfully regenerated!");
+      };
+    }
 
     console.log(
       "%c[Sanctuary] 🔥 Braziers lit (×%d) — lights night-only, smoke is one Points cloud per brazier.",
@@ -323,8 +382,13 @@ export const SanctuaryBraziersModule = {
   },
 
   unload(scene) {
+    const sceneToUse = scene || this._scene;
+    if (this._onSeasonChange) {
+      window.removeEventListener("anu:season-change", this._onSeasonChange);
+      this._onSeasonChange = null;
+    }
     for (const b of this._braziers) {
-      scene.remove(b.root);
+      if (sceneToUse) sceneToUse.remove(b.root);
       b.root.traverse((o) => {
         if (o.geometry) o.geometry.dispose?.();
       });

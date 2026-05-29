@@ -231,25 +231,33 @@ function _makeButton() {
     transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
   });
 
-  btn.addEventListener("mouseenter", () => {
+  const onMouseEnter = () => {
     btn.style.transform = "translateX(-50%) scale(1.05)";
     btn.style.boxShadow = "0 0 25px rgba(139, 92, 246, 0.85), 0 6px 24px rgba(0, 0, 0, 0.5)";
     btn.style.filter = "brightness(1.1)";
-  });
+  };
+  btn.addEventListener("mouseenter", onMouseEnter);
+  btn._onMouseEnter = onMouseEnter;
 
-  btn.addEventListener("mouseleave", () => {
+  const onMouseLeave = () => {
     btn.style.transform = "translateX(-50%) scale(1.0)";
     btn.style.boxShadow = "0 0 15px rgba(124, 58, 237, 0.6), 0 4px 20px rgba(0, 0, 0, 0.4)";
     btn.style.filter = "none";
-  });
+  };
+  btn.addEventListener("mouseleave", onMouseLeave);
+  btn._onMouseLeave = onMouseLeave;
 
-  btn.addEventListener("mousedown", () => {
+  const onMouseDown = () => {
     btn.style.transform = "translateX(-50%) scale(0.95)";
-  });
+  };
+  btn.addEventListener("mousedown", onMouseDown);
+  btn._onMouseDown = onMouseDown;
 
-  btn.addEventListener("mouseup", () => {
+  const onMouseUp = () => {
     btn.style.transform = "translateX(-50%) scale(1.05)";
-  });
+  };
+  btn.addEventListener("mouseup", onMouseUp);
+  btn._onMouseUp = onMouseUp;
 
   document.body.appendChild(btn);
   return btn;
@@ -307,47 +315,63 @@ function _arcShape(startAngle, endAngle, innerR, outerR, steps = 48) {
 // Small canvas sprite for segment labels.
 function _segLabelSprite(text) {
   const c = document.createElement("canvas");
-  c.width = 160; c.height = 56;
+  c.width = 320; c.height = 112;
   const ctx = c.getContext("2d");
-  ctx.font = "bold 17px ui-monospace,Menlo,monospace";
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.shadowColor = "rgba(0,0,0,0.88)"; ctx.shadowBlur = 5;
-  ctx.fillStyle = "#111";
-  ctx.fillText(text, 80, 28);
-  return new THREE.CanvasTexture(c);
+
+  // Draw solid dark pill background to guarantee high contrast regardless of what's behind it.
+  ctx.fillStyle = "rgba(18, 18, 20, 0.95)";
+  ctx.strokeStyle = "#c084fc"; // Elegant violet border matching the fishing button/theme!
+  ctx.lineWidth = 5.0; // Doubled outline width for 2x larger canvas
+
+  // Draw rounded rectangle (capsule pill shape) scaled by 2x
+  const x = 24, y = 16, w = 272, h = 80, r = 40;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Draw text in bold, crisp white (contrast ratio > 15:1 against charcoal) — 2x larger!
+  ctx.font = "900 28px ui-sans-serif,system-ui,sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(text, 160, 56);
+
+  const tex = new THREE.CanvasTexture(c);
+  if (THREE.SRGBColorSpace) {
+    tex.colorSpace = THREE.SRGBColorSpace;
+  } else if (THREE.sRGBEncoding) {
+    tex.encoding = THREE.sRGBEncoding;
+  }
+  return tex;
 }
 
 function _build3DGauge(scene) {
   const g = new THREE.Group();
   g.name = "v4_gauge_3d";
 
-  // Clear plastic — user-requested 2026-05-28 (9× asked):
-  // "just remove the white opacity ... in pip just make it crystal
-  // clear ... we can see fish through it". The gauge STAYS visible in
-  // both FPV and PIP — only the white plastic body opacity drops so
-  // the colored dial floats above the pond/fish view. Single shared
-  // material across both cameras (same low opacity in FPV and PIP).
-  // depthTest true + depthWrite false + renderOrder 9990 keeps the
-  // gauge well-behaved against dock rails/posts.
-  // 2026-05-28 follow-up: opacity 0.15 → 0.04 because the user said the
-  // PIP fish-view "looks weird, its white washed". Dropping the cover
-  // alpha further lets the live scene fish (layer 2) read clearly
-  // through the dial without the pale-blue plastic tint dominating.
+  // Clear plastic — user-requested 2026-05-28:
+  // Single shared material across both cameras (same low opacity in FPV and PIP).
+  // opacity 0.04 to let PIP fish show clearly through the transparent dial.
   const clearMat = new THREE.MeshPhysicalMaterial({
     color: 0xddeeff, transmission: 0.98, opacity: 0.04,
     ior: 1.5, roughness: 0.05,
     transparent: true, side: THREE.DoubleSide,
     depthWrite: false, depthTest: true,
   });
-  // Matte dark grey (spec: #333333, roughness 0.4)
-  const darkMat = new THREE.MeshStandardMaterial({
-    color: 0x333333, roughness: 0.4, metalness: 0.05,
-  });
 
-  // Base plate — semicircle r=2.0, depth=0.10, bevel=0.02
+  // Base plate — full 360° circle (radius 2.0, depth=0.10, bevel=0.02)
   const baseShape = new THREE.Shape();
-  baseShape.absarc(0, 0, 2.0, 0, Math.PI, false);
-  baseShape.lineTo(-2.0, 0);
+  baseShape.absarc(0, 0, 2.0, 0, Math.PI * 2, false);
   g.add(new THREE.Mesh(
     new THREE.ExtrudeGeometry(baseShape, {
       depth: 0.10, bevelEnabled: true,
@@ -356,27 +380,8 @@ function _build3DGauge(scene) {
     clearMat
   ));
 
-  // Bottom plastic cover — semicircle r=2.0, depth=0.10, bevel=0.02 (May-27 2026 user request)
-  const coverShape = new THREE.Shape();
-  coverShape.absarc(0, 0, 2.0, Math.PI, Math.PI * 2, false);
-  coverShape.lineTo(2.0, 0);
-  g.add(new THREE.Mesh(
-    new THREE.ExtrudeGeometry(coverShape, {
-      depth: 0.10, bevelEnabled: true,
-      bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 3,
-    }),
-    darkMat
-  ));
-
-  // Outer rim — REMOVED 2026-05-28 per user: "borders should be same
-  // as player circles, so remove the borders from the fish circle".
-  // The chunky extruded clear-plastic rim was the "border" that didn't
-  // match the player travel disc style. Without it the gauge reads as
-  // a flat coloured semicircle dial on the water — closer to the
-  // simple disc+arrow look the player circle has.
-
-  // 5 colored arc segments (r 0.85→1.82, 0.03 radian gaps)
-  const SEG_ARC = Math.PI / 5;
+  // 5 colored arc segments distributed clockwise around the full 360° circle starting at Math.PI (left, 9 o'clock)
+  const SEG_ARC = (Math.PI * 2) / 5;
   const GAP     = 0.015;   // half of 0.03 radian spec gap
   const IN_R = 0.85, OUT_R = 1.82;
 
@@ -386,123 +391,44 @@ function _build3DGauge(scene) {
 
     const segMesh = new THREE.Mesh(
       new THREE.ShapeGeometry(_arcShape(sa, ea, IN_R, OUT_R), 48),
-      new THREE.MeshStandardMaterial({ color: seg.color, roughness: 0.18, metalness: 0.04 })
+      new THREE.MeshStandardMaterial({
+        color: seg.color,
+        roughness: 0.10,
+        metalness: 0.80,
+        emissive: seg.color,
+        emissiveIntensity: 0.25,
+      })
     );
     segMesh.position.z = 0.11;
     g.add(segMesh);
 
-    // Label sprite at arc midpoint (always faces camera)
+    // Label sprite at arc midpoint (always faces camera) — 2x larger!
     const mid = Math.PI - (i + 0.5) * SEG_ARC;
     const lr  = (IN_R + OUT_R) / 2;
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({
       map: _segLabelSprite(seg.label), transparent: true, depthWrite: false,
     }));
     spr.position.set(Math.cos(mid) * lr, Math.sin(mid) * lr, 0.24);
-    spr.scale.set(0.72, 0.25, 1);
+    spr.scale.set(1.44, 0.50, 1); // Scale up from (0.72, 0.25) to (1.44, 0.50)
     g.add(spr);
   });
 
-  // Inner koi-fish plane (CanvasTexture redrawn each frame). Restored
-  // 2026-05-28 after user said "keep the fish" — the dial koi is the
-  // fish they want shown. Static-looking concern is resolved by the
-  // animation pass in drawGaugeFish which gets called every frame from
-  // _update3DGauge; the white-washed concern is resolved by dropping
-  // the clearMat opacity below.
-  const fishCanvas = document.createElement("canvas");
-  fishCanvas.width = fishCanvas.height = 256;
-  const fishTex = new THREE.CanvasTexture(fishCanvas);
-  const fishPlane = new THREE.Mesh(
-    new THREE.CircleGeometry(0.80, 48),
-    new THREE.MeshBasicMaterial({
-      map: fishTex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    })
-  );
-  fishPlane.position.z = 0.12;
-  g.add(fishPlane);
-  g.userData.fishCanvas = fishCanvas;
-  g.userData.fishTex    = fishTex;
-
-  // State-label sprite (WAITING... / CURIOUS / etc.)
-  const lblCanvas = document.createElement("canvas");
-  lblCanvas.width = 320; lblCanvas.height = 72;
-  const lblTex = new THREE.CanvasTexture(lblCanvas);
-  const lblSpr = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: lblTex, transparent: true, depthWrite: false,
-  }));
-  lblSpr.position.set(0, -0.06, 0.28);
-  lblSpr.scale.set(1.5, 0.34, 1);
-  g.add(lblSpr);
-  g.userData.lblCanvas = lblCanvas;
-  g.userData.lblTex    = lblTex;
-
-  // Center pivot cap (r=0.22, cylinder along Z after group rotation)
-  const pivotMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.22, 0.25, 32),
-    darkMat
-  );
-  pivotMesh.rotation.x = Math.PI / 2;
-  pivotMesh.position.z = 0.18;
-  g.add(pivotMesh);
-
-  // Needle — tapered shape in child group, rotates around local Z
-  const needleGroup = new THREE.Group();
-  const nShape = new THREE.Shape();
-  nShape.moveTo(0,    0.06);
-  nShape.lineTo(1.35, 0.02);
-  nShape.lineTo(1.35, -0.02);
-  nShape.lineTo(0,   -0.06);
-  nShape.closePath();
-  const needleMesh = new THREE.Mesh(
-    new THREE.ShapeGeometry(nShape, 1),
-    darkMat
-  );
-  needleMesh.position.z = 0.22;
-  needleGroup.add(needleMesh);
-  g.add(needleGroup);
-  g.userData.needleGroup = needleGroup;
-
   // Lie flat on water (XZ plane, Y-up world).
-  // YXZ Euler order: rotation.y (billboard) applied BEFORE rotation.x (flatten),
-  // so the yaw rotates around true world-Y regardless of the X tilt.
   g.rotation.order = "YXZ";
   g.rotation.x = -Math.PI / 2;
-  // rotation.z is now driven PER-FRAME in _update3DGauge to compensate
-  // for the billboard rotation.y so the colored arc ALWAYS lands at the
-  // TOP of the PIP top-down camera view. See the in-frame comment there
-  // for the math. Static initial value is 0; will be overwritten on the
-  // first update tick.
   g.rotation.z = 0;
   g.scale.setScalar(GAUGE_3D_SCALE);
-  // Sit atop the water surface: group origin = WATER_Y_M so base plate
-  // rests on the surface; dial face (local z≈0.12) floats ~29mm above water.
   g.position.y = WATER_Y_M;
   g.visible = false;
   g.userData.isGauge3D = true;
   g.name = "fishingGauge3D";
 
-  // renderOrder = 9990 so the gauge sorts ABOVE other transparents in
-  // both camera passes. depthTest stays true on every gauge material
-  // (clearMat above; inner segment/needle/label materials normalised
-  // below) so rails + posts naturally occlude the gauge where they
-  // cross (user-reported 2026-05-28: "still z-index clipping").
-  //
-  // Layer 2 = the fishing PIP camera's "isolation lens" layer. KEEP
-  // ENABLED so the gauge still shows in PIP — the user just wanted
-  // the white plastic opacity dropped (clearMat above at 0.15) so
-  // fish are visible THROUGH the gauge plastic in the PIP view, NOT
-  // the gauge fully removed. SanctuaryPool's basin floor + water
-  // and SanctuaryFish's trout also enable layer 2 to provide the
-  // visible backdrop behind the now-transparent gauge.
   g.renderOrder = 9990;
   g.traverse((child) => {
     if (child.isMesh || child.isSprite || child.isGroup) {
       child.layers.enable(2);
       if (child.renderOrder === 0) child.renderOrder = 9990;
     }
-    // Normalise every material under the gauge to depth-respect rails
-    // while NOT writing depth (so inner segments are still visible
-    // through the clear plastic shell — shell has depthWrite:false
-    // which preserves underlying scene depth).
     const mats = child.material
       ? (Array.isArray(child.material) ? child.material : [child.material])
       : [];
@@ -521,55 +447,12 @@ function _update3DGauge(g, frac, labelText, isReeling, time, camera) {
   if (!g) return;
 
   // Billboard: rotate around world-Y so the arc always faces the player.
-  // YXZ Euler order means rotation.y acts in world space before the X-tilt.
   if (camera) {
     const dx = camera.position.x - g.position.x;
     const dz = camera.position.z - g.position.z;
-    // atan2(dx, dz): angle from +Z toward camera; arc opens toward camera.
     g.rotation.y = Math.atan2(dx, dz);
   }
-  // User-requested 2026-05-28 (22x): "put gauge in top, half and half —
-  // top and bottom". The fishing PIP is an ORTHO TOP-DOWN camera with
-  // up=(0,0,-1), so the PIP frame's TOP edge corresponds to world -Z.
-  // After YXZ rotation, the colored arc (local +Y in 2D plane) lands at
-  // world direction (-sin(θy+θz), 0, -cos(θy+θz)). To make that always
-  // equal (0, 0, -1) (= world -Z = TOP of PIP frame), we need
-  // θy + θz = 0, i.e. θz = -θy. Setting rotation.z each frame cancels
-  // the billboard's effect on the arc's PIP position so the colored
-  // semicircle is the TOP HALF of the PIP gauge regardless of which
-  // direction the player camera is approaching from. Cover/clear half
-  // sits at the bottom, dial face is split horizontally — exactly the
-  // "half and half top and bottom" the user has been requesting.
-  // Companion to the PIP-camera up=(1,0,0) spin in Orchestrator.js (2026-05-28).
-  // The PIP camera's new up vector means PIP TOP = world +X (was -Z).
-  // To land the arc at world +X we need θy + θz = -π/2, so θz = -θy - π/2.
   g.rotation.z = -g.rotation.y - Math.PI / 2;
-
-  // Needle: FAIL(π) → CAUGHT!(0)
-  const ng = g.userData.needleGroup;
-  if (ng) ng.rotation.z = Math.PI - frac * Math.PI;
-
-  // Koi fish canvas
-  const fc = g.userData.fishCanvas, ft = g.userData.fishTex;
-  if (fc && ft) {
-    const ctx = fc.getContext("2d");
-    ctx.clearRect(0, 0, 256, 256);
-    drawGaugeFish(ctx, 128, 164, time, frac, isReeling);
-    ft.needsUpdate = true;
-  }
-
-  // State label
-  const lc = g.userData.lblCanvas, lt = g.userData.lblTex;
-  if (lc && lt) {
-    const ctx = lc.getContext("2d");
-    ctx.clearRect(0, 0, 320, 72);
-    ctx.font = "800 20px ui-monospace,Menlo,monospace";
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(labelText.toUpperCase(), 160, 36);
-    lt.needsUpdate = true;
-  }
 }
 
 // ── Old 2D canvas gauge — REPLACED by 3D above ───────────────────────
@@ -1397,6 +1280,11 @@ export const SanctuaryFishingModule = {
     
     if (p === PHASE.IDLE) {
       this._fishingCamTimer = 0;
+      this._willCatch = true;
+    }
+
+    if (p === PHASE.CASTING) {
+      this._willCatch = Math.random() < 0.70; // 70% success chance
     }
 
     if (p === PHASE.REELING) {
@@ -2091,6 +1979,19 @@ export const SanctuaryFishingModule = {
         this._reelProgress += delta * 0.2;
         this._reelProgress = Math.max(0, Math.min(1, this._reelProgress));
 
+        // If outcome was randomized to fail, escape fish at 85% progress!
+        if (this._willCatch === false && this._reelProgress >= 0.85) {
+          playFishingTone('fail');
+          showWoWCombatText("It got away!", false);
+          if (window.__interestedFish) {
+            window.__interestedFish.userData.isStruggling = false;
+            window.__interestedFish.userData.interestTimer = 0;
+            window.__interestedFish = null;
+          }
+          this._endIdle(false);
+          break;
+        }
+
         // Gentle jitter on bobber
         this._bobber.position.set(
           this._castTarget.x + (Math.random() - 0.5) * 0.04,
@@ -2099,12 +2000,11 @@ export const SanctuaryFishingModule = {
         );
 
         if (this._reelProgress >= 1.0) {
-          // Hooked! Attach a shiny 3D fish to the hook group
+          // Hooked! Attach a real 3D fish mesh to the hook group
           if (this._caughtFish3D && this._hookGroup) {
             this._hookGroup.remove(this._caughtFish3D);
           }
-          this._caughtFish3D = this._createFishMesh(0x29b6f6); // blue wiggling fish on hook
-          this._caughtFish3D.scale.setScalar(0.72);
+          this._caughtFish3D = this._createFishMesh(); // real photorealistic trout/koi geometry!
           this._caughtFish3D.position.set(0, -BOBBER_RADIUS_M - 0.09, 0);
           this._caughtFish3D.rotation.x = Math.PI / 2; // hang vertically
           this._hookGroup.add(this._caughtFish3D);
@@ -2156,10 +2056,12 @@ export const SanctuaryFishingModule = {
         this._bobber.position.y += (Math.random() - 0.5) * amp;
         this._bobber.position.z += (Math.random() - 0.5) * amp;
 
-        // Wasp wiggle rotation on the 3D caught fish
+        // Energetic, hyper-realistic squiggling rotation on the 3D caught fish!
         if (this._caughtFish3D) {
-          this._caughtFish3D.rotation.z = Math.sin(this._phaseT * 32) * 0.35;
-          this._caughtFish3D.rotation.y = Math.cos(this._phaseT * 18) * 0.2;
+          const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+          this._caughtFish3D.rotation.z = Math.sin(t * 38) * 0.45;
+          this._caughtFish3D.rotation.y = Math.cos(t * 24) * 0.35;
+          this._caughtFish3D.rotation.x = Math.sin(t * 18) * 0.15 + Math.PI / 2; // hang vertically + wiggle!
         }
 
         if (this._landingProgress >= 1.0) {
@@ -2174,21 +2076,8 @@ export const SanctuaryFishingModule = {
             playFishingTone('success');
             showWoWCombatText("You caught a fish!", true);
             
-            // Trigger 3D flying wiggling fish animation from water to avatar's leg
-            if (avatar && this._scene) {
-              const startPos = this._bobber.position.clone();
-              const flyFish = this._createFishMesh(0x29b6f6);
-              flyFish.name = "flying_wiggle_fish";
-              flyFish.position.copy(startPos);
-              this._scene.add(flyFish);
-              
-              this._flyingFish = flyFish;
-              this._flyingFishStartPos = startPos;
-              this._flyingFishTime = 0.0;
-              this._flyingFishDuration = 1.2;
-            } else {
-              this._attachFishToAvatarSide();
-            }
+            // Bypass flying fish animation completely per user request, attach immediately!
+            this._attachFishToAvatarSide();
             
             // Caught fish: remove from pool, spawn tiny baby replacement
             if (window.__interestedFish) {
@@ -2292,6 +2181,23 @@ export const SanctuaryFishingModule = {
     // ── Update 3-D Interest Gauge ─────────────────────────────────
     if (this._gauge3d) {
       if (this._phase !== PHASE.IDLE) {
+        // Dynamic Layer 2 Distance Culling:
+        // Since the PIP camera has a tiny 0.49m radius frustum, only fish within 2.0 meters
+        // of the bobber can possibly be visible. Disable Layer 2 on distant fish to completely
+        // cull them from the PIP renderer's pipeline and optimize draw calls/triangle counts!
+        if (typeof window !== "undefined" && Array.isArray(window.__sanctuaryFishSchool)) {
+          const bpPos = this._bobber?.position || this._castTarget;
+          for (const fish of window.__sanctuaryFishSchool) {
+            if (!fish) continue;
+            const d = fish.position.distanceTo(bpPos);
+            if (d < 2.0) {
+              fish.layers.enable(2);
+            } else {
+              fish.layers.disable(2);
+            }
+          }
+        }
+
         let frac = 0.0;
         let label = "WAITING...";
 
@@ -2393,47 +2299,69 @@ export const SanctuaryFishingModule = {
     }
   },
 
-  _createFishMesh(color = 0x29b6f6) {
-    const fish = new THREE.Group();
-    fish.name = "caught_fish_3d_mesh";
-    
-    // Fish body: sleek cylinder/cone
-    const bodyGeo = new THREE.ConeGeometry(0.06, 0.22, 8);
-    bodyGeo.rotateX(Math.PI / 2);
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: color,
-      roughness: 0.15,
-      metalness: 0.85,
-    });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    fish.add(body);
-    
-    // Big cute eyes
-    const eyeGeo = new THREE.SphereGeometry(0.018, 8, 8);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(0.035, 0.03, 0.06);
-    const leftPupil = new THREE.Mesh(new THREE.SphereGeometry(0.009, 6, 6), pupilMat);
-    leftPupil.position.set(0.007, 0, 0.01);
-    leftEye.add(leftPupil);
-    
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(-0.035, 0.03, 0.06);
-    const rightPupil = new THREE.Mesh(new THREE.SphereGeometry(0.009, 6, 6), pupilMat);
-    rightPupil.position.set(-0.007, 0, 0.01);
-    rightEye.add(rightPupil);
-    
-    fish.add(leftEye, rightEye);
-    
-    // Cute tail fin
-    const tailGeo = new THREE.BoxGeometry(0.008, 0.08, 0.05);
-    const tail = new THREE.Mesh(tailGeo, bodyMat);
-    tail.position.set(0, 0, -0.12);
-    fish.add(tail);
+  _createFishMesh() {
+    const template = typeof window !== "undefined" ? window.__sanctuaryFishTemplate : null;
+    if (template && template.geometry) {
+      // Use the actual photorealistic trout/koi geometry!
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.12,
+        metalness: 0.15,
+      });
+      
+      // Create a gorgeous canvas-drawn koi spot texture mapping!
+      const canvas = document.createElement("canvas");
+      canvas.width = 256; canvas.height = 256;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fffefb"; // base pearlescent white
+      ctx.fillRect(0, 0, 256, 256);
+      
+      // Deterministic pseudo-randomness for texture pattern
+      let seed = 0x3f5c7110;
+      const rng = () => {
+        let t = (seed += 0x6d2b79f5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
 
-    return fish;
+      // Red/Orange spots
+      ctx.fillStyle = "#ff3d00";
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(40 + rng() * 170, 40 + rng() * 170, 30 + rng() * 40, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Black sumi spots
+      ctx.fillStyle = "#212121";
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.arc(40 + rng() * 170, 40 + rng() * 170, 15 + rng() * 25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      mat.map = tex;
+      
+      const mesh = new THREE.Mesh(template.geometry.clone(), mat);
+      const scale = template.targetLengthM / template.fishLen;
+      mesh.scale.setScalar(scale * 0.95);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.name = "caught_fish_3d_mesh";
+      mesh.layers.enable(2); // Enable layer 2 so it is visible in the PIP view!
+      return mesh;
+    } else {
+      // Fallback sleeker cone group if geometry template is somehow unavailable
+      const fish = new THREE.Group();
+      fish.name = "caught_fish_3d_mesh";
+      const body = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), new THREE.MeshStandardMaterial({ color: 0xffa726, roughness: 0.15, metalness: 0.85 }));
+      body.rotateX(Math.PI / 2);
+      fish.add(body);
+      fish.layers.enable(2);
+      return fish;
+    }
   },
 
   _attachFishToAvatarSide() {
@@ -2473,8 +2401,8 @@ export const SanctuaryFishingModule = {
     stick.position.set(0, 0.05, 0);
     holderGroup.add(stick);
 
-    // The caught 3D fish (blue trout color matching the gauge theme)
-    const fish = this._createFishMesh(0x29b6f6);
+    // The caught 3D fish (photorealistic trout/koi model)
+    const fish = this._createFishMesh();
     fish.name = "wiggling_attached_fish";
     // Point fish vertically face-down (nose pointing to the ground)
     fish.rotation.set(Math.PI / 2, 0, 0);
@@ -2528,7 +2456,14 @@ export const SanctuaryFishingModule = {
       r.mesh.material?.dispose();
     }
     this._ripples = [];
-    if (this._btn?.parentElement) this._btn.parentElement.removeChild(this._btn);
+    if (this._btn) {
+      if (this._onClick) this._btn.removeEventListener("click", this._onClick);
+      if (this._btn._onMouseEnter) this._btn.removeEventListener("mouseenter", this._btn._onMouseEnter);
+      if (this._btn._onMouseLeave) this._btn.removeEventListener("mouseleave", this._btn._onMouseLeave);
+      if (this._btn._onMouseDown)  this._btn.removeEventListener("mousedown", this._btn._onMouseDown);
+      if (this._btn._onMouseUp)    this._btn.removeEventListener("mouseup", this._btn._onMouseUp);
+      if (this._btn.parentElement) this._btn.parentElement.removeChild(this._btn);
+    }
     if (this._statusPill?.parentElement) this._statusPill.parentElement.removeChild(this._statusPill);
     if (this._gauge3d) {
       this._scene?.remove(this._gauge3d);
