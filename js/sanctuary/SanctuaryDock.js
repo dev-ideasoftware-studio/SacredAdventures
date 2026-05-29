@@ -329,6 +329,17 @@ export const SanctuaryDockModule = {
     const shoreGroundY = sanctuaryGroundY(shoreX, shoreZ);
     const dockY = shoreGroundY + 0.42; // dock surface sits ~42 cm above shore
 
+    const mapType = (typeof window !== "undefined" && window.__sanctuaryMapType) || "1";
+    if (mapType === "2") {
+      deckMaterial().color.setHex(0x4a2a18); // very rich dark brown
+      darkWoodMaterial().color.setHex(0x23130a); // extremely dark aged wood
+      railMaterial().color.setHex(0x381f12); // darker natural wood rail
+    } else {
+      deckMaterial().color.setHex(0x7a4d2c); // original deeper natural wood
+      darkWoodMaterial().color.setHex(0x3d2715); // original darker aged wood
+      railMaterial().color.setHex(0x5c3a21); // original mid-tone natural wood
+    }
+
     // Build all geometry in LOCAL space (dock long axis = local +X),
     // then place the parent group at the midpoint between shore and tip
     // and rotate so local +X points at the pool tip.
@@ -404,6 +415,24 @@ export const SanctuaryDockModule = {
     this._fishingSpot = { x: tipX, y: _deckSurfaceY, z: tipZ };
     if (typeof window !== "undefined") {
       window.__sanctuaryFishingSpot = { ...this._fishingSpot };
+      window.__regenerateDock = async () => {
+        if (!this._root || !this._scene) return;
+        console.log("[SanctuaryDock] Rebuilding dock for map type: " + window.__sanctuaryMapType);
+
+        // 1) Remove the old dock group from scene
+        this._scene.remove(this._root);
+
+        // 2) Dispose old geometry to prevent memory leak
+        this._root.traverse((o) => {
+          if (o.geometry) o.geometry.dispose?.();
+        });
+
+        // 3) Re-evaluate and rebuild!
+        this._root = null;
+        await this.load(this._scene);
+
+        console.log("[SanctuaryDock] Dock successfully regenerated!");
+      };
     }
 
     console.log(

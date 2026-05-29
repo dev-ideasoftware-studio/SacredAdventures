@@ -1,9 +1,9 @@
 {
-  "subject": "chore(pwa): disable service worker + clear caches on load",
-  "isoDate": "2026-05-29T03:29:12-05:00",
+  "subject": "fix(fishing): restore window.__sanctuaryFishingSpot coordinates assignment",
+  "isoDate": "2026-05-29T03:36:30-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "991cb78",
+  "commit": "90087e8",
   "dirty": true,
-  "generatedAt": "2026-05-29T08:29:17.584Z"
+  "generatedAt": "2026-05-29T08:36:33.221Z"
 }
