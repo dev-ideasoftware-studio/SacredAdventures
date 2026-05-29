@@ -1,9 +1,9 @@
 {
-  "subject": "feat(maps): set default map onload back to legacy scene0",
-  "isoDate": "2026-05-29T02:46:56-05:00",
+  "subject": "Revert \"feat(maps): set default map onload back to legacy scene0\"",
+  "isoDate": "2026-05-29T03:03:55-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "fd5b09a",
+  "commit": "5e32631",
   "dirty": true,
-  "generatedAt": "2026-05-29T07:47:00.421Z"
+  "generatedAt": "2026-05-29T08:03:55.509Z"
 }
