@@ -66,11 +66,11 @@ const AVATAR_TARGET_HEIGHT_M = 1.524;
  * V2_INTRO_TIPI1_APPROACH_X/Z_M as an autowalk goal; leaving the
  * shared constant alone preserves those flows.
  */
-const AVATAR_SPAWN_X = -7.1;
-const AVATAR_SPAWN_Z = -19.7;
+const AVATAR_SPAWN_X = V2_INTRO_TIPI1_APPROACH_X_M;
+const AVATAR_SPAWN_Z = V2_INTRO_TIPI1_APPROACH_Z_M - 4.0;
 /** Initial yaw: facing Tipi 1 (north / -Z). The keyboard's movement
  *  convention is fwd = (-sin yaw, 0, -cos yaw) — yaw=0 gives fwd = -Z. */
-const AVATAR_INITIAL_YAW_RAD = 3.56;
+const AVATAR_INITIAL_YAW_RAD = 0;
 /** Render order — must beat the skin-fill shell (renderOrder - 1) AND
  *  the always-visible travel decal which renders at 9990-9992. 10000
  *  guarantees the kid is never occluded by the ground disc beneath
@@ -234,9 +234,8 @@ export const SanctuaryAvatarModule = {
       // keyboard's movement convention (fwd = -sin yaw, 0, -cos yaw,
       // which at yaw=0 is world -Z) AND the facing arrow direction.
       // Without this, the avatar visually faces 90° to the right of
-      // where it actually walks. Turned 180 degrees around (to -Math.PI / 2)
-      // to resolve the model being backwards at start.
-      model.rotation.y = -Math.PI / 2;
+      // where it actually walks.
+      model.rotation.y = Math.PI / 2;
 
       // Scale to target height by measuring bbox + uniform-scaling.
       // **Robust bbox** — `Box3.setFromObject` on a skinned-mesh in

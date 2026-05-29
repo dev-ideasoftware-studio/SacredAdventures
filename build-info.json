@@ -1,9 +1,9 @@
 {
-  "subject": "Revert \"feat(maps): restore scene1 'Sacred Grove' default map\"",
-  "isoDate": "2026-05-29T03:05:25-05:00",
+  "subject": "Revert \"fix(avatar): turn avatar model 180 degrees around to fix backwards orientation at start\"",
+  "isoDate": "2026-05-29T03:06:12-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "8c789b9",
+  "commit": "c11ad03",
   "dirty": true,
-  "generatedAt": "2026-05-29T08:05:29.390Z"
+  "generatedAt": "2026-05-29T08:06:15.569Z"
 }
