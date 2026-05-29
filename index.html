@@ -791,24 +791,27 @@
 
     // PIP click wiring removed because MoonDial was removed
 
-    // ── Service Worker registration ───────────────────────────────────────────
+    // ── PWA / Service Worker DISABLED (2026-05-29) ──────────────────────────
+    // User: "remove pwa and offline for now.. its interrupting a lot".
+    // Caching across the SW + asset cache was masking fresh JS edits and
+    // forcing hard-reload chases. To free users who already installed the
+    // old SW: actively unregister every worker + clear every cache on each
+    // load. Re-enable by restoring the registration block from git history.
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js', { scope: './' })
-        .then((reg) => {
-          console.log('%c[SW] Sacred Adventures service worker registered. scope:', 'color:#a5d6a7;font-weight:bold;', reg.scope);
-          // Prompt for immediate activation on update (no page-reload required)
-          reg.addEventListener('updatefound', () => {
-            const worker = reg.installing;
-            if (worker) {
-              worker.addEventListener('statechange', () => {
-                if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('[SW] Update available — will activate on next navigation.');
-                }
-              });
-            }
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const reg of regs) {
+          reg.unregister().then((ok) => {
+            console.log(`%c[SW] Unregistered ${reg.scope}: ${ok}`, 'color:#ff8a6e;font-weight:bold;');
           });
-        })
-        .catch((err) => console.warn('[SW] Registration failed:', err));
+        }
+      }).catch(() => { /* no SW API available — nothing to clean */ });
+    }
+    if (typeof caches !== 'undefined') {
+      caches.keys().then((keys) => {
+        for (const k of keys) {
+          caches.delete(k).then((ok) => console.log(`%c[SW] Cleared cache ${k}: ${ok}`, 'color:#ff8a6e;'));
+        }
+      }).catch(() => { /* caches API blocked — nothing to clean */ });
     }
   </script>
   <script type="module" src="./js/BuildBadge.js"></script>
