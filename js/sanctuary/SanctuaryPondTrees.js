@@ -147,6 +147,7 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
       const im = new THREE.InstancedMesh(bakedGeo, mat, count);
       im.receiveShadow = receiveShadow;
       im.castShadow = castShadow;
+      im.frustumCulled = false; // Prevent culling when player moves away from origin
       im.layers.enable(1);
       
       im.name = anuKind;

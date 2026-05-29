@@ -1363,6 +1363,7 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                         instancedMesh.castShadow = false;
                         instancedMesh.receiveShadow = false;
                         instancedMesh.frustumCulled = false;
+                        instancedMesh.layers.enable(1);
                         
                         instancedMeshes.push({ instancedMesh, isLeaf });
                         scene.add(instancedMesh);

@@ -937,7 +937,7 @@ function buildPoolRocks(centerY) {
   const dodecMesh = new THREE.InstancedMesh(dodecGeo, rockMat, ROCKS_DODEC_COUNT);
   dodecMesh.castShadow = true;
   dodecMesh.receiveShadow = true;
-  dodecMesh.layers.enable(1);
+  // dodecMesh.layers.enable(1); // Bypassed in PiP ortho to optimize pool area draw calls
   dodecMesh.name = "sanctuary_pool_rocks_dodec";
   dodecMesh.userData.anuKind = "sanctuary_pool_rock";
   dodecMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
@@ -947,7 +947,7 @@ function buildPoolRocks(centerY) {
   const icosMesh = new THREE.InstancedMesh(icosGeo, rockMat, ROCKS_ICOS_COUNT);
   icosMesh.castShadow = true;
   icosMesh.receiveShadow = true;
-  icosMesh.layers.enable(1);
+  // icosMesh.layers.enable(1); // Bypassed in PiP ortho to optimize pool area draw calls
   icosMesh.name = "sanctuary_pool_rocks_icos";
   icosMesh.userData.anuKind = "sanctuary_pool_rock";
   icosMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
@@ -959,7 +959,7 @@ function buildPoolRocks(centerY) {
   const pebbleMesh = new THREE.InstancedMesh(pebbleGeo, pebbleMat, PEBBLE_COUNT);
   pebbleMesh.castShadow = false; // pebbles are tiny — shadow noise not worth it
   pebbleMesh.receiveShadow = true;
-  pebbleMesh.layers.enable(1);
+  // pebbleMesh.layers.enable(1); // Bypassed in PiP ortho to optimize pool area draw calls
   pebbleMesh.name = "sanctuary_pool_pebbles";
   pebbleMesh.userData.anuKind = "sanctuary_pool_pebble";
   pebbleMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
@@ -1041,7 +1041,7 @@ function buildPoolRocks(centerY) {
   const microMesh = new THREE.InstancedMesh(microGeo, microMat, MICRO_PEBBLE_COUNT);
   microMesh.castShadow = false;
   microMesh.receiveShadow = true;
-  microMesh.layers.enable(1);
+  // microMesh.layers.enable(1); // Bypassed in PiP ortho to optimize pool area draw calls
   microMesh.name = "sanctuary_pool_micro_pebbles";
   microMesh.userData.anuKind = "sanctuary_pool_micro_pebble";
   microMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
@@ -1106,7 +1106,7 @@ function buildPoolRocks(centerY) {
   const mossMesh = new THREE.InstancedMesh(mossGeo, mossMat, MOSS_COUNT);
   mossMesh.castShadow = false;
   mossMesh.receiveShadow = true;
-  mossMesh.layers.enable(1);
+  // mossMesh.layers.enable(1); // Bypassed in PiP ortho to optimize pool area draw calls
   mossMesh.name = "sanctuary_pool_moss_tufts";
   mossMesh.userData.anuKind = "sanctuary_pool_moss_tuft";
   mossMesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;

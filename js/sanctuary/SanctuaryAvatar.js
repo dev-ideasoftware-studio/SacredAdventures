@@ -611,24 +611,35 @@ export const SanctuaryAvatarModule = {
     const groundY = sanctuaryGroundY(cur.x, cur.z);
     const inPool = !isFishing && !onDock && dist < 12.0 && (swimmingY > groundY);
 
-    // All actions (zero all first, then raise the winner to 1)
-    const _zero = (a) => { if (a) a.setEffectiveWeight(0.0); };
+    // All actions (deactivate all first to save CPU skeletal evaluation, then activate the winner)
+    const _deactivate = (a) => {
+      if (a) {
+        a.setEffectiveWeight(0.0);
+        a.paused = true;
+      }
+    };
+    const _activate = (a, weight = 1.0) => {
+      if (a) {
+        a.paused = false;
+        a.setEffectiveWeight(weight);
+      }
+    };
 
     if (isFishing && this._sitFishAction) {
       // --- FISHING: frozen seated dock pose ---
-      _zero(this._swimAction);
-      _zero(this._walkAction);
-      _zero(this._lookAction);
-      _zero(this._idleAction);
-      this._sitFishAction.setEffectiveWeight(1.0);
+      _deactivate(this._swimAction);
+      _deactivate(this._walkAction);
+      _deactivate(this._lookAction);
+      _deactivate(this._idleAction);
+      _activate(this._sitFishAction, 1.0);
       this._sitFishAction.setEffectiveTimeScale(1.0);
     } else if (inPool && this._swimAction) {
       // --- IN POOL: swim always, speed-scaled ---
-      _zero(this._sitFishAction);
-      _zero(this._walkAction);
-      _zero(this._lookAction);
-      _zero(this._idleAction);
-      this._swimAction.setEffectiveWeight(1.0);
+      _deactivate(this._sitFishAction);
+      _deactivate(this._walkAction);
+      _deactivate(this._lookAction);
+      _deactivate(this._idleAction);
+      _activate(this._swimAction, 1.0);
       // Match swim cadence to speed: slow paddle at low speed, faster thrash when sprinting
       this._swimAction.setEffectiveTimeScale(0.65 + Math.min(1.35, this._smoothSpeed / 1.2));
     } else {
@@ -639,18 +650,29 @@ export const SanctuaryAvatarModule = {
       // flagged this 2026-05-28. Look is kept available as an action so
       // future work can periodically blend it in for variety, but the
       // baseline idle is what plays when speed is below the walk threshold.
-      _zero(this._sitFishAction);
-      _zero(this._swimAction);
-      _zero(this._lookAction); // look stays available, just not the default
+      _deactivate(this._sitFishAction);
+      _deactivate(this._swimAction);
+      _deactivate(this._lookAction); // look stays available, just not the default
+      
       const walkW = Math.max(0, Math.min(1, (this._smoothSpeed - 0.04) / 0.25));
       const idleW = 1 - walkW;
+      
       if (this._walkAction) {
-        this._walkAction.setEffectiveWeight(walkW);
-        this._walkAction.setEffectiveTimeScale(0.85 + Math.min(1.6, this._smoothSpeed / 1.0));
+        if (walkW > 0.005) {
+          _activate(this._walkAction, walkW);
+          this._walkAction.setEffectiveTimeScale(0.85 + Math.min(1.6, this._smoothSpeed / 1.0));
+        } else {
+          _deactivate(this._walkAction);
+        }
       }
+      
       if (this._idleAction) {
-        this._idleAction.setEffectiveWeight(idleW);
-        this._idleAction.setEffectiveTimeScale(1.0);
+        if (idleW > 0.005) {
+          _activate(this._idleAction, idleW);
+          this._idleAction.setEffectiveTimeScale(1.0);
+        } else {
+          _deactivate(this._idleAction);
+        }
       }
     }
 

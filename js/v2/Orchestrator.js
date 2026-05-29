@@ -1039,6 +1039,10 @@ export class SacredOrchestrator {
   _stashAnuCullablesForPipRender(feet) {
     const stashed = [];
     const isFishingActive = window.__sanctuaryFishingActive === true;
+    // Turn off culling completely for the PIP minimap during normal gameplay (not fishing) to show all trees and bushes
+    if (!isFishingActive) {
+      return stashed;
+    }
     const cullingRadiusSq = 30 * 30; // 30-meter proximity culling radius
     if (this.scene) {
       this.scene.traverse((o) => {
@@ -1093,6 +1097,11 @@ export class SacredOrchestrator {
             o.userData?.anuKind === "water" ||
             o.userData?.anuKind === "sky" ||
             o.isLight ||
+            o.isInstancedMesh ||
+            o.userData?.anuKind === "tree" ||
+            o.userData?.anuKind?.includes("tree") ||
+            o.userData?.anuKind?.includes("bush") ||
+            o.userData?.anuKind?.includes("reeds") ||
             o === this._avatar
           );
 
@@ -1255,7 +1264,7 @@ export class SacredOrchestrator {
       // brings the colored arc to the TOP half of the PIP frame.
       this._pipOrtho.up.set(1, 0, 0);
       this._pipOrtho.lookAt(bp.x, WATER_Y, bp.z);
-      this._pipRenderer.render(this.scene, this._pipOrtho);
+      this._renderWithMask(this._pipOrtho);
 
       // Restore the camera to the default layers 0, 1, and 3
       this._pipOrtho.layers.set(0);
@@ -1288,7 +1297,7 @@ export class SacredOrchestrator {
       ) {
         clipArmed = pipClip.armOrthoClip(this._pipW, this._pipH) === true;
       }
-      this._pipRenderer.render(this.scene, this._pipOrtho);
+      this._renderWithMask(this._pipOrtho);
       if (
         clipArmed &&
         pipClip &&
@@ -1308,7 +1317,68 @@ export class SacredOrchestrator {
     this._pipPersp.position.set(hx, hy, hz);
     this._pipPersp.up.set(0, 1, 0);
     this._pipPersp.lookAt(_pipSpiritLook);
-    this._pipRenderer.render(this.scene, this._pipPersp);
+    this._renderWithMask(this._pipPersp);
+  }
+
+  _renderWithMask(camera) {
+    if (!this._pipMaskScene) {
+      this._pipMaskScene = new THREE.Scene();
+      this._pipMaskCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const maskGeom = new THREE.PlaneGeometry(2, 2);
+      const maskMat = new THREE.ShaderMaterial({
+        depthWrite: true,
+        depthTest: true,
+        colorWrite: false,
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = vec4(position.xy, -0.99, 1.0);
+          }
+        `,
+        fragmentShader: `
+          varying vec2 vUv;
+          void main() {
+            vec2 center = vec2(0.5, 0.5);
+            if (distance(vUv, center) < 0.495) {
+              discard;
+            }
+            gl_FragColor = vec4(1.0);
+          }
+        `,
+      });
+      const maskMesh = new THREE.Mesh(maskGeom, maskMat);
+      maskMesh.frustumCulled = false;
+      this._pipMaskScene.add(maskMesh);
+    }
+
+    if (!this._pipBgScene) {
+      this._pipBgScene = new THREE.Scene();
+      this._pipBgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const bgMat = new THREE.MeshBasicMaterial({
+        color: 0x9fbcd1,
+        depthTest: true,
+        depthWrite: false,
+      });
+      const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
+      bgMesh.position.z = -0.5;
+      this._pipBgScene.add(bgMesh);
+    }
+
+    const origAutoClear = this._pipRenderer.autoClear;
+    this._pipRenderer.autoClear = false;
+    this._pipRenderer.clear();
+
+    // 1. Render depth mask
+    this._pipRenderer.render(this._pipMaskScene, this._pipMaskCam);
+
+    // 2. Render background plane
+    this._pipRenderer.render(this._pipBgScene, this._pipBgCam);
+
+    // 3. Render actual scene (depth-masked to a perfect circle)
+    this._pipRenderer.render(this.scene, camera);
+
+    this._pipRenderer.autoClear = origAutoClear;
   }
 
   /** Always called in `finally`; idempotent on null state. */

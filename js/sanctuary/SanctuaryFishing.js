@@ -860,6 +860,7 @@ export const SanctuaryFishingModule = {
   _turnElapsed: 0,
   _surgeEvery:  2,
   _waitingTimer: 0.0,
+  _waitingTimerAtBite: 0.0,
 
   // 3-D interest gauge
   _gauge3d:    null,
@@ -1285,6 +1286,15 @@ export const SanctuaryFishingModule = {
 
     if (p === PHASE.CASTING) {
       this._willCatch = Math.random() < 0.70; // 70% success chance
+    }
+
+    if (p === PHASE.BITE) {
+      // Calculate catch success chance based on waiting time! Base is 70% + 1% per minute.
+      const waitMin = (this._waitingTimer || 0) / 60.0;
+      const successChance = 0.70 + waitMin * 0.01;
+      this._willCatch = Math.random() < Math.min(1.0, successChance);
+      this._waitingTimerAtBite = this._waitingTimer || 0; // Store wait time
+      console.log(`%c[SanctuaryFishing] Bite! Wait time: ${this._waitingTimerAtBite.toFixed(1)}s, Catch success chance: ${(Math.min(1.0, successChance) * 100).toFixed(1)}%`, 'color:#a5d6a7;font-weight:bold;');
     }
 
     if (p === PHASE.REELING) {
