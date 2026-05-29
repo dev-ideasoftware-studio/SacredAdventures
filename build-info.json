@@ -1,9 +1,9 @@
 {
-  "subject": "feat(favicon): add premium tipi and leaf favicons, bump sw cache v39",
-  "isoDate": "2026-05-29T02:24:23-05:00",
+  "subject": "feat(maps): restore scene1 'Sacred Grove' default map",
+  "isoDate": "2026-05-29T02:25:44-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "030d0e6",
+  "commit": "17de6be",
   "dirty": true,
-  "generatedAt": "2026-05-29T07:24:26.910Z"
+  "generatedAt": "2026-05-29T07:25:47.122Z"
 }
