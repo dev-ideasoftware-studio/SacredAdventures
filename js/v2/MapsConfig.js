@@ -163,7 +163,7 @@ const MAPS = Object.freeze({
 });
 
 const STORAGE_KEY = "v2.maps.activeId";
-const DEFAULT_MAP_ID = "scene1";
+const DEFAULT_MAP_ID = "scene0";
 
 /**
  * Read the active map id. Order of precedence:
@@ -174,10 +174,10 @@ const DEFAULT_MAP_ID = "scene1";
 export function getActiveMapId() {
   if (typeof window === "undefined") return DEFAULT_MAP_ID;
   try {
-    const resetDone = window.localStorage?.getItem("v2.maps.reset_done_v4");
+    const resetDone = window.localStorage?.getItem("v2.maps.reset_done_v5");
     if (!resetDone) {
       window.localStorage?.setItem(STORAGE_KEY, DEFAULT_MAP_ID);
-      window.localStorage?.setItem("v2.maps.reset_done_v4", "true");
+      window.localStorage?.setItem("v2.maps.reset_done_v5", "true");
       console.log(`[MapsConfig] Auto-resetting active map in localStorage to "${DEFAULT_MAP_ID}"...`);
       setTimeout(() => {
         window.location.reload();
