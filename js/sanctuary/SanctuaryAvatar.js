@@ -351,9 +351,30 @@ export const SanctuaryAvatarModule = {
 
       root.add(model);
 
-      const groundY = sanctuaryGroundY(AVATAR_SPAWN_X, AVATAR_SPAWN_Z);
-      root.position.set(AVATAR_SPAWN_X, groundY, AVATAR_SPAWN_Z);
-      root.rotation.y = AVATAR_INITIAL_YAW_RAD;
+      let spawnX = AVATAR_SPAWN_X;
+      let spawnZ = AVATAR_SPAWN_Z;
+      let spawnYaw = AVATAR_INITIAL_YAW_RAD;
+
+      // Map-specific permanent spawn override
+      let activeMapId = "scene0";
+      if (typeof window !== "undefined") {
+        try {
+          activeMapId = window.localStorage.getItem("v2.maps.activeId") || "scene0";
+        } catch (_) {}
+      }
+
+      if (activeMapId === "scene0") {
+        spawnX = -19.6;
+        spawnZ = -13.8;
+        spawnYaw = -2.00;
+      }
+
+      this._spawnX = spawnX;
+      this._spawnZ = spawnZ;
+
+      const groundY = sanctuaryGroundY(spawnX, spawnZ);
+      root.position.set(spawnX, groundY, spawnZ);
+      root.rotation.y = spawnYaw;
 
       scene.add(root);
       this._root = root;
@@ -367,7 +388,7 @@ export const SanctuaryAvatarModule = {
         window.__sanctuaryAvatar = root;
         // Seed the global yaw so the keyboard module + arrow agree on
         // facing on the very first frame.
-        window.__sanctuaryPlayerYaw = AVATAR_INITIAL_YAW_RAD;
+        window.__sanctuaryPlayerYaw = spawnYaw;
       }
 
       // Wire up the animation mixer. Avatar3.glb ships 9 clips named
@@ -517,7 +538,7 @@ export const SanctuaryAvatarModule = {
       }
 
       console.log(
-        `%c[Sanctuary] 🧒 Avatar ready @ (${AVATAR_SPAWN_X.toFixed(1)}, ${AVATAR_SPAWN_Z.toFixed(1)}), height ${AVATAR_TARGET_HEIGHT_M} m, ${touched} material fixes, skin-fill shell present.`,
+        `%c[Sanctuary] 🧒 Avatar ready @ (${(this._spawnX ?? AVATAR_SPAWN_X).toFixed(1)}, ${(this._spawnZ ?? AVATAR_SPAWN_Z).toFixed(1)}), height ${AVATAR_TARGET_HEIGHT_M} m, ${touched} material fixes, skin-fill shell present.`,
         "color:#fbc02d;font-weight:bold;",
       );
     } catch (err) {

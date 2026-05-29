@@ -19,6 +19,7 @@ import {
   SANCTUARY_POOL_CENTER_Z,
 } from "./SanctuaryGround.js";
 import { V2_AVATAR_TRAVEL_CIRCLE_RADIUS_M } from "../v2/constants.js";
+import { createPhotorealTravelDiscMaterial } from "../v2/anu/TravelFloorCircleMaterials.js";
 
 // ── Web Audio Procedural Synthesizer ──────────────────────────────────
 const _audioCtx = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext)
@@ -364,7 +365,7 @@ function _build3DGauge(scene) {
       depth: 0.10, bevelEnabled: true,
       bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 3,
     }),
-    clearMat
+    darkMat
   ));
 
   // Outer rim — REMOVED 2026-05-28 per user: "borders should be same
@@ -1063,10 +1064,9 @@ export const SanctuaryFishingModule = {
       s.id = "v4-fishing-pip-glass-style";
       s.textContent = `
         body.v4-fishing-active #moondial-wrapper {
-          background: radial-gradient(circle, rgba(15, 10, 5, 0.04) 30%, rgba(5, 2, 0, 0.16) 100%) !important;
+          background: transparent !important;
           border-color: rgba(255, 215, 0, 0.55) !important;
           box-shadow:
-            inset 0 0 8px rgba(0, 0, 0, 0.22),
             0 0 0 8px #1a1512,
             0 15px 40px rgba(0, 0, 0, 0.45),
             0 0 24px rgba(255, 200, 80, 0.22) !important;
@@ -1079,10 +1079,7 @@ export const SanctuaryFishingModule = {
     // ── Spot disc + fish glyph ────────────────────────────────────
     const spot = (typeof window !== "undefined") ? window.__sanctuaryFishingSpot : null;
     if (spot) {
-      const discMat = new THREE.MeshBasicMaterial({
-        color: 0x68d4ff, transparent: true, opacity: 0.45,
-        depthTest: true, depthWrite: false, side: THREE.DoubleSide,
-      });
+      const discMat = createPhotorealTravelDiscMaterial("fishing", SPOT_DISC_RADIUS_M * 0.70);
       const disc = new THREE.Mesh(new THREE.CircleGeometry(SPOT_DISC_RADIUS_M * 0.70, 56), discMat);
       disc.rotation.x = -Math.PI / 2;
       disc.position.set(spot.x, (spot.y ?? 0) + 0.03, spot.z);
@@ -1091,6 +1088,7 @@ export const SanctuaryFishingModule = {
       disc.userData.anuKind = "sanctuary_fishing_spot_disc";
       disc.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
       scene.add(disc);
+      this._spotDisc = disc;
 
       // REMOVED 2026-05-28 (proven via tests/v4-disc-zindex-probe.spec.js):
       // The gold RingGeometry(0.92, 1.0) at renderOrder 9971 was the
@@ -1641,6 +1639,10 @@ export const SanctuaryFishingModule = {
   update(delta) {
     if (!this._scene) return;
     this._phaseT += delta;
+
+    if (this._spotDisc && this._spotDisc.material && this._spotDisc.material.uniforms && this._spotDisc.material.uniforms.uTime) {
+      this._spotDisc.material.uniforms.uTime.value = performance.now() / 1000.0;
+    }
 
     const avatar = (typeof window !== "undefined") ? window.__sanctuaryAvatar : null;
 
@@ -2514,6 +2516,12 @@ export const SanctuaryFishingModule = {
     if (this._rodGroup) scene.remove(this._rodGroup);
     if (this._line)     scene.remove(this._line);
     if (this._bobber)   scene.remove(this._bobber);
+    if (this._spotDisc) {
+      scene.remove(this._spotDisc);
+      this._spotDisc.geometry?.dispose();
+      this._spotDisc.material?.dispose();
+      this._spotDisc = null;
+    }
     for (const r of this._ripples) {
       scene.remove(r.mesh);
       r.mesh.geometry?.dispose();

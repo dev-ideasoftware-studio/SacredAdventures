@@ -34,9 +34,9 @@ import {
 
 // Geometry constants — all metres.
 const DOCK_AZIMUTH_RAD = Math.PI; // pier points to world -Z (south); player faces +Z toward it
-// 2.4 → 3.8 m (per user 2026-05-28) so the entire fishing-spot disc
-// (~3.6 m diameter) fits within the rails. PLANK_COUNT stays at 8.
-const DOCK_WIDTH_M = 3.8;
+// 2.4 → 5.0 m (exceeding the player travel circle diameter) so the entire fishing-spot disc
+// fits comfortably within the rails. PLANK_COUNT stays at 8.
+const DOCK_WIDTH_M = 5.0;
 const DOCK_LENGTH_M = 7.0;
 const DOCK_DECK_THICKNESS_M = 0.10;
 const PLANK_COUNT = 8;
@@ -74,9 +74,9 @@ let _cachedRailMat = null;
 function deckMaterial() {
   if (_cachedDeckMat) return _cachedDeckMat;
   _cachedDeckMat = new THREE.MeshStandardMaterial({
-    color: 0x7a4d2c, // deeper natural wood
-    roughness: 0.75,
-    metalness: 0.05,
+    color: 0x2c190d, // rich photorealistic dark wood
+    roughness: 0.85,
+    metalness: 0.02,
     flatShading: false,
   });
   return _cachedDeckMat;
@@ -84,7 +84,7 @@ function deckMaterial() {
 function darkWoodMaterial() {
   if (_cachedDarkMat) return _cachedDarkMat;
   _cachedDarkMat = new THREE.MeshStandardMaterial({
-    color: 0x3d2715, // darker aged wood
+    color: 0x1a0f0a, // extremely dark aged charcoal wood
     roughness: 0.85,
     metalness: 0.02,
     flatShading: false,
@@ -94,8 +94,8 @@ function darkWoodMaterial() {
 function railMaterial() {
   if (_cachedRailMat) return _cachedRailMat;
   _cachedRailMat = new THREE.MeshStandardMaterial({
-    color: 0x5c3a21, // mid-tone natural wood
-    roughness: 0.80,
+    color: 0x23130a, // dark wood rail
+    roughness: 0.85,
     metalness: 0.02,
     flatShading: false,
   });
@@ -331,13 +331,13 @@ export const SanctuaryDockModule = {
 
     const mapType = (typeof window !== "undefined" && window.__sanctuaryMapType) || "1";
     if (mapType === "2") {
-      deckMaterial().color.setHex(0x4a2a18); // very rich dark brown
-      darkWoodMaterial().color.setHex(0x23130a); // extremely dark aged wood
-      railMaterial().color.setHex(0x381f12); // darker natural wood rail
+      deckMaterial().color.setHex(0x2c190d); // rich photorealistic dark wood
+      darkWoodMaterial().color.setHex(0x1a0f0a); // extremely dark aged charcoal wood
+      railMaterial().color.setHex(0x23130a); // dark wood rail
     } else {
-      deckMaterial().color.setHex(0x7a4d2c); // original deeper natural wood
-      darkWoodMaterial().color.setHex(0x3d2715); // original darker aged wood
-      railMaterial().color.setHex(0x5c3a21); // original mid-tone natural wood
+      deckMaterial().color.setHex(0x2c190d); // rich photorealistic dark wood
+      darkWoodMaterial().color.setHex(0x1a0f0a); // extremely dark aged charcoal wood
+      railMaterial().color.setHex(0x23130a); // dark wood rail
     }
 
     // Build all geometry in LOCAL space (dock long axis = local +X),

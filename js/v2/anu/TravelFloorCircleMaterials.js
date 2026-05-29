@@ -30,9 +30,9 @@ export function createPhotorealTravelDiscMaterial(kind, outerRadius) {
     mid.setHex(0x8b5a2b);   // walnut / cinnamon
     rim.setHex(0xd4a574);   // blonde pine highlight
   } else if (isFishing) {
-    inner.setHex(0x06182c); // deep blue shadow
-    mid.setHex(0x1565c0);   // medium ocean blue
-    rim.setHex(0x64b5f6);   // light blue rim
+    inner.setHex(0x0a243a); // deep baby blue shadow
+    mid.setHex(0x4fc3f7);   // vibrant baby blue mid-tone
+    rim.setHex(0xb3e5fc);   // soft pale baby blue rim
   }
   
   const uInner = { value: inner };
@@ -98,7 +98,7 @@ void main() {
     },
     vertexShader: vs,
     fragmentShader: fs,
-    transparent: true,
+    transparent: false,
     depthTest: true,
     depthWrite: false,
     side: THREE.DoubleSide,
@@ -186,7 +186,7 @@ void main() {
     },
     vertexShader: vs,
     fragmentShader: fs,
-    transparent: true,
+    transparent: false,
     depthTest: true,
     depthWrite: false,
     side: THREE.DoubleSide,

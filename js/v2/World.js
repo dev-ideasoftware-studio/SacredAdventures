@@ -632,13 +632,28 @@ export const WorldModule = {
      * the NPC.YB rising-edge gate sees the player as "outside zone" and
      * stays seated until the player demonstrably approaches.
      */
-    const spawnX = 0;
-    const spawnZ = -3 * V2_TILE_WORLD;
+    let spawnX = 0;
+    let spawnZ = -3 * V2_TILE_WORLD;
+    let spawnYaw = Math.PI;
+
+    let activeMapId = "scene0";
+    if (typeof window !== "undefined") {
+      try {
+        activeMapId = window.localStorage.getItem("v2.maps.activeId") || "scene0";
+      } catch (_) {}
+    }
+
+    if (activeMapId === "scene0") {
+      spawnX = -19.6;
+      spawnZ = -13.8;
+      spawnYaw = -2.00;
+    }
+
     this._playerPos.set(spawnX, terrainY(spawnX, spawnZ) + PLAYER_HEIGHT, spawnZ);
     camera.position.copy(this._playerPos);
     camera.rotation.order = "YXZ"; // set ONCE — never reset in update()
     this._playerBody = WorldPhysics.createBody(this._playerPos, PLAYER_HEIGHT);
-    this._yaw = Math.PI;
+    this._yaw = spawnYaw;
     this._walkDistance = 0;
     this._lastWalkX = this._playerPos.x;
     this._lastWalkZ = this._playerPos.z;
