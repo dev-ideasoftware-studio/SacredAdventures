@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION to force a full re-cache on next visit.
  */
 
-const CACHE_VERSION = "v38";
+const CACHE_VERSION = "v39";
 const SHELL_CACHE = `sacred-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `sacred-assets-${CACHE_VERSION}`;
 
@@ -21,6 +21,9 @@ const SHELL_FILES = [
   "./js/components/Component.NewJournal.html",
   "./SacredGame.css",
   "./manifest.json",
+  "./favicon.ico",
+  "./Assets/favicon.png",
+  "./Assets/leaf-favicon.png",
 
   // Core JS
   "./js/EngineMain.js",
