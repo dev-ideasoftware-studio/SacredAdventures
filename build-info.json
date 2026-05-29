@@ -1,9 +1,9 @@
 {
-  "subject": "feat(pip): resolve FPV minimap trees and bushes culling, restore layers and frustum culling immunity",
-  "isoDate": "2026-05-29T17:07:04-05:00",
+  "subject": "perf(fishing): optimize caught fish wiggle lookups, restore tipi and forest during fishing",
+  "isoDate": "2026-05-29T17:16:09-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "f09d10d",
+  "commit": "b5ef904",
   "dirty": false,
-  "generatedAt": "2026-05-29T22:07:09.261Z"
+  "generatedAt": "2026-05-29T22:16:13.057Z"
 }

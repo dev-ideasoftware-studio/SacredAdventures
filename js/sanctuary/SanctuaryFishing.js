@@ -1229,7 +1229,7 @@ export const SanctuaryFishingModule = {
     const scene = this._scene;
     if (!scene) return;
     const cx = SANCTUARY_POOL_CENTER_X, cz = SANCTUARY_POOL_CENTER_Z;
-    const CULL_R = 16.0;
+    const CULL_R = 70.0;
     const stash = [];
     const tmp = new THREE.Vector3();
     // Names of anuKind values that must stay visible during fishing
@@ -1246,6 +1246,34 @@ export const SanctuaryFishingModule = {
       if (!obj.isMesh && !obj.isGroup) return;      // skip helpers, bones, etc.
       const kind = obj.userData?.anuKind;
       if (kind && KEEP.has(kind)) return;           // always keep pond objects
+      
+      // Exclude tipis, trees, bushes, reeds, and NPCs from culling to keep the world beautiful and alive
+      if (
+        kind === 'sanctuary_pond_tree_dense' ||
+        kind === 'sanctuary_pond_bush_dense' ||
+        kind === 'sanctuary_pond_reeds' ||
+        kind === 'sanctuary_pond_trees' ||
+        kind === 'sanctuary_flora_baseline' ||
+        kind === 'tipi_group' ||
+        kind === 'tipi_smoke' ||
+        kind === 'npc_yellowbutterfly' ||
+        kind === 'npc_bringshappiness' ||
+        (obj.name && (
+          obj.name.includes("tipi") ||
+          obj.name.includes("Tipi") ||
+          obj.name.includes("tree") ||
+          obj.name.includes("Tree") ||
+          obj.name.includes("bush") ||
+          obj.name.includes("Bush") ||
+          obj.name.includes("reeds") ||
+          obj.name.includes("Reeds") ||
+          obj.name.includes("pine") ||
+          obj.name.includes("Pine")
+        ))
+      ) {
+        return;
+      }
+
       obj.getWorldPosition(tmp);
       if (Math.hypot(tmp.x - cx, tmp.z - cz) > CULL_R) {
         obj.visible = false;
@@ -1606,15 +1634,23 @@ export const SanctuaryFishingModule = {
     // Wiggle all caught fish attached to legs (up to 3 per side) with organic offsets
     if (window.__sanctuaryHasFishCaught && avatar) {
       const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+      if (!this._gluedFishRefs) {
+        this._gluedFishRefs = {};
+      }
       for (let i = 1; i <= 6; i++) {
-        const gluedGroup = avatar.getObjectByName(`glued_fish_${i}`);
-        if (gluedGroup) {
-          const fishMesh = gluedGroup.getObjectByName("wiggling_attached_fish");
-          if (fishMesh) {
-            const phaseOffset = i * 0.73;
-            fishMesh.rotation.z = Math.sin(t * 18 + phaseOffset) * 0.32;
-            fishMesh.rotation.y = Math.cos(t * 10 + phaseOffset) * 0.15;
+        let refs = this._gluedFishRefs[i];
+        if (!refs) {
+          const gluedGroup = avatar.getObjectByName(`glued_fish_${i}`);
+          if (gluedGroup) {
+            const fishMesh = gluedGroup.getObjectByName("wiggling_attached_fish");
+            refs = { gluedGroup, fishMesh };
+            this._gluedFishRefs[i] = refs;
           }
+        }
+        if (refs && refs.fishMesh) {
+          const phaseOffset = i * 0.73;
+          refs.fishMesh.rotation.z = Math.sin(t * 18 + phaseOffset) * 0.32;
+          refs.fishMesh.rotation.y = Math.cos(t * 10 + phaseOffset) * 0.15;
         }
       }
     }
@@ -2377,6 +2413,8 @@ export const SanctuaryFishingModule = {
   _attachFishToAvatarSide() {
     const avatar = window.__sanctuaryAvatar;
     if (!avatar) return;
+
+    this._gluedFishRefs = null; // Clear the cache so it rebuilds on next frame
 
     this._caughtFishCount = (this._caughtFishCount || 0) + 1;
     if (this._caughtFishCount > 6) {
