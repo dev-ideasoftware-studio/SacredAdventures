@@ -226,6 +226,7 @@
   <div id="v4-banner"></div>
 
   <script type="module">
+    import { DefaultLoadingManager } from 'three';
     import { SacredOrchestrator } from './js/v2/Orchestrator.js';
     import { AnuModule } from './js/v2/AnuModule.js';
 
@@ -282,9 +283,27 @@
     function postToLoadingModal(payload) {
       try { loadingIframe?.contentWindow?.postMessage(payload, '*'); } catch (_) {}
     }
+
+    let lastDownloadProgress = 0;
     function v4Log(msg, pVideo, pAssets, pLogic, pInit) {
-      postToLoadingModal({ type: 'LOG_SYSTEM', msg, pVideo, pAssets, pLogic, pInit });
+      // Prioritize real download progress over hardcoded boot step percentages for the first bar (pVideo)
+      const finalVideo = pVideo === 100 ? 100 : Math.max(pVideo || 0, lastDownloadProgress);
+      postToLoadingModal({ type: 'LOG_SYSTEM', msg, pVideo: finalVideo, pAssets, pLogic, pInit });
     }
+
+    // Intercept THREE.js actual download progress
+    DefaultLoadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+      const progress = Math.round((itemsLoaded / itemsTotal) * 100);
+      lastDownloadProgress = Math.max(lastDownloadProgress, progress);
+      const filename = url.split('/').pop().split('?')[0];
+      v4Log(`Downloading ${filename}`, lastDownloadProgress, undefined, undefined, undefined);
+    };
+
+    DefaultLoadingManager.onLoad = function () {
+      lastDownloadProgress = 100;
+      v4Log('All files downloaded successfully.', 100, undefined, undefined, undefined);
+    };
+
     function v4LoadingComplete() { postToLoadingModal({ type: 'LOADING_COMPLETE' }); }
     function teardownLoadingIframe() {
       const ifr = document.getElementById('v4-loading-iframe');
