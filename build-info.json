@@ -1,9 +1,9 @@
 {
-  "subject": "Revert \"feat(maps): set default map onload back to legacy scene0\"",
-  "isoDate": "2026-05-29T03:03:55-05:00",
+  "subject": "Revert \"feat(maps): restore scene1 'Sacred Grove' default map\"",
+  "isoDate": "2026-05-29T03:05:25-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "5e32631",
+  "commit": "8c789b9",
   "dirty": true,
-  "generatedAt": "2026-05-29T08:03:55.509Z"
+  "generatedAt": "2026-05-29T08:05:29.390Z"
 }

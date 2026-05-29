@@ -86,9 +86,9 @@ const MAPS = Object.freeze({
 
   scene1: Object.freeze({
     id: "scene1",
-    name: "Sacred Grove",
+    name: "Small Village Pond",
     blurb:
-      "Tight wooded valley. Pond off-centre. Steep walls, no mountains visible — you're inside the grove.",
+      "A scenic village pond with an elevated 35cm shoreline bank, an abrupt 12th-power drop-off, and a 3.12m deep basin floor.",
     terrain: Object.freeze({
       // Tighter clearing, steeper rise. The valley walls press inward
       // so the grove reads as enclosed.
@@ -163,7 +163,7 @@ const MAPS = Object.freeze({
 });
 
 const STORAGE_KEY = "v2.maps.activeId";
-const DEFAULT_MAP_ID = "scene1";
+const DEFAULT_MAP_ID = "scene0";
 
 /**
  * Read the active map id. Order of precedence:
