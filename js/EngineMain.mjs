@@ -20,6 +20,9 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         
         // Expose loaders globally for classic script components (like RabbitSystem)
         window.GLTFLoader = GLTFLoader;
+        window.DRACOLoader = DRACOLoader;
+        window.THREE = window.THREE || {};
+        window.THREE.DRACOLoader = DRACOLoader;
         window.OBJLoader = OBJLoader;
 
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';

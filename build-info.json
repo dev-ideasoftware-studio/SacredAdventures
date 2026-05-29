@@ -1,9 +1,9 @@
 {
-  "subject": "fix(tipi): safely handle undefined THREE.DRACOLoader in legacy EnvironmentBuilder",
-  "isoDate": "2026-05-29T01:39:15-05:00",
+  "subject": "fix(tipi): expose DRACOLoader globally in EngineMain for legacy EnvironmentBuilder loads",
+  "isoDate": "2026-05-29T01:40:51-05:00",
   "branch": "dev/ideasoftware-studio",
-  "swVersion": "v37",
-  "commit": "a58dcfd",
+  "swVersion": "v38",
+  "commit": "20671cc",
   "dirty": true,
-  "generatedAt": "2026-05-29T06:39:19.068Z"
+  "generatedAt": "2026-05-29T06:40:55.380Z"
 }
