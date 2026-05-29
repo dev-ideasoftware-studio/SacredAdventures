@@ -192,8 +192,8 @@ const SURGE_BONUS    = 0.15;   // +15 % on surge turns
 // 22 ft above water for a cinematic panorama of the dock + pond.
 const CAM_LIFT_M      = 4.572;   // 15 ft (initial)
 const CAM_BACK_M      = 1.219;   // 4 ft behind avatar (initial)
-const PANORAMA_LIFT_M = 6.706;   // 22 ft (panorama)
-const PANORAMA_BACK_M = 10.853;  // 1 × V2_HEX_FLAT_WIDTH ≈ 10.85 m (panorama pullback)
+const PANORAMA_LIFT_M = 3.658;   // 12 ft (panorama lift, lowered so avatar and circle sit at very bottom of screen)
+const PANORAMA_BACK_M = 7.805;   // Zoomed in by 10 feet (from 10.853 m) to be closer to the pond
 const PANORAMA_ENTER_S = 10.0;   // seconds before panorama kicks in
 const CAM_LERP_RATE   = 6.0;
 const CAM_LOOK_BIAS   = 0.22;    // fraction toward avatar from pool centre
