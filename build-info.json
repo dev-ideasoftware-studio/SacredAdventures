@@ -1,9 +1,9 @@
 {
-  "subject": "feat(sanctuary): overhaul sacred pool depth, schooling small fish, funny real-fish eat-jumps, and freeze PIP animations",
-  "isoDate": "2026-05-29T17:57:05-05:00",
+  "subject": "feat(wind-hex): slow down tree sways, remove swaying from PIP, and restore hex tiles with elegant gold border lines",
+  "isoDate": "2026-05-29T18:09:12-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "dce2b41",
+  "commit": "18c47c6",
   "dirty": false,
-  "generatedAt": "2026-05-29T22:57:09.577Z"
+  "generatedAt": "2026-05-29T23:09:17.960Z"
 }

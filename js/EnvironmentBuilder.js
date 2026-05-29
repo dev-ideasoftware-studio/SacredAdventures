@@ -178,22 +178,74 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
             }
             
             const instancedMesh = new THREE.InstancedMesh(hexGeo, hexMat, positions.length);
-            instancedMesh.visible = !!window._isMapView; // Hide immediately if not Map View
+            instancedMesh.visible = true; // Always visible for a gorgeous boardgame feel!
             
+            // Build the beautiful elegant neumorphic outlines/lines
+            const outerShape = new THREE.Shape();
+            for (let i = 0; i < 6; i++) {
+                const a = i * Math.PI * 2 / 6;
+                if (i === 0) outerShape.moveTo(Math.cos(a) * size, Math.sin(a) * size);
+                else outerShape.lineTo(Math.cos(a) * size, Math.sin(a) * size);
+            }
+            outerShape.closePath();
+
+            const innerHole = new THREE.Path();
+            const innerSize = size - 0.25; // 25cm elegant border width
+            for (let i = 0; i < 6; i++) {
+                const a = i * Math.PI * 2 / 6;
+                if (i === 0) innerHole.moveTo(Math.cos(a) * innerSize, Math.sin(a) * innerSize);
+                else innerHole.lineTo(Math.cos(a) * innerSize, Math.sin(a) * innerSize);
+            }
+            innerHole.closePath();
+            outerShape.holes.push(innerHole);
+
+            const lineGeo = new THREE.ExtrudeGeometry(outerShape, {
+                depth: 0.04, // very thin line
+                bevelEnabled: true,
+                bevelSegments: 2,
+                bevelSteps: 1,
+                bevelSize: 0.04,
+                bevelThickness: 0.04
+            });
+            lineGeo.rotateX(Math.PI / 2);
+
+            // Elegant, warm gold neumorphic glow line material
+            const lineMat = new THREE.MeshStandardMaterial({
+                color: 0xfff3e0,
+                emissive: 0xffb74d, // warm gold highlight
+                emissiveIntensity: 0.35,
+                roughness: 0.1,
+                metalness: 0.8,
+                transparent: true,
+                opacity: 0.85
+            });
+
+            const linesMesh = new THREE.InstancedMesh(lineGeo, lineMat, positions.length);
+            linesMesh.visible = true;
+
             const dummy = new THREE.Object3D();
+            const dummyLine = new THREE.Object3D();
             positions.forEach((pos, i) => {
                 const groundY = getHeightFunc(pos.x, pos.z);
                 // Contour exactly to the ground, minus half-height to sink it
                 dummy.position.set(pos.x, groundY - 0.1, pos.z);
-                // Random slightly offset rotation purely for tiny imperfect dirt feel? 
-                // No, hex edges must align perfectly in a board!
                 dummy.updateMatrix();
                 instancedMesh.setMatrixAt(i, dummy.matrix);
+
+                // Place the line mesh slightly higher so it sits flush on top of the beveled hex face
+                dummyLine.position.set(pos.x, groundY + 0.04, pos.z);
+                dummyLine.updateMatrix();
+                linesMesh.setMatrixAt(i, dummyLine.matrix);
             });
             
             instancedMesh.instanceMatrix.needsUpdate = true;
+            linesMesh.instanceMatrix.needsUpdate = true;
+
             window._hexGridMesh = instancedMesh;
+            window._hexLinesMesh = linesMesh;
+
             this.scene.add(instancedMesh);
+            this.scene.add(linesMesh);
             return instancedMesh;
         };
     }
@@ -1348,9 +1400,9 @@ window.EnvironmentBuilder = class EnvironmentBuilder {
                                     float worldX = instanceMatrix[3][0];
                                     float worldZ = instanceMatrix[3][2];
                                     float phase = (worldX * 0.1) + (worldZ * 0.1);
-                                    float windStr = 0.16;
-                                    transformed.x += sin(uTime * 1.5 + phase) * windStr * heightFactor;
-                                    transformed.z += cos(uTime * 1.2 + phase) * windStr * heightFactor;
+                                    float windStr = 0.05;
+                                    transformed.x += sin(uTime * 0.35 + phase) * windStr * heightFactor;
+                                    transformed.z += cos(uTime * 0.28 + phase) * windStr * heightFactor;
                                     `;
                                 }
                                 shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', vertMods);

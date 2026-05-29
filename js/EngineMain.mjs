@@ -4204,11 +4204,11 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                         if (distToCamSq > 10000) continue;
 
                         const phase = t.userData.windPhase;
-                        const amp = t.userData.windAmp * 1.2; // Increased sway by 20% per user request
+                        const amp = t.userData.windAmp * 0.35; // Gentle, relaxing, breezy sway amplitude
 
                         // t is guaranteed to be a non-trunk foliage branch mesh
-                        t.rotation.x = t.userData.baseRotX + Math.sin(windTime * 1.5 + phase) * amp;
-                        t.rotation.z = t.userData.baseRotZ + Math.cos(windTime * 1.2 + phase) * amp * 0.8;
+                        t.rotation.x = t.userData.baseRotX + Math.sin(windTime * 0.35 + phase) * amp;
+                        t.rotation.z = t.userData.baseRotZ + Math.cos(windTime * 0.28 + phase) * amp * 0.8;
                     }
                 }
             }

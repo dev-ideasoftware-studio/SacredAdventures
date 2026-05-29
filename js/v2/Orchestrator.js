@@ -1247,6 +1247,21 @@ export class SacredOrchestrator {
         }
       }
     });
+
+    // Also freeze CPU-based tree rotations during the PIP render pass
+    const stashedRotations = [];
+    if (typeof window !== "undefined" && Array.isArray(window.swayTrees)) {
+      for (const t of window.swayTrees) {
+        stashedRotations.push({
+          tree: t,
+          rotX: t.rotation.x,
+          rotZ: t.rotation.z,
+        });
+        t.rotation.x = t.userData.baseRotX !== undefined ? t.userData.baseRotX : 0;
+        t.rotation.z = t.userData.baseRotZ !== undefined ? t.userData.baseRotZ : 0;
+      }
+    }
+
     window.__isRenderingPip = true;
 
     return {
@@ -1258,6 +1273,7 @@ export class SacredOrchestrator {
       mainMap: wp.mainCanvasMapView === true,
       pipLight,
       stashedUniforms,
+      stashedRotations,
     };
   }
 
@@ -1436,6 +1452,15 @@ export class SacredOrchestrator {
         entry.uniform.value = entry.value;
       }
     }
+
+    // Restore CPU-based tree rotations
+    if (state.stashedRotations) {
+      for (const entry of state.stashedRotations) {
+        entry.tree.rotation.x = entry.rotX;
+        entry.tree.rotation.z = entry.rotZ;
+      }
+    }
+
     window.__isRenderingPip = false;
   }
 

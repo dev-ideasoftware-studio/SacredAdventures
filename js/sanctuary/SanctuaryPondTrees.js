@@ -85,14 +85,14 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
             uniform float uTime;`
           );
 
-          let swayScale = 0.04;
-          let speedScale = 1.4;
+          let swayScale = 0.02;
+          let speedScale = 0.30;
           if (anuKind.includes("reeds")) {
-            swayScale = 0.06;
-            speedScale = 2.0;
+            swayScale = 0.03;
+            speedScale = 0.40;
           } else if (anuKind.includes("bush")) {
-            swayScale = 0.05;
-            speedScale = 1.6;
+            swayScale = 0.025;
+            speedScale = 0.35;
           }
 
           shader.vertexShader = shader.vertexShader.replace(
@@ -126,15 +126,15 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
             // Branches/leaves: sway/flutter based on radial distance from trunk axis (position.xz)
             float radialDist = length(position.xz);
             // Higher frequency branch wiggling phase
-            float branchPhase = uTime * (${speedScale} * 2.8) + position.x * 2.0 + position.z * 2.0 + distAlongWind * 0.3;
-            float branchSway = sin(branchPhase) * (${swayScale} * 0.6) * radialDist * (h * 0.12 + 0.15);
+            float branchPhase = uTime * (${speedScale} * 1.1) + position.x * 0.5 + position.z * 0.5 + distAlongWind * 0.1;
+            float branchSway = sin(branchPhase) * (${swayScale} * 0.4) * radialDist * (h * 0.12 + 0.15);
 
             // Apply soft trunk sway along wind direction
             transformed.x += windDir.x * trunkSway;
             transformed.z += windDir.y * trunkSway;
 
             // Apply high-frequency branch fluttering/wiggling
-            transformed.x += cos(branchPhase) * (${swayScale} * 0.35) * radialDist;
+            transformed.x += cos(branchPhase) * (${swayScale} * 0.25) * radialDist;
             transformed.z += branchSway;
             `
           );
