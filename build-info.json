@@ -1,9 +1,9 @@
 {
-  "subject": "Revert \"chore(maps): force-reset active map in localStorage to scene0 + coordinate handoff\"",
-  "isoDate": "2026-05-29T03:06:48-05:00",
+  "subject": "Revert \"feat(pool): elliptical diagonal pool stretched 2x NE + blue fishing spot circle\"",
+  "isoDate": "2026-05-29T03:13:13-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "693c987",
+  "commit": "de3a23d",
   "dirty": true,
-  "generatedAt": "2026-05-29T08:06:51.820Z"
+  "generatedAt": "2026-05-29T08:13:18.432Z"
 }
