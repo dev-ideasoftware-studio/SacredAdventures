@@ -1038,42 +1038,48 @@ export class SacredOrchestrator {
 
   _stashAnuCullablesForPipRender(feet) {
     const stashed = [];
+    const isFishingActive = window.__sanctuaryFishingActive === true;
     const cullingRadiusSq = 30 * 30; // 30-meter proximity culling radius
     if (this.scene) {
       this.scene.traverse((o) => {
-        let shouldHide = (
-          o.userData?.anuKind === "tipi_smoke" ||
-          o.userData?.anuKind === "sanctuary_frog_group" ||
-          o.userData?.anuKind === "sanctuary_lily_pads" ||
-          o.userData?.anuKind === "sanctuary_butterfly" ||
-          o.userData?.anuKind === "sanctuary_butterflies" ||
-          o.userData?.anuKind === "sanctuary_smoke" ||
-          o.userData?.anuKind === "tipi_group" ||
-          o.userData?.anuKind === "npc_yellowbutterfly" ||
-          o.userData?.anuKind === "npc_bringshappiness" ||
-          o.userData?.anuKind === "tree" ||
-          o.userData?.anuKind === "flora" ||
-          o.userData?.anuKind?.includes("tree") ||
-          o.userData?.anuKind?.includes("flora") ||
-          (o.name && (
-            o.name.includes("tipi") ||
-            o.name.includes("Tipi") ||
-            o.name.includes("smoke") ||
-            o.name.includes("Smoke") ||
-            o.name.includes("tree") ||
-            o.name.includes("Tree") ||
-            o.name.includes("pine") ||
-            o.name.includes("Pine") ||
-            o.name.includes("trunk") ||
-            o.name.includes("Trunk") ||
-            o.name.includes("branch") ||
-            o.name.includes("Branch") ||
-            o.name.includes("leaf") ||
-            o.name.includes("Leaf") ||
-            o.name.includes("foliage") ||
-            o.name.includes("Foliage")
-          ))
-        );
+        // If fishing mode is active, unconditionally hide decorative/large world assets in the PIP to keep it focused on the 3D gauge.
+        // If NOT in fishing mode, we want trees, tipis, frogs, lily pads, and butterflies to show up beautifully in the minimap PIP.
+        let shouldHide = false;
+        if (isFishingActive) {
+          shouldHide = (
+            o.userData?.anuKind === "tipi_smoke" ||
+            o.userData?.anuKind === "sanctuary_frog_group" ||
+            o.userData?.anuKind === "sanctuary_lily_pads" ||
+            o.userData?.anuKind === "sanctuary_butterfly" ||
+            o.userData?.anuKind === "sanctuary_butterflies" ||
+            o.userData?.anuKind === "sanctuary_smoke" ||
+            o.userData?.anuKind === "tipi_group" ||
+            o.userData?.anuKind === "npc_yellowbutterfly" ||
+            o.userData?.anuKind === "npc_bringshappiness" ||
+            o.userData?.anuKind === "tree" ||
+            o.userData?.anuKind === "flora" ||
+            o.userData?.anuKind?.includes("tree") ||
+            o.userData?.anuKind?.includes("flora") ||
+            (o.name && (
+              o.name.includes("tipi") ||
+              o.name.includes("Tipi") ||
+              o.name.includes("smoke") ||
+              o.name.includes("Smoke") ||
+              o.name.includes("tree") ||
+              o.name.includes("Tree") ||
+              o.name.includes("pine") ||
+              o.name.includes("Pine") ||
+              o.name.includes("trunk") ||
+              o.name.includes("Trunk") ||
+              o.name.includes("branch") ||
+              o.name.includes("Branch") ||
+              o.name.includes("leaf") ||
+              o.name.includes("Leaf") ||
+              o.name.includes("foliage") ||
+              o.name.includes("Foliage")
+            ))
+          );
+        }
 
         if (!shouldHide && feet && o.position && (o.isMesh || o.isGroup)) {
           const isImmune = (
