@@ -1,9 +1,9 @@
 {
-  "subject": "chore(cache): bump SW cache version to v37 to fix public load caching",
-  "isoDate": "2026-05-29T01:30:52-05:00",
+  "subject": "fix(tipi): safely handle undefined THREE.DRACOLoader in legacy EnvironmentBuilder",
+  "isoDate": "2026-05-29T01:39:15-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v37",
-  "commit": "437e55a",
+  "commit": "a58dcfd",
   "dirty": true,
-  "generatedAt": "2026-05-29T06:30:56.631Z"
+  "generatedAt": "2026-05-29T06:39:19.068Z"
 }
