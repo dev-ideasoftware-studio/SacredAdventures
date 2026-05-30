@@ -2124,16 +2124,20 @@ export const SanctuaryFishingModule = {
           this._castTarget.z + (Math.random() - 0.5) * 0.04
         );
 
-        // Energetic, violent thrashing and rolls on the 3D caught fish underwater!
+        // CALM underwater wiggle on the caught fish — this is relaxed
+        // fishing, NOT combat. Was a violent ±40°/7 Hz thrash (sin(t*45)
+        // *0.70 etc.) that read as frantic flailing; user 2026-05-30:
+        // "the reel is moving radically all over the place, this is
+        // fishing not combat." Dropped to a slow, gentle low-frequency
+        // sway so the trout simply lolls on the line.
         if (this._caughtFish3D) {
           const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
-          this._caughtFish3D.rotation.z = Math.sin(t * 45) * 0.70; // energetic tail sweeps
-          this._caughtFish3D.rotation.y = Math.cos(t * 30) * 0.50; // body rolls
-          this._caughtFish3D.rotation.x = Math.sin(t * 22) * 0.25; // pitch wiggle
-          
-          // Gently sway the submerged fish position slightly to simulate pulling force
-          this._caughtFish3D.position.x = Math.sin(t * 15) * 0.05;
-          this._caughtFish3D.position.z = Math.cos(t * 12) * 0.05;
+          this._caughtFish3D.rotation.z = Math.sin(t * 4.0) * 0.18; // slow tail sway (~10°)
+          this._caughtFish3D.rotation.y = Math.cos(t * 3.0) * 0.10; // soft body roll
+          this._caughtFish3D.rotation.x = Math.sin(t * 2.5) * 0.06; // subtle pitch
+          // Very gentle position drift — a calm pull, not a flail.
+          this._caughtFish3D.position.x = Math.sin(t * 2.0) * 0.03;
+          this._caughtFish3D.position.z = Math.cos(t * 1.8) * 0.03;
         }
 
         if (this._reelProgress >= 1.0) {

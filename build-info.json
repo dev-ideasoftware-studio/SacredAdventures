@@ -1,9 +1,9 @@
 {
-  "subject": "fix(pool): clamp basin floor under waterline — kill the sand-at-rim collar (C1)",
-  "isoDate": "2026-05-30T01:34:45-05:00",
+  "subject": "fix(fishing): calm the caught-fish reel motion — fishing, not combat",
+  "isoDate": "2026-05-30T01:41:11-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "076ad46",
+  "commit": "26ce355",
   "dirty": true,
-  "generatedAt": "2026-05-30T06:34:51.249Z"
+  "generatedAt": "2026-05-30T06:41:15.894Z"
 }
