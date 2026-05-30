@@ -1,9 +1,9 @@
 {
-  "subject": "feat(fishing): soften rod struggle sways, and integrate Claude's gold hex grid overlay module",
-  "isoDate": "2026-05-29T20:47:20-05:00",
+  "subject": "feat(pipeline): build-signature badge — show which AI's build is live",
+  "isoDate": "2026-05-29T22:18:44-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "03927ef",
+  "commit": "1203c36",
   "dirty": true,
-  "generatedAt": "2026-05-30T01:47:25.338Z"
+  "generatedAt": "2026-05-30T03:18:48.495Z"
 }

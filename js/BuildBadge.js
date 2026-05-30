@@ -35,7 +35,27 @@ async function fetchBuildInfo() {
   } catch { return null; }
 }
 
-function render(info) {
+// SACRED-AI-PIPELINE: which agent last stamped the build (written by
+// scripts/stamp-build.mjs). Shown to the LEFT of the version line so we
+// always know whose build is on screen.
+async function fetchSignature() {
+  try {
+    const res = await fetch(`./build-signature.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+// Per-agent accent colour for the signature chip.
+function agentColor(name) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("gemini") || n.includes("antigravity")) return "#7cc7ff"; // design = blue
+  if (n.includes("4.6") || n.includes("builder")) return "#c79bff";        // builder = violet
+  if (n.includes("orchestrator") || n.includes("opus")) return "#7ee0a3";  // orchestrator = green
+  return "#f5d77a"; // default gold
+}
+
+function render(info, sig) {
   let el = document.getElementById("build-badge");
   if (!el) {
     el = document.createElement("div");
@@ -92,6 +112,7 @@ function render(info) {
   // of build so I can provide you with it" — for fast hand-off when
   // weird build state needs to be reported.
   const copyText =
+    `signed by: ${sig?.agent ?? "(unsigned)"}${sig?.updatedAt ? " @ " + sig.updatedAt : ""}\n` +
     `branch: ${branch}\n` +
     `commit: ${info.commit ?? "(none)"}\n` +
     `subject: ${info.subject ?? "(no subject)"}\n` +
@@ -101,8 +122,16 @@ function render(info) {
     `dirty: ${!!info.dirty}\n` +
     `page URL: ${typeof location !== "undefined" ? location.href : "(no location)"}`;
 
-  el.title = `branch: ${branch}\nsubject: ${info.subject}\ncommit time: ${info.isoDate}\nbuild info generated: ${info.generatedAt}\nSW cache: ${info.swVersion}\ncommit: ${info.commit}\ndirty: ${info.dirty}`;
-  el.innerHTML = `<button id="build-badge-copy" type="button" title="Copy build identity to clipboard" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-radius:50%;border:1px solid rgba(251,192,45,0.45);background:rgba(0,0,0,0.35);color:#f5d77a;cursor:pointer;font:600 11px/1 ui-monospace,Menlo,monospace;flex:0 0 auto;">⧉</button><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1 1 auto;"><span style="color:#c8a546;font-weight:700">${branch}</span>${swTag} · <span>${subject}</span> · <span style="color:#a39577">${rel} (${isoShort})</span>${dirtyTag}</span>`;
+  // SACRED-AI-PIPELINE signature chip — whose build is on screen.
+  let sigChip = "";
+  if (sig && sig.agent) {
+    const c = agentColor(sig.agent);
+    const sigRel = sig.updatedAt ? relTime(sig.updatedAt) : "";
+    sigChip = `<span title="Last build stamped by ${sig.agent}${sig.updatedAt ? " at " + sig.updatedAt : ""}" style="display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;padding:1px 8px;border-radius:999px;background:rgba(0,0,0,0.35);border:1px solid ${c}55;color:${c};font-weight:700;white-space:nowrap;">✎ ${sig.agent}${sigRel ? ` <span style="color:#a39577;font-weight:400">${sigRel}</span>` : ""}</span>`;
+  }
+
+  el.title = `signed by: ${sig?.agent ?? "(unsigned)"}\nbranch: ${branch}\nsubject: ${info.subject}\ncommit time: ${info.isoDate}\nbuild info generated: ${info.generatedAt}\nSW cache: ${info.swVersion}\ncommit: ${info.commit}\ndirty: ${info.dirty}`;
+  el.innerHTML = `<button id="build-badge-copy" type="button" title="Copy build identity to clipboard" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-radius:50%;border:1px solid rgba(251,192,45,0.45);background:rgba(0,0,0,0.35);color:#f5d77a;cursor:pointer;font:600 11px/1 ui-monospace,Menlo,monospace;flex:0 0 auto;">⧉</button>${sigChip}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1 1 auto;"><span style="color:#c8a546;font-weight:700">${branch}</span>${swTag} · <span>${subject}</span> · <span style="color:#a39577">${rel} (${isoShort})</span>${dirtyTag}</span>`;
 
   const copyBtn = el.querySelector("#build-badge-copy");
   if (copyBtn) {
@@ -130,8 +159,14 @@ function render(info) {
 
 export async function mountBuildBadge() {
   const info = await fetchBuildInfo();
-  render(info);
-  setInterval(() => render(info), 30_000);
+  let sig = await fetchSignature();
+  render(info, sig);
+  // Re-poll the signature every 10s so the chip flips as soon as another
+  // agent stamps a build on the shared filesystem.
+  setInterval(async () => {
+    sig = await fetchSignature();
+    render(info, sig);
+  }, 10_000);
 }
 
 if (typeof window !== "undefined") {

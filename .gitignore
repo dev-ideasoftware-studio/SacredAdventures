@@ -38,3 +38,6 @@ backups/
 # Agent Mesh Protocol temporary directory
 .agents/tmp/
 
+
+# AI pipeline per-agent build signature (local, shared via filesystem)
+build-signature.json
