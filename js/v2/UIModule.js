@@ -106,25 +106,34 @@ export const UIModule = {
         }
 
         /* Compass Animated Rotating Frame */
+        /* Photoreal brushed-bronze compass bezel. Widened 2026-05-30: the
+           band was a thin ~18px sliver and the old moon-phase dial left an
+           empty ring inside it. The band now fills that gap (34px thick),
+           reads as a machined metal bezel, and the N/S/E/W sit centred on it. */
         .compass-outer-ring {
             position: absolute;
-            inset: -16px; /* Exactly half width bounds */
+            inset: -16px;
             border-radius: 50%;
-            background: conic-gradient(
-                from 0deg,
-                #3e2723 0%, #6d4c41 25%, #3e2723 50%, #6d4c41 75%, #3e2723 100%
-            );
-            border: 2px solid #2a1a17;
-            box-shadow: 
-                inset 0 1px 5px rgba(255, 255, 255, 0.2),
-                inset 0 -2px 8px rgba(0, 0, 0, 0.8),
-                0 4px 15px rgba(0,0,0,0.8);
+            background:
+                /* top-light sheen across the metal */
+                radial-gradient(circle at 50% 32%, rgba(255,240,210,0.22) 0%, rgba(255,240,210,0) 55%),
+                /* brushed-bronze angular grain */
+                conic-gradient(from 0deg,
+                    #2c1c13 0%, #5b4030 8%, #8a6a4c 14%, #4a3322 22%,
+                    #2c1c13 30%, #6d4c41 44%, #3e2723 52%, #7e5a44 64%,
+                    #3a271b 74%, #6d4c41 86%, #2c1c13 100%);
+            border: 2px solid #1f130d;
+            box-shadow:
+                inset 0 2px 6px rgba(255, 235, 200, 0.28),   /* top inner highlight */
+                inset 0 -3px 10px rgba(0, 0, 0, 0.85),         /* bottom inner shade */
+                inset 0 0 2px rgba(0,0,0,0.6),
+                0 5px 18px rgba(0,0,0,0.85);                   /* drop */
             pointer-events: none;
             z-index: 3; /* Maps over canvas */
             will-change: transform;
             transform-origin: center;
-            -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 18px), black calc(100% - 17px));
-            mask-image: radial-gradient(circle closest-side, transparent calc(100% - 18px), black calc(100% - 17px));
+            -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 34px), black calc(100% - 33px));
+            mask-image: radial-gradient(circle closest-side, transparent calc(100% - 34px), black calc(100% - 33px));
         }
 
         .compass-outer-ring::before {
@@ -144,21 +153,27 @@ export const UIModule = {
             mask-image: radial-gradient(circle closest-side, transparent calc(100% - 6px), black calc(100% - 5px));
         }
 
-        /* Cardinal Direction Markers */
+        /* Cardinal markers — engraved into the metal, centred on the 34px band
+           (~17px in from the ring edge). Brighter cream + dark/light dual
+           text-shadow reads as struck-then-polished engraving. */
         .compass-marker {
             position: absolute;
-            color: #d7ccc8; /* Softer, low-contrast parchment/silver instead of glowing gold */
+            color: #f3e7cf;
             font-family: 'Cinzel', serif;
-            font-size: 14px; /* Shrunk appropriately so they don't break out of the 50% smaller ring */
+            font-size: 17px;
             font-weight: 700;
-            text-shadow: 0 1px 3px rgba(0,0,0, 0.8);
+            letter-spacing: 0.5px;
+            text-shadow:
+                0 1px 0 rgba(0,0,0,0.9),
+                0 -1px 0 rgba(255,240,210,0.25),
+                0 2px 4px rgba(0,0,0,0.75);
             line-height: 1;
         }
 
-        .compass-marker.n { top: 2px; left: 50%; transform: translateX(-50%); }
-        .compass-marker.s { bottom: 2px; left: 50%; transform: translateX(-50%); }
-        .compass-marker.e { right: 4px; top: 50%; transform: translateY(-50%); }
-        .compass-marker.w { left: 4px; top: 50%; transform: translateY(-50%); }
+        .compass-marker.n { top: 13px; left: 50%; transform: translateX(-50%); }
+        .compass-marker.s { bottom: 13px; left: 50%; transform: translateX(-50%); }
+        .compass-marker.e { right: 13px; top: 50%; transform: translateY(-50%); }
+        .compass-marker.w { left: 13px; top: 50%; transform: translateY(-50%); }
 
         #v2-distance-pill {
           position: absolute;
