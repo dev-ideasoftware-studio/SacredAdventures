@@ -868,25 +868,20 @@ function buildPoolRocks(centerY) {
   // Earthy palette — sampled per-instance into instanceColor.
   // No moss-green or algae-gray; underwater they read as "grass" against
   // a sandy floor. All entries are sand/mud/stone tones now.
-  // 2026-05-30 rock refactor (user: "smaller + more realistic, not chocolate
-  // blobs"). Old palette was all RGB <= 56 — uniformly near-black, which read
-  // as dark mud lumps. New palette is a realistic river-stone mix: greys, tan-
-  // greys, weathered sandstone, slate — lighter and varied so the stones catch
-  // light and read as rock, not chocolate.
   const rockPalette = [
-    new THREE.Color(0x6b6f6a), // medium grey stone
-    new THREE.Color(0x827b6c), // warm tan-grey
-    new THREE.Color(0x9a9384), // light weathered sandstone
-    new THREE.Color(0x55585a), // cool slate
-    new THREE.Color(0x746b58), // olive-tan stone
-    new THREE.Color(0x8a8275), // pale river stone
+    new THREE.Color(0x181a1c), // slate black
+    new THREE.Color(0x2c241c), // warm muddy brown
+    new THREE.Color(0x382a1c), // medium clay brown
+    new THREE.Color(0x2a221a), // wet dirt
+    new THREE.Color(0x1a1612), // dark silt
+    new THREE.Color(0x4a3a26), // sandy tan stone
   ];
   const pebblePalette = [
-    new THREE.Color(0x8c8270), // sandy tan
-    new THREE.Color(0x9d9079), // cream stone
-    new THREE.Color(0x6b6356), // dirty brown
-    new THREE.Color(0x7a766b), // medium silt grey
-    new THREE.Color(0x877a64), // ochre pebble
+    new THREE.Color(0x5a4a35), // sandy tan
+    new THREE.Color(0x6b5a40), // cream stone
+    new THREE.Color(0x3a3025), // dirty brown
+    new THREE.Color(0x4a4035), // medium silt
+    new THREE.Color(0x554838), // ochre pebble
   ];
 
   // 2026-05-28: user-requested "more boulders" — bumped each rock tier by
@@ -902,9 +897,9 @@ function buildPoolRocks(centerY) {
 
   const rockMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, // per-instance color carries tint
-    roughness: 0.82,   // 0.92 -> 0.82: a touch of sheen so wet stone reads
-    metalness: 0.10,   // 0.04 -> 0.10: subtle water-worn glint (not chocolate-matte)
-    flatShading: true, // keep facets so light catches edges = "rocky"
+    roughness: 0.92,
+    metalness: 0.04,
+    flatShading: true,
   });
   const pebbleMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -926,14 +921,12 @@ function buildPoolRocks(centerY) {
   /** Populate an InstancedMesh of rocks (flat, elongated river-stone shape). */
   const populateRocks = (mesh, count, palette) => {
     for (let i = 0; i < count; i++) {
-      // 2026-05-30: smaller stones. Was 0.12–0.60m (0.84m outliers) — too big,
-      // read as bulbous mounds. Now 0.08–0.30m with rare modest 1.25x outliers.
-      let r = 0.08 + rng() * 0.22; // 0.08–0.30m
-      if (rng() < 0.10) r *= 1.25; // 10% slightly larger → ~0.375m max
+      let r = 0.12 + rng() * 0.48; // 0.12–0.60m
+      if (rng() < 0.15) r *= 1.4;  // 15% larger boulders → 0.84m
 
-      const scaleX = r * (0.90 + rng() * 0.30);
-      const scaleY = r * (0.28 + rng() * 0.16); // flatter river-stone profile
-      const scaleZ = r * (0.90 + rng() * 0.30);
+      const scaleX = r * (0.85 + rng() * 0.35);
+      const scaleY = r * (0.40 + rng() * 0.30); // flat vertical
+      const scaleZ = r * (0.85 + rng() * 0.35);
 
       const theta = rng() * Math.PI * 2;
       const minD = 0.65 + scaleX;
@@ -1254,6 +1247,27 @@ function buildRim(centerY) {
   return mesh;
 }
 
+/**
+ * 2026-05-30 JAGGED ROCK — low-poly icosahedron with per-vertex outward jitter
+ * so faces are sharp + irregular (angular granite). With flatShading:true on
+ * the material, each facet catches light → photoreal jagged rock, NOT the
+ * smooth subdivision-2 "chocolate drop" blobs the user kept rejecting.
+ * Unique shape per call (consumes rng per vertex).
+ */
+function _makeJaggedShoreRock(rng) {
+  const geo = new THREE.IcosahedronGeometry(1.0, 1); // 80 tris, enough verts to jag
+  const p = geo.attributes.position;
+  for (let v = 0; v < p.count; v++) {
+    const vx = p.getX(v), vy = p.getY(v), vz = p.getZ(v);
+    const len = Math.hypot(vx, vy, vz) || 1;
+    const jit = 0.72 + rng() * 0.5; // 0.72–1.22 radius → irregular jagged facets
+    p.setXYZ(v, (vx / len) * jit, (vy / len) * jit, (vz / len) * jit);
+  }
+  p.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function buildShorelineRocks(centerY) {
   const group = new THREE.Group();
   group.name = "sanctuary_pool_shoreline_rocks";
@@ -1262,16 +1276,20 @@ function buildShorelineRocks(centerY) {
 
   const rng = mulberry32(0xd0c410c5);
 
+  // 2026-05-30 SHORELINE BOULDER REWRITE (user: "smaller, fewer, JAGGED,
+  // photorealistic — not chocolate drops"). Old palette was all RGB <= 62
+  // (near-black) → dark blobs. New: realistic granite greys/tans, lighter +
+  // varied so faceted rock catches light.
   const shorePalette = [
-    new THREE.Color(0x282c22), // mossy dark green-gray
-    new THREE.Color(0x322d26), // warm slate grey
-    new THREE.Color(0x242721), // deep forest moss
-    new THREE.Color(0x3e382f), // charcoal granite
-    new THREE.Color(0x1a1c18), // wet charcoal
-    new THREE.Color(0x443a2e), // dry lichen brown
+    new THREE.Color(0x7d7f7a), // grey granite
+    new THREE.Color(0x8c8478), // warm tan-grey
+    new THREE.Color(0x6b6e68), // slate
+    new THREE.Color(0x9a9388), // weathered light stone
+    new THREE.Color(0x5f6359), // dark slate-green
+    new THREE.Color(0x877c6a), // sandy granite
   ];
 
-  const ROCKS_COUNT = 72;
+  const ROCKS_COUNT = 50; // was 72 — reduced ~30% per user
 
   for (let i = 0; i < ROCKS_COUNT; i++) {
     const theta = (i / ROCKS_COUNT) * Math.PI * 2;
@@ -1283,18 +1301,12 @@ function buildShorelineRocks(centerY) {
       continue;
     }
 
-    const rngVal = rng();
-    let geo;
-    if (rngVal < 0.5) {
-      geo = new THREE.DodecahedronGeometry(1.0, 2); // rounded dodecahedron
-    } else {
-      geo = new THREE.IcosahedronGeometry(1.0, 2); // rounded icosahedron
-    }
+    const geo = _makeJaggedShoreRock(rng); // jagged angular granite, not smooth blob
 
-    // Scale - highly diverse realistic sizes (0.8m to 3.0m)
-    const scaleX = 0.8 + rng() * 2.2;
-    const scaleY = 0.6 + rng() * 1.8;
-    const scaleZ = 0.8 + rng() * 2.2;
+    // Scale −50% (was 0.8–3.0m → now 0.4–1.5m): smaller realistic boulders
+    const scaleX = 0.4 + rng() * 1.1;
+    const scaleY = 0.3 + rng() * 0.9;
+    const scaleZ = 0.4 + rng() * 1.1;
 
     // Radius matching organic rim curve
     const r = organicRimRadius(theta) + (rng() * 0.4 - 0.1);
@@ -1309,9 +1321,9 @@ function buildShorelineRocks(centerY) {
     const color = shorePalette[Math.floor(rng() * shorePalette.length)];
     const mat = new THREE.MeshStandardMaterial({
       color: color,
-      roughness: 0.15, // wet, glistening look for stone parts
-      metalness: 0.08,
-      flatShading: false, // beautifully rounded/smooth organic look!
+      roughness: 0.82,   // matte granite (was 0.15 glossy = chocolate sheen)
+      metalness: 0.05,
+      flatShading: true, // sharp facets = jagged rock (was false = smooth blob)
     });
 
     mat.onBeforeCompile = (shader) => {
@@ -1349,7 +1361,7 @@ function buildShorelineRocks(centerY) {
         vec3 finalMossColor = mix(mossColor1, mossColor2, 0.5 + 0.5 * sin(vWorldPosition.x * 1.5 + vWorldPosition.z * 1.5));
 
         // Blend final diffuse color
-        diffuseColor.rgb = mix(diffuseColor.rgb, finalMossColor, mossStrength);
+        diffuseColor.rgb = mix(diffuseColor.rgb, finalMossColor, mossStrength * 0.35);
         ` + `\n#include <opaque_fragment>`
       );
 
@@ -1390,24 +1402,18 @@ function buildShorelineRocks(centerY) {
   }
 
   // Additional: Add outer boulders specifically on the left side of the shore (x < 0) to break up transition lines
-  const OUTER_ROCKS_COUNT = 24;
+  const OUTER_ROCKS_COUNT = 17; // was 24 — reduced ~30% per user
   for (let j = 0; j < OUTER_ROCKS_COUNT; j++) {
     // Left side covers angles roughly from 90 degrees (Math.PI/2) to 270 degrees (3*Math.PI/2)
     // Left is centered on Math.PI (180 degrees)
     const theta = Math.PI * 0.65 + (j / OUTER_ROCKS_COUNT) * Math.PI * 0.70;
 
-    const rngVal = rng();
-    let geo;
-    if (rngVal < 0.5) {
-      geo = new THREE.DodecahedronGeometry(1.0, 2);
-    } else {
-      geo = new THREE.IcosahedronGeometry(1.0, 2);
-    }
+    const geo = _makeJaggedShoreRock(rng); // jagged angular granite
 
-    // Diverse sizes for outer boulders (0.6m to 2.2m)
-    const scaleX = 0.6 + rng() * 1.6;
-    const scaleY = 0.5 + rng() * 1.3;
-    const scaleZ = 0.6 + rng() * 1.6;
+    // Scale −50% (was 0.6–2.2m → now 0.3–1.1m)
+    const scaleX = 0.3 + rng() * 0.8;
+    const scaleY = 0.25 + rng() * 0.65;
+    const scaleZ = 0.3 + rng() * 0.8;
 
     // Radius places them outer (grassy meadow transition zone)
     const r = organicRimRadius(theta) + 1.2 + rng() * 2.2;
@@ -1420,9 +1426,9 @@ function buildShorelineRocks(centerY) {
     const color = shorePalette[Math.floor(rng() * shorePalette.length)];
     const mat = new THREE.MeshStandardMaterial({
       color: color,
-      roughness: 0.18,
+      roughness: 0.82,   // matte granite (was 0.18 glossy)
       metalness: 0.05,
-      flatShading: false,
+      flatShading: true, // jagged faceted rock (was false = smooth blob)
     });
 
     mat.onBeforeCompile = (shader) => {
@@ -1453,7 +1459,7 @@ function buildShorelineRocks(centerY) {
         vec3 mossColor2 = vec3(0.32, 0.48, 0.18);
         vec3 finalMossColor = mix(mossColor1, mossColor2, 0.5 + 0.5 * sin(vWorldPosition.x * 1.5 + vWorldPosition.z * 1.5));
 
-        diffuseColor.rgb = mix(diffuseColor.rgb, finalMossColor, mossStrength);
+        diffuseColor.rgb = mix(diffuseColor.rgb, finalMossColor, mossStrength * 0.35);
         ` + `\n#include <opaque_fragment>`
       );
 

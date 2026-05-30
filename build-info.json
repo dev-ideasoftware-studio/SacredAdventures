@@ -1,9 +1,9 @@
 {
-  "subject": "chore(coordination): ack hex + rock commits; flag tree-file collision",
-  "isoDate": "2026-05-30T08:33:22-05:00",
+  "subject": "fix(pool): restore original pond rocks + fix shoreline choco-boulders (jagged, smaller, fewer)",
+  "isoDate": "2026-05-30T09:21:47-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "b92a084",
+  "commit": "5b777ae",
   "dirty": true,
-  "generatedAt": "2026-05-30T13:33:27.094Z"
+  "generatedAt": "2026-05-30T14:21:51.853Z"
 }
