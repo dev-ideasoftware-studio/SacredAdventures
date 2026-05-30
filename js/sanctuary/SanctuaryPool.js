@@ -868,20 +868,25 @@ function buildPoolRocks(centerY) {
   // Earthy palette — sampled per-instance into instanceColor.
   // No moss-green or algae-gray; underwater they read as "grass" against
   // a sandy floor. All entries are sand/mud/stone tones now.
+  // 2026-05-30 rock refactor (user: "smaller + more realistic, not chocolate
+  // blobs"). Old palette was all RGB <= 56 — uniformly near-black, which read
+  // as dark mud lumps. New palette is a realistic river-stone mix: greys, tan-
+  // greys, weathered sandstone, slate — lighter and varied so the stones catch
+  // light and read as rock, not chocolate.
   const rockPalette = [
-    new THREE.Color(0x181a1c), // slate black
-    new THREE.Color(0x2c241c), // warm muddy brown
-    new THREE.Color(0x382a1c), // medium clay brown
-    new THREE.Color(0x2a221a), // wet dirt
-    new THREE.Color(0x1a1612), // dark silt
-    new THREE.Color(0x4a3a26), // sandy tan stone
+    new THREE.Color(0x6b6f6a), // medium grey stone
+    new THREE.Color(0x827b6c), // warm tan-grey
+    new THREE.Color(0x9a9384), // light weathered sandstone
+    new THREE.Color(0x55585a), // cool slate
+    new THREE.Color(0x746b58), // olive-tan stone
+    new THREE.Color(0x8a8275), // pale river stone
   ];
   const pebblePalette = [
-    new THREE.Color(0x5a4a35), // sandy tan
-    new THREE.Color(0x6b5a40), // cream stone
-    new THREE.Color(0x3a3025), // dirty brown
-    new THREE.Color(0x4a4035), // medium silt
-    new THREE.Color(0x554838), // ochre pebble
+    new THREE.Color(0x8c8270), // sandy tan
+    new THREE.Color(0x9d9079), // cream stone
+    new THREE.Color(0x6b6356), // dirty brown
+    new THREE.Color(0x7a766b), // medium silt grey
+    new THREE.Color(0x877a64), // ochre pebble
   ];
 
   // 2026-05-28: user-requested "more boulders" — bumped each rock tier by
@@ -897,9 +902,9 @@ function buildPoolRocks(centerY) {
 
   const rockMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, // per-instance color carries tint
-    roughness: 0.92,
-    metalness: 0.04,
-    flatShading: true,
+    roughness: 0.82,   // 0.92 -> 0.82: a touch of sheen so wet stone reads
+    metalness: 0.10,   // 0.04 -> 0.10: subtle water-worn glint (not chocolate-matte)
+    flatShading: true, // keep facets so light catches edges = "rocky"
   });
   const pebbleMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -921,12 +926,14 @@ function buildPoolRocks(centerY) {
   /** Populate an InstancedMesh of rocks (flat, elongated river-stone shape). */
   const populateRocks = (mesh, count, palette) => {
     for (let i = 0; i < count; i++) {
-      let r = 0.12 + rng() * 0.48; // 0.12–0.60m
-      if (rng() < 0.15) r *= 1.4;  // 15% larger boulders → 0.84m
+      // 2026-05-30: smaller stones. Was 0.12–0.60m (0.84m outliers) — too big,
+      // read as bulbous mounds. Now 0.08–0.30m with rare modest 1.25x outliers.
+      let r = 0.08 + rng() * 0.22; // 0.08–0.30m
+      if (rng() < 0.10) r *= 1.25; // 10% slightly larger → ~0.375m max
 
-      const scaleX = r * (0.85 + rng() * 0.35);
-      const scaleY = r * (0.40 + rng() * 0.30); // flat vertical
-      const scaleZ = r * (0.85 + rng() * 0.35);
+      const scaleX = r * (0.90 + rng() * 0.30);
+      const scaleY = r * (0.28 + rng() * 0.16); // flatter river-stone profile
+      const scaleZ = r * (0.90 + rng() * 0.30);
 
       const theta = rng() * Math.PI * 2;
       const minD = 0.65 + scaleX;

@@ -1,9 +1,9 @@
 {
-  "subject": "feat(sanctuary): strong pronounced neumorphic hex tiles for village-view planning",
-  "isoDate": "2026-05-30T05:08:56-05:00",
+  "subject": "refactor(pool): smaller, realistic river-stone rocks (kill the dark chocolate blobs)",
+  "isoDate": "2026-05-30T08:24:09-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "78af4dd",
+  "commit": "fdd094e",
   "dirty": true,
-  "generatedAt": "2026-05-30T10:09:00.732Z"
+  "generatedAt": "2026-05-30T13:24:13.647Z"
 }
