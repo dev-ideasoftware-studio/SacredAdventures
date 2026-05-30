@@ -1248,20 +1248,28 @@ function buildRim(centerY) {
 }
 
 /**
- * 2026-05-30 JAGGED ROCK — low-poly icosahedron with per-vertex outward jitter
- * so faces are sharp + irregular (angular granite). With flatShading:true on
- * the material, each facet catches light → photoreal jagged rock, NOT the
- * smooth subdivision-2 "chocolate drop" blobs the user kept rejecting.
- * Unique shape per call (consumes rng per vertex).
+ * 2026-05-30 PHOTOREAL BOULDER GEOMETRY — a higher-subdivision icosahedron with
+ * GENTLE, smooth, multi-frequency lumps (not spiky facets). Paired with a real
+ * rock-surface albedo + bump texture and SMOOTH shading on the material, this
+ * reads as a natural weathered boulder — not low-poly procedural crap and not a
+ * smooth "chocolate drop" blob. Unique silhouette per call.
  */
-function _makeJaggedShoreRock(rng) {
-  const geo = new THREE.IcosahedronGeometry(1.0, 1); // 80 tris, enough verts to jag
+function _makeBoulderGeo(rng) {
+  const geo = new THREE.IcosahedronGeometry(1.0, 3); // ~1280 tris — smooth silhouette
   const p = geo.attributes.position;
+  // Smooth low-frequency lumps via summed sinusoids (deterministic per-rock
+  // phase), small amplitude so the boulder stays rounded-irregular, not jagged.
+  const px = rng() * 6.28, py = rng() * 6.28, pz = rng() * 6.28;
   for (let v = 0; v < p.count; v++) {
     const vx = p.getX(v), vy = p.getY(v), vz = p.getZ(v);
     const len = Math.hypot(vx, vy, vz) || 1;
-    const jit = 0.72 + rng() * 0.5; // 0.72–1.22 radius → irregular jagged facets
-    p.setXYZ(v, (vx / len) * jit, (vy / len) * jit, (vz / len) * jit);
+    const nx = vx / len, ny = vy / len, nz = vz / len;
+    const lump =
+      0.13 * Math.sin(nx * 2.3 + px) * Math.cos(nz * 2.1 + pz) +
+      0.07 * Math.sin(ny * 3.7 + py) +
+      0.04 * Math.cos(nx * 5.1 + nz * 4.3 + px);
+    const rad = 1.0 + lump;           // ~0.76–1.24, smooth
+    p.setXYZ(v, nx * rad, ny * rad, nz * rad);
   }
   p.needsUpdate = true;
   geo.computeVertexNormals();
@@ -1275,6 +1283,19 @@ function buildShorelineRocks(centerY) {
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
   const rng = mulberry32(0xd0c410c5);
+
+  // 2026-05-30 PHOTOREAL: real rock-surface texture as albedo + bump. This is
+  // what turns the boulders from flat-colour procedural blobs into actual stone
+  // — the surface gets real granite grain + relief. Loaded once, shared by all
+  // boulder materials (texture object fills in async; wrapping set for tiling).
+  const _rockTex = new THREE.TextureLoader().load(
+    "./Assets/landscape-scenes/terrain/rock.png",
+  );
+  _rockTex.wrapS = THREE.RepeatWrapping;
+  _rockTex.wrapT = THREE.RepeatWrapping;
+  _rockTex.repeat.set(1.6, 1.6);
+  _rockTex.colorSpace = THREE.SRGBColorSpace;
+  _rockTex.anisotropy = 8;
 
   // 2026-05-30 SHORELINE BOULDER REWRITE (user: "smaller, fewer, JAGGED,
   // photorealistic — not chocolate drops"). Old palette was all RGB <= 62
@@ -1301,7 +1322,7 @@ function buildShorelineRocks(centerY) {
       continue;
     }
 
-    const geo = _makeJaggedShoreRock(rng); // jagged angular granite, not smooth blob
+    const geo = _makeBoulderGeo(rng); // smooth lumpy boulder silhouette
 
     // Scale −50% (was 0.8–3.0m → now 0.4–1.5m): smaller realistic boulders
     const scaleX = 0.4 + rng() * 1.1;
@@ -1320,10 +1341,13 @@ function buildShorelineRocks(centerY) {
     // Material
     const color = shorePalette[Math.floor(rng() * shorePalette.length)];
     const mat = new THREE.MeshStandardMaterial({
-      color: color,
-      roughness: 0.82,   // matte granite (was 0.15 glossy = chocolate sheen)
-      metalness: 0.05,
-      flatShading: true, // sharp facets = jagged rock (was false = smooth blob)
+      color: color,        // tints the rock texture for per-boulder variety
+      map: _rockTex,       // PHOTOREAL: real granite surface albedo
+      bumpMap: _rockTex,   // surface relief — craggy stone, not flat plastic
+      bumpScale: 0.45,
+      roughness: 0.9,      // matte granite
+      metalness: 0.04,
+      flatShading: false,  // smooth normals; bump map carries surface detail
     });
 
     mat.onBeforeCompile = (shader) => {
@@ -1408,7 +1432,7 @@ function buildShorelineRocks(centerY) {
     // Left is centered on Math.PI (180 degrees)
     const theta = Math.PI * 0.65 + (j / OUTER_ROCKS_COUNT) * Math.PI * 0.70;
 
-    const geo = _makeJaggedShoreRock(rng); // jagged angular granite
+    const geo = _makeBoulderGeo(rng); // smooth lumpy boulder silhouette
 
     // Scale −50% (was 0.6–2.2m → now 0.3–1.1m)
     const scaleX = 0.3 + rng() * 0.8;
@@ -1425,10 +1449,13 @@ function buildShorelineRocks(centerY) {
 
     const color = shorePalette[Math.floor(rng() * shorePalette.length)];
     const mat = new THREE.MeshStandardMaterial({
-      color: color,
-      roughness: 0.82,   // matte granite (was 0.18 glossy)
-      metalness: 0.05,
-      flatShading: true, // jagged faceted rock (was false = smooth blob)
+      color: color,        // tints the rock texture for per-boulder variety
+      map: _rockTex,       // PHOTOREAL: real granite surface albedo
+      bumpMap: _rockTex,   // surface relief — craggy stone, not flat plastic
+      bumpScale: 0.45,
+      roughness: 0.9,      // matte granite
+      metalness: 0.04,
+      flatShading: false,  // smooth normals; bump map carries surface detail
     });
 
     mat.onBeforeCompile = (shader) => {

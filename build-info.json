@@ -1,9 +1,9 @@
 {
-  "subject": "fix(pool): restore original pond rocks + fix shoreline choco-boulders (jagged, smaller, fewer)",
-  "isoDate": "2026-05-30T09:21:47-05:00",
+  "subject": "fix(pool): photoreal textured shoreline boulders (real rock albedo+bump, smooth)",
+  "isoDate": "2026-05-30T09:29:21-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "5b777ae",
+  "commit": "c432375",
   "dirty": true,
-  "generatedAt": "2026-05-30T14:21:51.853Z"
+  "generatedAt": "2026-05-30T14:29:27.301Z"
 }
