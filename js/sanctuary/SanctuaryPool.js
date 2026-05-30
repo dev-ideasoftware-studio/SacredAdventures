@@ -353,6 +353,25 @@ function _makeBasinFloorTexture() {
   return tex;
 }
 
+/**
+ * Single datum for the basin-floor bowl, shared by the floor mesh, the
+ * drain, and swimming frogs so they never drift apart (scaffold O1).
+ *
+ * The sand drapes the quartic terrain bowl underwater, but is CLAMPED to
+ * just under the waterline so it never pokes ABOVE the water (the old
+ * "sand at the rim" bug). Above the waterline the shore BANK (terrain)
+ * shows — that is correct pond behaviour.
+ */
+export function basinFloorYAt(r, waterY) {
+  const wY = (typeof waterY === "number")
+    ? waterY
+    : (typeof window !== "undefined" && Number.isFinite(window.__sanctuaryWaterY) ? window.__sanctuaryWaterY : -0.6);
+  const inner = Math.min(1, r / SANCTUARY_POOL_RADIUS_M);
+  const bowl = 1 - inner * inner;
+  const draped = -SANCTUARY_POOL_DEPTH_M * bowl + 0.02; // sand draped on the bowl
+  return Math.min(draped, wY - 0.03);                   // never above the waterline
+}
+
 function buildBasinFloor(centerY) {
   // BOWL-SHAPED basin floor — 2026-05-28: was a flat disc at -1.0 m which
   // sat well below the bowl-shaped terrain carve, exposing the grass-
@@ -370,13 +389,18 @@ function buildBasinFloor(centerY) {
   const positions = [];
   const indices = [];
   const uvs = [];
-  positions.push(0, 0, -SANCTUARY_POOL_DEPTH_M);  // centre vertex
+  // Sand drapes the bowl but is CLAMPED to just under the waterline
+  // (centerY = waterY) so it never pokes ABOVE the water — the recurring
+  // "sand at the rim" bug. Above the waterline the shore bank (terrain)
+  // shows, which is correct. mesh.position.y is now 0 (offset baked here).
+  const SAND_CLAMP_Z = centerY - 0.03;
+  positions.push(0, 0, Math.min(-SANCTUARY_POOL_DEPTH_M + 0.02, SAND_CLAMP_Z));  // centre vertex
   uvs.push(0.5, 0.5);
   for (let ring = 1; ring <= RINGS; ring++) {
     const ringR = (ring / RINGS) * RADIUS;
     const inner = ringR / SANCTUARY_POOL_RADIUS_M;
     const bowl = 1 - inner * inner;     // quadratic — matches terrain
-    const localZ = -SANCTUARY_POOL_DEPTH_M * bowl;       // depth below water surface
+    const localZ = Math.min(-SANCTUARY_POOL_DEPTH_M * bowl + 0.02, SAND_CLAMP_Z); // draped, clamped under water
     for (let i = 0; i <= SEGS; i++) {
       const theta = (i / SEGS) * Math.PI * 2;
       const x = Math.cos(theta) * ringR;
@@ -416,13 +440,12 @@ function buildBasinFloor(centerY) {
   });
   const mesh = new THREE.Mesh(sculpted, mat);
   mesh.rotation.x = -Math.PI / 2;
-  // After the X-rotation, local z displacements map to world Y. To match
-  // the terrain bowl (rim at meadow≈0, centre at −DEPTH), the mesh origin
-  // sits at meadow level. Tiny +0.02 m lift avoids z-fighting with the
-  // terrain bowl underneath.
+  // After the X-rotation, local z maps to world Y. The per-vertex clamp
+  // (SAND_CLAMP_Z) already encodes the absolute world Y of every sand
+  // vertex, so the mesh origin sits at 0 (no extra offset).
   mesh.position.set(
     SANCTUARY_POOL_CENTER_X,
-    0.02,
+    0,
     SANCTUARY_POOL_CENTER_Z,
   );
   mesh.receiveShadow = true;
