@@ -1319,9 +1319,14 @@ function buildShorelineRocks(centerY) {
         vWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`
       );
 
+      // (2026-05-30 fix) Declare moss outputs as GLOBALS before main() so
+      // they exist when roughnessmap_fragment / metalnessmap_fragment run —
+      // those chunks come EARLIER in the template than opaque_fragment, so
+      // declaring inside opaque_fragment caused "undeclared identifier" link
+      // failures (76+ WebGL useProgram errors/frame).
       shader.fragmentShader = shader.fragmentShader.replace(
         `void main() {`,
-        `varying vec3 vWorldNormal;\nvarying vec3 vWorldPosition;\nvoid main() {`
+        `varying vec3 vWorldNormal;\nvarying vec3 vWorldPosition;\nfloat finalRoughness = 0.5;\nfloat finalMetalness = 0.0;\nvoid main() {`
       );
 
       shader.fragmentShader = shader.fragmentShader.replace(
@@ -1330,24 +1335,27 @@ function buildShorelineRocks(centerY) {
         // Calculate organic moss blending based on world-space up normal + positional noise
         float noise = sin(vWorldPosition.x * 3.5) * cos(vWorldPosition.z * 3.5) * 0.18 + sin(vWorldPosition.y * 6.0) * 0.08;
         float mossStrength = smoothstep(0.35, 0.60, vWorldNormal.y + noise);
-        
+
         // Beautiful velvet-moss green blend
         vec3 mossColor1 = vec3(0.20, 0.35, 0.12); // deep forest moss
         vec3 mossColor2 = vec3(0.32, 0.48, 0.18); // bright velvet moss
         vec3 finalMossColor = mix(mossColor1, mossColor2, 0.5 + 0.5 * sin(vWorldPosition.x * 1.5 + vWorldPosition.z * 1.5));
-        
+
         // Blend final diffuse color
         diffuseColor.rgb = mix(diffuseColor.rgb, finalMossColor, mossStrength);
-        
-        // Blend roughness (moss is extremely matte/rough, wet stone is glistening)
-        float finalRoughness = mix(0.15, 0.95, mossStrength);
-        float finalMetalness = mix(0.08, 0.0, mossStrength);
         ` + `\n#include <opaque_fragment>`
       );
 
       shader.fragmentShader = shader.fragmentShader.replace(
         `#include <roughnessmap_fragment>`,
-        `#include <roughnessmap_fragment>\nroughnessFactor = finalRoughness;`
+        `#include <roughnessmap_fragment>
+        {
+          float _n = sin(vWorldPosition.x * 3.5) * cos(vWorldPosition.z * 3.5) * 0.18 + sin(vWorldPosition.y * 6.0) * 0.08;
+          float _ms = smoothstep(0.35, 0.60, vWorldNormal.y + _n);
+          finalRoughness = mix(0.15, 0.95, _ms);
+          finalMetalness = mix(0.08, 0.0, _ms);
+          roughnessFactor = finalRoughness;
+        }`
       );
       shader.fragmentShader = shader.fragmentShader.replace(
         `#include <metalnessmap_fragment>`,
@@ -1422,9 +1430,10 @@ function buildShorelineRocks(centerY) {
         vWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`
       );
 
+      // (2026-05-30 fix) globals before main() — same scope fix as block 1.
       shader.fragmentShader = shader.fragmentShader.replace(
         `void main() {`,
-        `varying vec3 vWorldNormal;\nvarying vec3 vWorldPosition;\nvoid main() {`
+        `varying vec3 vWorldNormal;\nvarying vec3 vWorldPosition;\nfloat finalRoughness = 0.5;\nfloat finalMetalness = 0.0;\nvoid main() {`
       );
 
       shader.fragmentShader = shader.fragmentShader.replace(
@@ -1432,21 +1441,25 @@ function buildShorelineRocks(centerY) {
         `
         float noise = sin(vWorldPosition.x * 3.5) * cos(vWorldPosition.z * 3.5) * 0.18 + sin(vWorldPosition.y * 6.0) * 0.08;
         float mossStrength = smoothstep(0.35, 0.60, vWorldNormal.y + noise);
-        
+
         vec3 mossColor1 = vec3(0.20, 0.35, 0.12);
         vec3 mossColor2 = vec3(0.32, 0.48, 0.18);
         vec3 finalMossColor = mix(mossColor1, mossColor2, 0.5 + 0.5 * sin(vWorldPosition.x * 1.5 + vWorldPosition.z * 1.5));
-        
+
         diffuseColor.rgb = mix(diffuseColor.rgb, finalMossColor, mossStrength);
-        
-        float finalRoughness = mix(0.18, 0.95, mossStrength);
-        float finalMetalness = mix(0.05, 0.0, mossStrength);
         ` + `\n#include <opaque_fragment>`
       );
 
       shader.fragmentShader = shader.fragmentShader.replace(
         `#include <roughnessmap_fragment>`,
-        `#include <roughnessmap_fragment>\nroughnessFactor = finalRoughness;`
+        `#include <roughnessmap_fragment>
+        {
+          float _n = sin(vWorldPosition.x * 3.5) * cos(vWorldPosition.z * 3.5) * 0.18 + sin(vWorldPosition.y * 6.0) * 0.08;
+          float _ms = smoothstep(0.35, 0.60, vWorldNormal.y + _n);
+          finalRoughness = mix(0.18, 0.95, _ms);
+          finalMetalness = mix(0.05, 0.0, _ms);
+          roughnessFactor = finalRoughness;
+        }`
       );
       shader.fragmentShader = shader.fragmentShader.replace(
         `#include <metalnessmap_fragment>`,

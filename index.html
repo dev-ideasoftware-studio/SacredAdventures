@@ -417,10 +417,13 @@
     await orc.activate('SanctuaryCircles');
 
     // KILLED 2026-05-30 (user: "kill it") — the gold 3D hex-line grid read
-    // as stray yellow lines in the meadow; not the wanted look. Module + import
-    // left registered but NOT activated so it never renders. A future flat-2D
-    // hex design (if any) gets a fresh module.
-    // v4Log('legacy gold hex grid — boardgame lines', 100, 96, 95, 89);
+    // 2026-05-30: re-activated as a flat 2D NEUMORPHIC hex border (soft cream
+    // matte seam laid on the ground, no emissive/metalness). The old version
+    // was killed because it rendered as glowing gold 3D wireframes; this is
+    // the flat-2D redesign the kill-commit anticipated.
+    // SanctuaryHexGrid (gold 3D wireframe) stays KILLED — visible hex tiles
+    // now come from the terrain shader (applyNeuHexShader) instead.
+    // v4Log('legacy gold hex grid', 100, 96, 95, 89);
     // await orc.activate('SanctuaryHexGrid');
 
     v4Log('Avatar3 — kid body, anti-transparency armour', 100, 97, 95, 90);
