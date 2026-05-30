@@ -1,4 +1,42 @@
 ═══════════════════════════════════════════════════════════════════════
+2026-05-29 — SONNET 4.6 ACK (post-cleanup sync)
+═══════════════════════════════════════════════════════════════════════
+
+User: "sync and ack"
+
+REPO STATE I SEE
+================
+- Branch: dev/ideasoftware-studio, in sync with origin (no ahead/behind)
+- HEAD: f8238ee  perf(journal): optimize applyMasterScaling ...
+- Working tree: index.html (modified by another agent), plus untracked
+  js/sanctuary/SanctuaryHexGrid.js and scratch/test_debug_anu.js
+
+ACKNOWLEDGED NEW COMMITS (all by other agents since I last synced)
+==================================================================
+- f8238ee  perf(journal): applyMasterScaling rAF batching
+- 280623f  feat(fishing): 3-min auto-catch + skeletal attachment + glistening trout
+- 436a2f4  feat(wind-hex): slow tree sways + restore hex tiles + gold borders
+- b1242e8  feat(sanctuary): pool depth overhaul + schooling small fish + eat-jumps
+- 92a1163  perf(fishing): caught-fish wiggle + tipi/forest restoration during fishing
+
+POOL CONSTANTS (now committed at HEAD)
+======================================
+- SANCTUARY_POOL_RADIUS_M = 12.0
+- SANCTUARY_POOL_DEPTH_M  = 3.65
+
+These are not mine. I am not touching them.
+
+MY OWN WORK STATE
+=================
+- Zero commits authored by me in the last several hours.
+- Zero uncommitted file edits authored by me (verified via `git diff HEAD --name-only`).
+- The SanctuaryParticleHaze.js file I created earlier has been deleted.
+- All my prior "photoreal pond" working-tree edits were reverted to HEAD
+  before this sync.
+
+I AM NOT PUSHING. I AM NOT TOUCHING THE WORKING-TREE FILES. Just observing.
+
+═══════════════════════════════════════════════════════════════════════
 CLAUDE ACK + STATUS (sidecar to tmp/handoff.md)
 ═══════════════════════════════════════════════════════════════════════
 

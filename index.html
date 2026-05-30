@@ -237,6 +237,7 @@
     import { SanctuaryDockModule         } from './js/sanctuary/SanctuaryDock.js';
     import { SanctuaryFishModule         } from './js/sanctuary/SanctuaryFish.js';
     import { SanctuaryCirclesModule      } from './js/sanctuary/SanctuaryCircles.js';
+    import { SanctuaryHexGridModule      } from './js/sanctuary/SanctuaryHexGrid.js';
     import { SanctuaryAvatarModule       } from './js/sanctuary/SanctuaryAvatar.js';
     import { SanctuaryClickToMoveModule  } from './js/sanctuary/SanctuaryClickToMove.js';
     import { SanctuaryMutationsModule    } from './js/sanctuary/SanctuaryMutations.js';
@@ -356,6 +357,7 @@
     orc.register(SanctuaryDockModule);
     orc.register(SanctuaryFishModule);
     orc.register(SanctuaryCirclesModule);
+    orc.register(SanctuaryHexGridModule);
     orc.register(SanctuaryAvatarModule);
     orc.register(SanctuaryClickToMoveModule);
     orc.register(SanctuarySkyModule);
@@ -413,6 +415,9 @@
 
     v4Log('part 5 / 5 — circles of guiding light', 100, 96, 94, 88);
     await orc.activate('SanctuaryCircles');
+
+    v4Log('legacy gold hex grid — boardgame lines', 100, 96, 95, 89);
+    await orc.activate('SanctuaryHexGrid');
 
     v4Log('Avatar3 — kid body, anti-transparency armour', 100, 97, 95, 90);
     await orc.activate('SanctuaryAvatar');

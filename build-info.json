@@ -1,9 +1,9 @@
 {
-  "subject": "perf(journal): optimize applyMasterScaling to eliminate forced reflow by batching styling writes inside requestAnimationFrame",
-  "isoDate": "2026-05-29T20:13:52-05:00",
+  "subject": "feat(fishing): soften rod struggle sways, and integrate Claude's gold hex grid overlay module",
+  "isoDate": "2026-05-29T20:47:20-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "89f7a27",
+  "commit": "03927ef",
   "dirty": true,
-  "generatedAt": "2026-05-30T01:13:55.737Z"
+  "generatedAt": "2026-05-30T01:47:25.338Z"
 }

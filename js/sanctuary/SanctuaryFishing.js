@@ -1894,15 +1894,15 @@ export const SanctuaryFishingModule = {
       let shakeZ = 0;
 
       if (this._phase === PHASE.REELING || this._phase === PHASE.LANDING) {
-        // Fish is struggling!
+        // Fish is struggling! Softer, more relaxed, and pleasant sways
         const timeSec = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
         
-        // Steady forward bend under tension (positive X rotation leans the rod forward)
-        bendX = 0.09;
+        // Gentle steady forward bend under tension
+        bendX = 0.04;
         
-        // High-frequency wiggling/vibration
-        shakeX = Math.sin(timeSec * 55.0) * 0.04;
-        shakeZ = Math.cos(timeSec * 45.0) * 0.03;
+        // Soft, relaxed low-frequency sways
+        shakeX = Math.sin(timeSec * 16.0) * 0.015;
+        shakeZ = Math.cos(timeSec * 12.0) * 0.012;
       }
 
       if (this._isRodAttachedToHand) {
