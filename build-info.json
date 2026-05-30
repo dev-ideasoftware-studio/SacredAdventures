@@ -1,9 +1,9 @@
 {
-  "subject": "fix(sanctuary): revert invisible-hex overlay + debug flag, keep moss-shader scope fix",
-  "isoDate": "2026-05-30T04:19:58-05:00",
+  "subject": "feat(sanctuary): visible lego-hex tile seams via terrain shader (ported from v2)",
+  "isoDate": "2026-05-30T05:06:14-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "1254de8",
+  "commit": "8f2597d",
   "dirty": true,
-  "generatedAt": "2026-05-30T09:20:03.838Z"
+  "generatedAt": "2026-05-30T10:06:18.827Z"
 }

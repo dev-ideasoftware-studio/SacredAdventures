@@ -547,8 +547,59 @@ async function buildTerrainAsync(textures) {
 
     shader.fragmentShader = shader.fragmentShader.replace(
       `void main() {`,
-      `varying vec3 vWorldPosition;\nuniform vec2 uPoolCenter;\nuniform float uPoolRadius;\nuniform vec3 uPoolDarkColor;\nvoid main() {`
+      `varying vec3 vWorldPosition;
+       uniform vec2 uPoolCenter;
+       uniform float uPoolRadius;
+       uniform vec3 uPoolDarkColor;
+       // Lego-hex tile separation helper (ported 1:1 from js/v2/WorldTerrain.js
+       // applyNeuHexShader — the proven visible-hex design from the v2 build).
+       float hexDist(vec2 p) {
+         p = abs(p);
+         float c = dot(p, normalize(vec2(1.0, 1.73205081)));
+         return max(c, p.x);
+       }
+       void main() {`
     );
+
+    // HEX TILE SEAMS — injected at <color_fragment> (same anchor v2 uses) so
+    // the 4-zone lego-edge darkening reads on the meadow. Reuses the existing
+    // vWorldPosition varying. Runs BEFORE the pool-darkening at <map_fragment>;
+    // both effects are independent diffuse multiplies and coexist cleanly.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      `#include <color_fragment>`,
+      `#include <color_fragment>
+       {
+         float hexRadius = 6.27;
+         float hr3 = hexRadius * 1.73205081;
+         vec2 hr = vec2(hr3, hexRadius * 3.0);
+         vec2 hh = hr * 0.5;
+         vec2 huv = vWorldPosition.xz;
+         vec2 ha = mod(huv, hr) - hh;
+         vec2 hb = mod(huv - hh, hr) - hh;
+         vec2 hlocal = dot(ha,ha) < dot(hb,hb) ? ha : hb;
+         float hdist = hexDist(hlocal);
+         float hmax = hr3 * 0.5;
+         float hedge = hmax - hdist;
+         if (hedge < 0.21) {
+           float crack = smoothstep(0.0, 0.21, hedge);
+           diffuseColor.rgb *= (0.78 + crack * crack * 0.18);
+         } else if (hedge < 0.4875) {
+           float slope = smoothstep(0.21, 0.4875, hedge);
+           diffuseColor.rgb *= (slope * 0.10 + 0.92);
+         } else if (hedge < 0.7125) {
+           float rim = smoothstep(0.4875, 0.7125, hedge);
+           diffuseColor.rgb *= (1.0 + (1.0 - rim) * 0.06);
+         } else {
+           diffuseColor.rgb *= 1.02;
+         }
+         float hcorner = length(hlocal);
+         if (hcorner > hexRadius * 0.65) {
+           float cdip = smoothstep(hexRadius * 0.65, hexRadius, hcorner);
+           diffuseColor.rgb *= (1.0 - cdip * 0.20);
+         }
+       }`
+    );
+
     shader.fragmentShader = shader.fragmentShader.replace(
       `#include <map_fragment>`,
       `#include <map_fragment>\n
