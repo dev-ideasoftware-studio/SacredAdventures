@@ -1,9 +1,9 @@
 {
-  "subject": "feat(fishing): implement 3-min auto-catch, right-hand skeletal attachment, glistening Trout physical mesh with submerged struggle, and rod bending vibration",
-  "isoDate": "2026-05-29T19:13:32-05:00",
+  "subject": "perf(journal): optimize applyMasterScaling to eliminate forced reflow by batching styling writes inside requestAnimationFrame",
+  "isoDate": "2026-05-29T20:13:52-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "ef8346b",
-  "dirty": false,
-  "generatedAt": "2026-05-30T00:13:36.499Z"
+  "commit": "89f7a27",
+  "dirty": true,
+  "generatedAt": "2026-05-30T01:13:55.737Z"
 }

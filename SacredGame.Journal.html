@@ -222,7 +222,6 @@
         function applyMasterScaling() {
             const h = window.innerHeight;
             const w = window.innerWidth;
-            const docEl = document.documentElement;
             const isPortrait = h > w || w <= 1100;
             const iframeBleed = 100;
             let scale = 1;
@@ -230,32 +229,40 @@
             if (isPortrait) {
                 const bookW = 900;
                 const bookH = 910;
-                docEl.style.setProperty('--book-w', bookW + 'px');
-                docEl.style.setProperty('--book-h', bookH + 'px');
                 const marginW = 40;
                 const marginH = 100;
                 scale = Math.min((w - marginW) / (bookW + iframeBleed), (h - marginH) / bookH);
                 scale = Math.min(1.0, Math.max(0.15, scale));
-                const lbFrame = document.getElementById('logbookFrame');
-                if (lbFrame && lbFrame.contentWindow) {
-                    lbFrame.contentWindow.postMessage({ type: 'LOGBOOK_ASPECT', aspect: 'portrait' }, '*');
-                }
+                
+                requestAnimationFrame(() => {
+                    const docEl = document.documentElement;
+                    docEl.style.setProperty('--book-w', bookW + 'px');
+                    docEl.style.setProperty('--book-h', bookH + 'px');
+                    docEl.style.setProperty('--book-scale', scale);
+                    const lbFrame = document.getElementById('logbookFrame');
+                    if (lbFrame && lbFrame.contentWindow) {
+                        lbFrame.contentWindow.postMessage({ type: 'LOGBOOK_ASPECT', aspect: 'portrait' }, '*');
+                    }
+                });
             } else {
                 const bookW = 2412;
                 const bookH = 900;
-                docEl.style.setProperty('--book-w', bookW + 'px');
-                docEl.style.setProperty('--book-h', bookH + 'px');
                 const marginW = 120;
                 const marginH = 120;
                 scale = Math.min((w - marginW) / (bookW + iframeBleed), (h - marginH) / bookH);
                 scale = Math.min(1.0, Math.max(0.15, scale));
-                const lbFrame = document.getElementById('logbookFrame');
-                if (lbFrame && lbFrame.contentWindow) {
-                    lbFrame.contentWindow.postMessage({ type: 'LOGBOOK_ASPECT', aspect: 'landscape' }, '*');
-                }
-            }
 
-            docEl.style.setProperty('--book-scale', scale);
+                requestAnimationFrame(() => {
+                    const docEl = document.documentElement;
+                    docEl.style.setProperty('--book-w', bookW + 'px');
+                    docEl.style.setProperty('--book-h', bookH + 'px');
+                    docEl.style.setProperty('--book-scale', scale);
+                    const lbFrame = document.getElementById('logbookFrame');
+                    if (lbFrame && lbFrame.contentWindow) {
+                        lbFrame.contentWindow.postMessage({ type: 'LOGBOOK_ASPECT', aspect: 'landscape' }, '*');
+                    }
+                });
+            }
         }
         window.addEventListener('resize', applyMasterScaling);
         applyMasterScaling();
