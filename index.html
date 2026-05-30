@@ -416,8 +416,12 @@
     v4Log('part 5 / 5 — circles of guiding light', 100, 96, 94, 88);
     await orc.activate('SanctuaryCircles');
 
-    v4Log('legacy gold hex grid — boardgame lines', 100, 96, 95, 89);
-    await orc.activate('SanctuaryHexGrid');
+    // KILLED 2026-05-30 (user: "kill it") — the gold 3D hex-line grid read
+    // as stray yellow lines in the meadow; not the wanted look. Module + import
+    // left registered but NOT activated so it never renders. A future flat-2D
+    // hex design (if any) gets a fresh module.
+    // v4Log('legacy gold hex grid — boardgame lines', 100, 96, 95, 89);
+    // await orc.activate('SanctuaryHexGrid');
 
     v4Log('Avatar3 — kid body, anti-transparency armour', 100, 97, 95, 90);
     await orc.activate('SanctuaryAvatar');
