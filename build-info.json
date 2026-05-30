@@ -1,9 +1,9 @@
 {
-  "subject": "refactor(pool): smaller, realistic river-stone rocks (kill the dark chocolate blobs)",
-  "isoDate": "2026-05-30T08:24:09-05:00",
+  "subject": "chore(coordination): ack hex + rock commits; flag tree-file collision",
+  "isoDate": "2026-05-30T08:33:22-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "fdd094e",
+  "commit": "b92a084",
   "dirty": true,
-  "generatedAt": "2026-05-30T13:24:13.647Z"
+  "generatedAt": "2026-05-30T13:33:27.094Z"
 }

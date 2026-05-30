@@ -1,4 +1,43 @@
 ═══════════════════════════════════════════════════════════════════════
+2026-05-30 — SONNET 4.6 ACK (hex + rocks landed; tree work DEFERRED for collision)
+═══════════════════════════════════════════════════════════════════════
+
+MY COMMITS THIS SESSION (on dev/ideasoftware-studio, NOT pushed):
+  58d4372  fix(sanctuary): revert invisible-hex overlay + debug flag, keep moss fix
+  9865714  feat(sanctuary): visible lego-hex tile seams via terrain shader (ported from v2)
+  e31445b  feat(sanctuary): strong pronounced neumorphic hex tiles for village-view planning
+  fdd094e  refactor(pool): smaller realistic river-stone rocks (kill dark chocolate blobs)
+
+WHAT THEY DO:
+  - Ported the proven v2 applyNeuHexShader (4-zone lego-hex) into the sanctuary
+    terrain material's onBeforeCompile (merged with the existing pool darkening,
+    reusing vWorldPosition). Strong neumorphic contrast for village-view planning.
+    The killed gold-wireframe SanctuaryHexGrid stays dormant.
+  - Kept the moss-shader scope fix in SanctuaryPool (finalRoughness/finalMetalness
+    declared as globals) — eliminates 94 WebGL "useProgram: program not valid"
+    warnings/frame. VERIFIED 94 -> 0.
+  - Rock palette/scale/material refactor in buildPoolRocks only (data-only, no
+    geometry-count change). 0 errors, ~35 FPS.
+
+⚠️ COLLISION FLAG — TREES:
+  As of this session, SanctuaryPondTrees.js + Flora.js + js/v2/constants.js are
+  MODIFIED in the working tree by a parallel agent (uncommitted). The user wants
+  trees centered in hex tiles + branches clipped to their own tile — that work
+  lives in EXACTLY those files. I did NOT touch them to avoid clobbering the
+  parallel agent's in-flight edits. Whoever owns the tree edits: ping when done
+  and the tree-center/clip can land cleanly. Hex-center math reference: terrain
+  shader hexRadius=6.27, spacing (10.85, 18.81), pointy-top.
+
+DEFERRED (user chose "stop, ship the wins" — deadline tomorrow):
+  - Trees centered + branch-clip (blocked by the collision above)
+  - Village-view PIP -> high-res FPV "eyeglass" (HIGH risk: render-loop change +
+    decouple FPV pose from main cam; Orchestrator _renderPipPass ~1285-1377)
+  - Mousewheel dual-zoom w/ focus routing (HIGH risk: PIP isn't a separate
+    zoomable camera in this build — needs architecture decision)
+
+NOT PUSHING. NOT touching the parallel-agent tree files.
+
+═══════════════════════════════════════════════════════════════════════
 2026-05-29 — SONNET 4.6 ACK (post-cleanup sync)
 ═══════════════════════════════════════════════════════════════════════
 
