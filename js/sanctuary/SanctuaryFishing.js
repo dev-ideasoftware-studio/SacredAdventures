@@ -833,6 +833,8 @@ export const SanctuaryFishingModule = {
   _scene:      null,
   _camera:     null,
   _rodGroup:   null,
+  _isRodAttachedToHand: false,
+  _lastAttachedAvatar:  null,
   _rod:        null,
   _line:       null,
   _lineGeo:    null,
@@ -1332,6 +1334,17 @@ export const SanctuaryFishingModule = {
       this._struggleSoundTimer = 0.0;
       if (window.__interestedFish) {
         window.__interestedFish.userData.isStruggling = true;
+      }
+      // Spawn caught fish underwater at the start of reeling!
+      if (this._caughtFish3D && this._hookGroup) {
+        this._hookGroup.remove(this._caughtFish3D);
+      }
+      this._caughtFish3D = this._createFishMesh();
+      // Submerge it under water: -0.45 meters below the bobber
+      if (this._caughtFish3D && this._hookGroup) {
+        this._caughtFish3D.position.set(0, -0.45, 0);
+        this._caughtFish3D.rotation.set(0, 0, 0); // initial horizontal swim pose
+        this._hookGroup.add(this._caughtFish3D);
       }
     }
 
@@ -1856,27 +1869,75 @@ export const SanctuaryFishingModule = {
       }
     }
 
-    // ── Rod — face pool centre, pitch by distance ─────────────────
+    // Dynamic skeletal hand bone attachment and struggle rod bend/vibrate
     if (avatar && this._rodGroup.visible) {
-      const toPoolX = SANCTUARY_POOL_CENTER_X - avatar.position.x;
-      const toPoolZ = SANCTUARY_POOL_CENTER_Z - avatar.position.z;
-      const dist    = Math.hypot(toPoolX, toPoolZ) || 1;
-      const rodYaw  = Math.atan2(toPoolX, toPoolZ);   // face pool
-      // Pitch: ~45–65° forward lean, steeper when pool is close.
-      const pitchAngle = Math.PI / 2 - Math.atan2(0.9, dist);
-      this._rod.rotation.x = pitchAngle; // Positive leans forward towards the pool
+      // Dynamic skeletal hand bone attachment lookup
+      if (!this._lastAttachedAvatar || this._lastAttachedAvatar !== avatar || !this._isRodAttachedToHand) {
+        const rHandBone = this._findRightHandBone();
+        if (rHandBone) {
+          rHandBone.add(this._rodGroup);
+          this._rodGroup.position.set(0, 0, 0);
+          this._rodGroup.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
+          this._isRodAttachedToHand = true;
+          this._lastAttachedAvatar = avatar;
+          console.log('%c[SanctuaryFishing] 🎣 Attached fishing rod to right hand bone: ' + rHandBone.name, 'color:#4fc3f7;font-weight:bold;');
+        } else {
+          this._isRodAttachedToHand = false;
+          this._lastAttachedAvatar = null;
+        }
+      }
 
-      // Hand: 32 cm forward toward pool, 20 cm to the right.
-      const fwdX = Math.sin(rodYaw);
-      const fwdZ = Math.cos(rodYaw);
-      const rgtX =  Math.cos(rodYaw);
-      const rgtZ = -Math.sin(rodYaw);
-      this._rodGroup.position.set(
-        avatar.position.x + fwdX * 0.32 + rgtX * 0.20,
-        avatar.position.y + 0.95,
-        avatar.position.z + fwdZ * 0.32 + rgtZ * 0.20,
-      );
-      this._rodGroup.rotation.y = rodYaw;
+      // Calculate struggle bend and vibration
+      let bendX = 0;
+      let bendZ = 0;
+      let shakeX = 0;
+      let shakeZ = 0;
+
+      if (this._phase === PHASE.REELING || this._phase === PHASE.LANDING) {
+        // Fish is struggling!
+        const timeSec = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+        
+        // Steady forward bend under tension (positive X rotation leans the rod forward)
+        bendX = 0.09;
+        
+        // High-frequency wiggling/vibration
+        shakeX = Math.sin(timeSec * 55.0) * 0.04;
+        shakeZ = Math.cos(timeSec * 45.0) * 0.03;
+      }
+
+      if (this._isRodAttachedToHand) {
+        // When attached to right hand bone, let the bone handle the base position/rotation!
+        // We only apply the baseline alignment plus any struggle bending and shaking
+        this._rod.rotation.set(bendX + shakeX, shakeZ, 0);
+      } else {
+        // Fallback for manual positioning (if no hand bone is found)
+        const toPoolX = SANCTUARY_POOL_CENTER_X - avatar.position.x;
+        const toPoolZ = SANCTUARY_POOL_CENTER_Z - avatar.position.z;
+        const dist    = Math.hypot(toPoolX, toPoolZ) || 1;
+        const rodYaw  = Math.atan2(toPoolX, toPoolZ);   // face pool
+        const pitchAngle = Math.PI / 2 - Math.atan2(0.9, dist);
+
+        this._rod.rotation.x = pitchAngle + bendX + shakeX;
+        this._rod.rotation.z = shakeZ;
+
+        const fwdX = Math.sin(rodYaw);
+        const fwdZ = Math.cos(rodYaw);
+        const rgtX =  Math.cos(rodYaw);
+        const rgtZ = -Math.sin(rodYaw);
+        this._rodGroup.position.set(
+          avatar.position.x + fwdX * 0.32 + rgtX * 0.20,
+          avatar.position.y + 0.95,
+          avatar.position.z + fwdZ * 0.32 + rgtZ * 0.20,
+        );
+        this._rodGroup.rotation.y = rodYaw;
+      }
+    } else {
+      if (this._isRodAttachedToHand) {
+        // Put back in global scene graph if rod is not visible or avatar is null
+        if (this._scene) this._scene.add(this._rodGroup);
+        this._isRodAttachedToHand = false;
+        this._lastAttachedAvatar = null;
+      }
     }
 
     // ── Phase tick ────────────────────────────────────────────────
@@ -1910,6 +1971,24 @@ export const SanctuaryFishingModule = {
         );
 
         this._waitingTimer = (this._waitingTimer || 0) + delta;
+
+        // Auto-catch after 3 minutes of waiting (180 seconds)
+        if (this._waitingTimer >= 180.0) {
+          console.log("%c[SanctuaryFishing] Auto-catch triggered after 3 minutes of waiting!", "color:#ff8a65;font-weight:bold;");
+          if (typeof window !== "undefined" && !window.__interestedFish) {
+            const school = window.__sanctuaryFishSchool || [];
+            if (school.length > 0) {
+              const index = Math.floor(Math.random() * school.length);
+              window.__interestedFish = school[index];
+              window.__interestedFish.userData.interestTimer = 0.0;
+              window.__interestedFish.userData.isStruggling = false;
+            }
+          }
+          playFishingTone('bite');
+          this._setPhase(PHASE.BITE);
+          this._willCatch = true;
+          break;
+        }
 
         // Turn-based bite / interested fish check
         this._interestCheckTimer = (this._interestCheckTimer || 0) + delta;
@@ -2045,16 +2124,24 @@ export const SanctuaryFishingModule = {
           this._castTarget.z + (Math.random() - 0.5) * 0.04
         );
 
-        if (this._reelProgress >= 1.0) {
-          // Hooked! Attach a real 3D fish mesh to the hook group
-          if (this._caughtFish3D && this._hookGroup) {
-            this._hookGroup.remove(this._caughtFish3D);
-          }
-          this._caughtFish3D = this._createFishMesh(); // real photorealistic trout/koi geometry!
-          this._caughtFish3D.position.set(0, -BOBBER_RADIUS_M - 0.09, 0);
-          this._caughtFish3D.rotation.x = Math.PI / 2; // hang vertically
-          this._hookGroup.add(this._caughtFish3D);
+        // Energetic, violent thrashing and rolls on the 3D caught fish underwater!
+        if (this._caughtFish3D) {
+          const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+          this._caughtFish3D.rotation.z = Math.sin(t * 45) * 0.70; // energetic tail sweeps
+          this._caughtFish3D.rotation.y = Math.cos(t * 30) * 0.50; // body rolls
+          this._caughtFish3D.rotation.x = Math.sin(t * 22) * 0.25; // pitch wiggle
+          
+          // Gently sway the submerged fish position slightly to simulate pulling force
+          this._caughtFish3D.position.x = Math.sin(t * 15) * 0.05;
+          this._caughtFish3D.position.z = Math.cos(t * 12) * 0.05;
+        }
 
+        if (this._reelProgress >= 1.0) {
+          // Reposition the fish to hang vertically just below the bobber during landing/ascent!
+          if (this._caughtFish3D) {
+            this._caughtFish3D.position.set(0, -BOBBER_RADIUS_M - 0.09, 0);
+            this._caughtFish3D.rotation.set(Math.PI / 2, 0, 0);
+          }
           this._setPhase(PHASE.LANDING);
         }
         break;
@@ -2345,22 +2432,69 @@ export const SanctuaryFishingModule = {
     }
   },
 
+  _findRightHandBone() {
+    const avatar = typeof window !== "undefined" ? window.__sanctuaryAvatar : null;
+    if (!avatar) return null;
+    let rHandBone = null;
+    avatar.traverse((ch) => {
+      if (ch.isBone) {
+        const name = ch.name.toLowerCase();
+        // Look for common right hand bone names: "r_hand", "rhand", "right_hand", "r-hand", "r wrist", "mixamorigrighthand"
+        if (
+          name.includes("hand") &&
+          (name.includes("right") || name.startsWith("r_") || name.endsWith("_r") || name.includes("mixamorigrighthand") || name === "rhand" || name === "r_hand")
+        ) {
+          rHandBone = ch;
+        }
+      }
+    });
+    // Fallback: search for any bone with "wrist" or "arm" or "hand" containing "r" or "right"
+    if (!rHandBone) {
+      avatar.traverse((ch) => {
+        if (ch.isBone) {
+          const name = ch.name.toLowerCase();
+          if (
+            (name.includes("wrist") || name.includes("hand") || name.includes("forearm")) &&
+            (name.includes("r") || name.includes("right"))
+          ) {
+            rHandBone = ch;
+          }
+        }
+      });
+    }
+    return rHandBone;
+  },
+
   _createFishMesh() {
     const template = typeof window !== "undefined" ? window.__sanctuaryFishTemplate : null;
     if (template && template.geometry) {
       // Use the actual photorealistic trout/koi geometry!
-      const mat = new THREE.MeshStandardMaterial({
+      const mat = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        roughness: 0.12,
+        roughness: 0.08,
         metalness: 0.15,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.04,
+        reflectivity: 0.8,
+        sheen: 0.6,
+        sheenRoughness: 0.1,
+        sheenColor: new THREE.Color(0xffb74d),
       });
       
-      // Create a gorgeous canvas-drawn koi spot texture mapping!
+      // Create a gorgeous canvas-drawn high-fidelity rainbow trout spot texture mapping!
       const canvas = document.createElement("canvas");
-      canvas.width = 256; canvas.height = 256;
+      canvas.width = 512; canvas.height = 512;
       const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#fffefb"; // base pearlescent white
-      ctx.fillRect(0, 0, 256, 256);
+      
+      // Vertical base gradient: Dark olive back -> Silvery sides -> Creamy belly
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0.0, "#2d3a1a"); // Dark olive back
+      grad.addColorStop(0.35, "#556b2f"); // Olive green
+      grad.addColorStop(0.5, "#d4af37");  // Shimmering gold/silvery middle
+      grad.addColorStop(0.65, "#e0f2f1"); // Soft silver-teal
+      grad.addColorStop(1.0, "#fffdeb");  // Creamy white belly
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 512);
       
       // Deterministic pseudo-randomness for texture pattern
       let seed = 0x3f5c7110;
@@ -2371,20 +2505,57 @@ export const SanctuaryFishingModule = {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
 
-      // Red/Orange spots
-      ctx.fillStyle = "#ff3d00";
-      for (let i = 0; i < 4; i++) {
+      // Shimmering pink lateral stripe (rainbow trout style!)
+      const pinkStripe = ctx.createLinearGradient(0, 230, 0, 290);
+      pinkStripe.addColorStop(0.0, "rgba(255, 128, 171, 0.0)");
+      pinkStripe.addColorStop(0.5, "rgba(236, 64, 122, 0.85)"); // Vibrant pink
+      pinkStripe.addColorStop(1.0, "rgba(255, 128, 171, 0.0)");
+      ctx.fillStyle = pinkStripe;
+      ctx.fillRect(0, 230, 512, 60);
+
+      // Realistic dark olive and black speckles (trout scales)
+      for (let i = 0; i < 350; i++) {
+        const spotX = rng() * 512;
+        const spotY = rng() * 260; // mostly on back and upper sides
+        const size = 1.0 + rng() * 2.5;
+        ctx.fillStyle = rng() < 0.2 ? "rgba(255, 215, 0, 0.4)" : "rgba(33, 33, 33, 0.75)"; // gold or black spots
         ctx.beginPath();
-        ctx.arc(40 + rng() * 170, 40 + rng() * 170, 30 + rng() * 40, 0, Math.PI * 2);
+        ctx.arc(spotX, spotY, size, 0, Math.PI * 2);
         ctx.fill();
       }
-      // Black sumi spots
-      ctx.fillStyle = "#212121";
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.arc(40 + rng() * 170, 40 + rng() * 170, 15 + rng() * 25, 0, Math.PI * 2);
-        ctx.fill();
-      }
+
+      // Golden eyes (left & right)
+      ctx.fillStyle = "#ffd54f"; // golden iris
+      ctx.strokeStyle = "#212121";
+      ctx.lineWidth = 2;
+      
+      // Left eye
+      ctx.beginPath();
+      ctx.arc(55, 210, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#000000"; // pupil
+      ctx.beginPath();
+      ctx.arc(55, 210, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Right eye
+      ctx.fillStyle = "#ffd54f";
+      ctx.beginPath();
+      ctx.arc(55, 302, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#000000";
+      ctx.beginPath();
+      ctx.arc(55, 302, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Eye highlight (reflection)
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(53, 208, 2, 0, Math.PI * 2);
+      ctx.arc(53, 300, 2, 0, Math.PI * 2);
+      ctx.fill();
       
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -2402,7 +2573,7 @@ export const SanctuaryFishingModule = {
       // Fallback sleeker cone group if geometry template is somehow unavailable
       const fish = new THREE.Group();
       fish.name = "caught_fish_3d_mesh";
-      const body = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), new THREE.MeshStandardMaterial({ color: 0xffa726, roughness: 0.15, metalness: 0.85 }));
+      const body = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), new THREE.MeshPhysicalMaterial({ color: 0xffa726, roughness: 0.08, clearcoat: 1.0 }));
       body.rotateX(Math.PI / 2);
       fish.add(body);
       fish.layers.enable(2);
@@ -2489,7 +2660,10 @@ export const SanctuaryFishingModule = {
       this._playerFlatFishTex = null;
       this._playerFlatFishCtx = null;
     }
-    if (this._rodGroup) scene.remove(this._rodGroup);
+    if (this._rodGroup) {
+      if (this._rodGroup.parent) this._rodGroup.parent.remove(this._rodGroup);
+      else scene.remove(this._rodGroup);
+    }
     if (this._line)     scene.remove(this._line);
     if (this._bobber)   scene.remove(this._bobber);
     if (this._spotDisc) {
