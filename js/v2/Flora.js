@@ -601,7 +601,13 @@ transformed.y += wobY;
           cullingFrustum.setFromProjectionMatrix(cullingProjScreenMtx);
 
           const isPip = camera.name && camera.name.startsWith("pip");
-          const maxDistSq = isPip ? 30 * 30 : Infinity;
+          // Main camera: cull flora past the opaque fog wall (was Infinity, so
+          // every tree/reed/bush drew every frame even when fog-hidden). The
+          // distSq test + _visibleIndices count rewrite below already run; only
+          // this clamp was missing. Tie to live fog.far so the cut sits just
+          // beyond visibility — zero visual change inside fog. (FPS O2.)
+          const fogFar = (scene && scene.fog && scene.fog.far) || 105;
+          const maxDistSq = isPip ? 30 * 30 : (fogFar * 1.05) * (fogFar * 1.05);
           const player = getRuntimeService("WorldPlayer") || window.WorldPlayer;
           const pFeet = player?.feet ?? { x: 0, y: 0, z: 0 };
 

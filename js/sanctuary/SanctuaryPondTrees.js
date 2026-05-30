@@ -43,12 +43,12 @@ const REED_URL       = "./Assets/flora/reeds.glb";
 const TREE_URL       = "./Assets/tree.glb";
 const BUSH_URL       = "./Assets/bush.glb";
 
-const REED_PATCHES   = 24;
+const REED_PATCHES   = 14;  // FPS T1: 24→14 (9,912 tris/patch ×24 ≈ 238k → ~139k; barely resolved behind MIST_FAR fog)
 const REED_INNER     = SANCTUARY_POOL_RADIUS_M - 1.2;
 const REED_OUTER     = SANCTUARY_POOL_RADIUS_M + 3.0;
 
 const TREE_COUNT     = 18;  // Reverted from 36 because vertex processing was too heavy for shadows
-const BUSH_COUNT     = 36;  // 2 bushes per tree
+const BUSH_COUNT     = 24;  // FPS T1: 36→24 (low ground clutter mostly behind reeds; ~31k tris saved)
 const TREE_INNER     = SANCTUARY_POOL_RADIUS_M + 8.0;
 const TREE_OUTER     = SANCTUARY_POOL_RADIUS_M + 24.0;
 const TREE_H_MIN     = 3.5;
@@ -146,8 +146,17 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
       
       const im = new THREE.InstancedMesh(bakedGeo, mat, count);
       im.receiveShadow = receiveShadow;
-      im.castShadow = castShadow;
-      im.frustumCulled = false; // Prevent culling when player moves away from origin
+      // FPS T1: alpha-mask leaf/foliage meshes must NOT cast shadows — an
+      // alpha-tested shadow pass doubles their vertex cost into the 1024²
+      // shadow map for a barely-visible result. Trunks/branches still cast.
+      const isAlphaLeaf = mat.alphaTest > 0 || mat.transparent === true;
+      im.castShadow = castShadow && !isAlphaLeaf;
+      // FPS T1: frustumCulled true (was false). The InstancedMesh bounding
+      // sphere is recomputed over ALL placed instances after placement (see
+      // load()), so the spread-out ring culls correctly only when the whole
+      // ring is off-screen — no per-instance pop, but the draw is skipped
+      // when the player faces fully away from the pond.
+      im.frustumCulled = true;
       im.layers.enable(1);
       
       im.name = anuKind;
@@ -230,6 +239,7 @@ export const SanctuaryPondTreesModule = {
       reedMeshes.forEach(im => {
         im.instanceMatrix.needsUpdate = true;
         if (im.instanceColor) im.instanceColor.needsUpdate = true;
+        im.computeBoundingSphere(); // FPS T1: bounds over all instances → frustumCulled safe
         _group.add(im);
       });
     }
@@ -267,6 +277,7 @@ export const SanctuaryPondTreesModule = {
       treeMeshes.forEach(im => {
         im.instanceMatrix.needsUpdate = true;
         if (im.instanceColor) im.instanceColor.needsUpdate = true;
+        im.computeBoundingSphere(); // FPS T1: bounds over all instances → frustumCulled safe
         _group.add(im);
       });
     }
@@ -309,6 +320,7 @@ export const SanctuaryPondTreesModule = {
       bushMeshes.forEach(im => {
         im.instanceMatrix.needsUpdate = true;
         if (im.instanceColor) im.instanceColor.needsUpdate = true;
+        im.computeBoundingSphere(); // FPS T1: bounds over all instances → frustumCulled safe
         _group.add(im);
       });
     }

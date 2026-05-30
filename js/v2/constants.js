@@ -56,7 +56,11 @@ export const V2_PIP_ORTHO_ZOOM = 0.80;
 // to cut PiP CPU+GPU work to a third without a visible loss on the
 // moondial. (At 60 fps this is 3.3 Hz; the moondial player marker
 // still updates smoothly enough that nobody notices.)
-export const V2_PIP_RENDER_EVERY_N_FRAMES = 6;
+// FPS PIP-2 (2026-05-30): 6 → 12. The PIP is a full second-scene render;
+// halving its cadence (~5-6 Hz minimap) is invisible on a wayfinder marker
+// and cuts the amortized second-pass cost in half. Fishing PIP is unaffected
+// (its own every-2-frames gate lives in Orchestrator.js).
+export const V2_PIP_RENDER_EVERY_N_FRAMES = 12;
 
 /** Target frame rate for budgeting / UX copy (physics step is still rAF-driven). */
 export const V2_TARGET_FPS = 65;
@@ -64,8 +68,9 @@ export const V2_TARGET_FPS = 65;
 /** Nominal ms budget at V2_TARGET_FPS — used by FrameBudget / Anu reporting. */
 export const V2_FRAME_MS_BUDGET = 1000 / V2_TARGET_FPS;
 
-/** Adaptive PiP: upper bound on “every N frames” stride under stress (≥ baseline). */
-export const V2_ADAPTIVE_PIP_MAX_STRIDE = 8;
+/** Adaptive PiP: upper bound on “every N frames” stride under stress (≥ baseline).
+ *  FPS PIP-2: 8 → 14 so the governor has real headroom above the new 12 baseline. */
+export const V2_ADAPTIVE_PIP_MAX_STRIDE = 14;
 
 /**
  * Moondial `#pipOverlay` yellow dashed **focus cue** only: radius = `factor * min(canvasW, canvasH)`
