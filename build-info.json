@@ -1,9 +1,9 @@
 {
-  "subject": "feat(sanctuary): visible lego-hex tile seams via terrain shader (ported from v2)",
-  "isoDate": "2026-05-30T05:06:14-05:00",
+  "subject": "feat(sanctuary): strong pronounced neumorphic hex tiles for village-view planning",
+  "isoDate": "2026-05-30T05:08:56-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "8f2597d",
+  "commit": "78af4dd",
   "dirty": true,
-  "generatedAt": "2026-05-30T10:06:18.827Z"
+  "generatedAt": "2026-05-30T10:09:00.732Z"
 }

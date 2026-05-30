@@ -569,6 +569,14 @@ async function buildTerrainAsync(textures) {
       `#include <color_fragment>`,
       `#include <color_fragment>
        {
+         // STRONG neumorphic hex tiles (2026-05-30 user spec: "much stronger,
+         // pronounced, so players can plan village view"). Profile:
+         //   • deep inset groove at the seam (down to 0.38x)
+         //   • rising bevel
+         //   • BRIGHT raised rim/lip (up to 1.28x) — the neumorphic highlight
+         //   • flat interior easing back to 1.0 (continuous, no hard ring)
+         // Wider zones than v2's softened grain so the tiles read as raised
+         // boardgame cells from both FPV and top-down village view.
          float hexRadius = 6.27;
          float hr3 = hexRadius * 1.73205081;
          vec2 hr = vec2(hr3, hexRadius * 3.0);
@@ -579,23 +587,27 @@ async function buildTerrainAsync(textures) {
          vec2 hlocal = dot(ha,ha) < dot(hb,hb) ? ha : hb;
          float hdist = hexDist(hlocal);
          float hmax = hr3 * 0.5;
-         float hedge = hmax - hdist;
-         if (hedge < 0.21) {
-           float crack = smoothstep(0.0, 0.21, hedge);
-           diffuseColor.rgb *= (0.78 + crack * crack * 0.18);
-         } else if (hedge < 0.4875) {
-           float slope = smoothstep(0.21, 0.4875, hedge);
-           diffuseColor.rgb *= (slope * 0.10 + 0.92);
-         } else if (hedge < 0.7125) {
-           float rim = smoothstep(0.4875, 0.7125, hedge);
-           diffuseColor.rgb *= (1.0 + (1.0 - rim) * 0.06);
+         float hedge = hmax - hdist;          // 0 at seam → ~5.4 at centre
+         float hexMul;
+         if (hedge < 0.55) {
+           // deep groove: dark inset trough
+           hexMul = 0.38 + smoothstep(0.0, 0.55, hedge) * 0.34;   // 0.38 → 0.72
+         } else if (hedge < 1.10) {
+           // bevel rising out of the groove
+           hexMul = 0.72 + smoothstep(0.55, 1.10, hedge) * 0.20;  // 0.72 → 0.92
+         } else if (hedge < 1.70) {
+           // bright raised rim — the neumorphic lego-lip highlight
+           hexMul = 0.92 + smoothstep(1.10, 1.70, hedge) * 0.36;  // 0.92 → 1.28
          } else {
-           diffuseColor.rgb *= 1.02;
+           // flat tile interior, ease the bright rim back down to 1.0
+           hexMul = mix(1.28, 1.0, smoothstep(1.70, 3.0, hedge));
          }
+         diffuseColor.rgb *= hexMul;
+         // Stronger corner darkening at triple-tile junctions
          float hcorner = length(hlocal);
-         if (hcorner > hexRadius * 0.65) {
-           float cdip = smoothstep(hexRadius * 0.65, hexRadius, hcorner);
-           diffuseColor.rgb *= (1.0 - cdip * 0.20);
+         if (hcorner > hexRadius * 0.62) {
+           float cdip = smoothstep(hexRadius * 0.62, hexRadius, hcorner);
+           diffuseColor.rgb *= (1.0 - cdip * 0.45);
          }
        }`
     );
