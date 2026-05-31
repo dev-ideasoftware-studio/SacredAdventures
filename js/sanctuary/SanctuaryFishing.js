@@ -750,6 +750,39 @@ function _buildHook() {
   barb.position.set(0.044, -BOBBER_RADIUS_M - 0.076, 0);
 
   group.add(shank, curve, barb);
+
+  // ── Bait worm (FV-1) ──────────────────────────────────────────────
+  // A small segmented worm threaded on the barb. Built as a chain of
+  // tapering cylinder joints (each a child of the previous) so update()
+  // can drive a travelling sine down the body for a subtle wriggle.
+  const worm = new THREE.Group();
+  worm.name = "fishing_hook_worm";
+  // Drape from the barb tip, hanging down and slightly out.
+  worm.position.set(0.046, -BOBBER_RADIUS_M - 0.066, 0);
+  worm.rotation.z = Math.PI;   // grow downward off the barb
+  const wormMat = new THREE.MeshStandardMaterial({
+    color: 0xb5654d, roughness: 0.85, metalness: 0.0,
+  });
+  const WORM_SEGS = 5;
+  const segLen = 0.013;
+  let parent = worm;
+  const radii = [0.0042, 0.0040, 0.0035, 0.0028, 0.0018];
+  for (let i = 0; i < WORM_SEGS; i++) {
+    const seg = new THREE.Group();          // joint pivot
+    seg.position.y = (i === 0) ? 0 : segLen; // chain end-to-end
+    seg.userData.wormBaseRotZ = (i === 0) ? 0.25 : 0.12; // resting curl
+    seg.rotation.z = seg.userData.wormBaseRotZ;
+    const tube = new THREE.Mesh(
+      new THREE.CylinderGeometry(radii[i + 1] ?? 0.0014, radii[i], segLen, 6),
+      wormMat,
+    );
+    tube.geometry.translate(0, segLen / 2, 0); // pivot at the joint base
+    seg.add(tube);
+    parent.add(seg);
+    parent = seg;
+  }
+
+  group.add(worm);
   return group;
 }
 
@@ -843,7 +876,8 @@ export const SanctuaryFishingModule = {
   _ripples:    [],
   _nextRippleT: 0,
   _spotDisc:   null,
-  _spotFishSprite: null,
+  _spotFish3D: null,          // FV-1: real 3D fish under the gauge (replaces the 2D sprite glyph)
+  _spotFish3DFallback: false, // true while using the cone fallback (template not yet loaded)
   _btn:        null,
   _statusPill: null,
 
@@ -981,34 +1015,15 @@ export const SanctuaryFishingModule = {
       // "fish circle inner border" the user kept asking to remove. It
       // sat above the player travel disc + SanctuaryCircles spot disc
       // and read as a hard cream-yellow outline around the bobber. With
-      // the disc (above) + fish glyph (below) we still have the visual
+      // the disc (above) + real 3D fish (below) we still have the visual
       // target marker without the inner border edge.
 
-      // Animated fish glyph
-      const cnv = document.createElement("canvas");
-      cnv.width = 96; cnv.height = 64;
-      const ctx = cnv.getContext("2d");
-      ctx.fillStyle = "#3a82c8";
-      ctx.beginPath(); ctx.ellipse(48, 32, 32, 16, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(82, 32); ctx.lineTo(94, 14); ctx.lineTo(94, 50); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#bfe6ff";
-      ctx.beginPath(); ctx.ellipse(50, 38, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#fff";  ctx.beginPath(); ctx.arc(28, 28, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#111";  ctx.beginPath(); ctx.arc(27, 28, 2, 0, Math.PI * 2); ctx.fill();
-      const fishTex = new THREE.CanvasTexture(cnv);
-      fishTex.colorSpace = THREE.SRGBColorSpace;
-      const fishSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: fishTex, transparent: true, depthTest: false, depthWrite: false,
-      }));
-      fishSprite.scale.set(0.72, 0.48, 1);
-      fishSprite.position.set(spot.x, (spot.y ?? 0) + 0.55, spot.z);
-      fishSprite.renderOrder = 9972;
-      fishSprite.name = "sanctuary_fishing_spot_fish_glyph";
-      fishSprite.userData.anuKind = "sanctuary_fishing_spot_fish_glyph";
-      fishSprite.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.PLAYER;
-      scene.add(fishSprite);
-      this._spotDisc = disc;
-      this._spotFishSprite = fishSprite;
+      // FV-1 (2026-05-30): the old flat 2D fish sprite (THREE.Sprite at
+      // spot.y+0.55, surface-bobbing) is replaced by a REAL 3D fish that
+      // hovers SUBMERGED under the gauge/bobber eyeing the baited hook.
+      // It is built lazily in update() (see _spotFish3D) so the shared
+      // SanctuaryFish geometry template (window.__sanctuaryFishTemplate)
+      // is guaranteed loaded by first use — no heavy per-mesh model.
     }
 
     // ── Rod ───────────────────────────────────────────────────────
@@ -1807,15 +1822,95 @@ export const SanctuaryFishingModule = {
       }
     }
 
-    // Idle fish glyph bob
-    if (this._spotFishSprite) {
+    // ── Spot fish (FV-1) ──────────────────────────────────────────
+    // A REAL 3D fish (shared SanctuaryFish geometry via _createFishMesh)
+    // hovering SUBMERGED under the gauge/bobber, eyeing the baited hook.
+    // Built lazily so the geometry template is loaded by first use; if the
+    // template wasn't ready it falls back to a cone and rebuilds once.
+    {
       const spot = window.__sanctuaryFishingSpot;
-      if (spot) {
-        const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
-        this._spotFishSprite.position.y = (spot.y ?? 0) + 0.55 + Math.sin(t * 1.6) * 0.08;
-        this._spotFishSprite.material.rotation = Math.sin(t * 1.1) * 0.20;
-        this._spotFishSprite.visible = this._phase === PHASE.IDLE;
-        if (this._spotDisc) this._spotDisc.visible = this._phase === PHASE.IDLE;
+      const ph   = this._phase;
+      const showSpotFish = !!spot &&
+        (ph === PHASE.IDLE || ph === PHASE.WAITING || ph === PHASE.BITE);
+
+      if (showSpotFish) {
+        const templateReady = !!(window.__sanctuaryFishTemplate &&
+                                 window.__sanctuaryFishTemplate.geometry);
+        if (!this._spotFish3D || (this._spotFish3DFallback && templateReady)) {
+          if (this._spotFish3D) {
+            this._scene.remove(this._spotFish3D);
+            this._spotFish3D.traverse((c) => {
+              if (c.geometry) c.geometry.dispose();
+              if (c.material) {
+                if (Array.isArray(c.material)) c.material.forEach((m) => m?.dispose?.());
+                else c.material.dispose?.();
+              }
+            });
+          }
+          const mesh = this._createFishMesh();
+          mesh.scale.multiplyScalar(0.7);   // a wild fish reads smaller than a trophy catch
+          mesh.name = "sanctuary_fishing_spot_fish";
+          mesh.userData.anuKind = "sanctuary_fishing_spot_fish";
+          mesh.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FAUNA;
+          mesh.visible = false;
+          this._scene.add(mesh);
+          this._spotFish3D = mesh;
+          this._spotFish3DFallback = !templateReady;
+        }
+      }
+
+      if (this._spotFish3D) {
+        const f = this._spotFish3D;
+        f.visible = showSpotFish;
+        if (showSpotFish) {
+          const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+          // "Under the gauge" — the gauge sits at the bobber XZ once cast,
+          // at the spot XZ while idle. The fish hovers below, never breaching.
+          const onWater = (ph === PHASE.WAITING || ph === PHASE.BITE) && this._bobber;
+          const cx = onWater ? this._bobber.position.x : spot.x;
+          const cz = onWater ? this._bobber.position.z : spot.z;
+          // Anchor depth BELOW the bobber/hook itself (the fishing tackle's
+          // own surface datum) rather than a global water constant — the
+          // fish stays under the hook regardless of the pond datum.
+          const cy = onWater ? this._bobber.position.y : (spot.y ?? WATER_Y_M);
+          // Slow drift on a small bearing around the lure so it keeps a
+          // defined heading toward the hook (no degenerate look-straight-up).
+          const orbit = t * 0.25;
+          const rad   = 0.14;
+          const fx = cx + Math.cos(orbit) * rad;
+          const fz = cz + Math.sin(orbit) * rad;
+          f.position.set(fx, cy - 0.30 + Math.sin(t * 1.4) * 0.03, fz);
+          // Eye the hook: yaw toward the lure centre (heading convention
+          // matches SanctuaryFish: rot.y = -heading + π), gentle nose-up
+          // pitch toward the bait above, subtle tail wiggle.
+          const heading = Math.atan2(cz - fz, cx - fx);
+          const noseUp  = onWater ? 0.30 : 0.12;
+          const wiggle  = Math.sin(t * 6.0) * 0.06;
+          f.rotation.set(noseUp, -heading + Math.PI + wiggle, 0);
+        }
+        if (this._spotDisc) this._spotDisc.visible = ph === PHASE.IDLE;
+      }
+    }
+
+    // ── Hook-worm wriggle (FV-1) ──────────────────────────────────
+    // Travelling sine down the chained worm joints; only while the
+    // baited hook is actually deployed on the water (FPS-gated).
+    if (this._hookWormJoints === undefined) {
+      this._hookWormJoints = null;
+      const worm = this._hookGroup ? this._hookGroup.getObjectByName("fishing_hook_worm") : null;
+      if (worm) {
+        const joints = [];
+        worm.traverse((o) => {
+          if (o.userData && o.userData.wormBaseRotZ !== undefined) joints.push(o);
+        });
+        this._hookWormJoints = joints;
+      }
+    }
+    if (this._hookWormJoints && this._bobber && this._bobber.visible) {
+      const tw = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+      for (let i = 0; i < this._hookWormJoints.length; i++) {
+        const j = this._hookWormJoints[i];
+        j.rotation.z = j.userData.wormBaseRotZ + Math.sin(tw * 5.0 - i * 0.8) * 0.18;
       }
     }
 
@@ -2746,6 +2841,18 @@ export const SanctuaryFishingModule = {
       this._spotDisc.material?.dispose();
       this._spotDisc = null;
     }
+    if (this._spotFish3D) {
+      scene.remove(this._spotFish3D);
+      this._spotFish3D.traverse((c) => {
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) {
+          if (Array.isArray(c.material)) c.material.forEach((m) => m?.dispose?.());
+          else c.material.dispose?.();
+        }
+      });
+      this._spotFish3D = null;
+    }
+    this._hookWormJoints = undefined; // re-resolve against a fresh hook on next load
     for (const r of this._ripples) {
       scene.remove(r.mesh);
       r.mesh.geometry?.dispose();

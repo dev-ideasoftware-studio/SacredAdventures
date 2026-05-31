@@ -1,9 +1,9 @@
 {
-  "subject": "feat(pip): village-view PIP = true FPV camera (eye view, FPV FOV)",
-  "isoDate": "2026-05-31T00:00:26-05:00",
+  "subject": "feat(fishing): real 3D fish under gauge eyeing a baited hook (no surfacing)",
+  "isoDate": "2026-05-31T03:17:36-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "6a52668",
+  "commit": "3f8a070",
   "dirty": true,
-  "generatedAt": "2026-05-31T05:00:30.383Z"
+  "generatedAt": "2026-05-31T08:17:41.216Z"
 }
