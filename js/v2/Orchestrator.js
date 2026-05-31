@@ -933,7 +933,15 @@ export class SacredOrchestrator {
     const isFishing = (typeof window !== "undefined") &&
       window.__sanctuaryFishingActive === true;
     if (isFishing) {
-      return { w: 1024, h: 1024 };
+      // FPS FIX (2026-05-31, Orchestrator): during fishing the PIP renders a
+      // SECOND WebGL context every other frame; at 1024² (1,048,576 px) with
+      // MSAA + preserveDrawingBuffer that second-context fill was the dominant
+      // fishing-mode cost (ANU flagged "pip-pass — severe"). 640² (409,600 px,
+      // ~61% fewer) still gives ~3.5x supersampling for the moondial-wrapper
+      // display, so the gauge close-up stays crisp, while roughly halving the
+      // fishing PIP fill + the preserveDrawingBuffer copy. Tunable: bump toward
+      // 768 if the gauge reads soft on a hi-DPI display.
+      return { w: 640, h: 640 };
     }
     const dprClamp = 3.0;
     // Always use a generous pixel ratio for the PiP to ensure extreme high resolution and crispness,
@@ -1317,7 +1325,16 @@ export class SacredOrchestrator {
       bg,
       feet: wp.feet,
       yaw: wp.yaw || 0,
-      mainMap: wp.mainCanvasMapView === true,
+      // PIP-FIX (2026-05-31, Orchestrator): "mainMap" drives the PIP camera —
+      // false → ortho top-down minimap; true → FPV "spirit" cam. The sanctuary
+      // top-down mode is the `v4-top-down-view` body class (SanctuaryControls),
+      // but `wp.mainCanvasMapView` is the LEGACY v2-World flag and the sanctuary
+      // shim hardcodes it false — so in top-down the PIP wrongly stayed ortho
+      // (top-down) instead of FPV. Derive from the body class too so top-down
+      // main view → FPV PIP, as intended.
+      mainMap: wp.mainCanvasMapView === true ||
+        (typeof document !== "undefined" &&
+          document.body.classList.contains("v4-top-down-view")),
       pipLight,
       stashedUniforms,
       stashedRotations,

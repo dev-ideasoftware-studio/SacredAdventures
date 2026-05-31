@@ -1,9 +1,9 @@
 {
-  "subject": "feat(fishing): real 3D fish under gauge eyeing a baited hook (no surfacing)",
-  "isoDate": "2026-05-31T03:17:36-05:00",
+  "subject": "fix(pip): drive village-view PIP off the top-down body class + trim fishing PIP to 640",
+  "isoDate": "2026-05-31T05:06:18-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "3f8a070",
+  "commit": "43f0695",
   "dirty": true,
-  "generatedAt": "2026-05-31T08:17:41.216Z"
+  "generatedAt": "2026-05-31T10:06:23.202Z"
 }
