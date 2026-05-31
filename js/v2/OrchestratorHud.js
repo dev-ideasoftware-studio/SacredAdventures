@@ -37,7 +37,7 @@ export const ORCHESTRATOR_HUD_HTML = `
         <div id="v2-load" style="position:absolute;left:8px;top:5px;font-size:9px;letter-spacing:1.4px;color:rgba(255,248,220,0.92);font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7);pointer-events:none;">LOAD --%</div>
         <div id="v2-load-detail" style="position:absolute;right:8px;top:5px;font-size:8px;letter-spacing:0.6px;color:rgba(255,248,220,0.62);text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.7);pointer-events:none;">--/--ms</div>
       </div>
-      <div id="v2-anu-alert" title="UNIVERSE.ANU live audit — hover for full findings, or run AnuUniverse.audit() in DevTools" style="font-size:9.5px;letter-spacing:0.4px;color:rgba(165,214,167,0.55);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto;cursor:help;">UNIVERSE.ANU: warming up…</div>
+      <div id="v2-anu-alert" title="Simulation Universe live audit — hover for full findings, or run AnuUniverse.audit() in DevTools" style="font-size:9.5px;letter-spacing:0.4px;color:rgba(165,214,167,0.55);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto;cursor:help;">Simulation Universe: warming up…</div>
       <div id="v2-draws" style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;">warming up…</div>
       <div id="v2-pip" style="font-size:10px;color:rgba(129,212,250,0.75);margin-bottom:6px;letter-spacing:0.4px;">PiP …</div>
       <div id="v2-hud-title" style="font-size:9px;letter-spacing:2px;color:rgba(251,192,45,0.35);margin-bottom:10px;font-weight:600;text-align:right;">SACRED ADV v2 · ORCHESTRATOR</div>
@@ -72,7 +72,7 @@ export const ORCHESTRATOR_HUD_HTML = `
       <div style="height:1px;background:rgba(251,192,45,0.08);margin-bottom:8px;"></div>
 
       <div id="v2-hud-universe-label" role="button" tabindex="0" aria-expanded="false" aria-controls="v2-universe-accordion-body" title="Click to expand/collapse module list" style="font-size:10px;letter-spacing:1.5px;color:rgba(251,192,45,0.45);margin-bottom:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;user-select:none;">
-        <span><span id="v2-universe-toggle-icon" style="display:inline-block;width:9px;transition:transform 0.15s;">▶</span> UNIVERSE <span id="v2-universe-pct" style="color:#a5d6a7;font-weight:700;letter-spacing:0;">--%</span></span>
+        <span><span id="v2-universe-toggle-icon" style="display:inline-block;width:9px;transition:transform 0.15s;">▶</span> SIMULATION UNIVERSE <span id="v2-universe-pct" style="color:#a5d6a7;font-weight:700;letter-spacing:0;">--%</span></span>
         <span id="v2-universe-count" style="color:rgba(255,255,255,0.4);font-size:9px;letter-spacing:0.2px;font-weight:500;">0 mods</span>
       </div>
       <div id="v2-universe-accordion-body" style="display:none;">
@@ -102,7 +102,7 @@ export function buildOrchestratorHud() {
     }
   }
   // Mobile shrink (≤ 768 px): ~30% smaller + thinner + smaller fonts so
-  // the truncated "UNIVERSE.ANU: ✓ cle…" and "PiP=on stride:8 phas…"
+  // the truncated "Simulation Universe: ✓ cle…" and "PiP=on stride:8 phas…"
   // lines fit. Desktop is unchanged. `!important` is required because
   // every styleable element below uses inline `style="…"`.
   if (!document.getElementById('v2-orchestrator-hud-mobile-css')) {
@@ -599,7 +599,7 @@ export function updateOrchestratorHudModules(orc) {
   modEl.innerHTML = orc._activeModules.map(name => {
     const entry = orc._registry.get(name);
     const cost = entry && entry.fpsCost !== null ? ` <span style="color:#ef9a9a;">[${entry.fpsCost.toFixed(1)}fps]</span>` : '';
-    const displayName = name === "Anu" ? "UNIVERSE.ANU" : name;
+    const displayName = name === "Anu" ? "Simulation Universe" : name;
     return `▶ ${displayName}${cost}`;
   }).join('<br>');
 }
@@ -684,14 +684,14 @@ export function updateOrchestratorHudValues(orc) {
     const alerts = orc._anuAuditAlerts || [];
     if (alerts.length === 0) {
       alertEl.style.color = "rgba(165, 214, 167, 0.55)";
-      alertEl.textContent = "UNIVERSE.ANU: ✓ clear";
-      alertEl.title = "UNIVERSE.ANU live audit — no findings. Run AnuUniverse.audit() in DevTools for the same result.";
+      alertEl.textContent = "Simulation Universe: ✓ clear";
+      alertEl.title = "Simulation Universe live audit — no findings. Run AnuUniverse.audit() in DevTools for the same result.";
     } else {
       const first = alerts[0];
       const more = alerts.length > 1 ? `  +${alerts.length - 1}` : "";
       const sev = first.severity === "error" ? "✗" : "⚠";
       alertEl.style.color = first.severity === "error" ? "#ef5350" : "#fbc02d";
-      alertEl.textContent = `UNIVERSE.ANU ${sev} ${first.id}${more}`;
+      alertEl.textContent = `Simulation Universe ${sev} ${first.id}${more}`;
       alertEl.title = alerts
         .map((a, i) => `${i + 1}. [${a.severity}] ${a.id}\n   ${a.text}`)
         .join("\n\n");
