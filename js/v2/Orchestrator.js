@@ -569,18 +569,31 @@ export class SacredOrchestrator {
       this._frameCount++;
 
       // ── FPS smoothing (EMA) ───────────────────────────────────────────────
-      if (delta > 0) {
-        this.rawFPS = 1 / delta;
-        this.smoothFPS =
-          this._frameCount < 10
-            ? this.rawFPS // seed with raw until EMA stabilises
-            : this.smoothFPS * (1 - SMOOTH_ALPHA) + this.rawFPS * SMOOTH_ALPHA;
-      }
-      // Mark FPS ready after 60 frames of warmup
-      if (!this._fpsReady && this._frameCount >= 60) this._fpsReady = true;
-      // Track peak (theoretical max) — only after warmup, cap at monitor refresh
-      if (this._fpsReady && this.smoothFPS > this._peakFPS) {
-        this._peakFPS = this.smoothFPS;
+      // FPS sensor — trapped so a bad sample can never poison the FPS state
+      // or abort the frame. On failure we keep the last good smoothFPS (safe
+      // fallback: a stale-but-finite number beats NaN/Infinity downstream).
+      try {
+        if (delta > 0) {
+          const raw = 1 / delta;
+          if (Number.isFinite(raw)) {
+            this.rawFPS = raw;
+            this.smoothFPS =
+              this._frameCount < 10
+                ? this.rawFPS // seed with raw until EMA stabilises
+                : this.smoothFPS * (1 - SMOOTH_ALPHA) + this.rawFPS * SMOOTH_ALPHA;
+          }
+        }
+        // Mark FPS ready after 60 frames of warmup
+        if (!this._fpsReady && this._frameCount >= 60) this._fpsReady = true;
+        // Track peak (theoretical max) — only after warmup, cap at monitor refresh
+        if (this._fpsReady && this.smoothFPS > this._peakFPS) {
+          this._peakFPS = this.smoothFPS;
+        }
+      } catch (fpsErr) {
+        recordSacredLoopError(fpsErr, {
+          phase: "fps_smoothing",
+          frameCount: this._frameCount,
+        });
       }
 
       // ── Nature awareness tick — refresh player XZ cache before any
@@ -620,7 +633,20 @@ export class SacredOrchestrator {
       }
 
       // ── Prioritized Rendering Pipeline Governor (Prioritized Bypassing & % Sampling) ──
-      const stress = getSystemStressLevel();
+      // FPS stress sensor runs BEFORE renderer.render() below, so a throw here
+      // would otherwise abort the frame and skip the render entirely. Trap it
+      // and fall back to OPTIMAL (full quality, no bypass) — the safe default
+      // that keeps the world rendering even if the sensor is unavailable.
+      let stress;
+      try {
+        stress = getSystemStressLevel();
+      } catch (stressErr) {
+        stress = STRESS_LEVELS.OPTIMAL;
+        recordSacredLoopError(stressErr, {
+          phase: "fps_stress_sensor",
+          frameCount: this._frameCount,
+        });
+      }
       if (stress === STRESS_LEVELS.OPTIMAL) {
         this.renderer.shadowMap.autoUpdate = true;
       } else {
@@ -638,13 +664,32 @@ export class SacredOrchestrator {
       this._renderPip();
 
       // ── HUD update (every 20 frames) ──────────────────────────────────────
+      // HUD reflects the FPS sensors; trap it so a render of a bad value can
+      // never abort the frame (render already happened above).
       if (this._frameCount % 20 === 0) {
-        this._updateHUDValues();
+        try {
+          this._updateHUDValues();
+        } catch (hudErr) {
+          recordSacredLoopError(hudErr, {
+            phase: "hud_update",
+            frameCount: this._frameCount,
+          });
+        }
       }
 
+      // ── Frame-budget + adaptive FPS sensors ───────────────────────────────
+      // Trapped together: a failure here must not skip the stress-ledger /
+      // scene-inventory ticks below, and the render already completed.
       const frameMs = performance.now() - frameT0;
-      recordFrameDuration(frameMs);
-      tickAdaptiveRenderPolicy(frameMs);
+      try {
+        recordFrameDuration(frameMs);
+        tickAdaptiveRenderPolicy(frameMs);
+      } catch (budgetErr) {
+        recordSacredLoopError(budgetErr, {
+          phase: "fps_frame_budget",
+          frameCount: this._frameCount,
+        });
+      }
 
       if (this._frameCount % STRESS_LEDGER_SAMPLE_INTERVAL_FRAMES === 0) {
         try {

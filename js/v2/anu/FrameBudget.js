@@ -74,29 +74,36 @@ export const STRESS_LEVELS = {
 };
 
 export function getSystemStressLevel() {
-  const avg = getRollingAvgFrameMs();
-  if (avg <= 0) return STRESS_LEVELS.OPTIMAL; // seed frame
+  // Whole-sensor guard: any unexpected failure falls back to OPTIMAL — the
+  // safe level (full quality, no render bypass). A stress sensor must never
+  // be the reason a frame fails to render.
+  try {
+    const avg = getRollingAvgFrameMs();
+    if (!(avg > 0)) return STRESS_LEVELS.OPTIMAL; // seed frame / NaN guard
 
-  // Dynamically obtain targetMs from the adaptive DPR monitor (probed screen Hz)
-  let targetMs = 1000 / 60; // 16.67ms baseline default (60 Hz target)
-  if (typeof window !== "undefined" && window.AnuUniverse?.adaptiveDpr) {
-    try {
-      const snap = window.AnuUniverse.adaptiveDpr.snapshot();
-      if (snap && snap.targetMs > 0) {
-        targetMs = snap.targetMs;
+    // Dynamically obtain targetMs from the adaptive DPR monitor (probed screen Hz)
+    let targetMs = 1000 / 60; // 16.67ms baseline default (60 Hz target)
+    if (typeof window !== "undefined" && window.AnuUniverse?.adaptiveDpr) {
+      try {
+        const snap = window.AnuUniverse.adaptiveDpr.snapshot();
+        if (snap && snap.targetMs > 0) {
+          targetMs = snap.targetMs;
+        }
+      } catch (_) {
+        /* defensive */
       }
-    } catch (_) {
-      /* defensive */
     }
+
+    // Calculate thresholds relative to the actual target MS (dynamic vsync headroom)
+    const stressThreshold = targetMs;
+    const criticalThreshold = targetMs * 1.5;
+
+    if (avg <= stressThreshold) return STRESS_LEVELS.OPTIMAL;
+    if (avg <= criticalThreshold) return STRESS_LEVELS.STRESS;
+    return STRESS_LEVELS.CRITICAL;
+  } catch (_) {
+    return STRESS_LEVELS.OPTIMAL; // safe fallback
   }
-
-  // Calculate thresholds relative to the actual target MS (dynamic vsync headroom)
-  const stressThreshold = targetMs;
-  const criticalThreshold = targetMs * 1.5;
-
-  if (avg <= stressThreshold) return STRESS_LEVELS.OPTIMAL;
-  if (avg <= criticalThreshold) return STRESS_LEVELS.STRESS;
-  return STRESS_LEVELS.CRITICAL;
 }
 
 if (typeof window !== "undefined") {
