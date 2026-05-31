@@ -632,7 +632,11 @@ export const SanctuaryAvatarModule = {
       _deactivate(this._lookAction);
       _deactivate(this._idleAction);
       _activate(this._sitFishAction, 1.0);
-      this._sitFishAction.setEffectiveTimeScale(1.0);
+      // Calm the seated fishing motion — the clip drives the right-hand bone
+      // (and thus the rod). At full speed it read as fast/jerky pole swings
+      // ("this is fishing not combat"). 0.4x makes the rod move slowly within
+      // a small arc — relaxed hand-line fishing. (User 2026-05-30.)
+      this._sitFishAction.setEffectiveTimeScale(0.4);
     } else if (inPool && this._swimAction) {
       // --- IN POOL: swim always, speed-scaled ---
       _deactivate(this._sitFishAction);

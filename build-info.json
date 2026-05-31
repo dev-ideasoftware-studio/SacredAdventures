@@ -1,9 +1,9 @@
 {
-  "subject": "perf(scene): cull far flora + raise PIP stride + tree frustum-cull/leaf-shadow",
-  "isoDate": "2026-05-30T13:17:26-05:00",
+  "subject": "feat(fishing): two-handed hand-line to left hand + calm the rod motion",
+  "isoDate": "2026-05-30T19:59:11-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "97c044b",
+  "commit": "32463f0",
   "dirty": true,
-  "generatedAt": "2026-05-30T18:17:32.636Z"
+  "generatedAt": "2026-05-31T00:59:16.080Z"
 }

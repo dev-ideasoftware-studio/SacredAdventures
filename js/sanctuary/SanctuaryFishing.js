@@ -1090,6 +1090,22 @@ export const SanctuaryFishingModule = {
     line.frustumCulled = false;
     scene.add(line);
 
+    // ── Hand-line: rod tip → LEFT hand (two-handed hand-line fishing) ──
+    // User 2026-05-30: "have a fishing line trail to the other [hand] as
+    // they appear to use both — that is how they fished, pulling the string
+    // by hand." Right hand holds the rod; the left hand tends/pulls the line.
+    const handLineGeo = new THREE.BufferGeometry();
+    handLineGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array([0,0,0, 0,0,0]), 3));
+    const handLine = new THREE.Line(handLineGeo, new THREE.LineBasicMaterial({
+      color: 0xe8e2c4, transparent: true, opacity: 0.7,
+    }));
+    handLine.name = "fishing_hand_line";
+    handLine.userData.anuKind = "fishing_hand_line";
+    handLine.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ITEMS;
+    handLine.frustumCulled = false;
+    handLine.visible = false;
+    scene.add(handLine);
+
     // ── Bobber + J-hook ───────────────────────────────────────────
     const bobber = new THREE.Mesh(
       new THREE.SphereGeometry(BOBBER_RADIUS_M, 12, 10),
@@ -1107,6 +1123,9 @@ export const SanctuaryFishingModule = {
     this._rod       = rod;
     this._line      = line;
     this._lineGeo   = lineGeo;
+    this._handLine    = handLine;
+    this._handLineGeo = handLineGeo;
+    this._leftHandBone = null;
     this._bobber    = bobber;
     this._hookGroup = hookGroup;
 
@@ -2311,8 +2330,26 @@ export const SanctuaryFishingModule = {
       arr[3] = bp.x; arr[4] = bp.y; arr[5] = bp.z;
       this._lineGeo.attributes.position.needsUpdate = true;
       this._line.visible = this._phase !== PHASE.IDLE;
+
+      // Hand-line: rod tip → LEFT hand (two-handed hand-line look). Find the
+      // left-hand bone once, then trail a faint line to it each frame.
+      if (this._handLine) {
+        if (!this._leftHandBone) this._leftHandBone = this._findLeftHandBone();
+        if (this._leftHandBone) {
+          this._lhWorld = this._lhWorld || new THREE.Vector3();
+          this._leftHandBone.getWorldPosition(this._lhWorld);
+          const ha = this._handLineGeo.attributes.position.array;
+          ha[0] = tipWorld.x;       ha[1] = tipWorld.y;       ha[2] = tipWorld.z;
+          ha[3] = this._lhWorld.x;  ha[4] = this._lhWorld.y;  ha[5] = this._lhWorld.z;
+          this._handLineGeo.attributes.position.needsUpdate = true;
+          this._handLine.visible = this._phase !== PHASE.IDLE;
+        } else {
+          this._handLine.visible = false;
+        }
+      }
     } else {
       this._line.visible = false;
+      if (this._handLine) this._handLine.visible = false;
     }
 
     // ── Update 3-D Interest Gauge ─────────────────────────────────
@@ -2467,6 +2504,39 @@ export const SanctuaryFishingModule = {
       });
     }
     return rHandBone;
+  },
+
+  // Mirror of _findRightHandBone for the LEFT hand — the hand that tends the
+  // line in the two-handed hand-line technique.
+  _findLeftHandBone() {
+    const avatar = typeof window !== "undefined" ? window.__sanctuaryAvatar : null;
+    if (!avatar) return null;
+    let lHandBone = null;
+    avatar.traverse((ch) => {
+      if (ch.isBone) {
+        const name = ch.name.toLowerCase();
+        if (
+          name.includes("hand") &&
+          (name.includes("left") || name.startsWith("l_") || name.endsWith("_l") || name.includes("mixamoriglefthand") || name === "lhand" || name === "l_hand")
+        ) {
+          lHandBone = ch;
+        }
+      }
+    });
+    if (!lHandBone) {
+      avatar.traverse((ch) => {
+        if (ch.isBone) {
+          const name = ch.name.toLowerCase();
+          if (
+            (name.includes("wrist") || name.includes("hand") || name.includes("forearm")) &&
+            (name.includes("left") || name.includes("_l") || name.startsWith("l"))
+          ) {
+            lHandBone = ch;
+          }
+        }
+      });
+    }
+    return lHandBone;
   },
 
   _createFishMesh() {
@@ -2707,6 +2777,12 @@ export const SanctuaryFishingModule = {
       window.removeEventListener("touchstart", this._onWindowClick, { passive: false, capture: true });
     }
     this._onWindowClick = null;
+    if (this._handLine) {
+      this._handLine.parent?.remove(this._handLine);
+      this._handLineGeo?.dispose?.();
+      this._handLine.material?.dispose?.();
+    }
+    this._handLine = this._handLineGeo = this._leftHandBone = this._lhWorld = null;
     this._rodGroup = this._rod = this._line = this._lineGeo = this._bobber = this._hookGroup = null;
     this._btn = this._statusPill = null;
     this._onClick = this._onKey = null;
