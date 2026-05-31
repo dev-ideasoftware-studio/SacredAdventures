@@ -1006,7 +1006,9 @@ export class SacredOrchestrator {
       520,
     );
     this._pipOrtho.name = "pipOrtho";
-    this._pipPersp = new THREE.PerspectiveCamera(42, aspect, 0.12, 220);
+    // FOV 75 matches the main FPV camera so the village-view PIP reads as the
+    // true first-person view (was 42 = a zoomed telephoto "spirit" look). PIP-2.
+    this._pipPersp = new THREE.PerspectiveCamera(75, aspect, 0.12, 220);
     this._pipPersp.name = "pipPersp";
     // Enable layer 1 on both PiP cameras so they pick up the PiP-only markers.
     // Enable layer 3 so they pick up high-poly trees/branches on the minimap.
@@ -1409,13 +1411,18 @@ export class SacredOrchestrator {
       return;
     }
 
+    // VILLAGE VIEW: the PIP is the player's FIRST-PERSON view (PIP-2). Was a
+    // behind-the-head "spirit" chase (0.4 m back, looking 12 m out) which read
+    // as a 3rd-person zoom. Now the camera sits at the EYE, just ahead of the
+    // head so the body isn't in frame, looking forward along the avatar's
+    // facing — true FPV at the FPV FOV (75), rendered every frame at PIP res.
     const sin = Math.sin(yaw);
     const cos = Math.cos(yaw);
-    const hx = feet.x - sin * 0.4;
-    const hz = feet.z - cos * 0.4;
-    const hy = feet.y + 1.55;
-    _pipSpiritLook.set(feet.x - sin * 12, feet.y + 1.35, feet.z - cos * 12);
-    this._pipPersp.position.set(hx, hy, hz);
+    const EYE_Y = feet.y + 1.62;          // eye height
+    const ex = feet.x - sin * 0.12;        // a hair forward so the avatar isn't in view
+    const ez = feet.z - cos * 0.12;
+    _pipSpiritLook.set(feet.x - sin * 14, EYE_Y - 0.6, feet.z - cos * 14); // forward + gentle downward gaze
+    this._pipPersp.position.set(ex, EYE_Y, ez);
     this._pipPersp.up.set(0, 1, 0);
     this._pipPersp.lookAt(_pipSpiritLook);
     this._renderWithMask(this._pipPersp);
