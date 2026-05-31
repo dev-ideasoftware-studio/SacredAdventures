@@ -968,6 +968,11 @@ export const SanctuaryFishingModule = {
     this._camTarget    = new THREE.Vector3();
     this._lookTarget   = new THREE.Vector3();
     this._tipWorld     = new THREE.Vector3();
+    // RR-1 calm-rod scratch — reused each frame, no per-frame allocation.
+    this._rodDesiredQuat = new THREE.Quaternion();
+    this._rodBoneQuat    = new THREE.Quaternion();
+    this._rodEuler       = new THREE.Euler(0, 0, 0, "YXZ");
+    this._rodStruggle    = 0; // eased 0..1 struggle envelope for the gentle reel nod
 
     if (typeof window !== "undefined") {
       window.__sanctuaryFishingSpawnRipple = (x, z) => this._spawnRipple(x, z);
@@ -1983,67 +1988,73 @@ export const SanctuaryFishingModule = {
       }
     }
 
-    // Dynamic skeletal hand bone attachment and struggle rod bend/vibrate
+    // ── Calm rod aim (RR-1) ───────────────────────────────────────
+    // The rod follows the right-hand bone's POSITION but its ORIENTATION is
+    // fully controlled here: pool-facing yaw + a gentle up-pitch + a soft
+    // breathing bob, with the yaw clamped to the pool direction. Because the
+    // absolute orientation is driven (not inherited from the animated bone),
+    // the 2.8 m rod can never sweep back through the avatar head/body — which
+    // was the old whip/clip. The bone's wild rotation is cancelled out by
+    // localising the desired WORLD quaternion against the bone's world quat.
     if (avatar && this._rodGroup.visible) {
-      // Dynamic skeletal hand bone attachment lookup
+      // Attach to the right-hand bone once (POSITION only); cache the bone.
       if (!this._lastAttachedAvatar || this._lastAttachedAvatar !== avatar || !this._isRodAttachedToHand) {
         const rHandBone = this._findRightHandBone();
         if (rHandBone) {
           rHandBone.add(this._rodGroup);
           this._rodGroup.position.set(0, 0, 0);
-          this._rodGroup.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
+          this._rHandBoneRef = rHandBone;
           this._isRodAttachedToHand = true;
           this._lastAttachedAvatar = avatar;
           console.log('%c[SanctuaryFishing] 🎣 Attached fishing rod to right hand bone: ' + rHandBone.name, 'color:#4fc3f7;font-weight:bold;');
         } else {
           this._isRodAttachedToHand = false;
           this._lastAttachedAvatar = null;
+          this._rHandBoneRef = null;
         }
       }
 
-      // Calculate struggle bend and vibration
-      let bendX = 0;
-      let bendZ = 0;
-      let shakeX = 0;
-      let shakeZ = 0;
+      // Calm aim: face the pool (small weave), tip gently up, soft breathing.
+      const t  = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
+      const ax = SANCTUARY_POOL_CENTER_X - avatar.position.x;
+      const az = SANCTUARY_POOL_CENTER_Z - avatar.position.z;
+      const yaw = Math.atan2(ax, az) + Math.sin(t * 1.1) * 0.026;   // toward pool, ±1.5° weave
 
-      if (this._phase === PHASE.REELING || this._phase === PHASE.LANDING) {
-        // Fish is struggling! Softer, more relaxed, and pleasant sways
-        const timeSec = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
-        
-        // Gentle steady forward bend under tension
-        bendX = 0.04;
-        
-        // Soft, relaxed low-frequency sways
-        shakeX = Math.sin(timeSec * 16.0) * 0.015;
-        shakeZ = Math.cos(timeSec * 12.0) * 0.012;
-      }
+      // Eased struggle envelope → a gentle reel "nod", never a flick/whip.
+      const sTarget = (this._phase === PHASE.REELING || this._phase === PHASE.LANDING) ? 1 : 0;
+      this._rodStruggle += (sTarget - this._rodStruggle) * Math.min(1, 3.0 * delta);
 
-      if (this._isRodAttachedToHand) {
-        // When attached to right hand bone, let the bone handle the base position/rotation!
-        // We only apply the baseline alignment plus any struggle bending and shaking
-        this._rod.rotation.set(bendX + shakeX, shakeZ, 0);
+      // Elevation above horizontal: ~50° calm, ±2.6° breathing, minus a soft
+      // eased nod-down while a fish is on (low frequency, no snap).
+      const elev = 0.87
+        + Math.sin(t * 1.5) * 0.045
+        - this._rodStruggle * (0.05 + Math.abs(Math.sin(t * 2.6)) * 0.03);
+
+      // YXZ euler (pitch-from-vertical, yaw, 0) → roll-stable so the reel
+      // stays upright; maps the rod's local +Y to the aim direction.
+      this._rodEuler.set(Math.PI / 2 - elev, yaw, 0);
+      this._rodDesiredQuat.setFromEuler(this._rodEuler);
+
+      // Rod mesh identity so the rodGroup's +Y axis IS the rod shaft.
+      this._rod.rotation.set(0, 0, 0);
+
+      if (this._isRodAttachedToHand && this._rHandBoneRef) {
+        // localQuat = boneWorldQuat⁻¹ · desiredWorldQuat — cancels the bone's
+        // animated rotation, leaving the rod calmly aimed regardless of pose.
+        this._rHandBoneRef.getWorldQuaternion(this._rodBoneQuat);
+        this._rodBoneQuat.invert();
+        this._rodGroup.quaternion.copy(this._rodBoneQuat).multiply(this._rodDesiredQuat);
       } else {
-        // Fallback for manual positioning (if no hand bone is found)
-        const toPoolX = SANCTUARY_POOL_CENTER_X - avatar.position.x;
-        const toPoolZ = SANCTUARY_POOL_CENTER_Z - avatar.position.z;
-        const dist    = Math.hypot(toPoolX, toPoolZ) || 1;
-        const rodYaw  = Math.atan2(toPoolX, toPoolZ);   // face pool
-        const pitchAngle = Math.PI / 2 - Math.atan2(0.9, dist);
-
-        this._rod.rotation.x = pitchAngle + bendX + shakeX;
-        this._rod.rotation.z = shakeZ;
-
-        const fwdX = Math.sin(rodYaw);
-        const fwdZ = Math.cos(rodYaw);
-        const rgtX =  Math.cos(rodYaw);
-        const rgtZ = -Math.sin(rodYaw);
+        // Fallback (no hand bone): float the rod just in front of the hand
+        // with the SAME calm aim — bulletproof against clipping.
+        const fwdX = Math.sin(yaw), fwdZ = Math.cos(yaw);
+        const rgtX = Math.cos(yaw), rgtZ = -Math.sin(yaw);
         this._rodGroup.position.set(
           avatar.position.x + fwdX * 0.32 + rgtX * 0.20,
           avatar.position.y + 0.95,
           avatar.position.z + fwdZ * 0.32 + rgtZ * 0.20,
         );
-        this._rodGroup.rotation.y = rodYaw;
+        this._rodGroup.quaternion.copy(this._rodDesiredQuat);
       }
     } else {
       if (this._isRodAttachedToHand) {
@@ -2051,6 +2062,7 @@ export const SanctuaryFishingModule = {
         if (this._scene) this._scene.add(this._rodGroup);
         this._isRodAttachedToHand = false;
         this._lastAttachedAvatar = null;
+        this._rHandBoneRef = null;
       }
     }
 
