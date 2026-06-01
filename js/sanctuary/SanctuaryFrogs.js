@@ -430,7 +430,7 @@ function _getRandomWaterPos(rand, currentPos, outVec) {
     const r = rand() * (SANCTUARY_POOL_RADIUS_M - 0.5);
     const x = SANCTUARY_POOL_CENTER_X + Math.cos(a) * r;
     const z = SANCTUARY_POOL_CENTER_Z + Math.sin(a) * r;
-    return out.set(x, WATER_Y - 0.08, z);
+    return out.set(x, WATER_Y + 0.02, z); // FROG-RESTORE: float at the surface (was -0.08 → submerged/invisible)
   }
 
   const a = rand() * Math.PI * 2;
@@ -448,7 +448,7 @@ function _getRandomWaterPos(rand, currentPos, outVec) {
      x = SANCTUARY_POOL_CENTER_X + Math.cos(inA) * inR;
      z = SANCTUARY_POOL_CENTER_Z + Math.sin(inA) * inR;
   }
-  return out.set(x, WATER_Y - 0.08, z);
+  return out.set(x, WATER_Y + 0.02, z); // FROG-RESTORE: float at the surface (was -0.08 → submerged/invisible)
 }
 
 
@@ -908,8 +908,10 @@ export const SanctuaryFrogsModule = {
         } else {
           dir.normalize();
           f.group.position.addScaledVector(dir, f.swimSpeed * scaledDt);
-          // Gently submerge/emerge while swimming
-          f.group.position.y = WATER_Y - 0.08 + Math.sin(_clock * 10.0) * 0.01;
+          // FROG-RESTORE: float at the surface while swimming (was WATER_Y-0.08,
+          // which pinned every swimming frog ~8 cm UNDER the opaque water each
+          // frame → 6 of 7 frogs read as "missing"). Keep the gentle bob.
+          f.group.position.y = WATER_Y + 0.02 + Math.sin(_clock * 10.0) * 0.01;
           
           // Face direction of swimming
           const targetYaw = Math.atan2(dir.x, dir.z);
