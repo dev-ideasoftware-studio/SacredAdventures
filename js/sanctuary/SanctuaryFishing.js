@@ -1720,9 +1720,30 @@ export const SanctuaryFishingModule = {
           }
         }
         if (refs && refs.fishMesh) {
+          // CF-FIX: if this carried fish was the grey-cone fallback (template
+          // wasn't loaded at catch time) and the textured template is now
+          // ready, rebuild it in place so the carried fish is never grey.
+          if (refs.fishMesh.userData && refs.fishMesh.userData.isFallbackFish &&
+              window.__sanctuaryFishTemplate && window.__sanctuaryFishTemplate.geometry) {
+            const holder = refs.gluedGroup;
+            const oldFish = refs.fishMesh;
+            const newFish = this._createFishMesh();
+            newFish.name = "wiggling_attached_fish";
+            newFish.position.copy(oldFish.position);
+            holder.remove(oldFish);
+            oldFish.traverse((o) => { if (o.geometry) o.geometry.dispose?.(); });
+            holder.add(newFish);
+            refs.fishMesh = newFish;
+          }
           const phaseOffset = i * 0.73;
-          refs.fishMesh.rotation.z = Math.sin(t * 18 + phaseOffset) * 0.32;
-          refs.fishMesh.rotation.y = Math.cos(t * 10 + phaseOffset) * 0.15;
+          // CF-FIX: nose-UP base (z = -π/2) LOCKED each frame, gentle sway on
+          // x/y. The old code drove rotation.z directly, which knocked the
+          // fish back to horizontal (the "sideways carried fish" bug).
+          refs.fishMesh.rotation.set(
+            Math.sin(t * 4 + phaseOffset) * 0.14,   // gentle tail sway
+            Math.cos(t * 3 + phaseOffset) * 0.10,   // soft roll
+            -Math.PI / 2,                            // nose-up vertical base
+          );
         }
       }
     }
@@ -2314,7 +2335,7 @@ export const SanctuaryFishingModule = {
           // Reposition the fish to hang vertically just below the bobber during landing/ascent!
           if (this._caughtFish3D) {
             this._caughtFish3D.position.set(0, -BOBBER_RADIUS_M - 0.09, 0);
-            this._caughtFish3D.rotation.set(Math.PI / 2, 0, 0);
+            this._caughtFish3D.rotation.set(0, 0, -Math.PI / 2); // CF-FIX: nose-UP (was π/2 about X = horizontal)
           }
           this._setPhase(PHASE.LANDING);
         }
@@ -2363,12 +2384,16 @@ export const SanctuaryFishingModule = {
         this._bobber.position.y += (Math.random() - 0.5) * amp;
         this._bobber.position.z += (Math.random() - 0.5) * amp;
 
-        // Energetic, hyper-realistic squiggling rotation on the 3D caught fish!
+        // CF-FIX: nose-UP hang (z = -π/2 base) with a lively-but-controlled
+        // flop on x/y while it's hauled up. The old code put +π/2 on rotation.x
+        // (about the body axis) → it hung HORIZONTAL, not vertical.
         if (this._caughtFish3D) {
           const t = (typeof performance !== "undefined" ? performance.now() : 0) * 0.001;
-          this._caughtFish3D.rotation.z = Math.sin(t * 38) * 0.45;
-          this._caughtFish3D.rotation.y = Math.cos(t * 24) * 0.35;
-          this._caughtFish3D.rotation.x = Math.sin(t * 18) * 0.15 + Math.PI / 2; // hang vertically + wiggle!
+          this._caughtFish3D.rotation.set(
+            Math.sin(t * 12) * 0.22,                 // flopping tail sway
+            Math.cos(t * 8) * 0.16,                  // body roll
+            -Math.PI / 2 + Math.sin(t * 6) * 0.07,   // nose-up base + gentle bob
+          );
         }
 
         if (this._landingProgress >= 1.0) {
@@ -2798,6 +2823,7 @@ export const SanctuaryFishingModule = {
       // Fallback sleeker cone group if geometry template is somehow unavailable
       const fish = new THREE.Group();
       fish.name = "caught_fish_3d_mesh";
+      fish.userData.isFallbackFish = true; // CF-FIX: rebuild to textured once the template loads
       const body = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), new THREE.MeshPhysicalMaterial({ color: 0xffa726, roughness: 0.08, clearcoat: 1.0 }));
       body.rotateX(Math.PI / 2);
       fish.add(body);
@@ -2848,10 +2874,15 @@ export const SanctuaryFishingModule = {
     // The caught 3D fish (photorealistic trout/koi model)
     const fish = this._createFishMesh();
     fish.name = "wiggling_attached_fish";
-    // Point fish vertically face-down (nose pointing to the ground)
-    fish.rotation.set(Math.PI / 2, 0, 0);
+    // CF-FIX: stand the fish VERTICAL nose-UP (head to sky). rotation about Z
+    // by -π/2 maps the body long-axis (local X) to world +Y, head up (verified
+    // in-app). The old rotation.set(π/2,0,0) rotates about the body axis and
+    // left the fish horizontal ("sideways") — that was the bug.
+    fish.rotation.set(0, 0, -Math.PI / 2);
     fish.position.set(0, -0.05, 0.0); // hang from the stick
-    fish.scale.setScalar(0.95);
+    // CF-FIX: do NOT rescale here. _createFishMesh already normalised the mesh
+    // to a realistic length (targetLengthM * 0.95 ≈ 0.42 m). The old
+    // setScalar(0.95) OVERWROTE that with raw geometry scale → "horse-sized".
     holderGroup.add(fish);
 
     // Position on the legs vertically stacked (3 per side)
