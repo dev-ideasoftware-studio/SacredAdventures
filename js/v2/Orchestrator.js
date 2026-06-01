@@ -94,6 +94,17 @@ const FISHING_SUSPEND_MODULES = new Set([
 // ─────────────────────────────────────────────────────────────────────────────
 export class SacredOrchestrator {
   constructor(canvas) {
+    // ── MOBILE detection ──────────────────────────────────────────────────
+    // Phones/tablets have a hard web-content-process RAM ceiling. This scene
+    // was measured uploading ~1 GB of textures (120 unique, many 512²–1024²)
+    // + 3.1M triangles with shadows on — enough to terminate the iOS content
+    // process, which surfaces as "Can't open this page". The guards keyed off
+    // this flag cut mobile memory hard; desktop is untouched.
+    const _ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
+    this._isMobile =
+      /Mobi|Android|iPhone|iPod/i.test(_ua) ||
+      /iPad/i.test(_ua) ||
+      (/Macintosh/.test(_ua) && (navigator.maxTouchPoints || 0) > 1); // iPadOS desktop UA
     // ── Renderer ──────────────────────────────────────────────────────────
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -111,14 +122,20 @@ export class SacredOrchestrator {
     // we get native Retina sharpness when available without paying for
     // 3× DPR phones / kiosks. Adaptive policy still has the freedom to
     // dial this back via `setPixelRatio` if FPS bends under load.
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    // Mobile clamps DPR to 1.0 — a fullscreen Retina buffer at 1.5–3× is pure
+    // memory + fill-rate the mobile GPU process can't spare (DPR 3 → ~9× the
+    // pixels of DPR 1). Desktop keeps 1.5 for Retina sharpness.
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this._isMobile ? 1.0 : 1.5));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     // Shadows enabled — flat black contact discs under trees / rabbits
     // were the second-largest "ugly" read in the landscape screenshot.
     // PCFSoftShadowMap softens the umbra so a single shadow pass adds
     // depth across the whole scene; we leave per-mesh `castShadow` /
     // `receiveShadow` flags on the modules that already opted in.
-    this.renderer.shadowMap.enabled = true;
+    // Mobile: shadows OFF — the shadow map is an extra depth texture + a full
+    // second render pass over 3M tris; both memory and GPU cost are top
+    // OOM/perf contributors on phones. Desktop keeps soft shadows.
+    this.renderer.shadowMap.enabled = !this._isMobile;
     // PCF (not PCFSoft) — Soft is 5-tap and dominated the frame on a
     // scene with 16+ shadow casters and a 1024² shadow map. The visual
     // diff at the sanctuary's camera distances is small; the perf diff
@@ -127,6 +144,69 @@ export class SacredOrchestrator {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.3;
+
+    // ── MOBILE TEXTURE-MEMORY CAP ─────────────────────────────────────
+    // Measured on iPhone WebKit: this scene uploads ~120 unique textures
+    // (many 512²–1024²) ≈ 1 GB of GPU texture memory — by itself enough to
+    // terminate the iOS web-content process ("Can't open this page"). We wrap
+    // the MAIN context's texImage2D so every image/canvas/video texture is
+    // transparently downscaled to ≤256 px AT UPLOAD (caps peak memory during
+    // scene build too), with zero changes in the 20+ modules that author
+    // textures. Render targets / shadow maps / data textures use the 9-arg
+    // form (null/raw source) and are left untouched. Desktop never installs it.
+    if (this._isMobile) {
+      try {
+        const gl = this.renderer.getContext();
+        const CAP = 256;
+        // PRIMARY lever — Three.js on WebGL2 allocates textures via the
+        // immutable texStorage2D path (NOT texImage2D), sizing each from
+        // capabilities.maxTextureSize via its internal resizeImage(). Measured:
+        // 114 allocations up to 4096² ≈ 788 MB+ this way. Lowering the cap makes
+        // Three downscale every oversized image to ≤CAP before upload, and
+        // texStorage2D + texSubImage2D both shrink consistently.
+        if (
+          this.renderer.capabilities &&
+          this.renderer.capabilities.maxTextureSize > CAP
+        ) {
+          this.renderer.capabilities.maxTextureSize = CAP;
+        }
+        // Belt-and-braces for the MUTABLE path: video textures (intro clip)
+        // and any non-texStorage uploads still go through texImage2D, which
+        // resizeImage's maxTextureSize clamp does not always cover.
+        const _texImage2D = gl.texImage2D.bind(gl);
+        const _scratch = document.createElement("canvas");
+        const _sctx = _scratch.getContext("2d");
+        gl.texImage2D = function (...args) {
+          if (args.length === 6) {
+            const src = args[5];
+            const w = src && (src.width || src.videoWidth || src.naturalWidth || 0);
+            const h = src && (src.height || src.videoHeight || src.naturalHeight || 0);
+            if (w && h && Math.max(w, h) > CAP) {
+              const s = CAP / Math.max(w, h);
+              const nw = Math.max(1, Math.round(w * s));
+              const nh = Math.max(1, Math.round(h * s));
+              try {
+                _scratch.width = nw;
+                _scratch.height = nh;
+                _sctx.clearRect(0, 0, nw, nh);
+                _sctx.drawImage(src, 0, 0, nw, nh);
+                args[5] = _scratch;
+                return _texImage2D(...args);
+              } catch (_) {
+                /* non-drawable source → fall through, upload original */
+              }
+            }
+          }
+          return _texImage2D(...args);
+        };
+        window.__mobileTexCap = CAP;
+        console.log(
+          "[SacredOrchestrator] 📱 mobile texture cap: maxTextureSize→" +
+            this.renderer.capabilities.maxTextureSize +
+            "px (+ texImage2D fallback ≤" + CAP + "px)",
+        );
+      } catch (_) {}
+    }
 
     // ── Production shader-debug OFF (May-19 2026 FPS profile) ────────
     // `gl.getProgramInfoLog` is a CPU↔GPU readback that Three.js fires

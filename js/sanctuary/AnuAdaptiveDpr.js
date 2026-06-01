@@ -151,10 +151,20 @@ export const AnuAdaptiveDprModule = {
     // hi-DPI (Retina) displays never render above 1.5× — ~44% fewer pixels than
     // 2.0 for a large FPS gain at a slight sharpness cost. The adaptive ladder
     // still scales DOWN from here under load; this only caps the ceiling.
+    // Mobile gets a hard 1.0 ceiling: a fullscreen Retina buffer at 1.5–3× is
+    // memory + fill-rate the mobile GPU process can't spare, and the adaptive
+    // stepper would otherwise ride DPR back UP to 1.5 whenever FPS looked fine.
+    // This must match the Orchestrator's mobile clamp or the stepper overrides it.
+    const _ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
+    const _isMobile =
+      /Mobi|Android|iPhone|iPod/i.test(_ua) ||
+      /iPad/i.test(_ua) ||
+      (/Macintosh/.test(_ua) && (navigator.maxTouchPoints || 0) > 1);
+    const _dprCeil = _isMobile ? 1.0 : 1.5;
     _deviceDprCap =
       typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)
-        ? Math.min(window.devicePixelRatio, 1.5)
-        : 1.5;
+        ? Math.min(window.devicePixelRatio, _dprCeil)
+        : _dprCeil;
     // Start at the highest ladder rung the device supports, but never
     // higher than the orchestrator's existing cap.
     const currentDpr = renderer.getPixelRatio();

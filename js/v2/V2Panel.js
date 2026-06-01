@@ -240,6 +240,21 @@ export const V2PanelModule = {
 
   async _bootThreeIcons() {
     if (this._iconsStarted) return;
+    // MOBILE: skip the 3D guide-icon renderer entirely. It is a SECOND
+    // fullscreen WebGL context with its own per-frame clear loop — extra GPU
+    // memory + a second context the iOS WebGL limit can't spare. The guide
+    // cards remain fully functional (the 3D icons are decorative). Desktop
+    // keeps them. Pairs with the Orchestrator mobile memory guards.
+    const _ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
+    if (
+      /Mobi|Android|iPhone|iPod/i.test(_ua) ||
+      /iPad/i.test(_ua) ||
+      (/Macintosh/.test(_ua) && (navigator.maxTouchPoints || 0) > 1)
+    ) {
+      this._iconsStarted = true; // prevent retry
+      console.log("[V2Panel] 📱 guide-icon 3D renderer skipped on mobile (memory guard)");
+      return;
+    }
     await ensureAxeGuideAsset();
     await loadThreeIconsScript();
     if (typeof window.ThreeIconManager !== "function") {

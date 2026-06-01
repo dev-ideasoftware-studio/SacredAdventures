@@ -1,9 +1,9 @@
 {
-  "subject": "fix(mobile): stop loader double-load/loop + add boot error trap",
-  "isoDate": "2026-06-01T02:27:27-05:00",
+  "subject": "fix(mobile): stop iOS OOM crash (\"Can't open this page\") — cap texture memory",
+  "isoDate": "2026-06-01T03:04:29-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "c069670",
+  "commit": "5399793",
   "dirty": true,
-  "generatedAt": "2026-06-01T07:27:31.205Z"
+  "generatedAt": "2026-06-01T08:04:32.388Z"
 }
