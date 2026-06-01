@@ -1223,9 +1223,15 @@
            avatar; the dpad is hidden on mobile, and the radial actions +
            resource ring fan out via transforms with overflow visible), so
            edge-anchoring the panel edge-anchors the actual button.
-           Applies to ANY mobile/touch view (narrow width OR coarse pointer).
+           SCOPED TO PHONES (max-width:860px) — same gate as the action-ring
+           declutter rule. The coarse-pointer arm was REMOVED: on coarse
+           screens WIDER than 860px (touch tablets/laptops) the ring is NOT
+           decluttered, so corner-anchoring + overflow:visible let the
+           expanded ring fan act-s ~5–17px off the bottom edge (validated
+           2026-06-01: rect.b 788.5 vs vh 783 @ 1044x783; original had 0 clip).
+           Big touch tablets therefore keep the default centred layout.
            ============================================================ */
-        @media (max-width: 860px), (pointer: coarse) {
+        @media (max-width: 860px) {
             #left-panel {
                 left: 50px !important;
                 right: auto !important;

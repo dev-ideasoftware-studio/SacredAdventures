@@ -1,9 +1,9 @@
 {
-  "subject": "feat(mobile): Worker A — thumb + avatar to bottom-side corners (50px buffer)",
-  "isoDate": "2026-06-01T16:17:55-05:00",
+  "subject": "fix(mobile): scope panel corner-reposition to phones (≤860px) — fix action-ring clip on coarse tablets",
+  "isoDate": "2026-06-01T16:46:05-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "dfa46f4",
+  "commit": "fc8bdde",
   "dirty": true,
-  "generatedAt": "2026-06-01T21:17:59.479Z"
+  "generatedAt": "2026-06-01T21:46:08.618Z"
 }
