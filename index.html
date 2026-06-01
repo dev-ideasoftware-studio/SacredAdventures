@@ -44,6 +44,52 @@
         var r = e.reason; show("PROMISE", (r && (r.stack || r.message)) || String(r));
       });
       window.__bootErr = show;
+
+      // ── TEMP reboot tracer (remove with the overlay) ──────────────────
+      // Some phones reach the canvas then "reboot". This records each boot's
+      // lifecycle to localStorage (which SURVIVES an iOS content-process
+      // crash), so the NEXT boot reports what killed the LAST one:
+      //   • reachedCanvas=true + cleanUnload=false + no reload() stack
+      //       → the process was KILLED mid-run (iOS OOM/GPU crash, auto-reload)
+      //   • reloadStack set → our own code called location.reload() (stack shown)
+      //   • cleanUnload=true → ordinary navigation / manual reload
+      try {
+        var LS = window.localStorage;
+        var prev = null;
+        try { prev = JSON.parse(LS.getItem("__bootLive") || "null"); } catch (_) {}
+        var n = 1;
+        try { n = (parseInt(LS.getItem("__bootN"), 10) || 0) + 1; LS.setItem("__bootN", String(n)); } catch (_) {}
+        if (prev) {
+          var killed = prev.reachedCanvas && !prev.cleanUnload && !prev.reloadStack;
+          var verdict = prev.reloadStack
+            ? "code called reload()"
+            : (killed ? "PROCESS KILLED mid-run (OOM/GPU crash)"
+                      : (prev.cleanUnload ? "clean unload/navigation" : "unknown"));
+          show("BOOT-TRACE · diagnostic, NOT an error",
+            "this is boot #" + n + "\nprev boot: reachedCanvas=" + !!prev.reachedCanvas +
+            " · cleanUnload=" + !!prev.cleanUnload +
+            " · ranMs=" + (prev.start ? (Date.now() - prev.start) : "?") +
+            "\nVERDICT: " + verdict +
+            (prev.reloadStack ? "\nreload origin:\n" + String(prev.reloadStack).slice(0, 400) : ""));
+        }
+        var live = { start: Date.now(), reachedCanvas: false, cleanUnload: false, reloadStack: null };
+        var saveLive = function () { try { LS.setItem("__bootLive", JSON.stringify(live)); } catch (_) {} };
+        saveLive();
+        var poll = setInterval(function () {
+          if (window.anuOrchestrator) { live.reachedCanvas = true; saveLive(); try { clearInterval(poll); } catch (_) {} }
+        }, 250);
+        setTimeout(function () { try { clearInterval(poll); } catch (_) {} }, 30000);
+        var markClean = function () { live.cleanUnload = true; saveLive(); };
+        window.addEventListener("pagehide", markClean, true);
+        window.addEventListener("beforeunload", markClean, true);
+        try {
+          var _reload = window.location.reload.bind(window.location);
+          window.location.reload = function () {
+            live.reloadStack = (new Error("reload()")).stack || "reload()"; saveLive();
+            return _reload();
+          };
+        } catch (_) {}
+      } catch (_) {}
     })();
   </script>
   <title>Sacred Adventures v4 — Sanctuary</title>
