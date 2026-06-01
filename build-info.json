@@ -1,9 +1,9 @@
 {
-  "subject": "fix(mobile): skip boot geometry warm-up — fixes \"can't load WebGL\"",
-  "isoDate": "2026-06-01T04:11:12-05:00",
+  "subject": "fix(mobile): cut scene geometry ~half — skip NPC.REG + decimated GLB variants",
+  "isoDate": "2026-06-01T05:18:32-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "83cb209",
+  "commit": "85c49e8",
   "dirty": true,
-  "generatedAt": "2026-06-01T09:11:16.207Z"
+  "generatedAt": "2026-06-01T10:18:35.398Z"
 }

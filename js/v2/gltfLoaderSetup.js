@@ -36,10 +36,54 @@ export function getSharedDRACOLoader() {
   return _dracoLoader;
 }
 
+// ── MOBILE low-poly GLB variants ──────────────────────────────────────────
+// Heavy Tripo GLBs (avatar ~2M tris, NPCs/tipis 1–2M each) OOM-kill the mobile
+// GPU process at render. `scripts/decimate-mobile-assets.mjs` produced weld+
+// meshopt-simplified `<name>.mobile.glb` copies (3–5× fewer triangles). On
+// mobile we transparently swap any of these filenames to its `.mobile.glb`
+// sibling at load time — every module using this loader benefits, no per-module
+// edits. Desktop always loads the full-detail originals.
+// Only assets with a BIG triangle win AND a small decimated file. Excluded:
+// NPC.REG (skipped on mobile in SanctuaryTipiNpcs — too heavy to ship), and
+// Avatar-New / Avatar3 / pond1 / tree / rock.mossy / NPC.YB (already low-poly or
+// texture-bound files where the geometry win doesn't justify the download).
+const MOBILE_GLB_VARIANTS = new Set([
+  "tipi.player.glb",
+  "tipi.yellowbutterfly-compressed.glb",
+  "NPC.BHG.glb",
+  "TraderJosh3d.glb",
+  "Buffalo.glb",
+  "animated.stag.glb",
+]);
+
+function _isMobileUA() {
+  const ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
+  return (
+    /Mobi|Android|iPhone|iPod/i.test(ua) ||
+    /iPad/i.test(ua) ||
+    (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1)
+  );
+}
+
+/** On mobile, rewrite `…/X.glb` → `…/X.mobile.glb` for known heavy assets. */
+export function mobileGlbUrl(url) {
+  if (typeof url !== "string" || !_isMobileUA()) return url;
+  const base = url.split("/").pop().split("?")[0];
+  if (MOBILE_GLB_VARIANTS.has(base)) {
+    return url.replace(/\.glb(\?|$)/i, ".mobile.glb$1");
+  }
+  return url;
+}
+
 /** Same constructor shape as GLTFLoader; attaches Draco so compressed glTF works. */
 export class GLTFLoaderWithDraco extends GLTFLoader {
   constructor(manager) {
     super(manager);
     this.setDRACOLoader(getSharedDRACOLoader());
+  }
+  // Swap heavy GLBs for their decimated mobile variants. load() is the single
+  // funnel for both load() and loadAsync(), so this covers every caller.
+  load(url, onLoad, onProgress, onError) {
+    return super.load(mobileGlbUrl(url), onLoad, onProgress, onError);
   }
 }

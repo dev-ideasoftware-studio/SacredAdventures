@@ -249,7 +249,16 @@ export const SanctuaryTipiNpcsModule = {
       console.warn("[SanctuaryTipiNpcs] BHG load failed:", err);
     }
 
-    if (plat4 && tipi4Hex) {
+    // MOBILE: skip the REG NPC entirely. NPC.REG.glb is ~1.9M triangles (26MB) —
+    // the single biggest first-view geometry hog and a top OOM/GPU-crash cause on
+    // phones ("PROCESS KILLED mid-run"). The other two seated NPCs (YB, BHG) stay.
+    // Desktop loads REG at full detail.
+    const _regUA = (typeof navigator !== "undefined" && navigator.userAgent) || "";
+    const _skipRegMobile =
+      /Mobi|Android|iPhone|iPod/i.test(_regUA) ||
+      /iPad/i.test(_regUA) ||
+      (/Macintosh/.test(_regUA) && (navigator.maxTouchPoints || 0) > 1);
+    if (plat4 && tipi4Hex && !_skipRegMobile) {
       try {
         this._reg = await _buildSeatedNpcV2({
           url: REG_URL,

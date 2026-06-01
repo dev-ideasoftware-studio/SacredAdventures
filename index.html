@@ -20,15 +20,47 @@
        errors (incl. module-load) + promise rejections. Installed FIRST. -->
   <script>
     (function () {
+      function _fallbackCopy(txt, btn) {
+        try {
+          var ta = document.createElement("textarea");
+          ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+          (document.body || document.documentElement).appendChild(ta);
+          ta.focus(); ta.select();
+          var ok = document.execCommand("copy");
+          ta.parentNode.removeChild(ta);
+          if (btn) btn.textContent = ok ? "✓ Copied" : "select text & copy manually";
+        } catch (_) { if (btn) btn.textContent = "copy failed — select manually"; }
+      }
       function show(label, msg) {
         try {
           var d = document.getElementById("__boot_err");
           if (!d) {
             d = document.createElement("div"); d.id = "__boot_err";
-            d.style.cssText = "position:fixed;left:0;right:0;bottom:0;max-height:60vh;overflow:auto;z-index:2147483647;background:rgba(140,0,0,.96);color:#fff;font:12px/1.45 ui-monospace,monospace;padding:12px;white-space:pre-wrap;-webkit-user-select:text;user-select:text;";
+            d.style.cssText = "position:fixed;left:0;right:0;bottom:0;max-height:60vh;overflow:auto;z-index:2147483647;background:rgba(140,0,0,.96);color:#fff;font:12px/1.45 ui-monospace,monospace;padding:12px;-webkit-user-select:text;user-select:text;";
+            // Copy All button (user-requested): one tap copies the whole trace.
+            var btn = document.createElement("button");
+            btn.textContent = "📋 Copy All";
+            btn.style.cssText = "position:sticky;top:0;float:right;margin:0 0 8px 10px;padding:8px 14px;background:#fff;color:#900;border:0;border-radius:8px;font:bold 13px ui-monospace,monospace;cursor:pointer;";
+            btn.onclick = function () {
+              var txt = window.__bootErrText || "";
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(txt).then(
+                  function () { btn.textContent = "✓ Copied"; },
+                  function () { _fallbackCopy(txt, btn); },
+                );
+              } else { _fallbackCopy(txt, btn); }
+            };
+            d.appendChild(btn);
+            var t = document.createElement("pre");
+            t.id = "__boot_err_text";
+            t.style.cssText = "margin:0;white-space:pre-wrap;font:12px/1.45 ui-monospace,monospace;";
+            d.appendChild(t);
             (document.body || document.documentElement).appendChild(d);
           }
-          d.textContent += (d.textContent ? "\n\n" : "") + "[" + label + "] " + msg;
+          var line = "[" + label + "] " + msg;
+          window.__bootErrText = (window.__bootErrText ? window.__bootErrText + "\n\n" : "") + line;
+          var tx = document.getElementById("__boot_err_text");
+          if (tx) tx.textContent = window.__bootErrText;
           // Relay to the loading modal so the error shows on the loader (it covers
           // the screen during boot, which is exactly when mobile fails).
           try {
