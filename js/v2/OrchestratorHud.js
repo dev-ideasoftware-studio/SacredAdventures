@@ -109,8 +109,9 @@ export function buildOrchestratorHud() {
     const st = document.createElement('style');
     st.id = 'v2-orchestrator-hud-mobile-css';
     st.textContent = `
-      #v2-hud-map-section { display: none; }
-      body.v2-village-view #v2-hud-map-section { display: block; }
+      /* Map changer now lives only in the village build panel (#v4-village-build);
+         keep the telemetry-panel copy hidden to avoid duplication + top-right bloat. */
+      #v2-hud-map-section { display: none !important; }
       @media (max-width: 768px) {
         #v2-orchestrator-hud {
           width: min(196px, calc(100vw - 24px)) !important;

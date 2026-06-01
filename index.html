@@ -102,6 +102,11 @@
       #build-badge {
         bottom: 0 !important;
       }
+      /* In top-down/village view the build-sheet handle hugs the bottom edge;
+         lift the pill just above it so the two don't overlap. */
+      body.v4-top-down-view #build-badge {
+        bottom: 54px !important;
+      }
     }
   </style>
   <!--

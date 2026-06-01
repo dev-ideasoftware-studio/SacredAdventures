@@ -195,6 +195,79 @@ const STYLE = `
     color: #ffe9a8;
     font-family: 'Fredoka', 'Segoe UI', sans-serif;
   }
+
+  /* Grab handle is desktop-hidden (desktop docks the panel under the HUD). */
+  #v4-village-build .vb-handle { display: none; }
+
+  /* ════════ MOBILE: dock as a neumorphic bottom sheet ════════
+     Collapsed shows only the handle bar flush to the bottom edge; tap it to
+     slide the full map + tools up. Overrides the desktop right/top docking
+     (incl. the inline top the ResizeObserver writes) via !important. */
+  @media (pointer: coarse) {
+    #v4-village-build {
+      top: auto !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 22px 22px 0 0 !important;
+      background: linear-gradient(180deg, #251a10 0%, #1a1207 100%) !important;
+      box-shadow: 0 -12px 34px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,228,160,0.07) !important;
+      max-height: 80vh;
+      overflow: hidden;
+      transform: translateY(calc(100% - 50px));
+      transition: transform 0.30s cubic-bezier(0.22,0.61,0.36,1) !important;
+    }
+    #v4-village-build.vb-open { transform: translateY(0) !important; }
+
+    #v4-village-build .vb-handle {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      height: 50px;
+      flex: 0 0 50px;
+      pointer-events: auto;
+      cursor: pointer;
+      color: #ffd97a;
+      font: 700 12px/1 'Fredoka','Segoe UI',sans-serif;
+      letter-spacing: 2px;
+      border-radius: 22px 22px 0 0;
+      background: linear-gradient(180deg, #2c2013 0%, #1e1409 100%);
+      box-shadow: inset 0 2px 3px rgba(255,228,160,0.10), inset 0 -4px 7px rgba(0,0,0,0.5);
+    }
+    #v4-village-build .vb-handle-grip {
+      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      width: 44px; height: 4px; border-radius: 3px;
+      background: rgba(255,217,122,0.40);
+      box-shadow: inset 0 1px 1px rgba(0,0,0,0.4);
+    }
+    #v4-village-build .vb-handle-chevron { font-size: 9px; opacity: 0.7; transition: transform 0.3s ease; }
+    #v4-village-build.vb-open .vb-handle-chevron { transform: rotate(180deg); }
+
+    #v4-village-build .vb-sheet-body {
+      pointer-events: auto;
+      max-height: calc(80vh - 50px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 6px 16px 20px;
+    }
+
+    /* Neumorphic soft tiles / buttons / select */
+    #v4-village-build .vb-grid { gap: 9px; }
+    #v4-village-build .vb-tool,
+    #v4-village-build .vb-btn,
+    #v4-village-build .vb-select-container select {
+      border-radius: 13px !important;
+      box-shadow: 4px 4px 10px rgba(0,0,0,0.55), -3px -3px 8px rgba(255,228,160,0.05) !important;
+    }
+    #v4-village-build .vb-tool { padding: 11px 6px 9px; font-size: 10px; }
+    #v4-village-build .vb-tool .vb-icon { font-size: 21px; }
+  }
 `;
 
 function ensureStyle() {
@@ -210,18 +283,30 @@ function buildPanel() {
   wrap.id = "v4-village-build";
   wrap.userData = { anuSimulationDomain: ANU_SIMULATION_DOMAIN.PLAYER };
 
+  // Mobile bottom-sheet grab handle (hidden on desktop via CSS).
+  const handle = document.createElement("div");
+  handle.className = "vb-handle";
+  handle.innerHTML =
+    '<span class="vb-handle-grip"></span><span class="vb-handle-label">🏗 BUILD &amp; MAP</span><span class="vb-handle-chevron">▲</span>';
+  wrap.appendChild(handle);
+
+  // Scrollable content body — lets the mobile bottom sheet scroll; on desktop
+  // it is a plain block and content flows exactly as before.
+  const body = document.createElement("div");
+  body.className = "vb-sheet-body";
+
   // 🗺 Map Selection Section
   const mapHdr = document.createElement("div");
   mapHdr.className = "vb-header";
   mapHdr.textContent = "🗺 VILLAGE MAP";
-  wrap.appendChild(mapHdr);
+  body.appendChild(mapHdr);
 
   const mapSelContainer = document.createElement("div");
   mapSelContainer.className = "vb-select-container";
-  
+
   const mapSelect = document.createElement("select");
   mapSelect.id = "v4-map-type-select";
-  
+
   const activeMap = (typeof window !== "undefined" && window.__sanctuaryMapType) || "1";
 
   const optionsData = [
@@ -241,17 +326,17 @@ function buildPanel() {
   });
 
   mapSelContainer.appendChild(mapSelect);
-  wrap.appendChild(mapSelContainer);
+  body.appendChild(mapSelContainer);
 
   const mapDiv = document.createElement("div");
   mapDiv.className = "vb-divider";
-  wrap.appendChild(mapDiv);
+  body.appendChild(mapDiv);
 
   // Header
   const hdr = document.createElement("div");
   hdr.className = "vb-header";
   hdr.textContent = "🌱 FLORA & BUILD";
-  wrap.appendChild(hdr);
+  body.appendChild(hdr);
 
   // 2-col grid
   const grid = document.createElement("div");
@@ -264,12 +349,12 @@ function buildPanel() {
     btn.innerHTML = `<div class="vb-icon">${t.icon}</div><div>${t.label}</div>`;
     grid.appendChild(btn);
   }
-  wrap.appendChild(grid);
+  body.appendChild(grid);
 
   // Divider
   const div = document.createElement("div");
   div.className = "vb-divider";
-  wrap.appendChild(div);
+  body.appendChild(div);
 
   // Action buttons
   const actions = document.createElement("div");
@@ -287,8 +372,9 @@ function buildPanel() {
 
   actions.appendChild(btnGen);
   actions.appendChild(btnClr);
-  wrap.appendChild(actions);
+  body.appendChild(actions);
 
+  wrap.appendChild(body);
   document.body.appendChild(wrap);
   return wrap;
 }
@@ -315,6 +401,11 @@ export const SanctuaryToolPaletteModule = {
       this._setActive(tile.dataset.tool);
     });
     this._setActive(this._activeId);
+
+    // ── Mobile bottom-sheet toggle (handle tap expands/collapses) ──
+    this._wrap.querySelector(".vb-handle")?.addEventListener("click", () => {
+      this._wrap.classList.toggle("vb-open");
+    });
 
     // ── Map Selection ──────────────────────────────────────────────
     this._wrap.querySelector("#v4-map-type-select")?.addEventListener("change", async (ev) => {
