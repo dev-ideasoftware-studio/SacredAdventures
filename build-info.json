@@ -1,9 +1,9 @@
 {
-  "subject": "fix(mobile): skip PiP 2nd WebGL context on mobile (iOS context-limit) + on-screen boot error catcher",
-  "isoDate": "2026-06-01T01:59:09-05:00",
+  "subject": "fix(mobile): stop loader double-load/loop + add boot error trap",
+  "isoDate": "2026-06-01T02:27:27-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "904e6ce",
+  "commit": "c069670",
   "dirty": true,
-  "generatedAt": "2026-06-01T06:59:13.225Z"
+  "generatedAt": "2026-06-01T07:27:31.205Z"
 }

@@ -29,6 +29,12 @@
             (document.body || document.documentElement).appendChild(d);
           }
           d.textContent += (d.textContent ? "\n\n" : "") + "[" + label + "] " + msg;
+          // Relay to the loading modal so the error shows on the loader (it covers
+          // the screen during boot, which is exactly when mobile fails).
+          try {
+            var ifr = document.getElementById("v4-loading-iframe");
+            if (ifr && ifr.contentWindow) ifr.contentWindow.postMessage({ type: "BOOT_ERROR", code: label, msg: msg }, "*");
+          } catch (_) {}
         } catch (_) {}
       }
       window.addEventListener("error", function (e) {

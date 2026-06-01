@@ -467,9 +467,37 @@
                 if (lab) animateOdometer(key, lab, t);
             }
 
+            // ── Mobile error trap ───────────────────────────────────────────
+            // Surface any boot failure — in this modal OR relayed from the parent
+            // game (BOOT_ERROR) — directly ON the loading screen with a copyable
+            // code + message, so mobile boot failures are traceable without dev
+            // tools. This is what turns a silent stuck/looping loader into a
+            // readable error code we can act on.
+            const _errSubline = document.querySelector('.loading-subline');
+            function showLoadError(code, msg) {
+                try {
+                    if (_errSubline) {
+                        _errSubline.style.color = '#ff7a7a';
+                        _errSubline.style.whiteSpace = 'pre-wrap';
+                        _errSubline.style.webkitUserSelect = 'text';
+                        _errSubline.style.userSelect = 'text';
+                        _errSubline.textContent = '⚠ LOAD ERROR [' + code + ']\n' + String(msg || '').slice(0, 700);
+                    }
+                    try { window.parent.postMessage({ type: 'LOADING_MODAL_ERROR', code: code, msg: String(msg).slice(0, 700) }, '*'); } catch (_) {}
+                } catch (_) {}
+            }
+            window.addEventListener('error', function (e) {
+                showLoadError('MODAL', (e.message || '?') + ' @ ' + (e.filename || '') + ':' + (e.lineno || ''));
+            }, true);
+            window.addEventListener('unhandledrejection', function (e) {
+                var r = e.reason; showLoadError('MODAL-REJ', (r && (r.stack || r.message)) || String(r));
+            });
+
             window.addEventListener('message', (event) => {
                 const data = event.data;
                 if (!data || !data.type) return;
+                // Parent game relays its boot errors here so they show on the loader.
+                if (data.type === 'BOOT_ERROR') { showLoadError(data.code || 'BOOT', data.msg); return; }
 
                 switch (data.type) {
                     case 'LOG_SYSTEM': {

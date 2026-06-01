@@ -30,14 +30,11 @@ self.addEventListener("activate", (event) => {
       try {
         await self.registration.unregister();
       } catch (_) {}
-      // 3) Reload any pages this worker still controls so they re-fetch
-      //    everything from the network with no SW in the middle.
-      try {
-        const clients = await self.clients.matchAll({ type: "window" });
-        for (const client of clients) {
-          try { client.navigate(client.url); } catch (_) {}
-        }
-      } catch (_) {}
+      // NOTE: intentionally NO client.navigate()/reload here. Forcing a reload
+      // on activate caused a double-load / reload loop on mobile (Chrome showed
+      // the loader twice; Opera looped). The worker is now unregistered + caches
+      // cleared; the page's CURRENT load continues and the NEXT navigation is
+      // already SW-free and fresh. No forced reload = no loop.
     })()
   );
 });
