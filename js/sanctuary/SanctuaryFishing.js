@@ -2947,6 +2947,10 @@ export const SanctuaryFishingModule = {
       this._handLine.material?.dispose?.();
     }
     this._handLine = this._handLineGeo = this._leftHandBone = this._lhWorld = null;
+    // RR-1 follow-up: drop the rod-attachment refs so unload never retains a
+    // teardown-stale avatar skeleton bone.
+    this._rHandBoneRef = this._lastAttachedAvatar = null;
+    this._isRodAttachedToHand = false;
     this._rodGroup = this._rod = this._line = this._lineGeo = this._bobber = this._hookGroup = null;
     this._btn = this._statusPill = null;
     this._onClick = this._onKey = null;
