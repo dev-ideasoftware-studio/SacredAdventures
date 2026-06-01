@@ -1,9 +1,9 @@
 {
-  "subject": "feat(dock): photoreal procedural wood grain + bump on planks, rails, and support logs",
-  "isoDate": "2026-06-01T00:52:39-05:00",
+  "subject": "fix(ui): remove last 'UNIVERSE.ANU' from panel header + loading subline -> 'Simulation Universe'",
+  "isoDate": "2026-06-01T01:38:53-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "3526152",
+  "commit": "c089cdc",
   "dirty": true,
-  "generatedAt": "2026-06-01T05:52:43.020Z"
+  "generatedAt": "2026-06-01T06:38:57.038Z"
 }
