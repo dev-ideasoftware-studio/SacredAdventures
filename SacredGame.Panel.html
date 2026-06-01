@@ -1214,16 +1214,46 @@
             }
         }
 
-        /* --- LANDSCAPE ORIENTATION --- */
+        /* ============================================================
+           USER 2026-06-01 (Worker A · mobile reposition):
+           Thumb (#left-panel) + Avatar (#right-panel) anchored to the bottom
+           SIDE corners with a 50px safe buffer on all sides — so they sit
+           toward the screen sides (not center) and never clip. Each panel is
+           shrunk to hug its single resting mobile control (90px thumb / 86px
+           avatar; the dpad is hidden on mobile, and the radial actions +
+           resource ring fan out via transforms with overflow visible), so
+           edge-anchoring the panel edge-anchors the actual button.
+           Applies to ANY mobile/touch view (narrow width OR coarse pointer).
+           ============================================================ */
+        @media (max-width: 860px), (pointer: coarse) {
+            #left-panel {
+                left: 50px !important;
+                right: auto !important;
+                bottom: 50px !important;
+                width: 98px !important;   /* hug the thumb-btn border-box (90 + 2x4px border) so its edge lands at a true 50px */
+                height: 98px !important;
+                overflow: visible !important;
+            }
+            #right-panel {
+                right: 50px !important;
+                left: auto !important;
+                bottom: 50px !important;
+                width: 90px !important;   /* hug the avatar-circle border-box (86 + 2x2px border) for a true 50px edge */
+                height: 90px !important;
+                overflow: visible !important;
+            }
+        }
+
+        /* --- LANDSCAPE ORIENTATION (keep the same 50px side buffer) --- */
         @media (max-height: 500px) and (orientation: landscape) {
             #right-panel {
-                bottom: 20px !important;
-                right: 20px !important;
+                bottom: 50px !important;
+                right: 50px !important;
             }
 
             #left-panel {
-                bottom: 20px !important;
-                left: 20px !important;
+                bottom: 50px !important;
+                left: 50px !important;
             }
         }
 

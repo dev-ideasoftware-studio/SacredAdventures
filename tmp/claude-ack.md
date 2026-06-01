@@ -27,6 +27,57 @@ HOLD POSTURE (per orchestrator dispatch)
 
 Standing by for an orchestrator/user dispatch in the UX/UI lane.
 
+-----------------------------------------------------------------------
+VALIDATION UPDATE — Worker A (Opus) — 2026-06-01 ~15:53 CDT
+→ FOR ORCHESTRATOR: 🚨 Worker B's instr_011 pond commit FAILS the
+  post-commit anu-guardian gate (multi-amend ×7). Local-only / UNPUSHED.
+-----------------------------------------------------------------------
+
+Ran an invalidate→validate sweep. Mid-sweep, HEAD advanced under me:
+  702605a (my ACK base)  →  12d3674  (Worker B, instr_011)
+  subject: "feat(pool): restore deep basin floor drop + concentric
+            ripples + Worker B coordinate ACK"
+  origin: ahead=1, behind=0  → NOT pushed. Worker B's to manage.
+  working tree: js/sanctuary/SanctuaryPool.js still MODIFIED (Worker B
+  mid-flight in their own claimed lane — I did NOT touch it).
+
+GATES / RUNTIME — all GREEN (incl. Worker B's dirty Pool.js):
+  • check:v2          PASS  (58 modules syntax-checked)
+  • check:assets      PASS  (7 known WARN-tier missing assets, pre-existing)
+  • v4-console.spec   PASS  (0 errors · 0 404s · sanctuary boots clean)
+       warns: SanctuaryPool.buildBasinFloor 10.10ms + buildShorelineRocks
+              23.30ms (one-time BUILD spikes, not per-frame) + 1 benign
+              blob ERR_ABORTED (spec classes non-critical)
+  • anu-sync-check    PASS  (post-commit, on Worker B's pond):
+       FPS smooth 40.9 / on-screen 42 · draws 565 · tris 4.17M ·
+       43 modules · audit findings 0 · console errors 0
+       → deep basin + ripples boot CLEAN. NOTE: validated against a
+         DIRTY tree, so this is a PROVISIONAL runtime signal, not a
+         clean-commit validation.
+
+GATE FAILURE — the ONE red:
+  • anu-guardian.spec FAIL  → multiAmendCommits = [{count:7, subject:
+       "feat(pool): restore deep basin floor drop + ..."}]
+    Reflog shows the SAME subject amended 7× (commit (amend): ...).
+    This trips the rogue-pattern invariant ("multi-amend = manual
+    rework — investigate"). check:v2 + check:assets inside the guardian
+    are fine; ONLY the multi-amend invariant fails.
+
+WORKER A POSTURE: HOLD. Not touching SanctuaryPool.js. Not rewriting
+  Worker B's history. NOT pushing the ahead=1 commit.
+
+RECOMMENDATION (orchestrator to adjudicate — not my lane to execute):
+  1. Before ANY push: Worker B reset --soft to 702605a and re-commit the
+     pond as ONE clean commit (single post-commit hook amend) so the
+     guardian goes green. It's local/unpushed → trivially fixable now.
+  2. Watch the deep-basin rebuild cost: the 10ms/23ms build spikes live
+     in the exact functions instr_011 edits (buildBasinFloor /
+     buildShorelineRocks). Keep mobile OOM-safe + PIP-freeze intact.
+  3. Re-run anu-guardian + anu-sync-check (on a CLEAN tree) to confirm
+     green before push.
+
+Standing by. Ping me in the UX/UI lane.
+
 ═══════════════════════════════════════════════════════════════════════
 2026-05-30 — SONNET 4.6 ACK (hex + rocks landed; tree work DEFERRED for collision)
 ═══════════════════════════════════════════════════════════════════════

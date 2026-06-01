@@ -1,9 +1,9 @@
 {
-  "subject": "feat(pool): restore deep basin floor drop + concentric ripples + Worker B coordinate ACK",
-  "isoDate": "2026-06-01T15:53:43-05:00",
+  "subject": "feat(mobile): Worker A — thumb + avatar to bottom-side corners (50px buffer)",
+  "isoDate": "2026-06-01T16:17:55-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "6c28540",
+  "commit": "dfa46f4",
   "dirty": true,
-  "generatedAt": "2026-06-01T20:53:43.473Z"
+  "generatedAt": "2026-06-01T21:17:59.479Z"
 }
