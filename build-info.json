@@ -1,9 +1,9 @@
 {
-  "subject": "fix(fishing): calm rod/reel motion — stop whip + body/head clipping",
-  "isoDate": "2026-05-31T18:37:17-05:00",
+  "subject": "feat(fishing): tranquil whole-scene panorama + focus on eat/chase moments",
+  "isoDate": "2026-05-31T19:13:47-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "v39",
-  "commit": "7482d15",
+  "commit": "00f4e6e",
   "dirty": true,
-  "generatedAt": "2026-05-31T23:37:22.975Z"
+  "generatedAt": "2026-06-01T00:13:52.258Z"
 }

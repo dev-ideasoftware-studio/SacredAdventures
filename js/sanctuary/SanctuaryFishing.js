@@ -192,8 +192,8 @@ const SURGE_BONUS    = 0.15;   // +15 % on surge turns
 // 22 ft above water for a cinematic panorama of the dock + pond.
 const CAM_LIFT_M      = 4.572;   // 15 ft (initial)
 const CAM_BACK_M      = 1.219;   // 4 ft behind avatar (initial)
-const PANORAMA_LIFT_M = 3.658;   // 12 ft (panorama lift, lowered so avatar and circle sit at very bottom of screen)
-const PANORAMA_BACK_M = 7.805;   // Zoomed in by 10 feet (from 10.853 m) to be closer to the pond
+const PANORAMA_LIFT_M = 7.0;     // CAM-1: raised to ~23 ft — a tranquil establishing shot hovering over the pool, framing the whole scene
+const PANORAMA_BACK_M = 11.0;    // CAM-1: pulled back so pond + dock + surrounds all sit in frame
 const PANORAMA_ENTER_S = 10.0;   // seconds before panorama kicks in
 const CAM_LERP_RATE   = 6.0;
 const CAM_LOOK_BIAS   = 0.22;    // fraction toward avatar from pool centre
@@ -974,8 +974,28 @@ export const SanctuaryFishingModule = {
     this._rodEuler       = new THREE.Euler(0, 0, 0, "YXZ");
     this._rodStruggle    = 0; // eased 0..1 struggle envelope for the gentle reel nod
 
+    // CAM-1 tranquil-panorama cute-focus scratch.
+    this._focusPos    = new THREE.Vector3(); // current interaction point to ease toward
+    this._focusWeight = 0;                    // eased 0..1 blend of look-target toward _focusPos
+    this._focusUntil  = 0;                    // ms timestamp an explicit focus request expires
+    this._tranquilLook = new THREE.Vector3(); // scratch for the calm whole-scene look-target
+    this._lastInterestedFish = null;          // detect when a NEW chase begins (a transient moment)
+    this._chaseFocusUntil = 0;                // ms timestamp the brief chase focus ends
+
     if (typeof window !== "undefined") {
       window.__sanctuaryFishingSpawnRipple = (x, z) => this._spawnRipple(x, z);
+
+      // CAM-1 contract: any module can briefly draw the tranquil fishing
+      // panorama's gaze to a cute moment (minnow scatter, fish strike, a
+      // chase, a frog gulp). The camera eases toward (x,y,z) for durationSec
+      // then eases back to the whole-scene framing. Coordinate this key with
+      // the Orchestrator / Worker A.
+      window.sanctuaryFishingFocus = (x, y, z, durationSec = 1.6) => {
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
+        this._focusPos.set(x, y, z);
+        const now = (typeof performance !== "undefined") ? performance.now() : 0;
+        this._focusUntil = now + Math.max(0, durationSec) * 1000;
+      };
     }
 
     // ── PIP frosted-plastic "fish-finder lens" CSS ────────────────────
@@ -1964,15 +1984,39 @@ export const SanctuaryFishingModule = {
         const finalCamLift = CAM_LIFT_M + (PANORAMA_LIFT_M - CAM_LIFT_M) * panoramaT;
         const finalCamBack = CAM_BACK_M + (PANORAMA_BACK_M - CAM_BACK_M) * panoramaT;
 
-        // Look target: close = pool centre; panorama = midpoint avatar↔pool
-        let lookTarget = this._poolCentre;
-        if (panoramaT > 0) {
-          const fishPos = (this._bobber?.visible && this._castTarget) ? this._castTarget : this._poolCentre;
-          this._lookTarget.addVectors(avatar.position, fishPos).multiplyScalar(0.5);
-          this._lookTarget.y += 0.6;
-          this._lookTarget.lerp(this._poolCentre, 1 - panoramaT);
-          lookTarget = this._lookTarget;
+        // ── Cute-focus (CAM-1): ease the gaze toward an eat/chase moment,
+        //    then ease back to the tranquil framing. Priority: explicit
+        //    request → a fish chasing the bait → the strike.
+        const nowMs = (typeof performance !== "undefined") ? performance.now() : 0;
+        const interested = (typeof window !== "undefined") ? window.__interestedFish : null;
+        // A chase is a transient MOMENT, not a state: only when a NEW fish
+        // starts chasing the bait do we draw a brief (2 s) tracked focus —
+        // otherwise the gaze would never return to the tranquil framing.
+        if (interested && interested !== this._lastInterestedFish) {
+          this._chaseFocusUntil = nowMs + 2000;
         }
+        this._lastInterestedFish = interested;
+
+        let hasFocus = false;
+        if (nowMs < this._focusUntil) {
+          hasFocus = true;                              // explicit request already set _focusPos
+        } else if (interested && interested.position && nowMs < this._chaseFocusUntil) {
+          this._focusPos.copy(interested.position);     // briefly track the new chaser
+          hasFocus = true;
+        } else if (this._phase === PHASE.BITE && this._bobber) {
+          this._focusPos.copy(this._bobber.position);   // the strike
+          hasFocus = true;
+        }
+        const focusK = 1 - Math.exp(-2.2 * delta);      // slow ease in/out — no snap
+        this._focusWeight += ((hasFocus ? 1 : 0) - this._focusWeight) * focusK;
+
+        // Look target: tranquil whole-scene gaze (pool/scene centre, gently
+        // raised as the panorama settles in), blended toward any cute moment.
+        this._tranquilLook.copy(this._poolCentre);
+        this._tranquilLook.y += 0.8 * panoramaT;
+        const focusBlend = this._focusWeight * (panoramaT > 0 ? 0.7 : 0.5);
+        this._lookTarget.copy(this._tranquilLook).lerp(this._focusPos, focusBlend);
+        const lookTarget = this._lookTarget;
 
         this._camTarget.set(
           avatar.position.x + rotBkX * finalCamBack,
@@ -2830,6 +2874,7 @@ export const SanctuaryFishingModule = {
     if (typeof window !== "undefined") {
       delete window.__sanctuaryFishingSpawnRipple;
       delete window._v4StartFishing;
+      delete window.sanctuaryFishingFocus;
     }
     if (this._playerFlatFish) {
       const parent = this._playerFlatFish.parent;
