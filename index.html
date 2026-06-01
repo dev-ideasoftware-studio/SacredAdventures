@@ -15,6 +15,31 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+  <!-- TEMP mobile diagnostic (remove once mobile loads): surface any boot error
+       on-screen so it's visible on a phone with no dev tools. Catches uncaught
+       errors (incl. module-load) + promise rejections. Installed FIRST. -->
+  <script>
+    (function () {
+      function show(label, msg) {
+        try {
+          var d = document.getElementById("__boot_err");
+          if (!d) {
+            d = document.createElement("div"); d.id = "__boot_err";
+            d.style.cssText = "position:fixed;left:0;right:0;bottom:0;max-height:60vh;overflow:auto;z-index:2147483647;background:rgba(140,0,0,.96);color:#fff;font:12px/1.45 ui-monospace,monospace;padding:12px;white-space:pre-wrap;-webkit-user-select:text;user-select:text;";
+            (document.body || document.documentElement).appendChild(d);
+          }
+          d.textContent += (d.textContent ? "\n\n" : "") + "[" + label + "] " + msg;
+        } catch (_) {}
+      }
+      window.addEventListener("error", function (e) {
+        show("ERROR", (e.message || (e.error && e.error.message) || "?") + " @ " + (e.filename || "") + ":" + (e.lineno || "") + (e.error && e.error.stack ? "\n" + e.error.stack : ""));
+      }, true);
+      window.addEventListener("unhandledrejection", function (e) {
+        var r = e.reason; show("PROMISE", (r && (r.stack || r.message)) || String(r));
+      });
+      window.__bootErr = show;
+    })();
+  </script>
   <title>Sacred Adventures v4 — Sanctuary</title>
   <link rel="icon" type="image/png" href="Assets/favicon.png">
   <link rel="apple-touch-icon" href="Assets/favicon.png">

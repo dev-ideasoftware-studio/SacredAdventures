@@ -1,9 +1,9 @@
 {
-  "subject": "fix(mobile): vendor es-module-shims + load before importmap (WebKit/iOS module-load fix)",
-  "isoDate": "2026-06-01T01:45:20-05:00",
+  "subject": "fix(mobile): skip PiP 2nd WebGL context on mobile (iOS context-limit) + on-screen boot error catcher",
+  "isoDate": "2026-06-01T01:59:09-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "9cfcaca",
+  "commit": "904e6ce",
   "dirty": true,
-  "generatedAt": "2026-06-01T06:45:23.872Z"
+  "generatedAt": "2026-06-01T06:59:13.225Z"
 }

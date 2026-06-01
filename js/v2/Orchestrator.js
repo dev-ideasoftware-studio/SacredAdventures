@@ -979,6 +979,24 @@ export class SacredOrchestrator {
 
   _ensurePipPipeline(canvasEl) {
     if (this._pipRenderer) return;
+    // MOBILE WebGL-context guard: phones/iPads strictly limit simultaneous WebGL
+    // contexts. The PiP is a SECOND context on top of the main scene; creating it
+    // can trigger "too many active WebGL contexts" → the main context is evicted →
+    // blank screen / crash on mobile. So we DON'T create the PiP context on mobile:
+    // the main scene runs on a single context and the game boots. _renderPip()
+    // already no-ops when _pipRenderer is null, so the minimap is simply absent on
+    // mobile (desktop keeps the full PiP).
+    if (typeof navigator !== "undefined") {
+      const ua = navigator.userAgent || "";
+      const isMobile =
+        /Mobi|Android|iPhone|iPod/i.test(ua) ||
+        /iPad/i.test(ua) ||
+        (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1); // iPadOS desktop UA
+      if (isMobile) {
+        this._pipMobileDisabled = true;
+        return;
+      }
+    }
     const { w, h } = this._computePipBackingSize(canvasEl);
     canvasEl.width = w;
     canvasEl.height = h;
