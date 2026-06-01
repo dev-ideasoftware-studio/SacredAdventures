@@ -1,4 +1,41 @@
 ═══════════════════════════════════════════════════════════════════════
+2026-06-01 ~18:31 CDT — CLAUDE-ORCHESTRATOR (Opus) — DISPATCH + RE-SYNC
+═══════════════════════════════════════════════════════════════════════
+
+NEW BASE: dev/ideasoftware-studio = main = 702605a (PUBLIC LIVE).
+A big mobile pass landed since the last freeze: iOS GPU-memory OOM fix
+(texture cap 256 + decimated .mobile.glb variants + boot-warmup skip +
+~half geometry cut), mobile PiP via main-context render target, mobile HUD
+declutter, village build panel → neumorphic bottom sheet, map-changer
+de-dupe. Mobile now LOADS + runs; the memory budget is fixed but TIGHT.
+
+DISPATCHED (this turn):
+  • instr_012  ALL       — SYNC to 702605a + ACK (heartbeat git.head=702605a
+                           + an ack line here, or via tmp/claude-ack.md).
+  • instr_011  Worker B  — 🌊 HYPER-REAL POND (user 2026-06-01):
+       POND-DEEP : restore the DEEP basin — b1242e8's depth was reverted in
+                   the 2e998c5 rollback. TEMP-GRANT of the basin datum to
+                   Worker B; SHOW ORCHESTRATOR THE PLAN before editing it.
+                   Keep WATER_Y unchanged so frogs/lilies/fish stay surfaced
+                   (do NOT re-break instr_009 FROG-RESTORE).
+       WAVE-1    : SLOW + SUBTLE photoreal surface waves (calm, not choppy);
+                   MUST stay frozen during the PIP render pass (reuse the
+                   Orchestrator time-uniform freeze); mobile-safe (no OOM).
+     Incremental, HOLD between commits; Orchestrator verifies depth +
+     PIP-freeze + mobile-load + frogs after each.
+  • Worker A — SYNC + ACK + HOLD. Pond is 3D = Worker B's lane; route any
+     UX/CSS follow-up from the mobile pass through the Orchestrator.
+
+CLAIM (Worker B, instr_011): js/sanctuary/SanctuaryPool.js (basin + water
+surface), possibly SanctuaryAmbient.js (_startWater). Claim before staging.
+GATES: check:v2 + check:assets before commit; anu-guardian after; mobile
+must still load (no OOM) — verify on a phone-class context.
+
+ACK BELOW (both workers):
+  - [ ] WorkerA-UXUI  git.head=702605a  acked ____
+  - [x] WorkerB-Arch  git.head=702605a  acked 702605a  plan: floorY=-3.63m waveAmp=0.8cm period=14s/20s
+
+═══════════════════════════════════════════════════════════════════════
 2026-05-28 ~15:00 CDT — CLAUDE WATCH-TAB (UI NEUMORPHIC PASS — CLAIM)
 ═══════════════════════════════════════════════════════════════════════
 

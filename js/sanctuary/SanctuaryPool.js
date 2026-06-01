@@ -39,6 +39,26 @@ import {
 /** Cached uniforms — one shared `uTime` so all wave-driven surfaces tick together. */
 const _poolTimeUniform = { value: 0 };
 
+/**
+ * POND-DEEP (2026-06-01) — basin-floor depth exaggeration.
+ *
+ * The user wants the sacred pond to read genuinely DEEP. The shared surface
+ * datum `SANCTUARY_POOL_DEPTH_M` (SanctuaryGround.js) ALSO drives WATER_Y via
+ * `waterY = groundCentre + SANCTUARY_POOL_DEPTH_M - SANCTUARY_WATER_DROP_M`, and
+ * the 7 frogs + lilies + fish are pinned to WATER_Y (SanctuaryFrogs.js hardcodes
+ * WATER_Y = -0.6). So we must NOT touch that constant — moving it would re-submerge
+ * the frogs (the instr_009 FROG-RESTORE regression).
+ *
+ * Instead we deepen the FLOOR only: every basin-floor bowl term uses
+ * `POOL_FLOOR_DEPTH_M = SANCTUARY_POOL_DEPTH_M * POOL_FLOOR_DEEPEN`, dropping the
+ * centre well below the surface while the rim still meets the bank at the same
+ * waterline. The bowl stays the same quadratic (smooth shelf → deep centre), just
+ * scaled deeper. The drain, turtle and underwater rocks track the same factor so
+ * nothing floats off the new floor.
+ */
+const POOL_FLOOR_DEEPEN = 1.18; // +18% floor drop, surface datum unchanged
+const POOL_FLOOR_DEPTH_M = SANCTUARY_POOL_DEPTH_M * POOL_FLOOR_DEEPEN;
+
 function organicRimRadius(angle) {
   return (
     SANCTUARY_POOL_RADIUS_M *
@@ -131,15 +151,21 @@ function buildWaterSurface(centerY, textures) {
       `
     );
 
-    // Concentric ripples expanding outward from the pool centre — replaces
-    // the previous two directional Gerstner waves (NE + NW) that read as
-    // diagonal "sideways" stripes from the rim. Per user 2026-05-28:
-    // "remove sideways ripples in pool, add more of the same surface
-    // ripples like the fishing gauge has around it". Two summed radial
-    // sin waves at different frequencies give a richer interference
-    // pattern than a single ring while still reading as concentric.
-    // No horizontal displacement — radial Gerstner crowding would distort
-    // the rim, and the pond is too small for the look to pay off.
+    // WAVE-1 (2026-06-01) — SLOW + SUBTLE photoreal pond swell.
+    // User: "photo realistic waves in the pond again. just slow subtle waves."
+    // Concentric ripples expanding outward from the pool centre (no horizontal
+    // displacement — radial Gerstner crowding would distort the rim, and the
+    // pond is too small for it to pay off). Two summed radial sines: a gentle
+    // primary swell + a finer detail ripple. Amplitudes are a FEW CM and the
+    // temporal frequencies give a SLOW 6–12 s cycle so the water undulates
+    // calmly rather than chopping.
+    //
+    // PIP FREEZE: `time` is `uTime` = `_poolTimeUniform`, which the material
+    // publishes as `mat.userData.uTimeRef`. The Orchestrator's _preparePipScene
+    // walks the scene and zeroes every `uTimeRef` during the PIP render pass,
+    // so this whole displacement collapses to its rest pose (sin(phase) at
+    // time 0) and the compass/minimap stays perfectly still. Do NOT drive any
+    // wave term off a clock that keeps ticking inside the PIP pass.
     shader.vertexShader = shader.vertexShader.replace(
       "#include <begin_vertex>",
       `
@@ -147,15 +173,19 @@ function buildWaterSurface(centerY, textures) {
 
       float time = uTime;
       float vDist = length(uv - vec2(0.5));
-      float shoreFade = smoothstep(0.48, 0.35, vDist);
+      float shoreFade = smoothstep(0.48, 0.32, vDist);
 
-      // Two concentric ripples expanding from pool centre (vUv 0.5,0.5)
-      float phase1 = vDist * 22.0 - time * 0.32;
-      float z1 = sin(phase1) * 0.005;
+      // Primary gentle swell — ~2.0 cm, full cycle ≈ 8.0 s (omega 2π/8 ≈ 0.785).
+      // Long spatial wavelength so it reads as a soft heave, not tight rings.
+      float phase1 = vDist * 10.0 - time * 0.785;
+      float z1 = sin(phase1) * 0.020;
 
-      float phase2 = vDist * 36.0 - time * 0.45;
-      float z2 = sin(phase2) * 0.003;
+      // Finer detail ripple — ~0.8 cm, full cycle ≈ 6.0 s (omega 2π/6 ≈ 1.047).
+      float phase2 = vDist * 18.0 - time * 1.047;
+      float z2 = sin(phase2) * 0.008;
 
+      // Combined peak ≈ 2.8 cm. shoreFade tapers the swell to 0 at the bank
+      // so the waterline stays glued to the shore (no clipped/peaking shoreline).
       transformed.z += (z1 + z2) * shoreFade;
       `
     );
@@ -206,27 +236,41 @@ function buildWaterSurface(centerY, textures) {
       float shimmer = 0.88 + 0.12 * sin(time * 0.2);
       causticsVal *= shimmer;
       
-      // Concentric color ripples — same radial pattern as the vertex
-      // displacement so the surface shimmer reads as expanding rings
-      // from the pool centre instead of diagonal stripes.
+      // Concentric color ripples — matched to the WAVE-1 vertex swell
+      // (same spatial/temporal frequencies) so the surface shimmer reads as
+      // the same slow expanding rings from the pool centre, not a second
+      // mismatched pattern. Slow cycle (6–8 s), driven by the frozen uTime.
       float dist = length(vUv - vec2(0.5));
-      float ring1 = sin(dist * 36.0 - time * 0.45);
-      float ring2 = sin(dist * 22.0 - time * 0.30);
+      float ring1 = sin(dist * 10.0 - time * 0.785);
+      float ring2 = sin(dist * 18.0 - time * 1.047);
       float ripple = (ring1 + ring2) * 0.5;
 
       // Color tuning: greenish-blue pond water, but desaturated ~25% from
       // the previous mossy-emerald palette so the underwater sandy basin
-      // and gravel/rock detail can read through the 0.28-opacity surface.
+      // and gravel/rock detail can read through near the shore.
       // Blue channel slightly elevated to push toward "natural pond water"
-      // rather than "algae-green pool".
-      vec3 deepColor = mix(vec3(0.012, 0.10, 0.11), vec3(0.022, 0.14, 0.16), 0.5 + ripple * 0.10);
+      // rather than "algae-green pool". POND-DEEP (2026-06-01): the deep-
+      // centre colour is darkened a touch more so the deepened basin reads
+      // as genuinely DEEP from above and in the PIP minimap.
+      vec3 deepColor = mix(vec3(0.006, 0.062, 0.075), vec3(0.014, 0.10, 0.12), 0.5 + ripple * 0.10);
       vec3 shallowColor = mix(vec3(0.04, 0.18, 0.20), vec3(0.09, 0.28, 0.30), 0.5 + ripple * 0.10);
-      vec3 baseWaterColor = mix(deepColor, shallowColor, smoothstep(0.1, 0.5, distToCenter));
-      
-      // Caustic highlight blending — vibrant, soft bioluminescent teal glow
-      vec3 causticHighlight = vec3(0.35, 0.98, 0.90) * causticsVal * 0.65 * shorelineFade;
-      
+      // depthT: 1 at the deep centre → 0 at the shallow rim.
+      float depthT = 1.0 - smoothstep(0.08, 0.46, distToCenter);
+      vec3 baseWaterColor = mix(shallowColor, deepColor, depthT);
+
+      // Caustic highlight blending — vibrant, soft bioluminescent teal glow.
+      // Fade caustics out over the deep centre (light doesn't reach the bottom
+      // there) so they read as shallow-water shimmer near the shelf.
+      vec3 causticHighlight = vec3(0.35, 0.98, 0.90) * causticsVal * 0.65 * shorelineFade * (1.0 - 0.7 * depthT);
+
       diffuseColor.rgb = baseWaterColor + causticHighlight;
+
+      // POND-DEEP depth-readability: ramp OPACITY with depth. The shallow
+      // shelf stays clear (sandy floor + pebbles read through), while the
+      // deep centre turns nearly opaque so you cannot see the bottom — the
+      // single strongest cue that the pond is DEEP, top-down and in the PIP.
+      // base material opacity (0.28) is the shelf floor; centre lifts to ~0.92.
+      diffuseColor.a = mix(0.28, 0.92, depthT * depthT);
       `
     );
   };
@@ -368,7 +412,7 @@ export function basinFloorYAt(r, waterY) {
     : (typeof window !== "undefined" && Number.isFinite(window.__sanctuaryWaterY) ? window.__sanctuaryWaterY : -0.6);
   const inner = Math.min(1, r / SANCTUARY_POOL_RADIUS_M);
   const bowl = 1 - inner * inner;
-  const draped = -SANCTUARY_POOL_DEPTH_M * bowl + 0.02; // sand draped on the bowl
+  const draped = -POOL_FLOOR_DEPTH_M * bowl + 0.02;     // sand draped on the deepened bowl
   return Math.min(draped, wY - 0.03);                   // never above the waterline
 }
 
@@ -394,13 +438,13 @@ function buildBasinFloor(centerY) {
   // "sand at the rim" bug. Above the waterline the shore bank (terrain)
   // shows, which is correct. mesh.position.y is now 0 (offset baked here).
   const SAND_CLAMP_Z = centerY - 0.03;
-  positions.push(0, 0, Math.min(-SANCTUARY_POOL_DEPTH_M + 0.02, SAND_CLAMP_Z));  // centre vertex
+  positions.push(0, 0, Math.min(-POOL_FLOOR_DEPTH_M + 0.02, SAND_CLAMP_Z));  // deepened centre vertex
   uvs.push(0.5, 0.5);
   for (let ring = 1; ring <= RINGS; ring++) {
     const ringR = (ring / RINGS) * RADIUS;
     const inner = ringR / SANCTUARY_POOL_RADIUS_M;
     const bowl = 1 - inner * inner;     // quadratic — matches terrain
-    const localZ = Math.min(-SANCTUARY_POOL_DEPTH_M * bowl + 0.02, SAND_CLAMP_Z); // draped, clamped under water
+    const localZ = Math.min(-POOL_FLOOR_DEPTH_M * bowl + 0.02, SAND_CLAMP_Z); // draped deeper, clamped under water
     for (let i = 0; i <= SEGS; i++) {
       const theta = (i / SEGS) * Math.PI * 2;
       const x = Math.cos(theta) * ringR;
@@ -464,8 +508,8 @@ function buildDrainHole(centerY) {
   group.userData.anuKind = "sanctuary_pool_drain_hole";
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
-  // Sits at the bottom center of the carved pool basin
-  const y = centerY - SANCTUARY_POOL_DEPTH_M + 0.005; // Elevated a tiny bit to prevent z-fighting with basin floor
+  // Sits at the bottom center of the carved (deepened) pool basin
+  const y = centerY - POOL_FLOOR_DEPTH_M + 0.005; // Elevated a tiny bit to prevent z-fighting with basin floor
 
   // Outer bronze rustic ring
   const ringGeo = new THREE.RingGeometry(0.35, 0.45, 32);
@@ -637,7 +681,7 @@ function buildTurtle(centerY, textures) {
   group.userData.anuKind = "sanctuary_pool_turtle";
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FAUNA;
 
-  const y = centerY - SANCTUARY_POOL_DEPTH_M + 0.08; // slightly above floor
+  const y = centerY - POOL_FLOOR_DEPTH_M + 0.08; // slightly above the deepened floor
 
   // High-fidelity photorealistic canvas texture for the carapace
   const shellTex = _makeTurtleShellTexture();
@@ -863,7 +907,7 @@ function buildPoolRocks(centerY) {
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
   const rng = mulberry32(0xbeadca1a);
-  const bottomY = centerY - SANCTUARY_POOL_DEPTH_M * 0.62;
+  const bottomY = centerY - POOL_FLOOR_DEPTH_M * 0.62; // (unused fallback) track deepened floor
 
   // Earthy palette — sampled per-instance into instanceColor.
   // No moss-green or algae-gray; underwater they read as "grass" against
@@ -938,7 +982,7 @@ function buildPoolRocks(centerY) {
       const z = SANCTUARY_POOL_CENTER_Z + Math.sin(theta) * d;
       // quadratic bowl Y at this rock's distance from centre:
       const rInner = Math.min(1, d / SANCTUARY_POOL_RADIUS_M);
-      const bowlY = -SANCTUARY_POOL_DEPTH_M * (1 - rInner * rInner);
+      const bowlY = -POOL_FLOOR_DEPTH_M * (1 - rInner * rInner);
       const y = bowlY + 0.02 + rng() * 0.04 + scaleY * 0.3;
 
       _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
@@ -1029,7 +1073,7 @@ function buildPoolRocks(centerY) {
     const scaleZ = r * (0.85 + rng() * 0.35);
     // Sit pebble on local bowl floor (same quadratic as basin floor mesh).
     const pInner = Math.min(1, distFromCenter / SANCTUARY_POOL_RADIUS_M);
-    const pBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - pInner * pInner);
+    const pBowlY = -POOL_FLOOR_DEPTH_M * (1 - pInner * pInner);
     const y = pBowlY + 0.015 + rng() * 0.02 + scaleY * 0.3;
 
     _euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
@@ -1096,7 +1140,7 @@ function buildPoolRocks(centerY) {
     // Sit on the bowl-shaped basin floor: compute local Y from the same
     // quadratic the basin mesh uses, plus a tiny lift.
     const mInner = Math.min(1, d / SANCTUARY_POOL_RADIUS_M);
-    const mBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - mInner * mInner);
+    const mBowlY = -POOL_FLOOR_DEPTH_M * (1 - mInner * mInner);
     _pos.set(x, mBowlY + 0.015 + rng() * 0.015 + sBase * 0.3, z);
     _scl.set(sBase * (0.85 + rng() * 0.35), sBase * (0.55 + rng() * 0.25), sBase * (0.85 + rng() * 0.35));
     _m.compose(_pos, _quat, _scl);
@@ -1168,7 +1212,7 @@ function buildPoolRocks(centerY) {
 
     // Sit moss flush on the local bowl floor (same quadratic as basin floor mesh).
     const mInner = Math.min(1, dC / SANCTUARY_POOL_RADIUS_M);
-    const mBowlY = -SANCTUARY_POOL_DEPTH_M * (1 - mInner * mInner);
+    const mBowlY = -POOL_FLOOR_DEPTH_M * (1 - mInner * mInner);
     const y = mBowlY + 0.01 + rng() * 0.01;
     const tuftH = 0.03 + rng() * 0.05;          // 0.03–0.08 m tall
     const tuftW = tuftH * (0.6 + rng() * 0.6);  // slight width variance
@@ -2018,7 +2062,7 @@ export const SanctuaryPoolModule = {
       _turtleGroup.rotation.y = time * 0.03 + Math.PI / 2 + Math.sin(time * 0.06) * 0.05;
       
       // Highly subtle, slow breathing bob (Y position)
-      _turtleGroup.position.y = (this._waterY - SANCTUARY_POOL_DEPTH_M + 0.05) + Math.sin(time * 0.08) * 0.01;
+      _turtleGroup.position.y = (this._waterY - POOL_FLOOR_DEPTH_M + 0.05) + Math.sin(time * 0.08) * 0.01;
 
       // Animate flippers/legs swimming at an ultra-slow, lazy pace
       if (_turtleGroup.userData.flipperLRef) {

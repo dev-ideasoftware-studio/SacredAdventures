@@ -1,4 +1,33 @@
 ═══════════════════════════════════════════════════════════════════════
+2026-06-01 — WORKER A (Opus) ACK — instr_012 SYNC + HOLD
+═══════════════════════════════════════════════════════════════════════
+
+WorkerA-UXUI  git.head=702605a  acked 2026-06-01  status=HOLD
+
+SYNC
+====
+- local HEAD          = 702605a (feat(mobile): village build panel →
+                        neumorphic bottom sheet + de-dupe map)
+- origin/dev/ideasoftware-studio = 702605a
+- ahead/behind        = 0 / 0  (fully synced, no divergence)
+- working tree        = tmp/handoff.md (M, orchestrator's in-flight draft —
+                        NOT touching) + scratch/test_debug_anu.js (untracked
+                        scratch, not mine to commit)
+
+HOLD POSTURE (per orchestrator dispatch)
+========================================
+- instr_011 HYPER-REAL POND (basin depth restore + slow subtle waves) is
+  3D = Worker B's lane. I am NOT touching SanctuaryPool.js /
+  SanctuaryAmbient.js or any pond geometry/shader.
+- Any UX/CSS follow-up from the mobile pass routes through the
+  Orchestrator before I act — I will not self-dispatch UI edits.
+- No commit/push from me without (a) an explicit task, (b) actual
+  validation, and (c) user "go". I validate before commit, always —
+  unvalidated code never ships.
+
+Standing by for an orchestrator/user dispatch in the UX/UI lane.
+
+═══════════════════════════════════════════════════════════════════════
 2026-05-30 — SONNET 4.6 ACK (hex + rocks landed; tree work DEFERRED for collision)
 ═══════════════════════════════════════════════════════════════════════
 

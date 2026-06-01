@@ -1,9 +1,9 @@
 {
-  "subject": "feat(mobile): village build panel → neumorphic bottom sheet + de-dupe map",
-  "isoDate": "2026-06-01T15:12:44-05:00",
+  "subject": "feat(pool): restore deep basin floor drop + concentric ripples + Worker B coordinate ACK",
+  "isoDate": "2026-06-01T15:53:43-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "857ad7d",
+  "commit": "6c28540",
   "dirty": true,
-  "generatedAt": "2026-06-01T20:12:47.632Z"
+  "generatedAt": "2026-06-01T20:53:43.473Z"
 }
