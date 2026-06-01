@@ -1186,6 +1186,59 @@ export class SacredOrchestrator {
     );
   }
 
+  /**
+   * MOBILE PiP setup — single-context path. Same ortho/persp PiP cameras as the
+   * desktop pipeline, plus a render target the MAIN renderer draws into (see the
+   * mobile branch in `_renderWithMask`) and a 2D context on the visible pip
+   * canvas that receives the blitted frame. No 2nd WebGL context → no GPU-memory
+   * doubling on memory-limited phones (which is why the dedicated PiP renderer
+   * is skipped on mobile in the first place).
+   */
+  _ensureMobilePip(canvasEl) {
+    if (this._pipRT) return;
+    let { w, h } = this._computePipBackingSize(canvasEl);
+    // Cap mobile PiP resolution so the per-frame readback + extra scene pass
+    // stay cheap. 256² is ample for a minimap/compass at phone size.
+    const CAP = 256;
+    if (Math.max(w, h) > CAP) {
+      const s = CAP / Math.max(w, h);
+      w = Math.max(1, Math.round(w * s));
+      h = Math.max(1, Math.round(h * s));
+    }
+    canvasEl.width = w;
+    canvasEl.height = h;
+    this._pipW = w;
+    this._pipH = h;
+    this._pip2dCtx = canvasEl.getContext("2d");
+    if (!this._pip2dCtx) {
+      this._pipMobileFailed = true;
+      return;
+    }
+    this._pipRT = new THREE.WebGLRenderTarget(w, h, {
+      depthBuffer: true,
+      stencilBuffer: false,
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+    });
+    // Match the desktop look: encode RT output as sRGB so the readback bytes
+    // drop straight into the 2D canvas without a gamma shift.
+    if (THREE.SRGBColorSpace) this._pipRT.texture.colorSpace = THREE.SRGBColorSpace;
+    const span = V2_PIP_ORTHO_WIDTH * V2_PIP_ORTHO_ZOOM * (this._pipUserZoom || 1);
+    const aspect = w / Math.max(1, h);
+    const halfW = span / 2;
+    const halfH = halfW / aspect;
+    this._pipOrtho = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.5, 520);
+    this._pipOrtho.name = "pipOrtho";
+    this._pipPersp = new THREE.PerspectiveCamera(75, aspect, 0.12, 220);
+    this._pipPersp.name = "pipPersp";
+    this._pipOrtho.layers.enable(1); this._pipOrtho.layers.enable(0); this._pipOrtho.layers.enable(3);
+    this._pipPersp.layers.enable(1); this._pipPersp.layers.enable(0); this._pipPersp.layers.enable(3);
+    console.log(
+      "%c[SacredOrchestrator] 📱 mobile PiP via main-context render target (no 2nd WebGL context)",
+      "color:#81d4fa;font-weight:bold;",
+    );
+  }
+
   _resizePipIfNeeded(canvasEl) {
     if (!this._pipRenderer || !this._pipOrtho || !this._pipPersp) return;
     const { w, h } = this._computePipBackingSize(canvasEl);
@@ -1354,8 +1407,16 @@ export class SacredOrchestrator {
       return;
     }
 
-    if (!this._pipRenderer) this._ensurePipPipeline(pipCanvas);
-    if (!this._pipRenderer || !this._pipOrtho || !this._pipPersp) {
+    // Mobile renders the PiP through the MAIN context into a render target (no
+    // 2nd WebGL context → no GPU-memory doubling). Desktop keeps the dedicated
+    // 2nd-context renderer.
+    if (this._isMobile) {
+      if (!this._pipRT && !this._pipMobileFailed) this._ensureMobilePip(pipCanvas);
+    } else if (!this._pipRenderer) {
+      this._ensurePipPipeline(pipCanvas);
+    }
+    const pipReady = this._isMobile ? !!this._pipRT : !!this._pipRenderer;
+    if (!pipReady || !this._pipOrtho || !this._pipPersp) {
       this._pipRenderedLastFrame = false;
       return;
     }
@@ -1371,7 +1432,9 @@ export class SacredOrchestrator {
       // Only do this expensive createImageBitmap call if the panel is actually visible
       const iframe = document.getElementById("v4-panel-frame");
       if (!isFishingActive && iframe && iframe.contentWindow && window._v4PanelOpen !== false) {
-        createImageBitmap(this._pipRenderer.domElement).then((bitmap) => {
+        // Mobile has no _pipRenderer — its frame lives on the 2D pip canvas.
+        const pipSrc = this._pipRenderer ? this._pipRenderer.domElement : pipCanvas;
+        createImageBitmap(pipSrc).then((bitmap) => {
           iframe.contentWindow.postMessage({ type: "PIP_FRAME", bitmap }, "*", [bitmap]);
         }).catch(() => {});
       }
@@ -1618,6 +1681,46 @@ export class SacredOrchestrator {
       const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
       bgMesh.position.z = -0.5;
       this._pipBgScene.add(bgMesh);
+    }
+
+    // ── MOBILE: render the same 3 passes through the MAIN renderer into an
+    // offscreen target, then blit to the visible 2D pip canvas. One context,
+    // no GPU-memory doubling. Runs after the main scene render (loop order), so
+    // we save/restore the render target around it. ──────────────────────────
+    if (this._isMobile && this._pipRT) {
+      const r = this.renderer;
+      const prevTarget = r.getRenderTarget();
+      const prevAutoClear = r.autoClear;
+      try {
+        r.setRenderTarget(this._pipRT);
+        r.autoClear = false;
+        r.clear();
+        r.render(this._pipMaskScene, this._pipMaskCam);
+        r.render(this._pipBgScene, this._pipBgCam);
+        r.render(this.scene, camera);
+      } finally {
+        r.autoClear = prevAutoClear;
+        r.setRenderTarget(prevTarget);
+      }
+      try {
+        const w = this._pipW, h = this._pipH, row = w * 4;
+        if (!this._pipReadBuf || this._pipReadBuf.length !== w * h * 4) {
+          this._pipReadBuf = new Uint8Array(w * h * 4);
+          this._pipReadImg = this._pip2dCtx.createImageData(w, h);
+        }
+        r.readRenderTargetPixels(this._pipRT, 0, 0, w, h, this._pipReadBuf);
+        // WebGL readback is bottom-up; canvas ImageData is top-down → flip rows.
+        const d = this._pipReadImg.data, src = this._pipReadBuf;
+        for (let y = 0; y < h; y++) {
+          d.set(src.subarray((h - 1 - y) * row, (h - 1 - y) * row + row), y * row);
+        }
+        this._pip2dCtx.putImageData(this._pipReadImg, 0, 0);
+      } catch (err) {
+        // A readback failure must never break the loop — disable mobile PiP.
+        this._pipMobileFailed = true;
+        console.warn("[SacredOrchestrator] mobile PiP blit failed — disabling PiP:", err);
+      }
+      return;
     }
 
     const origAutoClear = this._pipRenderer.autoClear;

@@ -1,9 +1,9 @@
 {
-  "subject": "chore(mobile): remove temp boot tracer — mobile load fixed",
-  "isoDate": "2026-06-01T05:38:04-05:00",
+  "subject": "feat(mobile): restore PiP minimap via main-context render target",
+  "isoDate": "2026-06-01T05:53:16-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "548dc58",
+  "commit": "0e0c204",
   "dirty": true,
-  "generatedAt": "2026-06-01T10:38:08.182Z"
+  "generatedAt": "2026-06-01T10:53:20.492Z"
 }
