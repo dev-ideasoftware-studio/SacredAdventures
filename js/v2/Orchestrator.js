@@ -608,6 +608,19 @@ export class SacredOrchestrator {
    */
   _performBootRenderWarmup(renderer, camera) {
     if (!renderer || !camera || !this.scene) return;
+    // MOBILE: skip the all-geometry warm-up upload. It bypasses frustum culling
+    // to force EVERY mesh's VBO/IBO + every texture to upload in ONE pass — a
+    // GPU-memory PEAK that exhausts the mobile GPU process and makes the next
+    // WebGL context fail to create ("can't load WebGL") / kills the page. On
+    // mobile we let geometry upload lazily per-frame (a minor first-move
+    // stutter) so the boot peak stays inside the device budget. Desktop keeps
+    // the full warm-up for stutter-free first movement.
+    if (this._isMobile) {
+      console.log(
+        "[SacredOrchestrator] 📱 boot geometry warm-up SKIPPED on mobile (GPU peak-memory guard)",
+      );
+      return;
+    }
     const target = new THREE.WebGLRenderTarget(1, 1);
     const savedRT = renderer.getRenderTarget();
 
