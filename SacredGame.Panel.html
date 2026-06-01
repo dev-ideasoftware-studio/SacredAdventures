@@ -1163,6 +1163,14 @@
                 display: none !important; /* HIDE MOVEMENT BUTTONS ON MOBILE */
             }
 
+            /* Lift the movement thumb (left) + avatar/action circle (right) up
+               60px so their circles clear the guide-button row (#center-stack)
+               instead of clipping the QUESTS/GATHER/FISH/OBSERVE/JOURNAL cards. */
+            #left-panel,
+            #right-panel {
+                bottom: calc(var(--panel-offset) + 60px) !important;
+            }
+
             /* --- SIDE PANEL MOBILE TOGGLE --- */
             #left-panel {
                 transition: transform 0.3s ease-in-out !important;

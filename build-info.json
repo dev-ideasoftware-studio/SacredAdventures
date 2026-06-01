@@ -1,9 +1,9 @@
 {
-  "subject": "style(mobile): shrink compass PiP by 1/3 on touch devices",
-  "isoDate": "2026-06-01T06:02:27-05:00",
+  "subject": "style(mobile): declutter HUD — shrink top panels, lift controls, flush badge",
+  "isoDate": "2026-06-01T06:10:15-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "d5879f4",
+  "commit": "5ace362",
   "dirty": true,
-  "generatedAt": "2026-06-01T11:02:30.503Z"
+  "generatedAt": "2026-06-01T11:10:18.415Z"
 }
