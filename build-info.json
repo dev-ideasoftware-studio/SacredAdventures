@@ -1,9 +1,9 @@
 {
-  "subject": "chore(pwa): replace caching service worker with self-destruct kill-switch (no caching)",
-  "isoDate": "2026-05-31T23:56:55-05:00",
+  "subject": "perf(render): cap DPR at 1.5 + raise PIP stride 12->16 for FPS",
+  "isoDate": "2026-05-31T23:56:59-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "548957d",
+  "commit": "62ab5b5",
   "dirty": true,
-  "generatedAt": "2026-06-01T04:56:58.943Z"
+  "generatedAt": "2026-06-01T04:57:02.607Z"
 }

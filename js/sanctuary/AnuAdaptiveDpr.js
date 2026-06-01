@@ -147,10 +147,14 @@ export const AnuAdaptiveDprModule = {
 
   async load(scene, camera, renderer) {
     _renderer = renderer;
+    // FPS cap (user-approved 2026-06-01): clamp the max device DPR to 1.5 so
+    // hi-DPI (Retina) displays never render above 1.5× — ~44% fewer pixels than
+    // 2.0 for a large FPS gain at a slight sharpness cost. The adaptive ladder
+    // still scales DOWN from here under load; this only caps the ceiling.
     _deviceDprCap =
       typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)
-        ? window.devicePixelRatio
-        : 2;
+        ? Math.min(window.devicePixelRatio, 1.5)
+        : 1.5;
     // Start at the highest ladder rung the device supports, but never
     // higher than the orchestrator's existing cap.
     const currentDpr = renderer.getPixelRatio();

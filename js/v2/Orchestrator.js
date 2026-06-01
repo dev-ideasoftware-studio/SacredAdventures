@@ -111,7 +111,7 @@ export class SacredOrchestrator {
     // we get native Retina sharpness when available without paying for
     // 3× DPR phones / kiosks. Adaptive policy still has the freedom to
     // dial this back via `setPixelRatio` if FPS bends under load.
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     // Shadows enabled — flat black contact discs under trees / rabbits
     // were the second-largest "ugly" read in the landscape screenshot.
@@ -937,7 +937,7 @@ export class SacredOrchestrator {
       // SECOND WebGL context every other frame; at 1024² (1,048,576 px) with
       // MSAA + preserveDrawingBuffer that second-context fill was the dominant
       // fishing-mode cost (ANU flagged "pip-pass — severe"). 640² (409,600 px,
-      // ~61% fewer) still gives ~3.5x supersampling for the moondial-wrapper
+      // ~61% fewer) still gives ~3.5x supersampling for the pip-compass-wrapper
       // display, so the gauge close-up stays crisp, while roughly halving the
       // fishing PIP fill + the preserveDrawingBuffer copy. Tunable: bump toward
       // 768 if the gauge reads soft on a hi-DPI display.
