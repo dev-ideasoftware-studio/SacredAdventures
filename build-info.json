@@ -1,9 +1,9 @@
 {
-  "subject": "feat(render): ANU-governed priority ladder — bypass PiP pass under critical frame pressure",
-  "isoDate": "2026-06-01T00:03:32-05:00",
+  "subject": "fix(render): refresh-aware adaptive thresholds — stop perpetual shedding at 57-60fps on 60Hz",
+  "isoDate": "2026-06-01T00:49:21-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "6c3f71e",
+  "commit": "b98d414",
   "dirty": true,
-  "generatedAt": "2026-06-01T05:03:36.389Z"
+  "generatedAt": "2026-06-01T05:49:25.539Z"
 }

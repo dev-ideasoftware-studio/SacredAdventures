@@ -94,9 +94,12 @@ export function getSystemStressLevel() {
       }
     }
 
-    // Calculate thresholds relative to the actual target MS (dynamic vsync headroom)
-    const stressThreshold = targetMs;
-    const criticalThreshold = targetMs * 1.5;
+    // Thresholds relative to the actual refresh, WITH headroom so a panel
+    // sitting just under its vsync ceiling (e.g. 57-60 fps on 60 Hz) reads
+    // OPTIMAL — full shadows + PiP — instead of perpetually shedding. Stress
+    // only below ~48 fps (60 Hz), critical (PiP bypass) only below ~37 fps.
+    const stressThreshold = targetMs * 1.25;
+    const criticalThreshold = targetMs * 1.6;
 
     if (avg <= stressThreshold) return STRESS_LEVELS.OPTIMAL;
     if (avg <= criticalThreshold) return STRESS_LEVELS.STRESS;

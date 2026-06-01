@@ -14,23 +14,43 @@ import {
   setAdaptivePipStrideTarget,
 } from "./RenderingGovernor.js";
 
-/** ~76 FPS wall — begin accumulating stress */
-const STRESS_MS = 13.2;
-/** ~105 FPS wall — begin accumulating relax */
-const RELAX_MS = 9.5;
+// Refresh-AWARE thresholds. The old fixed 13.2 ms ("~76 FPS") wall meant a
+// 60 Hz panel at 57-60 fps was PERPETUALLY "stressed" and kept shedding the
+// PiP — that was the throttling feel. Now the thresholds scale to the ACTUAL
+// display refresh probed by AnuAdaptiveDpr: stress ~40% over the frame budget
+// (≈43 fps on 60 Hz), relax ~10% over (≈55 fps). High-refresh panels stay
+// responsive; 60 Hz panels get full headroom at their vsync ceiling.
 const STRESS_FRAMES_NEED = 40;
 const RELAX_FRAMES_NEED = 90;
+const _FALLBACK_TARGET_MS = 1000 / 60;
 
 let _stressStreak = 0;
 let _relaxStreak = 0;
+let _lastStressMs = _FALLBACK_TARGET_MS * 1.4;
+let _lastRelaxMs = _FALLBACK_TARGET_MS * 1.1;
+
+function _refreshTargetMs() {
+  let targetMs = _FALLBACK_TARGET_MS;
+  if (typeof window !== "undefined" && window.AnuUniverse?.adaptiveDpr) {
+    try {
+      const snap = window.AnuUniverse.adaptiveDpr.snapshot();
+      if (snap && snap.targetMs > 0) targetMs = snap.targetMs;
+    } catch (_) { /* defensive */ }
+  }
+  return targetMs;
+}
 
 export function tickAdaptiveRenderPolicy(frameMs) {
   const base = V2_PIP_RENDER_EVERY_N_FRAMES;
   if (base <= 0) return;
 
+  const targetMs = _refreshTargetMs();
+  _lastStressMs = targetMs * 1.4;
+  _lastRelaxMs = targetMs * 1.1;
+
   const cur = getEffectivePipStride();
 
-  if (frameMs > STRESS_MS) {
+  if (frameMs > _lastStressMs) {
     _stressStreak++;
     _relaxStreak = 0;
     if (_stressStreak >= STRESS_FRAMES_NEED) {
@@ -39,7 +59,7 @@ export function tickAdaptiveRenderPolicy(frameMs) {
         setAdaptivePipStrideTarget(cur + 1);
       }
     }
-  } else if (frameMs < RELAX_MS) {
+  } else if (frameMs < _lastRelaxMs) {
     _relaxStreak++;
     _stressStreak = 0;
     if (_relaxStreak >= RELAX_FRAMES_NEED) {
@@ -60,7 +80,7 @@ export function getAdaptivePolicyDebug() {
     relaxStreak: _relaxStreak,
     effectiveStride: getEffectivePipStride(),
     baselineStride: V2_PIP_RENDER_EVERY_N_FRAMES,
-    stressThresholdMs: STRESS_MS,
-    relaxThresholdMs: RELAX_MS,
+    stressThresholdMs: _lastStressMs,
+    relaxThresholdMs: _lastRelaxMs,
   });
 }
