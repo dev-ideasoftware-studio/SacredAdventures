@@ -1,9 +1,9 @@
 {
-  "subject": "fix(render): refresh-aware adaptive thresholds — stop perpetual shedding at 57-60fps on 60Hz",
-  "isoDate": "2026-06-01T00:49:21-05:00",
+  "subject": "feat(dock): photoreal procedural wood grain + bump on planks, rails, and support logs",
+  "isoDate": "2026-06-01T00:52:39-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "b98d414",
+  "commit": "3526152",
   "dirty": true,
-  "generatedAt": "2026-06-01T05:49:25.539Z"
+  "generatedAt": "2026-06-01T05:52:43.020Z"
 }

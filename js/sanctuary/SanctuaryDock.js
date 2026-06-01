@@ -70,34 +70,75 @@ export function getDockSurfaceY(wx, wz) {
 let _cachedDeckMat = null;
 let _cachedDarkMat = null;
 let _cachedRailMat = null;
+let _woodGrainTex = null;
+
+// Procedural GRAYSCALE wood-grain texture — light base + darker wavy grain
+// streaks + a few knots. Used as `map` (it MULTIPLIES each material's wood
+// COLOR tint, so the existing day/night setHex() colour logic still works)
+// and as `bumpMap` (real surface relief). Turns the flat solid-colour planks
+// and round support logs into photoreal grained timber — no geometry change.
+function woodGrainTexture() {
+  if (_woodGrainTex) return _woodGrainTex;
+  if (typeof document === "undefined") return null;
+  const W = 512, H = 512;
+  const cvs = document.createElement("canvas");
+  cvs.width = W; cvs.height = H;
+  const ctx = cvs.getContext("2d");
+  ctx.fillStyle = "#e8e8e8"; ctx.fillRect(0, 0, W, H); // light base ≈ full tint
+  let seed = 0x51ed7a3;
+  const rng = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  // Longitudinal wavy grain streaks.
+  for (let i = 0; i < 170; i++) {
+    let yy = rng() * H;
+    const d = 70 + Math.floor(rng() * 90);
+    ctx.strokeStyle = `rgba(${d},${d},${d},${0.12 + rng() * 0.30})`;
+    ctx.lineWidth = 0.6 + rng() * 2.4;
+    ctx.beginPath(); ctx.moveTo(0, yy);
+    for (let x = 0; x <= W; x += 14) { yy += (rng() - 0.5) * 5; ctx.lineTo(x, yy); }
+    ctx.stroke();
+  }
+  // A few darker knots.
+  for (let k = 0; k < 4; k++) {
+    const kx = rng() * W, ky = rng() * H, kr = 5 + rng() * 11;
+    const g = ctx.createRadialGradient(kx, ky, 1, kx, ky, kr);
+    g.addColorStop(0, "rgba(55,50,45,0.85)"); g.addColorStop(1, "rgba(160,160,160,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(kx, ky, kr, 0, Math.PI * 2); ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  tex.anisotropy = 4;
+  _woodGrainTex = tex;
+  return tex;
+}
 
 function deckMaterial() {
   if (_cachedDeckMat) return _cachedDeckMat;
+  const grain = woodGrainTexture();
   _cachedDeckMat = new THREE.MeshStandardMaterial({
-    color: 0x2c190d, // rich photorealistic dark wood
-    roughness: 0.85,
-    metalness: 0.02,
-    flatShading: false,
+    color: 0x2c190d, // rich dark wood tint (grain map modulates it)
+    map: grain, bumpMap: grain, bumpScale: 0.018,
+    roughness: 0.82, metalness: 0.02, flatShading: false,
   });
   return _cachedDeckMat;
 }
 function darkWoodMaterial() {
   if (_cachedDarkMat) return _cachedDarkMat;
+  const grain = woodGrainTexture();
   _cachedDarkMat = new THREE.MeshStandardMaterial({
-    color: 0x1a0f0a, // extremely dark aged charcoal wood
-    roughness: 0.85,
-    metalness: 0.02,
-    flatShading: false,
+    color: 0x1a0f0a, // aged log timber (round support posts)
+    map: grain, bumpMap: grain, bumpScale: 0.026,
+    roughness: 0.88, metalness: 0.02, flatShading: false,
   });
   return _cachedDarkMat;
 }
 function railMaterial() {
   if (_cachedRailMat) return _cachedRailMat;
+  const grain = woodGrainTexture();
   _cachedRailMat = new THREE.MeshStandardMaterial({
-    color: 0x23130a, // dark wood rail
-    roughness: 0.85,
-    metalness: 0.02,
-    flatShading: false,
+    color: 0x23130a, // dark wood rail tint
+    map: grain, bumpMap: grain, bumpScale: 0.02,
+    roughness: 0.84, metalness: 0.02, flatShading: false,
   });
   return _cachedRailMat;
 }
