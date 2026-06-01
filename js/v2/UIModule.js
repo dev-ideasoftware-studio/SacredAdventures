@@ -50,7 +50,7 @@ export const UIModule = {
         }
         #panel-frame { width: 100%; height: 100%; border: 0; background: transparent; pointer-events: none; display:none; }
         
-        #moondial-wrapper {
+        #pip-compass-wrapper {
           position: absolute;
           top: 20px;
           left: 20px;
@@ -75,7 +75,7 @@ export const UIModule = {
         }
 
         @media (max-width: 768px) {
-          #moondial-wrapper {
+          #pip-compass-wrapper {
             --pip-moon-track: 11px;
             --pip-compass-track: 10px;
             --pip-outer-track: 8px;
@@ -208,7 +208,7 @@ export const UIModule = {
       </style>
       <div id="v2-side-panel"><iframe id="panel-frame" title="Sacred Adventures Panel"></iframe></div>
       <div id="v2-distance-pill">POS: 0.0, 0.0, 0.0 | YAW: 0.00</div>
-      <div id="moondial-wrapper" title="Sacred Adventures v2 — moondial">
+      <div id="pip-compass-wrapper" title="Sacred Adventures — compass minimap">
         <div class="compass-outer-ring">
           <span class="compass-marker n">N</span>
           <span class="compass-marker s">S</span>

@@ -1696,7 +1696,7 @@ body.reading-mode #mobile-controls {
                 /* === AAA AWARD-WINNING COMPASS DIAL === */
         /* Replaced static/flat rings with multi-stage glossy rims, glassmorphism lenses, and dynamic rotating tick marks */
 
-        #moondial-wrapper {
+        #pip-compass-wrapper {
             position: absolute;
             top: 50px;
             left: 20px;
@@ -1879,7 +1879,7 @@ body.reading-mode #mobile-controls {
             transform: translateY(-50%);
         }
 
-        #moondial-wrapper iframe {
+        #pip-compass-wrapper iframe {
             position: absolute;
             inset: -30px;
             /* Reduced by half (from 46px) so it sits tighter around the ring */
@@ -1902,7 +1902,7 @@ body.reading-mode #mobile-controls {
             }
         }
 
-        #moondial-wrapper iframe {
+        #pip-compass-wrapper iframe {
             position: absolute;
             inset: 6px;
             width: calc(100% - 12px);
@@ -1913,7 +1913,7 @@ body.reading-mode #mobile-controls {
             z-index: 2;
         }
 
-        #moondial-wrapper canvas {
+        #pip-compass-wrapper canvas {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -1924,7 +1924,7 @@ body.reading-mode #mobile-controls {
             z-index: 1;
         }
 
-        #moondial-wrapper canvas:hover {
+        #pip-compass-wrapper canvas:hover {
             transform: translate(-50%, -50%) scale(1.05);
             filter: none;
         }

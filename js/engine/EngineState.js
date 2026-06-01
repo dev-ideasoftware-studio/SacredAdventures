@@ -91,5 +91,5 @@ S._marker.renderOrder = 998;
 export function cacheDOMElements() {
     S._timeEl = document.getElementById('time-display');
     S._statsEl = document.getElementById('dev-fps') || document.getElementById('stats-hud');
-    S._moonFrame = document.getElementById('moondial-frame');
+    S._moonFrame = document.getElementById('pip-compass-frame');
 }

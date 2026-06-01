@@ -883,7 +883,7 @@ export function syncVillageViewRightStackCssVars() {
   }
 
   let moonBottomPx = afterHudPx;
-  const moon = document.querySelector("#v2-panels-pip #moondial-wrapper");
+  const moon = document.querySelector("#v2-panels-pip #pip-compass-wrapper");
   if (moon) {
     const st = getComputedStyle(moon);
     if (st.display !== "none" && st.visibility !== "hidden") {
@@ -935,7 +935,7 @@ export function attachVillageViewRightStackLayout() {
 
   const observeTargets = () => {
     const hud = document.getElementById("v2-orchestrator-hud");
-    const moon = document.querySelector("#v2-panels-pip #moondial-wrapper");
+    const moon = document.querySelector("#v2-panels-pip #pip-compass-wrapper");
     const merged = document.querySelector("#v2-village-builder #vb-merged-panel");
     return [hud, moon, merged].filter(Boolean);
   };

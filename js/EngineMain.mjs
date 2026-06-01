@@ -444,7 +444,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         // setupLensflare and setupOpticalMask extracted to Component.PostProcessing.js
         function setupPIP() {
             // PIP Renderer REMOVED: Replaced with Native WebGL Scissor Pipeline
-            const wrapper = document.getElementById('moondial-wrapper');
+            const wrapper = document.getElementById('pip-compass-wrapper');
 
             // AXE LOGBOOK RENDERER (CONSOLIDATED INTO MAIN RENDERER)
             window.axeCanvas2D = document.createElement('canvas');
@@ -1953,7 +1953,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                         window._nativeMapCam.updateProjectionMatrix();
 
                         // pipCamera stays as a PerspectiveCamera FPV mirror.
-                        // Restore its aspect ratio to square for the moondial (PiP is square).
+                        // Restore its aspect ratio to square for the pip-compass (PiP is square).
                         if (pipCamera.isPerspectiveCamera) {
                             pipCamera.aspect = 1.0;
                             pipCamera.updateProjectionMatrix();
@@ -1966,7 +1966,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
 
                     } else {
                         // Exit MAP MODE -> Return to FPV
-                        // Restore pipCamera aspect to square for moondial FPV mirror
+                        // Restore pipCamera aspect to square for pip-compass FPV mirror
                         if (pipCamera.isPerspectiveCamera) {
                             pipCamera.aspect = 1.0;
                             pipCamera.updateProjectionMatrix();
@@ -3133,7 +3133,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
         function cacheDOMElements() {
             _timeEl = document.getElementById('time-display');
             _statsEl = document.getElementById('dev-fps') || document.getElementById('stats-hud');
-            _moonFrame = document.getElementById('moondial-frame');
+            _moonFrame = document.getElementById('pip-compass-frame');
         }
 // Cache after DOM ready
         setTimeout(cacheDOMElements, 100);
@@ -3752,7 +3752,7 @@ window._DEBUG_MIDNIGHT = true; // SET TO FALSE TO SYNC DAY/NIGHT WITH YOUR REAL 
                 // SCENARIOS decoupled from execution to prevent z-fighting / erasing
                 if (window._isMapView) {
                     drewMapMain = true;
-                    // In map view: moondial PiP shows the top-down map camera feed,
+                    // In map view: pip-compass PiP shows the top-down map camera feed,
                     // FPV is rendered separately into the top-left-fpv scissor window.
                     if (shouldPIP) window._pendingPipCamera = pipCamera;
                     else window._pendingPipCamera = null;

@@ -1001,14 +1001,14 @@ export const SanctuaryFishingModule = {
     // ── PIP frosted-plastic "fish-finder lens" CSS ────────────────────
     // User-requested 2026-05-28: "reduce the opacity of the PIP glass
     // in FISHING GAME VIEW". When body.v4-fishing-active is set (toggled
-    // by the phase-change handler) the moondial-wrapper's dark frosted
+    // by the phase-change handler) the pip-compass-wrapper's dark frosted
     // backdrop lightens and the inset shadow softens so the gauge +
     // close-up gauge view read clearly through the glass.
     if (typeof document !== "undefined" && !document.getElementById("v4-fishing-pip-glass-style")) {
       const s = document.createElement("style");
       s.id = "v4-fishing-pip-glass-style";
       s.textContent = `
-        body.v4-fishing-active #moondial-wrapper {
+        body.v4-fishing-active #pip-compass-wrapper {
           background: transparent !important;
           border-color: rgba(255, 215, 0, 0.55) !important;
           box-shadow:
