@@ -659,9 +659,28 @@ export class SacredOrchestrator {
         }
       }
 
-      // ── Render ────────────────────────────────────────────────────────────
-      this.renderer.render(this.scene, this.camera);
-      this._renderPip();
+      // ── RENDER PRIORITY LADDER (ANU-governed bottleneck bypass) ───────────
+      // ANU's #1 bottleneck is "pip-pass": the PiP re-renders the WHOLE scene
+      // into a SECOND WebGL context — the most expensive, least-important pass.
+      // So it sheds FIRST under frame pressure (ANU rec: "temporarily disable
+      // PiP 3D"). Render priority:
+      //   P0  main scene — ALWAYS rendered at full quality, never skipped.
+      //   P1  shadows    — sampled under STRESS / CRITICAL (handled above).
+      //   P2  PiP 3D     — stride-throttled under STRESS (AdaptiveRenderPolicy),
+      //                    and fully BYPASSED under CRITICAL. Hysteresis: enter
+      //                    bypass at CRITICAL, only resume at OPTIMAL — so it
+      //                    never oscillates on/off around the threshold. The
+      //                    minimap simply holds its last frame while bypassed,
+      //                    handing the freed GPU time back to the main view.
+      if (stress === STRESS_LEVELS.CRITICAL) this._pipBypass = true;
+      else if (stress === STRESS_LEVELS.OPTIMAL) this._pipBypass = false;
+
+      this.renderer.render(this.scene, this.camera); // P0 — never skipped
+      if (this._pipBypass) {
+        this._pipRenderedLastFrame = false;          // P2 bypassed — hold last PiP frame
+      } else {
+        this._renderPip();
+      }
 
       // ── HUD update (every 20 frames) ──────────────────────────────────────
       // HUD reflects the FPS sensors; trap it so a render of a bad value can

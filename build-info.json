@@ -1,9 +1,9 @@
 {
-  "subject": "refactor(pip): rename 'moondial' -> 'pip-compass' (it is a compass, not a moondial)",
-  "isoDate": "2026-05-31T23:57:02-05:00",
+  "subject": "feat(render): ANU-governed priority ladder — bypass PiP pass under critical frame pressure",
+  "isoDate": "2026-06-01T00:03:32-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "5eb7f36",
+  "commit": "6c3f71e",
   "dirty": true,
-  "generatedAt": "2026-06-01T04:57:06.244Z"
+  "generatedAt": "2026-06-01T05:03:36.389Z"
 }
