@@ -1,9 +1,9 @@
 {
-  "subject": "fix(ui): remove last 'UNIVERSE.ANU' from panel header + loading subline -> 'Simulation Universe'",
-  "isoDate": "2026-06-01T01:38:53-05:00",
+  "subject": "fix(mobile): vendor es-module-shims + load before importmap (WebKit/iOS module-load fix)",
+  "isoDate": "2026-06-01T01:45:20-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "c089cdc",
+  "commit": "9cfcaca",
   "dirty": true,
-  "generatedAt": "2026-06-01T06:38:57.038Z"
+  "generatedAt": "2026-06-01T06:45:23.872Z"
 }

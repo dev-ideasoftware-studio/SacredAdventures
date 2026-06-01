@@ -173,6 +173,12 @@
     #v4-banner small { display: block; color: #a5d6a7; font-size: 10px; margin-top: 4px; letter-spacing: 1.4px; }
   </style>
 
+  <!-- WebKit / iOS fix: es-module-shims polyfills import maps + module loading on
+       Safari builds that lack or mis-handle native import-map support, so the
+       module-based engine actually boots on mobile WebKit. Loaded async, BEFORE
+       the importmap. On browsers with native import-map support it stays inert,
+       so there is zero impact on desktop Chrome/Firefox/modern Safari. -->
+  <script async src="./vendor/es-module-shims/es-module-shims.js"></script>
   <script type="importmap">
     {
       "imports": {
