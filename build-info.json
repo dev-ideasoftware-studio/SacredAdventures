@@ -1,9 +1,9 @@
 {
-  "subject": "fix(mobile): scope panel corner-reposition to phones (≤860px) — fix action-ring clip on coarse tablets",
-  "isoDate": "2026-06-01T16:46:05-05:00",
+  "subject": "fix(journal): re-hook JOURNAL buttons — open loads the book, display:none close",
+  "isoDate": "2026-06-01T19:08:33-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "fc8bdde",
+  "commit": "82e7c5c",
   "dirty": true,
-  "generatedAt": "2026-06-01T21:46:08.618Z"
+  "generatedAt": "2026-06-02T00:08:36.914Z"
 }

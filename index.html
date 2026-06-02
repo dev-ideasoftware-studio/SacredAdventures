@@ -676,12 +676,17 @@
       if (!overlay) return;
       window._v4JournalOpen = !!open;
       window._v4InputSuppressed = !!open;
-      overlay.classList.toggle('open', !!open);
+      overlay.classList.toggle('open', !!open);  // .open → display:flex ; no .open → display:none
       try {
-        frame?.contentWindow?.postMessage(
-          { type: 'VISIBILITY_CHANGE', isVisible: !!open },
-          '*',
-        );
+        // OPEN: tell the journal to load Component.NewJournal.html + show its book.
+        // (FORCE_OPEN_JOURNAL reaches the book-open handler; posting VISIBILITY_CHANGE
+        //  alone was the old bug that left the book BLANK.)
+        // CLOSE: the overlay's `display:none` (see #v4-journal-overlay CSS) fully hides
+        // AND stops rendering the journal iframe — zero GPU — so we don't force-close the
+        // inner book here (that 3-frame path is fragile). VISIBILITY_CHANGE lets the book
+        // pause its flip animation. (journal re-hook 2026-06-01)
+        if (open) frame?.contentWindow?.postMessage({ type: 'FORCE_OPEN_JOURNAL' }, '*');
+        frame?.contentWindow?.postMessage({ type: 'VISIBILITY_CHANGE', isVisible: !!open }, '*');
       } catch (_) {}
     }
     window._v4ToggleJournal = () => _v4SetJournalOpen(!window._v4JournalOpen);
@@ -742,6 +747,7 @@
     window.addEventListener('message', (event) => {
       const t = event.data?.type;
       if (t === 'REQ_OPEN_JOURNAL') _v4SetJournalOpen(true);
+      if (t === 'REQ_TOGGLE_JOURNAL') _v4ToggleJournal();   // panel JOURNAL buttons (journal re-hook 2026-06-01)
       if (t === 'REQ_CLOSE_PANEL') _v4SetPanelOpen(false);
     });
 

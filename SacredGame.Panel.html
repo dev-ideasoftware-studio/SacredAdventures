@@ -2564,10 +2564,11 @@
         // Unified Toggle Logbook — delegates to journal iframe
         window.toggleLogbook = () => {
             window._hasUserToggledLogbook = true;
-            const jf = getJournalFrame();
-            if (jf && jf.contentWindow) {
-                jf.contentWindow.postMessage({ type: 'REQ_TOGGLE_LOGBOOK' }, '*');
-            }
+            // The journal overlay (#v4-journal-overlay) lives in the PARENT (index.html).
+            // Route the toggle there. Previously this posted to getJournalFrame(), which
+            // looked up the wrong id ('journal-frame' vs the real 'v4-journal-frame') and
+            // returned null — so the JOURNAL buttons did nothing. (journal re-hook 2026-06-01)
+            try { window.parent.postMessage({ type: 'REQ_TOGGLE_JOURNAL' }, '*'); } catch (_e) {}
         };
 
         // --- SIDE PANEL LOGIC ---

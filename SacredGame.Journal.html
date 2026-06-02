@@ -439,6 +439,18 @@
                 return;
             }
 
+            // --- Force-close (directed + idempotent — from index.html overlay close) ---
+            // CLOSE_LOGBOOK is intercepted above (panelBoundTypes → forwarded to the
+            // panel), so the overlay needs a distinct directed-close that actually
+            // closes THIS book. Idempotent: no-op if already hidden (no toggle loop).
+            if (msg.type === 'FORCE_CLOSE_JOURNAL') {
+                const book = document.getElementById('book-wrapper');
+                if (book && !book.classList.contains('book-hidden') && !book.classList.contains('closing')) {
+                    window.toggleLogbook();
+                }
+                return;
+            }
+
             // --- Close journal (from engine or panel) ---
             if (msg.type === 'CLOSE_LOGBOOK') {
                 const book = document.getElementById('book-wrapper');
