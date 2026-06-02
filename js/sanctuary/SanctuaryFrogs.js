@@ -32,7 +32,7 @@ function lcg(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0xffffffff; };
 }
 
-const FROG_COUNT = 5;
+const FROG_COUNT = 7;
 /**
  * Extra "small" frogs — user-requested 2026-05-28: "ad 2 more small
  * frogs I dont seethem often." Spawned alongside the solo school but
@@ -40,8 +40,8 @@ const FROG_COUNT = 5;
  * solo state machine (BASK / SWIM / JUMP / STRIKE) so no extra
  * update path is needed.
  */
-const SMALL_FROG_COUNT = 2;
-const SMALL_FROG_SCALE = 0.55;
+const SMALL_FROG_COUNT = 3;
+const SMALL_FROG_SCALE = 0.7;
 const LILY_COUNT = 16;
 const WATER_Y = -0.6; // Pool surface level
 const FLEE_DIST_SQ = 3.5 * 3.5;
@@ -161,7 +161,7 @@ function _buildLilyPad(rand) {
 
 function _buildFrog() {
   const frog = new THREE.Group();
-  frog.scale.set(0.6, 0.6, 0.6); // smaller frog model
+  frog.scale.set(0.8, 0.8, 0.8); // bigger so they're easy to spot (user 2026-06-02)
 
   // Colors
   const colGreen = 0x4a7c29; // natural green

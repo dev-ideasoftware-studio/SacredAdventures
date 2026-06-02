@@ -120,7 +120,7 @@ function buildWaterSurface(centerY, textures) {
     metalness: 0.15,            // lower metalness so the deep green water and morphing caustics read beautifully
     normalMap: textures.normal,
     transparent: true,
-    opacity: 0.28,              // reduced so sandy basin + rocks/pebbles read through clearly from above
+    opacity: 0.18,              // clearer (user 2026-06-02 "reveal depth") — see INTO the deep basin from above
     depthWrite: false,
     side: THREE.DoubleSide,
     defines: { USE_UV: "" },
@@ -252,7 +252,7 @@ function buildWaterSurface(centerY, textures) {
       // rather than "algae-green pool". POND-DEEP (2026-06-01): the deep-
       // centre colour is darkened a touch more so the deepened basin reads
       // as genuinely DEEP from above and in the PIP minimap.
-      vec3 deepColor = mix(vec3(0.006, 0.062, 0.075), vec3(0.014, 0.10, 0.12), 0.5 + ripple * 0.10);
+      vec3 deepColor = mix(vec3(0.02, 0.10, 0.13), vec3(0.035, 0.15, 0.18), 0.5 + ripple * 0.10);
       vec3 shallowColor = mix(vec3(0.04, 0.18, 0.20), vec3(0.09, 0.28, 0.30), 0.5 + ripple * 0.10);
       // depthT: 1 at the deep centre → 0 at the shallow rim.
       float depthT = 1.0 - smoothstep(0.08, 0.46, distToCenter);
@@ -265,12 +265,12 @@ function buildWaterSurface(centerY, textures) {
 
       diffuseColor.rgb = baseWaterColor + causticHighlight;
 
-      // POND-DEEP depth-readability: ramp OPACITY with depth. The shallow
-      // shelf stays clear (sandy floor + pebbles read through), while the
-      // deep centre turns nearly opaque so you cannot see the bottom — the
-      // single strongest cue that the pond is DEEP, top-down and in the PIP.
-      // base material opacity (0.28) is the shelf floor; centre lifts to ~0.92.
-      diffuseColor.a = mix(0.28, 0.92, depthT * depthT);
+      // DEPTH-VIA-CLARITY (user 2026-06-02 "clear the water, reveal depth"):
+      // keep the water CLEAR so you can see INTO the 3.66 m basin — the
+      // descending bowl + sandy floor + rocks ARE the depth cue. The deep
+      // centre stays only slightly more tinted than the shelf (NOT opaque —
+      // the old mix(0.28,0.92) painted a flat dark disc that read SHALLOW).
+      diffuseColor.a = mix(0.14, 0.34, depthT);
       `
     );
   };

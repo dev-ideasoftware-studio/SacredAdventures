@@ -1,9 +1,9 @@
 {
-  "subject": "fix(journal): re-hook JOURNAL buttons — open loads the book, display:none close",
-  "isoDate": "2026-06-01T19:08:33-05:00",
+  "subject": "feat(pool): clearer water reveals the deep basin + 10 bigger frogs",
+  "isoDate": "2026-06-02T02:24:29-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "82e7c5c",
+  "commit": "98aee51",
   "dirty": true,
-  "generatedAt": "2026-06-02T00:08:36.914Z"
+  "generatedAt": "2026-06-02T07:24:34.674Z"
 }
