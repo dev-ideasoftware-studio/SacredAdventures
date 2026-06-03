@@ -1,9 +1,9 @@
 {
-  "subject": "feat(pool): clearer water reveals the deep basin + 10 bigger frogs",
-  "isoDate": "2026-06-02T02:24:29-05:00",
+  "subject": "feat(village): building-types panel in village view (Tipi/Dock/Pool, list-only)",
+  "isoDate": "2026-06-03T03:50:38-05:00",
   "branch": "dev/ideasoftware-studio",
   "swVersion": "?",
-  "commit": "98aee51",
+  "commit": "15e2dea",
   "dirty": true,
-  "generatedAt": "2026-06-02T07:24:34.674Z"
+  "generatedAt": "2026-06-03T08:50:42.695Z"
 }
