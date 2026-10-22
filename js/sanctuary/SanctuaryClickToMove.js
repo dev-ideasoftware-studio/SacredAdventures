@@ -36,6 +36,12 @@ import {
   SANCTUARY_POOL_CENTER_Z,
   SANCTUARY_POOL_RADIUS_M,
 } from "./SanctuaryGround.js";
+import {
+  goalOutsideBlockers,
+  insideBlocker,
+  pushOutOfBlockers,
+  steerAroundBlockers,
+} from "./SanctuaryBlockers.js";
 
 const MAX_FOOTPRINTS = 50;
 const PRINT_LEN_M = 0.28;
@@ -238,8 +244,12 @@ export const SanctuaryClickToMoveModule = {
       // walks (dock entry → fishing spot).
       window._v4WalkTo = (x, z, onArrive) => {
         if (!this._body) return;
-        const groundY = sanctuaryGroundY(x, z);
-        this._goal = new THREE.Vector3(x, groundY + GROUND_LIFT_M, z);
+        // A target inside a tipi moves onto its wall, so the walk still
+        // arrives and onArrive still fires.
+        const g = { x, z };
+        goalOutsideBlockers(g, this._body.position.x, this._body.position.z);
+        const groundY = sanctuaryGroundY(g.x, g.z);
+        this._goal = new THREE.Vector3(g.x, groundY + GROUND_LIFT_M, g.z);
         this._onArrive = typeof onArrive === "function" ? onArrive : null;
         if (this._xMarker) {
           this._xMarker.visible = true;
@@ -407,8 +417,12 @@ export const SanctuaryClickToMoveModule = {
       return;
     }
 
-    const groundY = sanctuaryGroundY(hitX, hitZ);
-    this._goal = new THREE.Vector3(hitX, groundY + GROUND_LIFT_M, hitZ);
+    // A tap on a tipi walks up to its wall, not into it (otherwise she'd
+    // push against the wall for ever and never arrive).
+    const goalXZ = { x: hitX, z: hitZ };
+    goalOutsideBlockers(goalXZ, this._body?.position?.x, this._body?.position?.z);
+    const groundY = sanctuaryGroundY(goalXZ.x, goalXZ.z);
+    this._goal = new THREE.Vector3(goalXZ.x, groundY + GROUND_LIFT_M, goalXZ.z);
     this._xMarker.visible = true;
     this._xMarker.position.copy(this._goal);
   },
@@ -452,17 +466,20 @@ export const SanctuaryClickToMoveModule = {
       return;
     }
 
-    // Normalised heading (path direction).
+    // Normalised heading (path direction), and the walking heading, which
+    // curves round a tipi standing between her and the goal.
     const dirX = dx / dist;
     const dirZ = dz / dist;
+    const walk = steerAroundBlockers(body.position.x, body.position.z, this._goal.x, this._goal.z);
 
     // Step the body by WALK_SPEED_MPS * delta toward the goal.
     this._walkTime = (this._walkTime || 0) + delta;
     const runK = Math.max(0, Math.min(1, (this._walkTime - RUN_AFTER_S) / RUN_RAMP_S));
     const speed = WALK_SPEED_MPS * (1 + (RUN_SPEED_MULT - 1) * runK);
     const stepDist = Math.min(speed * delta, dist - ARRIVE_TOLERANCE_M * 0.5);
-    body.position.x += dirX * stepDist;
-    body.position.z += dirZ * stepDist;
+    body.position.x += walk.x * stepDist;
+    body.position.z += walk.z * stepDist;
+    pushOutOfBlockers(body.position); // tipis are solid (Mark, 2026-10-22)
     // Sample terrain so the body / camera tracks the ground rather than
     // floating. The +1.5 m eye-height lift only applies when click-to-
     // move is driving the bare camera (pre-avatar fallback). When the
@@ -481,8 +498,8 @@ export const SanctuaryClickToMoveModule = {
     // too high; the kid needs to read as actually swimming.
     body.position.y = sanctuaryBodyY(body.position.x, body.position.z) + yLift;
 
-    // Yaw matches the path so a future avatar will face forward.
-    this._yaw = Math.atan2(-dx, -dz);
+    // Yaw matches the walking heading so the avatar faces where she goes.
+    this._yaw = Math.atan2(-walk.x, -walk.z);
     if (typeof window !== "undefined") window.__sanctuaryPlayerYaw = this._yaw;
 
     // Repaint the footprint trail. Prints start TRAIL_LEAD_M ahead of
@@ -519,6 +536,12 @@ export const SanctuaryClickToMoveModule = {
       const lateralZ = perpZ * FOOT_LATERAL_OFFSET_M * side;
       const x = px + dirX * along + lateralX;
       const z = pz + dirZ * along + lateralZ;
+      if (insideBlocker(x, z)) { // the trail passes behind a tipi: no prints inside it
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        dashes.setMatrixAt(i, dummy.matrix);
+        continue;
+      }
       const _ds = typeof window !== "undefined" && window.__sanctuaryDockSurface;
       const _dy = _ds ? _ds.getY(x, z) : null;
       const y = (_dy !== null ? _dy : sanctuaryGroundY(x, z)) + GROUND_LIFT_M;

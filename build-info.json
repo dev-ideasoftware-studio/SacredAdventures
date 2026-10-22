@@ -1,9 +1,9 @@
 {
-  "subject": "fix(input): the top-left gear opens its Simulation Universe modal again (drag-look ignore list)",
-  "isoDate": "2026-10-22T21:47:31+00:00",
+  "subject": "feat(sanctuary): tipis are solid; tap-to-walk goes round them (Mark)",
+  "isoDate": "2026-10-22T21:57:51+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "65b9292",
+  "commit": "78cfc97",
   "dirty": true,
-  "generatedAt": "2026-10-22T21:47:38.157Z"
+  "generatedAt": "2026-10-22T21:58:03.203Z"
 }

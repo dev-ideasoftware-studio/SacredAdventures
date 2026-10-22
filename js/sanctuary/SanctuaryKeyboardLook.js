@@ -33,6 +33,7 @@
 
 import * as THREE from "three";
 import { sanctuaryBodyY, sanctuaryGroundY } from "./SanctuaryGround.js";
+import { pushOutOfBlockers } from "./SanctuaryBlockers.js";
 import { SanctuaryClickToMoveModule } from "./SanctuaryClickToMove.js";
 
 const MOVE_SPEED_MPS = 5.0;
@@ -247,6 +248,7 @@ export const SanctuaryKeyboardLookModule = {
       const nz = mvZ / mvLen;
       body.position.x += nx * speed * delta;
       body.position.z += nz * speed * delta;
+      pushOutOfBlockers(body.position); // tipis are solid (Mark, 2026-10-22)
     }
 
     // Vertical — jump + gravity on the avatar; camera fall-through gets
