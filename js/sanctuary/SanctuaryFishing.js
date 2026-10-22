@@ -374,6 +374,11 @@ function _build3DGauge(scene) {
     depthWrite: false, depthTest: true,
   });
 
+  // Restored from 11de75a^ (AUDIT 3, B7): material for the pivot cap + needle.
+  const darkMat = new THREE.MeshStandardMaterial({
+    color: 0x333333, roughness: 0.4, metalness: 0.05,
+  });
+
   // Base plate — full 360° circle (radius 2.0, depth=0.10, bevel=0.02)
   const baseShape = new THREE.Shape();
   baseShape.absarc(0, 0, 2.0, 0, Math.PI * 2, false);
@@ -387,6 +392,10 @@ function _build3DGauge(scene) {
 
   // 5 colored arc segments distributed clockwise around the full 360° circle starting at Math.PI (left, 9 o'clock)
   const SEG_ARC = (Math.PI * 2) / 5;
+  // Needle sweep = the arc the segments cover, from FAIL (start, angle π) to
+  // CAUGHT (end). Pre-11de75a the dial was a half circle (SEG_ARC = π/5) and the
+  // needle used π − frac·π; same formula, with the sweep read from the dial.
+  g.userData.needleSweep = GAUGE_SEGS.length * SEG_ARC;
   const GAP     = 0.015;   // half of 0.03 radian spec gap
   const IN_R = 0.85, OUT_R = 1.82;
 
@@ -417,6 +426,46 @@ function _build3DGauge(scene) {
     spr.scale.set(1.44, 0.50, 1); // Scale up from (0.72, 0.25) to (1.44, 0.50)
     g.add(spr);
   });
+
+  // ── Restored from 11de75a^ (AUDIT 3, B7): state label, pivot cap, needle ──
+  // State-label sprite (WAITING... / CURIOUS / etc.)
+  const lblCanvas = document.createElement("canvas");
+  lblCanvas.width = 320; lblCanvas.height = 72;
+  const lblTex = new THREE.CanvasTexture(lblCanvas);
+  const lblSpr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: lblTex, transparent: true, depthWrite: false,
+  }));
+  lblSpr.position.set(0, -0.06, 0.28);
+  lblSpr.scale.set(1.5, 0.34, 1);
+  g.add(lblSpr);
+  g.userData.lblCanvas = lblCanvas;
+  g.userData.lblTex    = lblTex;
+
+  // Center pivot cap (r=0.22, cylinder along Z after group rotation)
+  const pivotMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.22, 0.25, 32),
+    darkMat
+  );
+  pivotMesh.rotation.x = Math.PI / 2;
+  pivotMesh.position.z = 0.18;
+  g.add(pivotMesh);
+
+  // Needle — tapered shape in child group, rotates around local Z
+  const needleGroup = new THREE.Group();
+  const nShape = new THREE.Shape();
+  nShape.moveTo(0,    0.06);
+  nShape.lineTo(1.35, 0.02);
+  nShape.lineTo(1.35, -0.02);
+  nShape.lineTo(0,   -0.06);
+  nShape.closePath();
+  const needleMesh = new THREE.Mesh(
+    new THREE.ShapeGeometry(nShape, 1),
+    darkMat
+  );
+  needleMesh.position.z = 0.22;
+  needleGroup.add(needleMesh);
+  g.add(needleGroup);
+  g.userData.needleGroup = needleGroup;
 
   // Lie flat on water (XZ plane, Y-up world).
   g.rotation.order = "YXZ";
@@ -458,6 +507,24 @@ function _update3DGauge(g, frac, labelText, isReeling, time, camera) {
     g.rotation.y = Math.atan2(dx, dz);
   }
   g.rotation.z = -g.rotation.y - Math.PI / 2;
+
+  // Restored from 11de75a^ (AUDIT 3, B7).
+  // Needle: FAIL (start, angle π) → CAUGHT! (end of the segment sweep)
+  const ng = g.userData.needleGroup;
+  if (ng) ng.rotation.z = Math.PI - frac * (g.userData.needleSweep ?? Math.PI);
+
+  // State label
+  const lc = g.userData.lblCanvas, lt = g.userData.lblTex;
+  if (lc && lt) {
+    const ctx = lc.getContext("2d");
+    ctx.clearRect(0, 0, 320, 72);
+    ctx.font = "800 20px ui-monospace,Menlo,monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(labelText.toUpperCase(), 160, 36);
+    lt.needsUpdate = true;
+  }
 }
 
 // ── Old 2D canvas gauge — REPLACED by 3D above ───────────────────────
@@ -2601,7 +2668,7 @@ export const SanctuaryFishingModule = {
         } else {
           const ud = this._gauge3d.userData;
           if (ud.needleGroup) {
-            ud.needleGroup.rotation.z = Math.PI - frac * Math.PI;
+            ud.needleGroup.rotation.z = Math.PI - frac * (ud.needleSweep ?? Math.PI);
           }
           if (this._camera) {
             const dx = this._camera.position.x - this._gauge3d.position.x;
