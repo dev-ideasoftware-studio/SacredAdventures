@@ -1,9 +1,9 @@
 {
-  "subject": "feat(loader): low-budget desktops load the light .mobile.glb variants (master prompt C3, Mark)",
-  "isoDate": "2026-10-22T22:24:59+00:00",
+  "subject": "fix(fish, loader): read ?tier= at load time, so the budgets apply from the first frame",
+  "isoDate": "2026-10-22T22:28:42+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "da7cb59",
+  "commit": "e46be36",
   "dirty": true,
-  "generatedAt": "2026-10-22T22:25:03.084Z"
+  "generatedAt": "2026-10-22T22:28:48.091Z"
 }

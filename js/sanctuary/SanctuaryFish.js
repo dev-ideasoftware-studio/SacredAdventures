@@ -31,6 +31,13 @@ const FISH_COUNT = 18;
 // device. Catches never thin the school: each caught fish is replaced by a baby
 // (window.__sanctuarySpawnBabyFish), so the floor holds after any number of catches.
 const FISH_FLOOR = 5;
+/** ?tier=0..3 from the page URL (same switch as the device check), or null. */
+function urlTier() {
+  try {
+    const v = new URLSearchParams(window.location.search).get("tier");
+    return v !== null && /^[0-3]$/.test(v) ? Number(v) : null;
+  } catch (_) { return null; }
+}
 function fishBudgetFrac() {
   if (typeof window === "undefined") return 1;
   const q = window.SacredQuality && window.SacredQuality.budgets && window.SacredQuality.budgets.fish;
@@ -39,7 +46,9 @@ function fishBudgetFrac() {
   if (name === "low") return 0.25;
   if (name === "medium") return 0.5;
   if (name === "high") return 1;
-  const tier = window.SacredDeviceCheck && window.SacredDeviceCheck.tier;
+  const tier = window.SacredDeviceCheck && Number.isFinite(window.SacredDeviceCheck.tier)
+    ? window.SacredDeviceCheck.tier
+    : urlTier();
   if (tier === 0 || tier === 2) return 0.25; // very slow / weak desktop = low
   if (tier === 1) return 0.5;                // phone = medium
   return 1;

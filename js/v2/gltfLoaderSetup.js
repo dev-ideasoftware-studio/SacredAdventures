@@ -79,11 +79,20 @@ const MOBILE_GLB_VARIANTS = new Set([
  * that exists, the device check's tier 0 / 2 (window.SacredDeviceCheck). Assets requested
  * before the check has run still load in full.
  */
+/** ?tier=0..3 from the page URL (same switch as the device check), or null. */
+function urlTier() {
+  try {
+    const v = new URLSearchParams(window.location.search).get("tier");
+    return v !== null && /^[0-3]$/.test(v) ? Number(v) : null;
+  } catch (_) { return null; }
+}
 function lowBudgetDesktop() {
   if (typeof window === "undefined") return false;
   const q = window.SacredQuality;
   if (q && typeof q.budget === "string") return q.budget === "low";
-  const t = window.SacredDeviceCheck && window.SacredDeviceCheck.tier;
+  const t = window.SacredDeviceCheck && Number.isFinite(window.SacredDeviceCheck.tier)
+    ? window.SacredDeviceCheck.tier
+    : urlTier();
   return t === 0 || t === 2;
 }
 
