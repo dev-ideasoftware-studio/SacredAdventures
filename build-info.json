@@ -1,9 +1,9 @@
 {
-  "subject": "feat(flora): photoreal meadow on the ground texture (SanctuaryGrass)",
-  "isoDate": "2026-10-22T16:00:00+00:00",
+  "subject": "docs(decision-engine): log the grass meadow (ATT-39, LOG-24)",
+  "isoDate": "2026-10-22T16:01:49+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "e4e39b3",
+  "commit": "c8818aa",
   "dirty": true,
-  "generatedAt": "2026-10-22T16:00:03.289Z"
+  "generatedAt": "2026-10-22T16:01:52.971Z"
 }
