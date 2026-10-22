@@ -703,11 +703,7 @@ function buildTurtle(centerY, textures) {
     bumpScale: 0.02, // skin folds/scales
   });
 
-  const plastronMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x1f1912), // dark muddy plastron
-    roughness: 0.85,
-    metalness: 0.02,
-  });
+  // plastronMat removed with the plastron (see "2. Plastron" below).
 
   const eyeMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0x0a0c0a),
@@ -740,13 +736,14 @@ function buildTurtle(centerY, textures) {
   rimMesh.receiveShadow = true;
   group.add(rimMesh);
 
-  // 2. Plastron (Belly Plate)
-  const plastronGeo = new THREE.BoxGeometry(0.9, 0.04, 1.25);
-  const plastron = new THREE.Mesh(plastronGeo, plastronMat);
-  plastron.position.y = 0.05;
-  plastron.castShadow = true;
-  plastron.receiveShadow = true;
-  group.add(plastron);
+  // 2. Plastron (REMOVED 2026-05-27) — the cylinder had rotation.x = -π/2
+  // which tipped its flat circular faces forward/backward instead of
+  // laying them flat. From side/oblique angles this read as a stray
+  // "circle on the side of the turtle". Per user spec: remove it. The
+  // turtle reads fine underwater with just the carapace; the missing
+  // belly disc is hidden by the basin floor + water.
+  // (Re-added as a box by 1f4e275 on 05-27 evening; removed again 2026-10-22,
+  // AUDIT 2 / B6.)
 
   // Helper for clawed, organic legs
   function buildClawedLeg(isFront, isLeft) {
