@@ -21,11 +21,16 @@
  *
  * How the ladder reacts (guide E1.2: in time, not frames):
  *   - Sensor: the real frame interval (update's dt, which includes GPU time and
- *     vsync waits). It uses the MEDIAN frame of the last 250 ms, so a single
- *     load/compile hitch can't trigger culling (guide E1.8: stutters are separate).
- *   - Down: median below DOWN_FPS over a full 250 ms window -> shed one rung,
+ *     vsync waits), counted frame by frame. On a 60 Hz screen frames take 16.7
+ *     or 33.3 ms and nothing in between (culling owner, FND-52), so a median
+ *     would read 60 while 40 % of frames miss. So: a frame over SLOW_FRAME_MS is
+ *     "slow"; when more than a quarter of the last 250 ms is slow the window's
+ *     fps is its real mean (hitches capped at 50 ms), otherwise its median, so a
+ *     single load/compile hitch still can't cull (guide E1.8).
+ *   - Down: that fps below DOWN_FPS over a full 250 ms window -> shed one rung,
  *     then let the frame time settle for SETTLE_MS before judging again.
- *   - Up: UP_HOLD_MS of frames at UP_FPS or better -> restore one rung. If that
+ *   - Up: UP_HOLD_MS at UP_FPS or better, judged strictly (over the last second,
+ *     more than 5 % slow frames already counts as missing) -> restore one rung. If that
  *     drops the fps again within BOUNCE_MS, the next wait doubles (up to
  *     UP_HOLD_MAX_MS), so detail never flickers on and off.
  *   - The first WARMUP_MS of frames after load only watch (compiles and uploads
@@ -33,8 +38,8 @@
  *   - Rungs only cull content. Nothing here throttles the frame rate.
  *
  * Severe-only resolution search (the exception above):
- *   - Starts only when every content rung is already shed AND the median of the
- *     last second stays at or below SEVERE_FPS for SEVERE_CONFIRM_MS.
+ *   - Starts only when every content rung is already shed AND the mean frame
+ *     rate of the last second stays at or below SEVERE_FPS for SEVERE_CONFIRM_MS.
  *   - Starts high (the device cap, AnuAdaptiveDpr), steps one rung down the
  *     Anu DPR ladder, then every RES_STEP_MS while the last second is below
  *     60 fps, until it holds 60 or reaches the floor (ladder end, or a scene
@@ -61,19 +66,31 @@ import { SanctuaryPondTreesModule } from "./SanctuaryPondTrees.js";
 import { SanctuaryGrassModule } from "./SanctuaryGrass.js";
 import { dispatchInteraction } from "../v2/anu/InteractionBus.js";
 import { ANU_EVENTS } from "../v2/anu/anuEvents.js";
+import { deviceProfile } from "../v2/deviceProfile.js";
 
 /** Objects that are "the fish in the pond" (hidden in Village View). */
 const FISH_OBJECTS = ["sanctuary_fish_school", "sanctuary_fish_jumps", "sanctuary_fishing_spot_fish"];
 
-/** The ladder, lightest cut first (Mark's order: grass, then distant trees). */
+/** The ladder, lightest cut first (Mark's order: grass, then distant trees as
+ *  billboards). `cards`: trees farther than this from the camera are drawn as
+ *  their baked card (SanctuaryPondTrees / SanctuaryImpostors, guide E1.6). */
+const MOBILE = deviceProfile.isMobile === true;
+const CARDS_M = MOBILE ? [32, 24, 16, 10] : [45, 34, 24, 16];
 const RUNGS = [
-  { name: "full detail", grass: 2 },
-  { name: "grass: far ring off", grass: 1 },
-  { name: "grass: off", grass: 0 },
+  { name: "full detail", grass: 2, cards: CARDS_M[0] },
+  { name: "grass: far ring off", grass: 1, cards: CARDS_M[0] },
+  { name: "grass: off", grass: 0, cards: CARDS_M[0] },
+  { name: `trees beyond ${CARDS_M[1]} m: billboards`, grass: 0, cards: CARDS_M[1] },
+  { name: `trees beyond ${CARDS_M[2]} m: billboards`, grass: 0, cards: CARDS_M[2] },
+  { name: `trees beyond ${CARDS_M[3]} m: billboards`, grass: 0, cards: CARDS_M[3] },
 ];
 
-const DOWN_FPS = 57;          // median below this, sustained -> shed a rung
-const UP_FPS = 59;            // median at/above this, sustained -> restore a rung
+const DOWN_FPS = 57;          // window fps below this -> shed a rung
+const UP_FPS = 59;            // strict fps at/above this, sustained -> restore a rung
+const SLOW_FRAME_MS = 19.5;   // a frame longer than this missed 60 fps (vsync: the next one is 33.3 ms)
+const SHED_SLOW_SHARE = 0.25; // more than this share of slow frames -> judge by the real mean
+const GOOD_SLOW_SHARE = 0.05; // restoring needs (almost) every frame on time
+const HITCH_CAP_MS = 50;      // one long hitch counts as at most this in a mean
 const WINDOW_MS = 250;        // guide E1.2: react within a quarter second
 const SETTLE_MS = 500;        // after any step, let the new frame time show up
 const UP_HOLD_MS = 3000;      // guide E1.2: 3 s of good frames before stepping up
@@ -89,21 +106,39 @@ const RES_STEP_MS = 10000;        // Mark: "dropping resolution every 10 seconds
 const RES_PROBE_MS = 20000;       // lowered + steady at 60 this long -> try one rung sharper
 const RES_PROBE_MAX_MS = 300000;
 const RES_PROBE_JUDGE_MS = 3000;  // a probe must hold 60 over the last second at this age, or it steps back
-const LONG_WINDOW_MS = 1000;      // resolution decisions read the median of the last second
+const LONG_WINDOW_MS = 1000;      // restore and resolution decisions read the last second
 const LOG_MAX = 60;
 
-/** Push a frame interval into a time window; returns the window's median fps
- *  once the window spans windowMs, else null. */
-function pushFrameMedianFps(f, dtMs, windowMs) {
+/** Push a frame interval into a time window. Once the window spans windowMs, fill
+ *  `out` with its frame statistics and return true (else false). */
+function pushFrameStats(f, dtMs, windowMs, out) {
   f.push(dtMs);
   let sum = 0;
   for (let i = f.length - 1; i >= 0; i--) {
     sum += f[i];
     if (sum >= windowMs) { if (i > 0) f.splice(0, i); break; }
   }
-  if (sum < windowMs) return null;
+  if (sum < windowMs) return false;
+  let slow = 0, capped = 0, total = 0;
+  for (let i = 0; i < f.length; i++) {
+    const d = f[i];
+    total += d;
+    capped += d < HITCH_CAP_MS ? d : HITCH_CAP_MS;
+    if (d > SLOW_FRAME_MS) slow++;
+  }
   const sorted = f.slice().sort((a, b) => a - b);
-  return 1000 / sorted[sorted.length >> 1];
+  out.n = f.length;
+  out.median = sorted[sorted.length >> 1];
+  out.mean = total / f.length;
+  out.capMean = capped / f.length;
+  out.slowShare = slow / f.length;
+  return true;
+}
+
+/** Frames per second as the ladder counts them: the median frame while slow
+ *  frames are rare (a lone hitch doesn't count), the real mean once they aren't. */
+function countedFps(st, slowShareLimit) {
+  return 1000 / (st.slowShare > slowShareLimit ? st.capMean : st.median);
 }
 
 function isTopDown() {
@@ -133,6 +168,8 @@ export const SanctuaryCompassionModule = {
   _frames: [],          // recent frame intervals, ms (WINDOW_MS)
   _framesLong: [],      // the last second of frame intervals (resolution decisions)
   _res: null,           // severe-only resolution search state
+  _st250: { n: 0, median: 0, mean: 0, capMean: 0, slowShare: 0 },   // reused, no per-frame allocation
+  _st1s: { n: 0, median: 0, mean: 0, capMean: 0, slowShare: 0 },
   _rungMs: null,        // sensor: ms spent at each rung (judged frames only)
   _dprMs: null,         // sensor: ms spent at each pixel ratio
   _sinceStepMs: 0,
@@ -209,14 +246,19 @@ export const SanctuaryCompassionModule = {
     this._rungMs[this._level] += dtMs;
     const snap = this._dpr()?.snapshot() ?? null;     // one actuator read per frame
     if (snap && snap.actualDpr != null) this._dprMs[snap.actualDpr] = (this._dprMs[snap.actualDpr] || 0) + dtMs;
-    const medianFps = pushFrameMedianFps(this._frames, dtMs, WINDOW_MS);
-    const medianLongFps = pushFrameMedianFps(this._framesLong, dtMs, LONG_WINDOW_MS);
-    if (medianFps === null || this._held || this._clockMs < WARMUP_MS || this._clockMs < this._quietUntilMs) return;
+    const haveShort = pushFrameStats(this._frames, dtMs, WINDOW_MS, this._st250);
+    const haveLong = pushFrameStats(this._framesLong, dtMs, LONG_WINDOW_MS, this._st1s);
+    if (!haveShort || this._held || this._clockMs < WARMUP_MS || this._clockMs < this._quietUntilMs) return;
+    // Shed on the 250 ms window (guide E1.2); restore only on the strict count of the last second.
+    const medianFps = countedFps(this._st250, SHED_SLOW_SHARE);
+    const medianLongFps = haveLong ? countedFps(this._st1s, GOOD_SLOW_SHARE) : null;
+    const meanLongFps = haveLong ? 1000 / this._st1s.mean : null;
     this._medianFps = medianFps;
-    if (medianLongFps !== null) this._medianLongFps = medianLongFps;
+    if (medianLongFps !== null) { this._medianLongFps = medianLongFps; this._meanLongFps = meanLongFps; this._slowShare1s = this._st1s.slowShare; }
     const lowered = !!snap && snap.index > snap.capIndex;
-    if (snap) this._tickResolution(dtMs, medianFps, medianLongFps, lowered, snap);
+    if (snap) this._tickResolution(dtMs, medianFps, medianLongFps, lowered, snap, meanLongFps);
     if (this._sinceStepMs < SETTLE_MS) return;
+    const strictGood = medianLongFps !== null ? medianLongFps : countedFps(this._st250, GOOD_SLOW_SHARE);
 
     if (medianFps < DOWN_FPS) {
       this._goodMs = 0;
@@ -226,13 +268,13 @@ export const SanctuaryCompassionModule = {
         }
         this._setLevel(this._level + 1, `${medianFps.toFixed(1)} fps`);
       }
-    } else if (medianFps >= UP_FPS) {
+    } else if (strictGood >= UP_FPS) {
       this._goodMs += dtMs;
       if (lowered) {
         // Resolution comes back first (the severe search's probes); content waits.
       } else if (this._level > 0 && this._goodMs >= this._upHoldMs) {
         this._lastUpAt = this._clockMs;
-        this._setLevel(this._level - 1, `${(this._goodMs / 1000).toFixed(1)} s at ${medianFps.toFixed(1)} fps`);
+        this._setLevel(this._level - 1, `${(this._goodMs / 1000).toFixed(1)} s at ${strictGood.toFixed(1)} fps`);
       } else if (this._level === 0 && this._goodMs >= 10000) {
         this._upHoldMs = UP_HOLD_MS;     // steady at full detail: forget old bounces
       }
@@ -247,7 +289,7 @@ export const SanctuaryCompassionModule = {
     return a && typeof a.setIndex === "function" && typeof a.snapshot === "function" ? a : null;
   },
 
-  _tickResolution(dtMs, medianFps, medianLongFps, lowered, s) {
+  _tickResolution(dtMs, medianFps, medianLongFps, lowered, s, meanLongFps) {
     const r = this._res;
     if (r.probeAt !== null) {
       // A probe fails fast on the 250 ms median (guide E1.2), or on the last second at RES_PROBE_JUDGE_MS.
@@ -269,15 +311,15 @@ export const SanctuaryCompassionModule = {
     if (medianLongFps === null) return;
     if (!lowered) {
       const allShed = this._level >= RUNGS.length - 1;
-      r.severeMs = allShed && medianLongFps <= SEVERE_FPS ? r.severeMs + dtMs : 0;
+      r.severeMs = allShed && meanLongFps !== null && meanLongFps <= SEVERE_FPS ? r.severeMs + dtMs : 0;
       if (r.severeMs >= SEVERE_CONFIRM_MS) {
         r.severeMs = 0;
         if (s.index < s.floorIndex) {
           r.probeWaitMs = RES_PROBE_MS;
-          this._setDpr(s.index + 1, `severe: ${medianLongFps.toFixed(1)} fps for ${SEVERE_CONFIRM_MS / 1000} s with every rung shed`);
+          this._setDpr(s.index + 1, `severe: ${meanLongFps.toFixed(1)} fps for ${SEVERE_CONFIRM_MS / 1000} s with every rung shed`);
         } else if (!r.floorNoted) {
           r.floorNoted = true;
-          this._note(`severe (${medianLongFps.toFixed(1)} fps) but resolution is at its floor (${s.actualDpr})`);
+          this._note(`severe (${meanLongFps.toFixed(1)} fps) but resolution is at its floor (${s.actualDpr})`);
         }
       }
       return;
@@ -329,6 +371,7 @@ export const SanctuaryCompassionModule = {
     this._goodMs = 0;
     const r = RUNGS[n];
     try { SanctuaryGrassModule.setDetail?.(r.grass); } catch (_) { /* module absent */ }
+    try { SanctuaryPondTreesModule.setCardDistance?.(r.cards); } catch (_) { /* module absent */ }
     if (n !== prev) this._note(`${n > prev ? "▼" : "▲"} rung ${n} "${r.name}" (${why})${n < prev ? "" : `; next step-up waits ${(this._upHoldMs / 1000).toFixed(0)} s`}`, "rung");
     return n;
   },
@@ -338,6 +381,7 @@ export const SanctuaryCompassionModule = {
    *  Off: restore exactly what was there before. */
   _applyViewMode(topDown) {
     try { SanctuaryPondTreesModule.setWindPaused?.(topDown); } catch (_) { /* module absent */ }
+    try { SanctuaryPondTreesModule.setTopDown?.(topDown); } catch (_) { /* module absent */ }    // 3D trees, no cards
     try { SanctuaryGrassModule.setWindPaused?.(topDown); } catch (_) { /* module absent */ }
     const hidden = [];
     for (const name of FISH_OBJECTS) {
@@ -380,6 +424,13 @@ export const SanctuaryCompassionModule = {
       level: this._level,
       rung: RUNGS[this._level].name,
       rungs: RUNGS.map((r) => r.name),
+      // Frame-counted fps (see the header): `fps` = the 250 ms window the ladder sheds on,
+      // `fps1s` = the strict last-second count it restores on, `meanFps1s` = plain mean.
+      // medianFps / medianFps1s are the same numbers under their old names (HUD trace).
+      fps: this._medianFps ? +this._medianFps.toFixed(1) : null,
+      fps1s: this._medianLongFps ? +this._medianLongFps.toFixed(1) : null,
+      meanFps1s: this._meanLongFps ? +this._meanLongFps.toFixed(1) : null,
+      slowFrameShare1s: this._slowShare1s != null ? +this._slowShare1s.toFixed(2) : null,
       medianFps: this._medianFps ? +this._medianFps.toFixed(1) : null,
       medianFps1s: this._medianLongFps ? +this._medianLongFps.toFixed(1) : null,
       resolution: this._resolutionState(),
@@ -389,6 +440,8 @@ export const SanctuaryCompassionModule = {
       windPaused: SanctuaryPondTreesModule._windPaused === true,
       grassWindPaused: SanctuaryGrassModule._windPaused === true,
       grassDetail: SanctuaryGrassModule._detail ?? 2,
+      cardsBeyondM: RUNGS[this._level].cards,
+      forest: (() => { try { return SanctuaryPondTreesModule._forestStats?.() ?? null; } catch (_) { return null; } })(),
       fishHidden: [...this._savedVisibility.keys()],
       steps: this._log.filter((e) => e.kind === "rung" || e.kind === "resolution").length,
       timeAtRungS: Object.fromEntries(RUNGS.map((r, i) => [r.name, +((this._rungMs?.[i] || 0) / 1000).toFixed(1)])),

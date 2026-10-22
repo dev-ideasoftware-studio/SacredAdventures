@@ -1,9 +1,9 @@
 {
-  "subject": "feat(flora): cedar groves on the hill ring + distant-tree billboards (Compassionate UI step 3c-4)",
-  "isoDate": "2026-10-22T19:09:13+00:00",
+  "subject": "feat(compassion): tree rungs (billboards nearer) + count missed frames, not medians (Compassionate UI step 3c)",
+  "isoDate": "2026-10-22T19:09:18+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "963cb2d",
+  "commit": "831d488",
   "dirty": true,
-  "generatedAt": "2026-10-22T19:09:16.803Z"
+  "generatedAt": "2026-10-22T19:09:22.092Z"
 }
