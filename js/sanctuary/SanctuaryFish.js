@@ -14,8 +14,12 @@ import {
   SANCTUARY_POOL_CENTER_Z,
   SANCTUARY_POOL_RADIUS_M,
 } from "./SanctuaryGround.js";
+import { deviceProfile } from "../v2/deviceProfile.js";
 
 const FISH_OBJ_URL = "./Assets/Fish/fish.obj";
+// Phones only: 2,000-triangle koi (tools/mobile/koi-lite.mjs) drawn in the
+// fishing minimap instead of the 15,644-triangle one. Same frame as fish.obj.
+const FISH_LITE_OBJ_URL = "./Assets/Fish/fish.mobile.obj";
 /** Trout school size. Bumped 12 → 18 on 2026-05-28 ("add more fish").
  *  Each trout currently costs <1 FPS at the bench so the extra six
  *  are cheap; a future InstancedMesh refactor (filed earlier) would
@@ -314,7 +318,7 @@ function _makeButterflyTexture() {
  * Load + center + bake Z-up OBJ → Y-up (1:1 `WorldPool2.loadCenteredFishGeometry`).
  * @returns {Promise<{ geometry: THREE.BufferGeometry, fishLen: number } | null>}
  */
-async function loadSanctuaryFishGeometry(url) {
+async function loadSanctuaryFishGeometry(url, centerOverride = null) {
   const obj = await new OBJLoader().loadAsync(url);
   let geom = null;
   obj.updateMatrixWorld(true);
@@ -331,9 +335,10 @@ async function loadSanctuaryFishGeometry(url) {
   const size = new THREE.Vector3();
   bb.getSize(size);
   const fishLen = Math.max(size.x, size.y, size.z, 0.001);
-  const center = bb.getCenter(new THREE.Vector3());
+  // A light variant passes the full fish's centre so both line up exactly.
+  const center = centerOverride ? centerOverride.clone() : bb.getCenter(new THREE.Vector3());
   geom.translate(-center.x, -center.y, -center.z);
-  return { geometry: geom, fishLen };
+  return { geometry: geom, fishLen, center };
 }
 
 function _buildSmallFishGeometry() {
@@ -365,6 +370,8 @@ export const SanctuaryFishModule = {
   _elapsed: 0,
   _fishBioTime: 0,
   _fishGeometry: null,
+  /** Phones: light koi for the fishing minimap (see FISH_LITE_OBJ_URL). */
+  _fishLiteGeometry: null,
   _fishMaterial: null,
   _fishMaterials: [],
   _fishTextures: [],
@@ -599,6 +606,24 @@ export const SanctuaryFishModule = {
         const bx = this._cx + Math.cos(angle) * radius;
         const bz = this._cz + Math.sin(angle) * radius;
         window.__sanctuarySpawnBabyFish(bx, bz);
+      }
+
+      // Phones: load the light koi in the background for the fishing minimap
+      // (Mark 2026-10-22: "yes for mobile we do it"). The Orchestrator swaps it
+      // onto every mesh that uses the full koi geometry for that pass only.
+      // Until it arrives, the minimap draws the full koi.
+      if (deviceProfile.isMobile) {
+        loadSanctuaryFishGeometry(FISH_LITE_OBJ_URL, fg.center)
+          .then((lite) => {
+            if (!lite?.geometry || this._fishGeometry !== fg.geometry) {
+              lite?.geometry?.dispose?.();
+              return;
+            }
+            lite.geometry.computeBoundingSphere();
+            this._fishLiteGeometry = lite.geometry;
+            window.__sanctuaryPipLite = { meshes: this._fishMeshes, full: fg.geometry, lite: lite.geometry };
+          })
+          .catch((err) => console.warn("[SanctuaryFish] light koi not loaded; the minimap keeps the full koi:", err));
       }
 
       console.log(
@@ -1685,6 +1710,9 @@ export const SanctuaryFishModule = {
       this._root.remove(fish);
     }
     this._fishGeometry?.dispose?.();
+    this._fishLiteGeometry?.dispose?.();
+    this._fishLiteGeometry = null;
+    if (typeof window !== "undefined") delete window.__sanctuaryPipLite;
     if (this._fishMaterials) {
       for (const mat of this._fishMaterials) {
         mat.dispose();

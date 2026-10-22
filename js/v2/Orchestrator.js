@@ -1562,10 +1562,24 @@ export class SacredOrchestrator {
       // 1.2 -> 0.4 ms.
       const autoMatrices = this.scene.matrixWorldAutoUpdate;
       this.scene.matrixWorldAutoUpdate = false;
+      // Phones: draw the koi with the light model in this pass only (Mark
+      // 2026-10-22: "yes for mobile we do it"). SanctuaryFish publishes
+      // window.__sanctuaryPipLite once the 2,000-triangle koi has loaded.
+      // Measured on the iPhone 3x profile: pass 288k -> 42k triangles, 0.09 %
+      // of the 256 px minimap's pixels differ. `_pipLiteFish` lets the
+      // Compassionate UI turn it on for other struggling devices.
+      const lite = (this._pipLiteFish ?? this._isMobile) ? window.__sanctuaryPipLite : null;
+      const swapped = [];
+      if (lite?.lite) {
+        for (const m of lite.meshes) {
+          if (m.geometry === lite.full) { m.geometry = lite.lite; swapped.push(m); }
+        }
+      }
       try {
         this._renderWithMask(this._pipOrtho);
       } finally {
         this.scene.matrixWorldAutoUpdate = autoMatrices;
+        for (const m of swapped) m.geometry = lite.full;
       }
 
       // Restore the camera to the default layers 0, 1, and 3
