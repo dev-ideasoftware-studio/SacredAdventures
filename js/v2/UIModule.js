@@ -347,8 +347,7 @@ export const UIModule = {
           border-bottom: none;
           background: linear-gradient(168deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(200, 210, 220, 0.05) 100%);
           box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.65), 0 -2px 10px rgba(0, 0, 0, 0.25);
-          backdrop-filter: blur(1px) saturate(1.25);
-          -webkit-backdrop-filter: blur(1px) saturate(1.25);
+          /* static frost, no live blur over the game canvas (claude/finding-live-blur-fps.md) */
         }
         .pip-heading-bracket::after {
           content: '';
