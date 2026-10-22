@@ -545,130 +545,281 @@ function buildDrainHole(centerY) {
   return group;
 }
 
-/**
- * UNUSED — kept only because removing it would conflict with another
- * pending diff from the parallel editor. Not called from anywhere.
- * @deprecated turtle shellMat now uses a plain color in buildTurtle().
- */
-function _makeTurtleShellTexture() {
-  const SZ = 512;
-  const cv = document.createElement("canvas");
-  cv.width = SZ; cv.height = SZ;
-  const ctx = cv.getContext("2d");
-  const cx = SZ / 2, cy = SZ / 2;
+// ── Turtle carapace ─────────────────────────────────────────────────────────
+// The dome is a SphereGeometry hemisphere, whose own UVs wrap around it
+// (u = around, v = top → rim), so a picture drawn top-down gets smeared into
+// bands. The carapace is therefore drawn top-down (head toward the canvas top)
+// and the dome and rim get matching top-down UVs: ρ = 0 at the top of the dome,
+// ρ = 1 at the dome's edge (equal steps of surface distance along each
+// meridian of the flattened dome), ρ ≈ 0.95–1.05 on the rim torus.
+const SHELL_RADIUS_M = 0.65;     // dome + rim radius used in buildTurtle()
+const SHELL_DOME_SCALE_H = 1.3;  // mean of the dome's x / z scale (1.15, 1.45)
+const SHELL_DOME_SCALE_Y = 0.55; // the dome's y scale
+const SHELL_UV_R = 0.45;         // UV distance from the centre at ρ = 1
+const SHELL_COLOR_PX = 512;      // phones upload 256 (renderer texture cap)
+const SHELL_DETAIL_PX = 256;     // R = height (bump), G = roughness
+// The turtle's origin sits this far above the terrain under it: its feet
+// reach 0.165 m below the origin, so this leaves ~3 cm of clearance.
+// (Measured 2026-10-22: placing it from the water line put the whole turtle
+// 0.8–1.4 m under the visible pond floor, sanctuaryGroundY.)
+const TURTLE_FLOOR_LIFT_M = 0.2;
 
-  // Base shell color — deep muddy green-brown blend
-  ctx.fillStyle = "#1e2b14";
-  ctx.fillRect(0, 0, SZ, SZ);
-
-  // Add earthy, sandy noise background
-  for (let i = 0; i < 4000; i++) {
-    const rx = Math.random() * SZ;
-    const ry = Math.random() * SZ;
-    const size = 1 + Math.random() * 2;
-    ctx.fillStyle = Math.random() < 0.5 ? "rgba(35, 25, 15, 0.15)" : "rgba(42, 60, 28, 0.15)";
-    ctx.fillRect(rx, ry, size, size);
+/** ρ for polar angle θ (0 = top of dome, π/2 = edge): normalised meridian arc length. */
+const _shellRho = (() => {
+  const N = 64;
+  const lut = new Float32Array(N + 1);
+  for (let i = 1; i <= N; i++) {
+    const tm = ((i - 0.5) / N) * (Math.PI / 2);
+    lut[i] = lut[i - 1] + Math.hypot(SHELL_DOME_SCALE_H * Math.cos(tm), SHELL_DOME_SCALE_Y * Math.sin(tm)) * (Math.PI / 2 / N);
   }
-
-  // Draw hexagonal scutes (plates)
-  ctx.strokeStyle = "#140e0a"; // dark, muddy brown/black seams
-  ctx.lineWidth = 4.0;
-
-  const drawHex = (x, y, r) => {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
-      const px = x + Math.cos(angle) * r;
-      const py = y + Math.sin(angle) * r;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.stroke();
-
-    // Fill with slightly varied shades of moss, slate, mud
-    const rVal = 18 + Math.floor(Math.random() * 12);
-    const gVal = 28 + Math.floor(Math.random() * 16);
-    const bVal = 14 + Math.floor(Math.random() * 10);
-    ctx.fillStyle = `rgba(${rVal}, ${gVal}, ${bVal}, 0.85)`;
-    ctx.fill();
-
-    // Growth rings inside each scute
-    ctx.lineWidth = 1.2;
-    for (let r2 = r - 10; r2 > 8; r2 -= 10) {
-      const alpha = 0.15 + (1 - r2 / r) * 0.25;
-      ctx.strokeStyle = `rgba(10, 8, 5, ${alpha})`;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
-        const px = x + Math.cos(angle) * r2;
-        const py = y + Math.sin(angle) * r2;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.stroke();
-
-      // Slightly lighter highlight ring to catch light
-      ctx.strokeStyle = `rgba(45, 60, 30, ${alpha * 0.6})`;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
-        const px = x + Math.cos(angle) * (r2 - 2);
-        const py = y + Math.sin(angle) * (r2 - 2);
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.stroke();
-    }
-    ctx.strokeStyle = "#140e0a";
-    ctx.lineWidth = 4.0;
+  const total = lut[N];
+  for (let i = 1; i <= N; i++) lut[i] /= total;
+  return (theta) => {
+    const f = Math.min(Math.max(theta / (Math.PI / 2), 0), 1) * N;
+    const i = Math.min(Math.floor(f), N - 1);
+    return lut[i] + (lut[i + 1] - lut[i]) * (f - i);
   };
+})();
 
-  // Central column of scutes
-  drawHex(cx, cy, 64);
-  drawHex(cx, cy - 108, 60);
-  drawHex(cx, cy + 108, 60);
-  drawHex(cx, cy - 200, 48);
-  drawHex(cx, cy + 200, 48);
+function _setShellUv(uv, i, rho, dx, dz) {
+  uv.setXY(i, 0.5 + rho * SHELL_UV_R * dx, 0.5 + rho * SHELL_UV_R * dz);
+}
 
-  // Left column of scutes
-  drawHex(cx - 96, cy - 54, 56);
-  drawHex(cx - 96, cy + 54, 56);
-  drawHex(cx - 90, cy - 162, 48);
-  drawHex(cx - 90, cy + 162, 48);
+/** Top-down UVs for the carapace dome (local +Z = head). */
+function _applyShellDomeUvs(geo) {
+  const pos = geo.attributes.position;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const h = Math.hypot(x, z);
+    const rho = _shellRho(Math.acos(Math.min(1, Math.max(-1, y / SHELL_RADIUS_M))));
+    _setShellUv(uv, i, rho, h > 1e-6 ? x / h : 0, h > 1e-6 ? z / h : 0);
+  }
+  uv.needsUpdate = true;
+}
 
-  // Right column of scutes
-  drawHex(cx + 96, cy - 54, 56);
-  drawHex(cx + 96, cy + 54, 56);
-  drawHex(cx + 90, cy - 162, 48);
-  drawHex(cx + 90, cy + 162, 48);
+/** Top-down UVs for the rim torus (local XY plane; rotated +90° about X, so local +Y = head). */
+function _applyShellRimUvs(geo) {
+  const pos = geo.attributes.position;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    const h = Math.hypot(x, y);
+    _setShellUv(uv, i, h / SHELL_RADIUS_M, h > 1e-6 ? x / h : 0, h > 1e-6 ? y / h : 0);
+  }
+  uv.needsUpdate = true;
+}
 
-  // Scatter bright/dark moss overlay spots across the texture
-  for (let i = 0; i < 25; i++) {
-    const rx = Math.random() * SZ;
-    const ry = Math.random() * SZ;
-    const rSize = 10 + Math.random() * 25;
-    const mossGrad = ctx.createRadialGradient(rx, ry, 0, rx, ry, rSize);
-    mossGrad.addColorStop(0, Math.random() < 0.6 ? "rgba(42, 68, 30, 0.4)" : "rgba(22, 16, 10, 0.5)");
-    mossGrad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = mossGrad;
-    ctx.beginPath(); ctx.arc(rx, ry, rSize, 0, Math.PI * 2); ctx.fill();
+/**
+ * Pond-turtle carapace: 5 vertebral + 2×4 pleural scutes and 24 marginals,
+ * each with growth rings, fine rays and a pale seam fringe; yellow bars on the
+ * marginals. Seeded, so every boot draws the same shell.
+ * Returns { map } (sRGB colour) and { detail } (R = height for the bump,
+ * G = roughness).
+ */
+function _makeTurtleShellTextures() {
+  const rng = mulberry32(0x7e57a5e1);
+  const SZ = SHELL_COLOR_PX;
+  const colorCv = document.createElement("canvas");
+  colorCv.width = colorCv.height = SZ;
+  const heightCv = document.createElement("canvas");
+  const roughCv = document.createElement("canvas");
+  heightCv.width = heightCv.height = roughCv.width = roughCv.height = SHELL_DETAIL_PX;
+  const c = colorCv.getContext("2d");
+  const hc = heightCv.getContext("2d");
+  const rc = roughCv.getContext("2d");
+  // The detail canvases are drawn in colour-canvas pixels, scaled down.
+  hc.scale(SHELL_DETAIL_PX / SZ, SHELL_DETAIL_PX / SZ);
+  rc.scale(SHELL_DETAIL_PX / SZ, SHELL_DETAIL_PX / SZ);
+  for (const ctx of [c, hc, rc]) { ctx.lineJoin = "round"; ctx.lineCap = "round"; }
+
+  // Shell space: X across, Z toward the head, in ρ units → canvas pixels.
+  const P = (X, Z) => [SZ * (0.5 + X * SHELL_UV_R), SZ * (0.5 - Z * SHELL_UV_R)];
+  const polar = (rho, deg) => {
+    const a = (deg * Math.PI) / 180; // degrees from the head toward +X
+    return [rho * Math.sin(a), rho * Math.cos(a)];
+  };
+  const arc = (rho, d0, d1, n = 10) => {
+    const out = [];
+    for (let i = 0; i <= n; i++) out.push(polar(rho, d0 + ((d1 - d0) * i) / n));
+    return out;
+  };
+  const path = (ctx, pts) => {
+    ctx.beginPath();
+    pts.forEach(([X, Z], i) => {
+      const [x, y] = P(X, Z);
+      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    });
+    ctx.closePath();
+  };
+  const toward = (pts, [aX, aZ], f) => pts.map(([X, Z]) => [aX + (X - aX) * f, aZ + (Z - aZ) * f]);
+  const hsl = (h, sat, l, a = 1) => `hsla(${h.toFixed(1)}, ${sat.toFixed(1)}%, ${l.toFixed(1)}%, ${a})`;
+
+  // ── Scute layout ──
+  const RM = 0.84;                          // inner edge of the marginal ring
+  const RO = 1.12;                          // outer edge (past the rim torus)
+  const HS = 0.15, HM = 0.25;               // vertebral half-width at seams / at lateral corners
+  const ZL = [0.66, 0.33, 0, -0.33, -0.66]; // vertebral lateral corners, head → tail
+  const ZS = [0.495, 0.165, -0.165, -0.495];// seams between vertebrals
+  const A = [24, 56, 90, 124, 156];         // where each pleural seam meets the marginals
+
+  const scutes = [];
+  // Vertebrals (down the spine)
+  scutes.push({ kind: "v", pts: [...arc(RM, -A[0], A[0], 8), [HM, ZL[0]], [HS, ZS[0]], [-HS, ZS[0]], [-HM, ZL[0]]] });
+  for (let k = 1; k <= 3; k++) {
+    scutes.push({ kind: "v", pts: [[-HS, ZS[k - 1]], [HS, ZS[k - 1]], [HM, ZL[k]], [HS, ZS[k]], [-HS, ZS[k]], [-HM, ZL[k]]] });
+  }
+  scutes.push({ kind: "v", pts: [[-HS, ZS[3]], [HS, ZS[3]], [HM, ZL[4]], ...arc(RM, A[4], 360 - A[4], 8), [-HM, ZL[4]]] });
+  // Pleurals (four per side)
+  for (const s of [1, -1]) {
+    for (let k = 0; k < 4; k++) {
+      scutes.push({
+        kind: "p",
+        pts: [[s * HM, ZL[k]], [s * HS, ZS[k]], [s * HM, ZL[k + 1]], ...arc(RM, s * A[k + 1], s * A[k], 10)],
+      });
+    }
+  }
+  // Marginals (24 round the edge; the nuchal sits on the head line)
+  for (let j = 0; j < 24; j++) {
+    const a0 = -7.5 + j * 15, a1 = a0 + 15, mid = a0 + 7.5;
+    scutes.push({ kind: "m", mid, pts: [...arc(RM, a0, a1, 4), ...arc(RO, a1, a0, 4)], areola: polar(0.99, mid) });
+  }
+  for (const sc of scutes) {
+    if (!sc.areola) {
+      // Growth centre: vertex average, nudged toward the tail like a real scute.
+      let ax = 0, az = 0;
+      for (const [X, Z] of sc.pts) { ax += X; az += Z; }
+      sc.areola = [ax / sc.pts.length, az / sc.pts.length - 0.025];
+    }
+    const [cx, cy] = P(...sc.areola);
+    const px = sc.pts.map(([X, Z]) => P(X, Z));
+    sc.rPx = Math.max(...px.map(([x, y]) => Math.hypot(x - cx, y - cy)));
+    // Pixel bounds: fills cover only this box (the clip does the shape).
+    const xs = px.map((q) => q[0]), ys = px.map((q) => q[1]);
+    sc.box = [Math.floor(Math.min(...xs)) - 2, Math.floor(Math.min(...ys)) - 2, Math.ceil(Math.max(...xs) - Math.min(...xs)) + 4, Math.ceil(Math.max(...ys) - Math.min(...ys)) + 4];
   }
 
-  // Edge shading radial gradient (vignette)
-  const edgeGrad = ctx.createRadialGradient(cx, cy, SZ * 0.32, cx, cy, SZ * 0.5);
-  edgeGrad.addColorStop(0, "rgba(0,0,0,0)");
-  edgeGrad.addColorStop(0.7, "rgba(10, 15, 6, 0.5)");
-  edgeGrad.addColorStop(1.0, "rgba(5, 7, 3, 0.85)");
-  ctx.fillStyle = edgeGrad;
-  ctx.beginPath(); ctx.arc(cx, cy, SZ / 2, 0, Math.PI * 2); ctx.fill();
+  // ── Backgrounds (outside every scute: only reached by mip filtering) ──
+  // Height is drawn in red only and roughness in green only, then the two
+  // canvases are added together (no pixel readback).
+  c.fillStyle = hsl(80, 28, 18); c.fillRect(0, 0, SZ, SZ);
+  hc.fillStyle = "rgb(106, 0, 0)"; hc.fillRect(0, 0, SZ, SZ);
+  rc.fillStyle = "rgb(0, 140, 0)"; rc.fillRect(0, 0, SZ, SZ);
 
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return tex;
+  const lw = SZ / 512; // 1 px at 512
+  for (const sc of scutes) {
+    const [ax, ay] = P(...sc.areola);
+    const marginal = sc.kind === "m";
+    const jitter = (rng() - 0.5) * 2;
+
+    // Colour: warm olive-gold growth centre → deep olive edge.
+    c.save(); path(c, sc.pts); c.clip();
+    const g = c.createRadialGradient(ax, ay, 0, ax, ay, sc.rPx);
+    if (marginal) {
+      g.addColorStop(0, hsl(70 + jitter * 4, 26, 24));
+      g.addColorStop(1, hsl(84 + jitter * 4, 30, 14));
+    } else {
+      g.addColorStop(0, hsl(56 + jitter * 5, 34, 33 + jitter * 3));
+      g.addColorStop(0.45, hsl(68 + jitter * 5, 30, 24 + jitter * 2));
+      g.addColorStop(1, hsl(82 + jitter * 4, 30, 15));
+    }
+    c.fillStyle = g; c.fillRect(...sc.box);
+
+    if (marginal) {
+      // Yellow slider bar across the marginal.
+      const w = 0.8 + rng() * 0.4;
+      const bar = [polar(RM + 0.02, sc.mid - 1.5 * w), polar(RM + 0.02, sc.mid + 1.5 * w), polar(RO, sc.mid + 2.4 * w), polar(RO, sc.mid - 2.4 * w)];
+      c.fillStyle = hsl(46 + jitter * 4, 58, 44, 0.55);
+      path(c, bar); c.fill();
+    } else {
+      // Fine rays from the growth centre.
+      const rays = 10 + Math.floor(rng() * 6);
+      for (let r = 0; r < rays; r++) {
+        const a = (r / rays) * Math.PI * 2 + rng() * 0.4;
+        const len = sc.rPx * (0.55 + rng() * 0.45);
+        c.strokeStyle = hsl(52, 60, 66, 0.05 + rng() * 0.05);
+        c.lineWidth = lw * (1 + rng() * 1.4);
+        // Start a little out from the centre so the rays don't meet in a star.
+        const r0 = sc.rPx * (0.12 + rng() * 0.1);
+        c.beginPath(); c.moveTo(ax + Math.cos(a) * r0, ay + Math.sin(a) * r0);
+        const bend = (rng() - 0.5) * 0.25;
+        c.quadraticCurveTo(ax + Math.cos(a + bend) * len * 0.5, ay + Math.sin(a + bend) * len * 0.5, ax + Math.cos(a) * len, ay + Math.sin(a) * len);
+        c.stroke();
+      }
+    }
+
+    // Growth rings: dark groove with a pale lip just inside it.
+    // Each ring wobbles a little per corner so it reads hand-grown, not ruled.
+    const rings = (marginal ? [0.82, 0.62, 0.42] : [0.9, 0.78, 0.66, 0.54, 0.42, 0.3]).map(
+      (f) => sc.pts.map(([X, Z]) => {
+        const k = f + (rng() - 0.5) * 0.03;
+        return [sc.areola[0] + (X - sc.areola[0]) * k, sc.areola[1] + (Z - sc.areola[1]) * k];
+      }),
+    );
+    for (const ring of rings) {
+      c.lineWidth = lw * 1.4; c.strokeStyle = "rgba(24, 22, 10, 0.18)";
+      path(c, ring); c.stroke();
+      c.lineWidth = lw; c.strokeStyle = "rgba(236, 222, 150, 0.07)";
+      path(c, toward(ring, sc.areola, 0.97)); c.stroke();
+    }
+
+    // Grain + a few algae patches.
+    for (let i = 0; i < 70; i++) {
+      const a = rng() * Math.PI * 2, d = Math.sqrt(rng()) * sc.rPx;
+      c.fillStyle = rng() < 0.5 ? "rgba(20, 18, 8, 0.10)" : "rgba(230, 220, 160, 0.07)";
+      c.fillRect(ax + Math.cos(a) * d, ay + Math.sin(a) * d, lw * (1 + rng() * 2), lw * (1 + rng() * 2));
+    }
+    if (rng() < 0.35) {
+      const a = rng() * Math.PI * 2, d = rng() * sc.rPx * 0.6, rr = sc.rPx * (0.25 + rng() * 0.3);
+      const px = ax + Math.cos(a) * d, py = ay + Math.sin(a) * d;
+      const moss = c.createRadialGradient(px, py, 0, px, py, rr);
+      moss.addColorStop(0, "rgba(64, 96, 36, 0.28)"); moss.addColorStop(1, "rgba(64, 96, 36, 0)");
+      c.fillStyle = moss; c.fillRect(px - rr, py - rr, rr * 2, rr * 2);
+    }
+
+    // Pale fringe along the inside of the seam.
+    c.lineWidth = lw * 2; c.strokeStyle = "rgba(226, 210, 132, 0.22)";
+    path(c, toward(sc.pts, sc.areola, 0.955)); c.stroke();
+    c.restore();
+
+    // Height: each scute gently domed, rings as shallow grooves.
+    hc.save(); path(hc, sc.pts); hc.clip();
+    const hg = hc.createRadialGradient(ax, ay, 0, ax, ay, sc.rPx);
+    hg.addColorStop(0, marginal ? "rgb(168, 0, 0)" : "rgb(200, 0, 0)"); hg.addColorStop(1, "rgb(122, 0, 0)");
+    hc.fillStyle = hg; hc.fillRect(...sc.box);
+    hc.lineWidth = lw * 3; hc.strokeStyle = "rgba(0, 0, 0, 0.16)";
+    for (const ring of rings) { path(hc, ring); hc.stroke(); }
+    hc.restore();
+
+    // Roughness: polished growth centre, duller toward the seams.
+    rc.save(); path(rc, sc.pts); rc.clip();
+    const rg = rc.createRadialGradient(ax, ay, 0, ax, ay, sc.rPx);
+    rg.addColorStop(0, "rgb(0, 106, 0)"); rg.addColorStop(1, "rgb(0, 150, 0)");
+    rc.fillStyle = rg; rc.fillRect(...sc.box);
+    rc.restore();
+  }
+
+  // Seams on top of everything: dark, slightly rough grooves.
+  for (const sc of scutes) {
+    c.lineWidth = lw * 3.2; c.strokeStyle = "#1b180d";
+    path(c, sc.pts); c.stroke();
+    hc.lineWidth = lw * 7; hc.strokeStyle = "rgb(32, 0, 0)";
+    path(hc, sc.pts); hc.stroke();
+    rc.lineWidth = lw * 7; rc.strokeStyle = "rgb(0, 189, 0)";
+    path(rc, sc.pts); rc.stroke();
+  }
+
+  // Height (R) + roughness (G) in one small texture.
+  hc.setTransform(1, 0, 0, 1, 0, 0);
+  hc.globalCompositeOperation = "lighter";
+  hc.drawImage(roughCv, 0, 0);
+  hc.globalCompositeOperation = "source-over";
+
+  const map = new THREE.CanvasTexture(colorCv);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 8;
+  const detail = new THREE.CanvasTexture(heightCv);
+  return { map, detail };
 }
 
 /**
@@ -681,19 +832,21 @@ function buildTurtle(centerY, textures) {
   group.userData.anuKind = "sanctuary_pool_turtle";
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.FAUNA;
 
-  const y = centerY - POOL_FLOOR_DEPTH_M + 0.08; // slightly above the deepened floor
+  // On the floor the player sees (the terrain), not relative to the water line.
+  const y = sanctuaryGroundY(SANCTUARY_POOL_CENTER_X, SANCTUARY_POOL_CENTER_Z) + TURTLE_FLOOR_LIFT_M;
 
-  // High-fidelity photorealistic canvas texture for the carapace
-  const shellTex = _makeTurtleShellTexture();
+  // Carapace: drawn top-down; the dome and rim get matching UVs below.
+  const shellTex = _makeTurtleShellTextures();
 
   const shellMat = new THREE.MeshStandardMaterial({
-    map: shellTex,
-    bumpMap: shellTex,
-    bumpScale: 0.035, // physical scute crevices and growth rings
-    roughnessMap: shellTex,
-    roughness: 0.5,
-    metalness: 0.08,
+    map: shellTex.map,
+    bumpMap: shellTex.detail,     // R: seams and growth rings as grooves
+    bumpScale: 0.04,
+    roughnessMap: shellTex.detail, // G: polished centres, duller seams
+    roughness: 1.0,
+    metalness: 0.0,
   });
+  group.userData.shellDetailTex = shellTex.detail; // disposed in dispose()
 
   const skinMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0x232d1d), // slate mossy dark green
@@ -718,7 +871,8 @@ function buildTurtle(centerY, textures) {
   });
 
   // 1. Carapace (Detailed Shell Dome)
-  const shellGeo = new THREE.SphereGeometry(0.65, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2);
+  const shellGeo = new THREE.SphereGeometry(SHELL_RADIUS_M, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2);
+  _applyShellDomeUvs(shellGeo);
   const shellMesh = new THREE.Mesh(shellGeo, shellMat);
   shellMesh.scale.set(1.15, 0.55, 1.45); // majestic large shell
   shellMesh.position.y = 0.08;
@@ -727,7 +881,8 @@ function buildTurtle(centerY, textures) {
   group.add(shellMesh);
 
   // Carapace Rim / Flared Skirt (marginal scutes)
-  const rimGeo = new THREE.TorusGeometry(0.65, 0.035, 6, 32);
+  const rimGeo = new THREE.TorusGeometry(SHELL_RADIUS_M, 0.035, 6, 32);
+  _applyShellRimUvs(rimGeo);
   const rimMesh = new THREE.Mesh(rimGeo, shellMat);
   rimMesh.scale.set(1.17, 1.47, 0.4);
   rimMesh.rotation.x = Math.PI / 2;
@@ -2059,7 +2214,7 @@ export const SanctuaryPoolModule = {
       _turtleGroup.rotation.y = time * 0.03 + Math.PI / 2 + Math.sin(time * 0.06) * 0.05;
       
       // Highly subtle, slow breathing bob (Y position)
-      _turtleGroup.position.y = (this._waterY - POOL_FLOOR_DEPTH_M + 0.05) + Math.sin(time * 0.08) * 0.01;
+      _turtleGroup.position.y = sanctuaryGroundY(cx, cz) + TURTLE_FLOOR_LIFT_M + Math.sin(time * 0.08) * 0.01;
 
       // Animate flippers/legs swimming at an ultra-slow, lazy pace
       if (_turtleGroup.userData.flipperLRef) {
@@ -2109,6 +2264,7 @@ export const SanctuaryPoolModule = {
     this._root = null;
     this._scene = null;
     this._lilyPadsGroup = null;
+    _turtleGroup?.userData.shellDetailTex?.dispose?.();
     _turtleGroup = null;
     if (typeof window !== "undefined") delete window.__sanctuaryWaterY;
   },
