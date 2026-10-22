@@ -1,4 +1,20 @@
 
+// Mobile Phase 2: read the game's single device profile (js/v2/deviceProfile.js),
+// exposed by the parent page as window.SacredDeviceProfile. This file runs inside
+// the panel iframe (SacredGame.Panel.html), so it reads window.parent. If the
+// profile is not there (other host pages), behave as desktop.
+function _sacredIconsIsMobile() {
+    try {
+        const p = (window.parent && window.parent.SacredDeviceProfile) || window.SacredDeviceProfile;
+        return !!(p && p.isMobile);
+    } catch (_e) {
+        return false;
+    }
+}
+// Icon badges are small on screen; 512 px keeps them crisp at any phone DPR while
+// a 4096 px avatar map would otherwise upload at full size into this 2nd context.
+const SACRED_ICONS_MOBILE_TEX_CAP = 512;
+
 class ThreeIconManager {
     constructor() {
         this.scenes = [];
@@ -20,6 +36,11 @@ class ThreeIconManager {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = false;
+        this.isMobile = _sacredIconsIsMobile();
+        if (this.isMobile && this.renderer.capabilities.maxTextureSize > SACRED_ICONS_MOBILE_TEX_CAP) {
+            // three.js resizes every image to capabilities.maxTextureSize at upload.
+            this.renderer.capabilities.maxTextureSize = SACRED_ICONS_MOBILE_TEX_CAP;
+        }
         
         // Canvas Style (Fixed Background)
         const canvas = this.renderer.domElement;
@@ -269,6 +290,10 @@ class ThreeIconManager {
         let AVATAR_URL = "./Assets/npc/Avatar-New.glb";
         if (typeof window !== "undefined" && window.location.href.includes("avatar=old")) {
             AVATAR_URL = "./Assets/Avatar3.glb";
+        } else if (_sacredIconsIsMobile()) {
+            // Same file the main game loads on mobile (gltfLoaderSetup MOBILE_GLB_VARIANTS),
+            // so the browser fetches it once; texture-only variant, identical rig.
+            AVATAR_URL = "./Assets/npc/Avatar-New.mobile.glb";
         }
  
         loader.load(AVATAR_URL, (gltf) => {

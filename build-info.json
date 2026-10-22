@@ -1,9 +1,9 @@
 {
-  "subject": "feat(village): building-types panel in village view (Tipi/Dock/Pool, list-only)",
-  "isoDate": "2026-06-03T03:50:38-05:00",
-  "branch": "dev/ideasoftware-studio",
+  "subject": "perf(mobile): Phase 2 part 1 — texture-only phone models + capped panel icon renderer",
+  "isoDate": "2026-10-22T06:56:57+00:00",
+  "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "15e2dea",
+  "commit": "d7ef0a3",
   "dirty": true,
-  "generatedAt": "2026-06-03T08:50:42.695Z"
+  "generatedAt": "2026-10-22T06:56:57.632Z"
 }
