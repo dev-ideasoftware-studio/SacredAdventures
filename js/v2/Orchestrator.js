@@ -59,6 +59,7 @@ import { ensurePipOrthoRingClipRuntimeServiceRegistered } from "./anu/PipOrthoRi
  * for the rationale (May-16 2026 user spec on inter-animal awareness).
  */
 import { AnuNatureAwareness } from "./anu/AnuNatureAwareness.js";
+import { deviceProfile } from "./deviceProfile.js";
 import {
   attachVillageViewRightStackLayout,
   buildOrchestratorHud,
@@ -102,11 +103,7 @@ export class SacredOrchestrator {
     // + 3.1M triangles with shadows on — enough to terminate the iOS content
     // process, which surfaces as "Can't open this page". The guards keyed off
     // this flag cut mobile memory hard; desktop is untouched.
-    const _ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
-    this._isMobile =
-      /Mobi|Android|iPhone|iPod/i.test(_ua) ||
-      /iPad/i.test(_ua) ||
-      (/Macintosh/.test(_ua) && (navigator.maxTouchPoints || 0) > 1); // iPadOS desktop UA
+    this._isMobile = deviceProfile.isMobile; // single source: js/v2/deviceProfile.js
     // ── Renderer ──────────────────────────────────────────────────────────
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -127,7 +124,7 @@ export class SacredOrchestrator {
     // Mobile clamps DPR to 1.0 — a fullscreen Retina buffer at 1.5–3× is pure
     // memory + fill-rate the mobile GPU process can't spare (DPR 3 → ~9× the
     // pixels of DPR 1). Desktop keeps 1.5 for Retina sharpness.
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this._isMobile ? 1.0 : 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, deviceProfile.dprCap));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     // Shadows enabled — flat black contact discs under trees / rabbits
     // were the second-largest "ugly" read in the landscape screenshot.
@@ -1077,20 +1074,12 @@ export class SacredOrchestrator {
     // MOBILE WebGL-context guard: phones/iPads strictly limit simultaneous WebGL
     // contexts. The PiP is a SECOND context on top of the main scene; creating it
     // can trigger "too many active WebGL contexts" → the main context is evicted →
-    // blank screen / crash on mobile. So we DON'T create the PiP context on mobile:
-    // the main scene runs on a single context and the game boots. _renderPip()
-    // already no-ops when _pipRenderer is null, so the minimap is simply absent on
-    // mobile (desktop keeps the full PiP).
-    if (typeof navigator !== "undefined") {
-      const ua = navigator.userAgent || "";
-      const isMobile =
-        /Mobi|Android|iPhone|iPod/i.test(ua) ||
-        /iPad/i.test(ua) ||
-        (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1); // iPadOS desktop UA
-      if (isMobile) {
-        this._pipMobileDisabled = true;
-        return;
-      }
+    // blank screen / crash on mobile. So we DON'T create the PiP context on mobile.
+    // Mobile draws the minimap through the main renderer instead: _renderPip()
+    // calls _ensureMobilePip() on mobile, and this method is only reached on desktop.
+    if (deviceProfile.isMobile) {
+      this._pipMobileDisabled = true;
+      return;
     }
     const { w, h } = this._computePipBackingSize(canvasEl);
     canvasEl.width = w;

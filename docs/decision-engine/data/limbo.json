@@ -77,6 +77,7 @@
   "js/v2/anu/index.js",
   "js/v2/anu/pipelineMemory.js",
   "js/v2/constants.js",
+  "js/v2/deviceProfile.js",
   "js/v2/gltfLoaderSetup.js",
   "js/v2/pipCompassMath.js",
   "index.html",
@@ -669,7 +670,7 @@
    "kind": "ANU bus event",
    "name": "MODULE_ACTIVATED",
    "senders": [
-    "js/v2/Orchestrator.js:L447"
+    "js/v2/Orchestrator.js:L444"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
@@ -679,7 +680,7 @@
    "kind": "ANU bus event",
    "name": "MODULE_DEACTIVATED",
    "senders": [
-    "js/v2/Orchestrator.js:L511"
+    "js/v2/Orchestrator.js:L508"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
@@ -699,7 +700,7 @@
    "kind": "ANU bus event",
    "name": "ORCHESTRATOR_BENCH_COMPLETE",
    "senders": [
-    "js/v2/Orchestrator.js:L851"
+    "js/v2/Orchestrator.js:L848"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
@@ -739,7 +740,7 @@
    "kind": "ANU bus event",
    "name": "RENDERING_DPR_CHANGE",
    "senders": [
-    "js/sanctuary/AnuAdaptiveDpr.js:L136"
+    "js/sanctuary/AnuAdaptiveDpr.js:L137"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
@@ -801,7 +802,7 @@
    "kind": "Runtime service lookup",
    "name": "PipOrthoBranchClip",
    "senders": [
-    "js/v2/Orchestrator.js:L1630"
+    "js/v2/Orchestrator.js:L1619"
    ],
    "receivers": [
     "js/v2/anu/PipOrthoRingDiskClip.js:L44"
@@ -837,7 +838,7 @@
    "kind": "Runtime service lookup",
    "name": "WorldPlayer",
    "senders": [
-    "js/v2/Orchestrator.js:L1411",
+    "js/v2/Orchestrator.js:L1400",
     "js/v2/UIModule.js:L231",
     "js/v2/UIModule.js:L248"
    ],
@@ -2159,7 +2160,7 @@
    "kind": "DOM id lookup",
    "name": "v2-pip-canvas",
    "senders": [
-    "js/v2/Orchestrator.js:L1417",
+    "js/v2/Orchestrator.js:L1406",
     "js/v2/UIModule.js:L226"
    ],
    "receivers": [

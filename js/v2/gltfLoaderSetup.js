@@ -8,6 +8,7 @@
  */
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { deviceProfile } from "./deviceProfile.js";
 
 const DRACO_DECODER_PATH =
   "./vendor/three/examples/jsm/libs/draco/gltf/";
@@ -60,18 +61,9 @@ const MOBILE_GLB_VARIANTS = new Set([
   "animated.stag.glb",
 ]);
 
-function _isMobileUA() {
-  const ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
-  return (
-    /Mobi|Android|iPhone|iPod/i.test(ua) ||
-    /iPad/i.test(ua) ||
-    (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1)
-  );
-}
-
 /** On mobile, rewrite `…/X.glb` → `…/X.mobile.glb` for known heavy assets. */
 export function mobileGlbUrl(url) {
-  if (typeof url !== "string" || !_isMobileUA()) return url;
+  if (typeof url !== "string" || !deviceProfile.isMobile) return url;
   const base = url.split("/").pop().split("?")[0];
   if (MOBILE_GLB_VARIANTS.has(base)) {
     return url.replace(/\.glb(\?|$)/i, ".mobile.glb$1");

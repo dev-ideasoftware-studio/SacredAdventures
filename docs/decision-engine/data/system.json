@@ -1,5 +1,5 @@
 {
- "commit": "b59e8a2",
+ "commit": "6b8cf51",
  "roots": [
   "js/v2/Orchestrator.js",
   "js/v2/AnuModule.js",
@@ -252,6 +252,7 @@
   "js/v2/anu/index.js",
   "js/v2/anu/pipelineMemory.js",
   "js/v2/constants.js",
+  "js/v2/deviceProfile.js",
   "js/v2/gltfLoaderSetup.js",
   "js/v2/lunarPhase.js",
   "js/v2/pipCompassMath.js"
@@ -295,14 +296,14 @@
   {
    "file": "js/sanctuary/AnuAdaptiveDpr.js",
    "layer": "ANU governance",
-   "lines": 285,
-   "kb": 11.5,
+   "lines": 281,
+   "kb": 11.4,
    "module_name": "AnuAdaptiveDpr",
    "registered_symbol": "AnuAdaptiveDprModule",
    "header": "AnuAdaptiveDpr \u2014 Anu's omnipresent FPS guardian. Per the user's spec: \"ANU/World/Animals = controlled by an omnipresent AI that monitors everything, including current FPS. This game must have threshold for 120fps at super high resolutions.\" What this does: \u2022 Watches `FrameBudget.avgMs` every N frames (Anu's own sensor). \u2022 If the rolling average drops below a target wall (default 120 FPS \u2192 8.33 ms), Anu scales the renderer's pixel ratio DOWN one step. \u2022 If the rolling average comfortably exceeds the target with hysteresis, Anu scales DPR UP one step (capped at the user's device DPR). Why DPR in",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 225,
+   "update_line": 221,
    "update_lines": 50,
    "update_throttle": "",
    "hazards": {},
@@ -311,7 +312,8 @@
     "js/v2/anu/InteractionBus.js",
     "js/v2/anu/RenderingGovernor.js",
     "js/v2/anu/SimulationController.js",
-    "js/v2/anu/anuEvents.js"
+    "js/v2/anu/anuEvents.js",
+    "js/v2/deviceProfile.js"
    ],
    "imported_by": [],
    "globals_written": [],
@@ -2850,8 +2852,8 @@
   {
    "file": "js/v2/Orchestrator.js",
    "layer": "Engine shell",
-   "lines": 1843,
-   "kb": 77.7,
+   "lines": 1832,
+   "kb": 77.3,
    "module_name": "",
    "registered_symbol": "",
    "header": "Sacred Adventures v2 \u2014 SacredOrchestrator (Anu engine shell) Responsibilities: 1. Own the Three.js renderer, scene, camera, and clock 2. Maintain a MODULE REGISTRY \u2014 each module is a named object with { name, load(), unload(), update(delta) } 3. Benchmark FPS cost of every module in isolation 4. Drive the requestAnimationFrame loop and call active module updates 5. Render an on-screen HUD showing live FPS and active module list 6. Expose the live shell as window.anuOrchestrator (canonical). window.Orchestrator is a legacy alias for the same instance. Class SacredOrchestrator \u2260 global: import t",
@@ -2873,7 +2875,8 @@
     "js/v2/anu/RenderingGovernor.js",
     "js/v2/anu/SceneModelInventory.js",
     "js/v2/anu/anuEvents.js",
-    "js/v2/constants.js"
+    "js/v2/constants.js",
+    "js/v2/deviceProfile.js"
    ],
    "imported_by": [],
    "globals_written": [
@@ -5046,10 +5049,47 @@
    "fishing_suspended": false
   },
   {
+   "file": "js/v2/deviceProfile.js",
+   "layer": "v2 shared",
+   "lines": 76,
+   "kb": 2.4,
+   "module_name": "",
+   "registered_symbol": "",
+   "header": "Device profile: the single answer to \"is this a phone or tablet?\". Every live module that branches on mobile imports `deviceProfile` from here instead of testing the user agent itself. Detection is the exact rule the four former copies used (Orchestrator x2, AnuAdaptiveDpr, gltfLoaderSetup): - UA matches /Mobi|Android|iPhone|iPod/i, or /iPad/i, or - UA says \"Macintosh\" and the device has more than one touch point (iPadOS Safari reports a desktop Mac UA). Testing override: add `?device=mobile` or `?device=desktop` to the page URL. The override only changes what this module reports. The browser'",
+   "anu_domain_claimed": "",
+   "has_update": false,
+   "update_line": null,
+   "update_lines": 0,
+   "update_throttle": "",
+   "hazards": {},
+   "imports": [],
+   "imported_by": [
+    "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/v2/Orchestrator.js",
+    "js/v2/gltfLoaderSetup.js"
+   ],
+   "globals_written": [],
+   "globals_read": [],
+   "anu_events_dispatched": [],
+   "anu_events_subscribed": [],
+   "dom_events_dispatched": [],
+   "dom_events_listened": [],
+   "postmessage_types": [],
+   "assets": [],
+   "services_registered": [],
+   "services_used": [],
+   "last_commit": "",
+   "commit_count": 0,
+   "also_in_v2_build": true,
+   "status": "Imported library (no module lifecycle)",
+   "activation_order": null,
+   "fishing_suspended": false
+  },
+  {
    "file": "js/v2/gltfLoaderSetup.js",
    "layer": "v2 shared",
-   "lines": 94,
-   "kb": 4.1,
+   "lines": 86,
+   "kb": 3.9,
    "module_name": "",
    "registered_symbol": "",
    "header": "Shared Draco decoder for GLTFLoader (Avatar + legacy ThreeIcons guide meshes). Decoder WASM is loaded from the local bundled vendor copy so compressed glTF works offline. Phase 2 of the 120-FPS refactor (May-19 2026): use the full CPU for parallel Draco decoding, and preload the decoder WASM during boot so the first GLB doesn't pay the wasm-fetch cost mid-load.",
@@ -5059,7 +5099,9 @@
    "update_lines": 0,
    "update_throttle": "",
    "hazards": {},
-   "imports": [],
+   "imports": [
+    "js/v2/deviceProfile.js"
+   ],
    "imported_by": [
     "js/sanctuary/SanctuaryAvatar.js",
     "js/sanctuary/SanctuaryPondTrees.js",

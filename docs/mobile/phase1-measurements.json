@@ -1,0 +1,2869 @@
+{
+ "generated": "2026-10-22",
+ "profiles": {
+  "phoneS": {
+   "profile": "phoneS",
+   "booted": true,
+   "bootMs": 25082,
+   "orch": true,
+   "isMobileFlag": true,
+   "dpr": 1,
+   "drawingBuffer": [
+    320,
+    568
+   ],
+   "shadows": false,
+   "maxTextureSize": 256,
+   "lastFrame": {
+    "calls": 361,
+    "triangles": 1404561
+   },
+   "memory": {
+    "geometries": 213,
+    "textures": 111
+   },
+   "sceneTris": 1440428,
+   "meshes": 634,
+   "textures": 105,
+   "cpuImageMB": 481,
+   "topTextures": [
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_basecolor",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_normal",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_basecolor",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_normal",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_rm",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "grass+tuft+3d+model_basecolor.jpg",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "water_normal.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "rock.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "tipi.yellowbutterfly_basecolor",
+     "owner": "sanctuary_tipis_v2",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "structure_tipi_1_sacred_platform",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_basecolor",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_normal",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_rm",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "aed6cd99-cb41-4bf4-b1d2-088623994c90",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 4
+    }
+   ],
+   "gpu": {
+    "v4-canvas": {
+     "allocations": 111,
+     "estMB": 33.7,
+     "maxDim": 256,
+     "over1024": 0
+    }
+   },
+   "mainCanvasId": "v4-canvas",
+   "pip": {
+    "renderer2ndCtx": false,
+    "mobileRT": false,
+    "rtSize": null,
+    "renderedLast": false
+   },
+   "frames": 11,
+   "viewport": [
+    320,
+    568
+   ],
+   "hScroll": false,
+   "surfaces": [
+    {
+     "el": "#v4-panel-frame",
+     "x": 0,
+     "y": 0,
+     "r": 320,
+     "b": 568,
+     "outside": false
+    },
+    {
+     "el": "#v2-orchestrator-hud",
+     "x": 187,
+     "y": 12,
+     "r": 320,
+     "b": 171,
+     "outside": false
+    },
+    {
+     "el": "#build-badge",
+     "x": 12,
+     "y": 532,
+     "r": 198,
+     "b": 568,
+     "outside": false
+    },
+    {
+     "el": "#__boot_err",
+     "x": 0,
+     "y": 492,
+     "r": 320,
+     "b": 568,
+     "outside": false
+    },
+    {
+     "el": "#v2-panels-pip",
+     "x": 0,
+     "y": 0,
+     "r": 320,
+     "b": 568,
+     "outside": false
+    },
+    {
+     "el": "#v2-side-panel",
+     "x": 0,
+     "y": 0,
+     "r": 320,
+     "b": 568,
+     "outside": false
+    }
+   ],
+   "overlaps": [
+    "#v4-panel-frame \u2229 #v2-orchestrator-hud: 133x159",
+    "#v4-panel-frame \u2229 #build-badge: 186x36",
+    "#v4-panel-frame \u2229 #__boot_err: 320x76",
+    "#v4-panel-frame \u2229 #v2-panels-pip: 320x568",
+    "#v4-panel-frame \u2229 #v2-side-panel: 320x568",
+    "#v2-orchestrator-hud \u2229 #v2-panels-pip: 133x159",
+    "#v2-orchestrator-hud \u2229 #v2-side-panel: 133x159",
+    "#build-badge \u2229 #__boot_err: 186x36",
+    "#build-badge \u2229 #v2-panels-pip: 186x36",
+    "#build-badge \u2229 #v2-side-panel: 186x36",
+    "#__boot_err \u2229 #v2-panels-pip: 320x76",
+    "#__boot_err \u2229 #v2-side-panel: 320x76",
+    "#v2-panels-pip \u2229 #v2-side-panel: 320x568"
+   ],
+   "smallTargets": [
+    {
+     "el": "#v2-hud-trace-label",
+     "w": 116,
+     "h": 10
+    },
+    {
+     "el": "#v2-hud-universe-label",
+     "w": 116,
+     "h": 15
+    },
+    {
+     "el": "#build-badge-copy",
+     "w": 22,
+     "h": 22
+    },
+    {
+     "el": "button.",
+     "w": 115,
+     "h": 31
+    },
+    {
+     "el": "button.swg-skip",
+     "w": 82,
+     "h": 31
+    },
+    {
+     "el": "button.swg-next",
+     "w": 82,
+     "h": 34
+    },
+    {
+     "el": "input.",
+     "w": 14,
+     "h": 14
+    }
+   ],
+   "glbs": [
+    {
+     "file": "Assets/npc/Avatar-New.glb",
+     "status": 200,
+     "bytes": 11999716
+    },
+    {
+     "file": "Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.lite.mobile.glb",
+     "status": 200,
+     "bytes": 192652
+    },
+    {
+     "file": "Assets/NPC.YB.glb",
+     "status": 200,
+     "bytes": 3163004
+    },
+    {
+     "file": "Assets/NPC.BHG.mobile.glb",
+     "status": 200,
+     "bytes": 1708448
+    },
+    {
+     "file": "Assets/NPC.REG.lite.mobile.glb",
+     "status": 200,
+     "bytes": 2541696
+    },
+    {
+     "file": "Assets/tree.glb",
+     "status": 200,
+     "bytes": 7072036
+    },
+    {
+     "file": "Assets/flora/reeds.glb",
+     "status": 200,
+     "bytes": 788624
+    },
+    {
+     "file": "Assets/bush.glb",
+     "status": 200,
+     "bytes": 907352
+    }
+   ],
+   "glbMB": 27.1,
+   "external": [
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka+One&family=Outfit:wght@400;500;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://unpkg.com/lucide@latest",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&family=Roboto:wght@400;500&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/OBJLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    }
+   ],
+   "jsFiles": [
+    "Assets/AxeData.js",
+    "js/BuildBadge.js",
+    "js/Data.Fish.js",
+    "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/MoldGrowHill.js",
+    "js/sanctuary/MoldPlaceTipi.js",
+    "js/sanctuary/MoldPlantBush.js",
+    "js/sanctuary/MoldPlantFlower.js",
+    "js/sanctuary/MoldPlantLily.js",
+    "js/sanctuary/MoldPlantRock.js",
+    "js/sanctuary/MoldPlantTree.js",
+    "js/sanctuary/SanctuaryAmbient.js",
+    "js/sanctuary/SanctuaryAvatar.js",
+    "js/sanctuary/SanctuaryBraziers.js",
+    "js/sanctuary/SanctuaryButterflies.js",
+    "js/sanctuary/SanctuaryCircles.js",
+    "js/sanctuary/SanctuaryClickToMove.js",
+    "js/sanctuary/SanctuaryControls.js",
+    "js/sanctuary/SanctuaryCursor.js",
+    "js/sanctuary/SanctuaryDayNight.js",
+    "js/sanctuary/SanctuaryDock.js",
+    "js/sanctuary/SanctuaryDragonfly.js",
+    "js/sanctuary/SanctuaryFish.js",
+    "js/sanctuary/SanctuaryFishJumps.js",
+    "js/sanctuary/SanctuaryFishing.js",
+    "js/sanctuary/SanctuaryFrogs.js",
+    "js/sanctuary/SanctuaryGround.js",
+    "js/sanctuary/SanctuaryHexGrid.js",
+    "js/sanctuary/SanctuaryInventory.js",
+    "js/sanctuary/SanctuaryJournalBridge.js",
+    "js/sanctuary/SanctuaryKeyboardLook.js",
+    "js/sanctuary/SanctuaryMapGeneratorUi.js",
+    "js/sanctuary/SanctuaryMutations.js",
+    "js/sanctuary/SanctuaryPondTrees.js",
+    "js/sanctuary/SanctuaryPool.js",
+    "js/sanctuary/SanctuarySceneConstructor.js",
+    "js/sanctuary/SanctuarySky.js",
+    "js/sanctuary/SanctuaryTipiNpcs.js",
+    "js/sanctuary/SanctuaryTipis.js",
+    "js/sanctuary/SanctuaryToolPalette.js",
+    "js/sanctuary/SanctuaryTravelDisc.js",
+    "js/sanctuary/SanctuaryVillagePad.js",
+    "js/sanctuary/SanctuaryWaterFootsteps.js",
+    "js/sanctuary/SanctuaryWeather.js",
+    "js/sanctuary/SanctuaryWelcomeGuide.js",
+    "js/sanctuary/SanctuaryWorldPlayerShim.js",
+    "js/sanctuary/SanctuaryZoom.js",
+    "js/v2/AnuModule.js",
+    "js/v2/BuildingPanelUI.js",
+    "js/v2/MapsConfig.js",
+    "js/v2/NPCBehaviour.js",
+    "js/v2/Orchestrator.js",
+    "js/v2/OrchestratorHud.js",
+    "js/v2/RuntimeServices.js",
+    "js/v2/TipiCampfire.js",
+    "js/v2/UIModule.js",
+    "js/v2/WorldMossyRock.js",
+    "js/v2/WorldSacredPlatform.js",
+    "js/v2/WorldStructures.js",
+    "js/v2/WorldTerrain.js",
+    "js/v2/WorldTipiJournalBalloon.js",
+    "js/v2/anu/AdaptiveRenderPolicy.js",
+    "js/v2/anu/AnuErrorAndStressLedger.js",
+    "js/v2/anu/AnuFuzzyPipelineSensor.js",
+    "js/v2/anu/AnuGovernanceRules.js",
+    "js/v2/anu/AnuNatureAwareness.js",
+    "js/v2/anu/AnuWorldSensorium.js",
+    "js/v2/anu/FrameBudget.js",
+    "js/v2/anu/InteractionBus.js",
+    "js/v2/anu/PipOrthoRingDiskClip.js",
+    "js/v2/anu/PipRenderStrategy.js",
+    "js/v2/anu/RenderingGovernor.js",
+    "js/v2/anu/SceneModelInventory.js",
+    "js/v2/anu/SimulationController.js",
+    "js/v2/anu/TravelFloorCircleMaterials.js",
+    "js/v2/anu/anuEvents.js",
+    "js/v2/anu/index.js",
+    "js/v2/anu/pipelineMemory.js",
+    "js/v2/constants.js",
+    "js/v2/deviceProfile.js",
+    "js/v2/gltfLoaderSetup.js",
+    "js/v2/pipCompassMath.js",
+    "vendor/es-module-shims/es-module-shims.js",
+    "vendor/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js",
+    "vendor/three/examples/jsm/loaders/DRACOLoader.js",
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js",
+    "vendor/three/examples/jsm/loaders/OBJLoader.js",
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+    "vendor/three/three.module.js"
+   ],
+   "failedLocal": [
+    "Assets/landscape-scenes/cinematic/animated-opening.mp4 net::ERR_ABORTED",
+    "build-signature.json?t=1792650113337 404",
+    "build-signature.json?t=1792650133037 404",
+    "build-signature.json?t=1792650135654 404"
+   ],
+   "errors": [
+    "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "pageerror: lucide is not defined",
+    "console: Failed to load resource: the server responded with a status of 404 (File not found)"
+   ]
+  },
+  "phoneM": {
+   "profile": "phoneM",
+   "booted": true,
+   "bootMs": 29949,
+   "orch": true,
+   "isMobileFlag": true,
+   "dpr": 1,
+   "drawingBuffer": [
+    360,
+    740
+   ],
+   "shadows": false,
+   "maxTextureSize": 256,
+   "lastFrame": {
+    "calls": 358,
+    "triangles": 1404255
+   },
+   "memory": {
+    "geometries": 214,
+    "textures": 112
+   },
+   "sceneTris": 1440428,
+   "meshes": 634,
+   "textures": 105,
+   "cpuImageMB": 481,
+   "topTextures": [
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_basecolor",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_normal",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_basecolor",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_normal",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_rm",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "grass+tuft+3d+model_basecolor.jpg",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "water_normal.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "rock.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "tipi.yellowbutterfly_basecolor",
+     "owner": "sanctuary_tipis_v2",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "structure_tipi_1_sacred_platform",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_basecolor",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_normal",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_rm",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 4
+    }
+   ],
+   "gpu": {
+    "v4-canvas": {
+     "allocations": 112,
+     "estMB": 33.7,
+     "maxDim": 256,
+     "over1024": 0
+    }
+   },
+   "mainCanvasId": "v4-canvas",
+   "pip": {
+    "renderer2ndCtx": false,
+    "mobileRT": false,
+    "rtSize": null,
+    "renderedLast": false
+   },
+   "frames": 13,
+   "viewport": [
+    360,
+    740
+   ],
+   "hScroll": false,
+   "surfaces": [
+    {
+     "el": "#v4-panel-frame",
+     "x": 0,
+     "y": 0,
+     "r": 360,
+     "b": 740,
+     "outside": false
+    },
+    {
+     "el": "#v2-orchestrator-hud",
+     "x": 227,
+     "y": 12,
+     "r": 360,
+     "b": 171,
+     "outside": false
+    },
+    {
+     "el": "#build-badge",
+     "x": 12,
+     "y": 704,
+     "r": 221,
+     "b": 740,
+     "outside": false
+    },
+    {
+     "el": "#__boot_err",
+     "x": 0,
+     "y": 664,
+     "r": 360,
+     "b": 740,
+     "outside": false
+    },
+    {
+     "el": "#v2-panels-pip",
+     "x": 0,
+     "y": 0,
+     "r": 360,
+     "b": 740,
+     "outside": false
+    },
+    {
+     "el": "#v2-side-panel",
+     "x": 0,
+     "y": 0,
+     "r": 360,
+     "b": 740,
+     "outside": false
+    }
+   ],
+   "overlaps": [
+    "#v4-panel-frame \u2229 #v2-orchestrator-hud: 133x159",
+    "#v4-panel-frame \u2229 #build-badge: 209x36",
+    "#v4-panel-frame \u2229 #__boot_err: 360x76",
+    "#v4-panel-frame \u2229 #v2-panels-pip: 360x740",
+    "#v4-panel-frame \u2229 #v2-side-panel: 360x740",
+    "#v2-orchestrator-hud \u2229 #v2-panels-pip: 133x159",
+    "#v2-orchestrator-hud \u2229 #v2-side-panel: 133x159",
+    "#build-badge \u2229 #__boot_err: 209x36",
+    "#build-badge \u2229 #v2-panels-pip: 209x36",
+    "#build-badge \u2229 #v2-side-panel: 209x36",
+    "#__boot_err \u2229 #v2-panels-pip: 360x76",
+    "#__boot_err \u2229 #v2-side-panel: 360x76",
+    "#v2-panels-pip \u2229 #v2-side-panel: 360x740"
+   ],
+   "smallTargets": [
+    {
+     "el": "#v2-hud-trace-label",
+     "w": 116,
+     "h": 10
+    },
+    {
+     "el": "#v2-hud-universe-label",
+     "w": 116,
+     "h": 15
+    },
+    {
+     "el": "#build-badge-copy",
+     "w": 22,
+     "h": 22
+    },
+    {
+     "el": "button.",
+     "w": 115,
+     "h": 31
+    },
+    {
+     "el": "button.swg-skip",
+     "w": 95,
+     "h": 31
+    },
+    {
+     "el": "button.swg-next",
+     "w": 95,
+     "h": 34
+    },
+    {
+     "el": "input.",
+     "w": 14,
+     "h": 14
+    }
+   ],
+   "glbs": [
+    {
+     "file": "Assets/npc/Avatar-New.glb",
+     "status": 200,
+     "bytes": 11999716
+    },
+    {
+     "file": "Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.lite.mobile.glb",
+     "status": 200,
+     "bytes": 192652
+    },
+    {
+     "file": "Assets/NPC.YB.glb",
+     "status": 200,
+     "bytes": 3163004
+    },
+    {
+     "file": "Assets/NPC.BHG.mobile.glb",
+     "status": 200,
+     "bytes": 1708448
+    },
+    {
+     "file": "Assets/NPC.REG.lite.mobile.glb",
+     "status": 200,
+     "bytes": 2541696
+    },
+    {
+     "file": "Assets/tree.glb",
+     "status": 200,
+     "bytes": 7072036
+    },
+    {
+     "file": "Assets/bush.glb",
+     "status": 200,
+     "bytes": 907352
+    },
+    {
+     "file": "Assets/flora/reeds.glb",
+     "status": 200,
+     "bytes": 788624
+    }
+   ],
+   "glbMB": 27.1,
+   "external": [
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka+One&family=Outfit:wght@400;500;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://unpkg.com/lucide@latest",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&family=Roboto:wght@400;500&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/OBJLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    }
+   ],
+   "jsFiles": [
+    "Assets/AxeData.js",
+    "js/BuildBadge.js",
+    "js/Data.Fish.js",
+    "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/MoldGrowHill.js",
+    "js/sanctuary/MoldPlaceTipi.js",
+    "js/sanctuary/MoldPlantBush.js",
+    "js/sanctuary/MoldPlantFlower.js",
+    "js/sanctuary/MoldPlantLily.js",
+    "js/sanctuary/MoldPlantRock.js",
+    "js/sanctuary/MoldPlantTree.js",
+    "js/sanctuary/SanctuaryAmbient.js",
+    "js/sanctuary/SanctuaryAvatar.js",
+    "js/sanctuary/SanctuaryBraziers.js",
+    "js/sanctuary/SanctuaryButterflies.js",
+    "js/sanctuary/SanctuaryCircles.js",
+    "js/sanctuary/SanctuaryClickToMove.js",
+    "js/sanctuary/SanctuaryControls.js",
+    "js/sanctuary/SanctuaryCursor.js",
+    "js/sanctuary/SanctuaryDayNight.js",
+    "js/sanctuary/SanctuaryDock.js",
+    "js/sanctuary/SanctuaryDragonfly.js",
+    "js/sanctuary/SanctuaryFish.js",
+    "js/sanctuary/SanctuaryFishJumps.js",
+    "js/sanctuary/SanctuaryFishing.js",
+    "js/sanctuary/SanctuaryFrogs.js",
+    "js/sanctuary/SanctuaryGround.js",
+    "js/sanctuary/SanctuaryHexGrid.js",
+    "js/sanctuary/SanctuaryInventory.js",
+    "js/sanctuary/SanctuaryJournalBridge.js",
+    "js/sanctuary/SanctuaryKeyboardLook.js",
+    "js/sanctuary/SanctuaryMapGeneratorUi.js",
+    "js/sanctuary/SanctuaryMutations.js",
+    "js/sanctuary/SanctuaryPondTrees.js",
+    "js/sanctuary/SanctuaryPool.js",
+    "js/sanctuary/SanctuarySceneConstructor.js",
+    "js/sanctuary/SanctuarySky.js",
+    "js/sanctuary/SanctuaryTipiNpcs.js",
+    "js/sanctuary/SanctuaryTipis.js",
+    "js/sanctuary/SanctuaryToolPalette.js",
+    "js/sanctuary/SanctuaryTravelDisc.js",
+    "js/sanctuary/SanctuaryVillagePad.js",
+    "js/sanctuary/SanctuaryWaterFootsteps.js",
+    "js/sanctuary/SanctuaryWeather.js",
+    "js/sanctuary/SanctuaryWelcomeGuide.js",
+    "js/sanctuary/SanctuaryWorldPlayerShim.js",
+    "js/sanctuary/SanctuaryZoom.js",
+    "js/v2/AnuModule.js",
+    "js/v2/BuildingPanelUI.js",
+    "js/v2/MapsConfig.js",
+    "js/v2/NPCBehaviour.js",
+    "js/v2/Orchestrator.js",
+    "js/v2/OrchestratorHud.js",
+    "js/v2/RuntimeServices.js",
+    "js/v2/TipiCampfire.js",
+    "js/v2/UIModule.js",
+    "js/v2/WorldMossyRock.js",
+    "js/v2/WorldSacredPlatform.js",
+    "js/v2/WorldStructures.js",
+    "js/v2/WorldTerrain.js",
+    "js/v2/WorldTipiJournalBalloon.js",
+    "js/v2/anu/AdaptiveRenderPolicy.js",
+    "js/v2/anu/AnuErrorAndStressLedger.js",
+    "js/v2/anu/AnuFuzzyPipelineSensor.js",
+    "js/v2/anu/AnuGovernanceRules.js",
+    "js/v2/anu/AnuNatureAwareness.js",
+    "js/v2/anu/AnuWorldSensorium.js",
+    "js/v2/anu/FrameBudget.js",
+    "js/v2/anu/InteractionBus.js",
+    "js/v2/anu/PipOrthoRingDiskClip.js",
+    "js/v2/anu/PipRenderStrategy.js",
+    "js/v2/anu/RenderingGovernor.js",
+    "js/v2/anu/SceneModelInventory.js",
+    "js/v2/anu/SimulationController.js",
+    "js/v2/anu/TravelFloorCircleMaterials.js",
+    "js/v2/anu/anuEvents.js",
+    "js/v2/anu/index.js",
+    "js/v2/anu/pipelineMemory.js",
+    "js/v2/constants.js",
+    "js/v2/deviceProfile.js",
+    "js/v2/gltfLoaderSetup.js",
+    "js/v2/pipCompassMath.js",
+    "vendor/es-module-shims/es-module-shims.js",
+    "vendor/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js",
+    "vendor/three/examples/jsm/loaders/DRACOLoader.js",
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js",
+    "vendor/three/examples/jsm/loaders/OBJLoader.js",
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+    "vendor/three/three.module.js"
+   ],
+   "failedLocal": [
+    "Assets/landscape-scenes/cinematic/animated-opening.mp4 net::ERR_ABORTED",
+    "build-signature.json?t=1792650147415 404",
+    "Assets/sounds/avatar-walking.mp3 net::ERR_ABORTED",
+    "build-signature.json?t=1792650167950 404",
+    "build-signature.json?t=1792650169865 404"
+   ],
+   "errors": [
+    "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "pageerror: lucide is not defined",
+    "console: Failed to load resource: the server responded with a status of 404 (File not found)"
+   ]
+  },
+  "phoneL": {
+   "profile": "phoneL",
+   "booted": true,
+   "bootMs": 26091,
+   "orch": true,
+   "isMobileFlag": true,
+   "dpr": 1,
+   "drawingBuffer": [
+    390,
+    844
+   ],
+   "shadows": false,
+   "maxTextureSize": 256,
+   "lastFrame": {
+    "calls": 286,
+    "triangles": 1101287
+   },
+   "memory": {
+    "geometries": 190,
+    "textures": 91
+   },
+   "sceneTris": 1440428,
+   "meshes": 634,
+   "textures": 105,
+   "cpuImageMB": 481,
+   "topTextures": [
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_basecolor",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_normal",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_basecolor",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_normal",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_rm",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "grass+tuft+3d+model_basecolor.jpg",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "water_normal.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "rock.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "tipi.yellowbutterfly_basecolor",
+     "owner": "sanctuary_tipis_v2",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "structure_tipi_1_sacred_platform",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_basecolor",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_normal",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_rm",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "a37aa41f-6209-476d-b229-0025696b1fc2",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 4
+    }
+   ],
+   "gpu": {
+    "v4-canvas": {
+     "allocations": 91,
+     "estMB": 27,
+     "maxDim": 256,
+     "over1024": 0
+    }
+   },
+   "mainCanvasId": "v4-canvas",
+   "pip": {
+    "renderer2ndCtx": false,
+    "mobileRT": false,
+    "rtSize": null,
+    "renderedLast": false
+   },
+   "frames": 11,
+   "viewport": [
+    390,
+    844
+   ],
+   "hScroll": false,
+   "surfaces": [
+    {
+     "el": "#v4-panel-frame",
+     "x": 0,
+     "y": 0,
+     "r": 390,
+     "b": 844,
+     "outside": false
+    },
+    {
+     "el": "#v2-orchestrator-hud",
+     "x": 257,
+     "y": 12,
+     "r": 390,
+     "b": 171,
+     "outside": false
+    },
+    {
+     "el": "#build-badge",
+     "x": 12,
+     "y": 808,
+     "r": 238,
+     "b": 844,
+     "outside": false
+    },
+    {
+     "el": "#__boot_err",
+     "x": 0,
+     "y": 768,
+     "r": 390,
+     "b": 844,
+     "outside": false
+    },
+    {
+     "el": "#v2-panels-pip",
+     "x": 0,
+     "y": 0,
+     "r": 390,
+     "b": 844,
+     "outside": false
+    },
+    {
+     "el": "#v2-side-panel",
+     "x": 0,
+     "y": 0,
+     "r": 390,
+     "b": 844,
+     "outside": false
+    }
+   ],
+   "overlaps": [
+    "#v4-panel-frame \u2229 #v2-orchestrator-hud: 133x159",
+    "#v4-panel-frame \u2229 #build-badge: 226x36",
+    "#v4-panel-frame \u2229 #__boot_err: 390x76",
+    "#v4-panel-frame \u2229 #v2-panels-pip: 390x844",
+    "#v4-panel-frame \u2229 #v2-side-panel: 390x844",
+    "#v2-orchestrator-hud \u2229 #v2-panels-pip: 133x159",
+    "#v2-orchestrator-hud \u2229 #v2-side-panel: 133x159",
+    "#build-badge \u2229 #__boot_err: 226x36",
+    "#build-badge \u2229 #v2-panels-pip: 226x36",
+    "#build-badge \u2229 #v2-side-panel: 226x36",
+    "#__boot_err \u2229 #v2-panels-pip: 390x76",
+    "#__boot_err \u2229 #v2-side-panel: 390x76",
+    "#v2-panels-pip \u2229 #v2-side-panel: 390x844"
+   ],
+   "smallTargets": [
+    {
+     "el": "#v2-hud-trace-label",
+     "w": 116,
+     "h": 10
+    },
+    {
+     "el": "#v2-hud-universe-label",
+     "w": 116,
+     "h": 15
+    },
+    {
+     "el": "#build-badge-copy",
+     "w": 22,
+     "h": 22
+    },
+    {
+     "el": "button.",
+     "w": 115,
+     "h": 31
+    },
+    {
+     "el": "button.swg-skip",
+     "w": 62,
+     "h": 31
+    },
+    {
+     "el": "button.swg-next",
+     "w": 90,
+     "h": 34
+    },
+    {
+     "el": "input.",
+     "w": 14,
+     "h": 14
+    }
+   ],
+   "glbs": [
+    {
+     "file": "Assets/npc/Avatar-New.glb",
+     "status": 200,
+     "bytes": 11999716
+    },
+    {
+     "file": "Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.lite.mobile.glb",
+     "status": 200,
+     "bytes": 192652
+    },
+    {
+     "file": "Assets/NPC.YB.glb",
+     "status": 200,
+     "bytes": 3163004
+    },
+    {
+     "file": "Assets/NPC.BHG.mobile.glb",
+     "status": 200,
+     "bytes": 1708448
+    },
+    {
+     "file": "Assets/NPC.REG.lite.mobile.glb",
+     "status": 200,
+     "bytes": 2541696
+    },
+    {
+     "file": "Assets/flora/reeds.glb",
+     "status": 200,
+     "bytes": 788624
+    },
+    {
+     "file": "Assets/bush.glb",
+     "status": 200,
+     "bytes": 907352
+    },
+    {
+     "file": "Assets/tree.glb",
+     "status": 200,
+     "bytes": 7072036
+    }
+   ],
+   "glbMB": 27.1,
+   "external": [
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka+One&family=Outfit:wght@400;500;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://unpkg.com/lucide@latest",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&family=Roboto:wght@400;500&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/OBJLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    }
+   ],
+   "jsFiles": [
+    "Assets/AxeData.js",
+    "js/BuildBadge.js",
+    "js/Data.Fish.js",
+    "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/MoldGrowHill.js",
+    "js/sanctuary/MoldPlaceTipi.js",
+    "js/sanctuary/MoldPlantBush.js",
+    "js/sanctuary/MoldPlantFlower.js",
+    "js/sanctuary/MoldPlantLily.js",
+    "js/sanctuary/MoldPlantRock.js",
+    "js/sanctuary/MoldPlantTree.js",
+    "js/sanctuary/SanctuaryAmbient.js",
+    "js/sanctuary/SanctuaryAvatar.js",
+    "js/sanctuary/SanctuaryBraziers.js",
+    "js/sanctuary/SanctuaryButterflies.js",
+    "js/sanctuary/SanctuaryCircles.js",
+    "js/sanctuary/SanctuaryClickToMove.js",
+    "js/sanctuary/SanctuaryControls.js",
+    "js/sanctuary/SanctuaryCursor.js",
+    "js/sanctuary/SanctuaryDayNight.js",
+    "js/sanctuary/SanctuaryDock.js",
+    "js/sanctuary/SanctuaryDragonfly.js",
+    "js/sanctuary/SanctuaryFish.js",
+    "js/sanctuary/SanctuaryFishJumps.js",
+    "js/sanctuary/SanctuaryFishing.js",
+    "js/sanctuary/SanctuaryFrogs.js",
+    "js/sanctuary/SanctuaryGround.js",
+    "js/sanctuary/SanctuaryHexGrid.js",
+    "js/sanctuary/SanctuaryInventory.js",
+    "js/sanctuary/SanctuaryJournalBridge.js",
+    "js/sanctuary/SanctuaryKeyboardLook.js",
+    "js/sanctuary/SanctuaryMapGeneratorUi.js",
+    "js/sanctuary/SanctuaryMutations.js",
+    "js/sanctuary/SanctuaryPondTrees.js",
+    "js/sanctuary/SanctuaryPool.js",
+    "js/sanctuary/SanctuarySceneConstructor.js",
+    "js/sanctuary/SanctuarySky.js",
+    "js/sanctuary/SanctuaryTipiNpcs.js",
+    "js/sanctuary/SanctuaryTipis.js",
+    "js/sanctuary/SanctuaryToolPalette.js",
+    "js/sanctuary/SanctuaryTravelDisc.js",
+    "js/sanctuary/SanctuaryVillagePad.js",
+    "js/sanctuary/SanctuaryWaterFootsteps.js",
+    "js/sanctuary/SanctuaryWeather.js",
+    "js/sanctuary/SanctuaryWelcomeGuide.js",
+    "js/sanctuary/SanctuaryWorldPlayerShim.js",
+    "js/sanctuary/SanctuaryZoom.js",
+    "js/v2/AnuModule.js",
+    "js/v2/BuildingPanelUI.js",
+    "js/v2/MapsConfig.js",
+    "js/v2/NPCBehaviour.js",
+    "js/v2/Orchestrator.js",
+    "js/v2/OrchestratorHud.js",
+    "js/v2/RuntimeServices.js",
+    "js/v2/TipiCampfire.js",
+    "js/v2/UIModule.js",
+    "js/v2/WorldMossyRock.js",
+    "js/v2/WorldSacredPlatform.js",
+    "js/v2/WorldStructures.js",
+    "js/v2/WorldTerrain.js",
+    "js/v2/WorldTipiJournalBalloon.js",
+    "js/v2/anu/AdaptiveRenderPolicy.js",
+    "js/v2/anu/AnuErrorAndStressLedger.js",
+    "js/v2/anu/AnuFuzzyPipelineSensor.js",
+    "js/v2/anu/AnuGovernanceRules.js",
+    "js/v2/anu/AnuNatureAwareness.js",
+    "js/v2/anu/AnuWorldSensorium.js",
+    "js/v2/anu/FrameBudget.js",
+    "js/v2/anu/InteractionBus.js",
+    "js/v2/anu/PipOrthoRingDiskClip.js",
+    "js/v2/anu/PipRenderStrategy.js",
+    "js/v2/anu/RenderingGovernor.js",
+    "js/v2/anu/SceneModelInventory.js",
+    "js/v2/anu/SimulationController.js",
+    "js/v2/anu/TravelFloorCircleMaterials.js",
+    "js/v2/anu/anuEvents.js",
+    "js/v2/anu/index.js",
+    "js/v2/anu/pipelineMemory.js",
+    "js/v2/constants.js",
+    "js/v2/deviceProfile.js",
+    "js/v2/gltfLoaderSetup.js",
+    "js/v2/pipCompassMath.js",
+    "vendor/es-module-shims/es-module-shims.js",
+    "vendor/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js",
+    "vendor/three/examples/jsm/loaders/DRACOLoader.js",
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js",
+    "vendor/three/examples/jsm/loaders/OBJLoader.js",
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+    "vendor/three/three.module.js"
+   ],
+   "failedLocal": [
+    "Assets/landscape-scenes/cinematic/animated-opening.mp4 net::ERR_ABORTED",
+    "build-signature.json?t=1792650187502 404",
+    "build-signature.json?t=1792650204962 404",
+    "build-signature.json?t=1792650207533 404"
+   ],
+   "errors": [
+    "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "pageerror: lucide is not defined",
+    "console: Failed to load resource: the server responded with a status of 404 (File not found)"
+   ]
+  },
+  "phoneLand": {
+   "profile": "phoneLand",
+   "booted": true,
+   "bootMs": 25937,
+   "orch": true,
+   "isMobileFlag": true,
+   "dpr": 1,
+   "drawingBuffer": [
+    844,
+    390
+   ],
+   "shadows": false,
+   "maxTextureSize": 256,
+   "lastFrame": {
+    "calls": 587,
+    "triangles": 1498673
+   },
+   "memory": {
+    "geometries": 300,
+    "textures": 114
+   },
+   "sceneTris": 1440428,
+   "meshes": 634,
+   "textures": 105,
+   "cpuImageMB": 481,
+   "topTextures": [
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_basecolor",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_normal",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_basecolor",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_normal",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_rm",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "grass+tuft+3d+model_basecolor.jpg",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "water_normal.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "rock.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "tipi.yellowbutterfly_basecolor",
+     "owner": "sanctuary_tipis_v2",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "structure_tipi_1_sacred_platform",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_basecolor",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_normal",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_rm",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "3bfa7676-1857-42d5-88b6-3aa9015e0ef3",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 4
+    }
+   ],
+   "gpu": {
+    "v4-canvas": {
+     "allocations": 114,
+     "estMB": 34.7,
+     "maxDim": 256,
+     "over1024": 0
+    }
+   },
+   "mainCanvasId": "v4-canvas",
+   "pip": {
+    "renderer2ndCtx": false,
+    "mobileRT": false,
+    "rtSize": null,
+    "renderedLast": false
+   },
+   "frames": 9,
+   "viewport": [
+    844,
+    390
+   ],
+   "hScroll": false,
+   "surfaces": [
+    {
+     "el": "#v4-panel-frame",
+     "x": 0,
+     "y": 0,
+     "r": 844,
+     "b": 390,
+     "outside": false
+    },
+    {
+     "el": "#build-badge",
+     "x": 12,
+     "y": 354,
+     "r": 502,
+     "b": 390,
+     "outside": false
+    },
+    {
+     "el": "#v2-orchestrator-hud",
+     "x": 654,
+     "y": 12,
+     "r": 844,
+     "b": 208,
+     "outside": false
+    },
+    {
+     "el": "#__boot_err",
+     "x": 0,
+     "y": 314,
+     "r": 844,
+     "b": 390,
+     "outside": false
+    },
+    {
+     "el": "#v2-panels-pip",
+     "x": 0,
+     "y": 0,
+     "r": 844,
+     "b": 390,
+     "outside": false
+    },
+    {
+     "el": "#v2-side-panel",
+     "x": 0,
+     "y": 0,
+     "r": 844,
+     "b": 390,
+     "outside": false
+    }
+   ],
+   "overlaps": [
+    "#v4-panel-frame \u2229 #build-badge: 490x36",
+    "#v4-panel-frame \u2229 #v2-orchestrator-hud: 190x196",
+    "#v4-panel-frame \u2229 #__boot_err: 844x76",
+    "#v4-panel-frame \u2229 #v2-panels-pip: 844x390",
+    "#v4-panel-frame \u2229 #v2-side-panel: 844x390",
+    "#build-badge \u2229 #__boot_err: 490x36",
+    "#build-badge \u2229 #v2-panels-pip: 490x36",
+    "#build-badge \u2229 #v2-side-panel: 490x36",
+    "#v2-orchestrator-hud \u2229 #v2-panels-pip: 190x196",
+    "#v2-orchestrator-hud \u2229 #v2-side-panel: 190x196",
+    "#__boot_err \u2229 #v2-panels-pip: 844x76",
+    "#__boot_err \u2229 #v2-side-panel: 844x76",
+    "#v2-panels-pip \u2229 #v2-side-panel: 844x390"
+   ],
+   "smallTargets": [
+    {
+     "el": "#build-badge-copy",
+     "w": 22,
+     "h": 22
+    },
+    {
+     "el": "#v2-hud-trace-label",
+     "w": 162,
+     "h": 10
+    },
+    {
+     "el": "#v2-hud-universe-label",
+     "w": 162,
+     "h": 8
+    },
+    {
+     "el": "button.",
+     "w": 115,
+     "h": 31
+    },
+    {
+     "el": "button.swg-skip",
+     "w": 79,
+     "h": 37
+    },
+    {
+     "el": "button.swg-next",
+     "w": 109,
+     "h": 41
+    },
+    {
+     "el": "input.",
+     "w": 14,
+     "h": 14
+    }
+   ],
+   "glbs": [
+    {
+     "file": "Assets/npc/Avatar-New.glb",
+     "status": 200,
+     "bytes": 11999716
+    },
+    {
+     "file": "Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.lite.mobile.glb",
+     "status": 200,
+     "bytes": 192652
+    },
+    {
+     "file": "Assets/NPC.YB.glb",
+     "status": 200,
+     "bytes": 3163004
+    },
+    {
+     "file": "Assets/NPC.BHG.mobile.glb",
+     "status": 200,
+     "bytes": 1708448
+    },
+    {
+     "file": "Assets/NPC.REG.lite.mobile.glb",
+     "status": 200,
+     "bytes": 2541696
+    },
+    {
+     "file": "Assets/tree.glb",
+     "status": 200,
+     "bytes": 7072036
+    },
+    {
+     "file": "Assets/flora/reeds.glb",
+     "status": 200,
+     "bytes": 788624
+    },
+    {
+     "file": "Assets/bush.glb",
+     "status": 200,
+     "bytes": 907352
+    }
+   ],
+   "glbMB": 27.1,
+   "external": [
+    {
+     "url": "https://unpkg.com/lucide@latest",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka+One&family=Outfit:wght@400;500;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&family=Roboto:wght@400;500&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/OBJLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    }
+   ],
+   "jsFiles": [
+    "Assets/AxeData.js",
+    "js/BuildBadge.js",
+    "js/Data.Fish.js",
+    "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/MoldGrowHill.js",
+    "js/sanctuary/MoldPlaceTipi.js",
+    "js/sanctuary/MoldPlantBush.js",
+    "js/sanctuary/MoldPlantFlower.js",
+    "js/sanctuary/MoldPlantLily.js",
+    "js/sanctuary/MoldPlantRock.js",
+    "js/sanctuary/MoldPlantTree.js",
+    "js/sanctuary/SanctuaryAmbient.js",
+    "js/sanctuary/SanctuaryAvatar.js",
+    "js/sanctuary/SanctuaryBraziers.js",
+    "js/sanctuary/SanctuaryButterflies.js",
+    "js/sanctuary/SanctuaryCircles.js",
+    "js/sanctuary/SanctuaryClickToMove.js",
+    "js/sanctuary/SanctuaryControls.js",
+    "js/sanctuary/SanctuaryCursor.js",
+    "js/sanctuary/SanctuaryDayNight.js",
+    "js/sanctuary/SanctuaryDock.js",
+    "js/sanctuary/SanctuaryDragonfly.js",
+    "js/sanctuary/SanctuaryFish.js",
+    "js/sanctuary/SanctuaryFishJumps.js",
+    "js/sanctuary/SanctuaryFishing.js",
+    "js/sanctuary/SanctuaryFrogs.js",
+    "js/sanctuary/SanctuaryGround.js",
+    "js/sanctuary/SanctuaryHexGrid.js",
+    "js/sanctuary/SanctuaryInventory.js",
+    "js/sanctuary/SanctuaryJournalBridge.js",
+    "js/sanctuary/SanctuaryKeyboardLook.js",
+    "js/sanctuary/SanctuaryMapGeneratorUi.js",
+    "js/sanctuary/SanctuaryMutations.js",
+    "js/sanctuary/SanctuaryPondTrees.js",
+    "js/sanctuary/SanctuaryPool.js",
+    "js/sanctuary/SanctuarySceneConstructor.js",
+    "js/sanctuary/SanctuarySky.js",
+    "js/sanctuary/SanctuaryTipiNpcs.js",
+    "js/sanctuary/SanctuaryTipis.js",
+    "js/sanctuary/SanctuaryToolPalette.js",
+    "js/sanctuary/SanctuaryTravelDisc.js",
+    "js/sanctuary/SanctuaryVillagePad.js",
+    "js/sanctuary/SanctuaryWaterFootsteps.js",
+    "js/sanctuary/SanctuaryWeather.js",
+    "js/sanctuary/SanctuaryWelcomeGuide.js",
+    "js/sanctuary/SanctuaryWorldPlayerShim.js",
+    "js/sanctuary/SanctuaryZoom.js",
+    "js/v2/AnuModule.js",
+    "js/v2/BuildingPanelUI.js",
+    "js/v2/MapsConfig.js",
+    "js/v2/NPCBehaviour.js",
+    "js/v2/Orchestrator.js",
+    "js/v2/OrchestratorHud.js",
+    "js/v2/RuntimeServices.js",
+    "js/v2/TipiCampfire.js",
+    "js/v2/UIModule.js",
+    "js/v2/WorldMossyRock.js",
+    "js/v2/WorldSacredPlatform.js",
+    "js/v2/WorldStructures.js",
+    "js/v2/WorldTerrain.js",
+    "js/v2/WorldTipiJournalBalloon.js",
+    "js/v2/anu/AdaptiveRenderPolicy.js",
+    "js/v2/anu/AnuErrorAndStressLedger.js",
+    "js/v2/anu/AnuFuzzyPipelineSensor.js",
+    "js/v2/anu/AnuGovernanceRules.js",
+    "js/v2/anu/AnuNatureAwareness.js",
+    "js/v2/anu/AnuWorldSensorium.js",
+    "js/v2/anu/FrameBudget.js",
+    "js/v2/anu/InteractionBus.js",
+    "js/v2/anu/PipOrthoRingDiskClip.js",
+    "js/v2/anu/PipRenderStrategy.js",
+    "js/v2/anu/RenderingGovernor.js",
+    "js/v2/anu/SceneModelInventory.js",
+    "js/v2/anu/SimulationController.js",
+    "js/v2/anu/TravelFloorCircleMaterials.js",
+    "js/v2/anu/anuEvents.js",
+    "js/v2/anu/index.js",
+    "js/v2/anu/pipelineMemory.js",
+    "js/v2/constants.js",
+    "js/v2/deviceProfile.js",
+    "js/v2/gltfLoaderSetup.js",
+    "js/v2/pipCompassMath.js",
+    "vendor/es-module-shims/es-module-shims.js",
+    "vendor/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js",
+    "vendor/three/examples/jsm/loaders/DRACOLoader.js",
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js",
+    "vendor/three/examples/jsm/loaders/OBJLoader.js",
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+    "vendor/three/three.module.js"
+   ],
+   "failedLocal": [
+    "Assets/landscape-scenes/cinematic/animated-opening.mp4 net::ERR_ABORTED",
+    "build-signature.json?t=1792650224149 404",
+    "build-signature.json?t=1792650244493 404"
+   ],
+   "errors": [
+    "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "console: Failed to load resource: the server responded with a status of 404 (File not found)",
+    "pageerror: lucide is not defined"
+   ]
+  },
+  "tablet": {
+   "profile": "tablet",
+   "booted": true,
+   "bootMs": 29502,
+   "orch": true,
+   "isMobileFlag": true,
+   "dpr": 1,
+   "drawingBuffer": [
+    768,
+    1024
+   ],
+   "shadows": false,
+   "maxTextureSize": 256,
+   "lastFrame": {
+    "calls": 402,
+    "triangles": 1452825
+   },
+   "memory": {
+    "geometries": 220,
+    "textures": 112
+   },
+   "sceneTris": 1440428,
+   "meshes": 634,
+   "textures": 105,
+   "cpuImageMB": 481,
+   "topTextures": [
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_basecolor",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_normal",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_basecolor",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_normal",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_rm",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "grass+tuft+3d+model_basecolor.jpg",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "water_normal.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "rock.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "tipi.yellowbutterfly_basecolor",
+     "owner": "sanctuary_tipis_v2",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "structure_tipi_1_sacred_platform",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_basecolor",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_normal",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_rm",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "a05dfc9d-f52b-46fc-8432-65259f7c8e35",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 4
+    }
+   ],
+   "gpu": {
+    "v4-canvas": {
+     "allocations": 112,
+     "estMB": 34,
+     "maxDim": 256,
+     "over1024": 0
+    }
+   },
+   "mainCanvasId": "v4-canvas",
+   "pip": {
+    "renderer2ndCtx": false,
+    "mobileRT": false,
+    "rtSize": null,
+    "renderedLast": false
+   },
+   "frames": 10,
+   "viewport": [
+    768,
+    1024
+   ],
+   "hScroll": false,
+   "surfaces": [
+    {
+     "el": "#v4-panel-frame",
+     "x": 0,
+     "y": 0,
+     "r": 768,
+     "b": 1024,
+     "outside": false
+    },
+    {
+     "el": "#build-badge",
+     "x": 12,
+     "y": 988,
+     "r": 457,
+     "b": 1024,
+     "outside": false
+    },
+    {
+     "el": "#v2-orchestrator-hud",
+     "x": 635,
+     "y": 12,
+     "r": 768,
+     "b": 171,
+     "outside": false
+    },
+    {
+     "el": "#__boot_err",
+     "x": 0,
+     "y": 948,
+     "r": 768,
+     "b": 1024,
+     "outside": false
+    },
+    {
+     "el": "#v2-panels-pip",
+     "x": 0,
+     "y": 0,
+     "r": 768,
+     "b": 1024,
+     "outside": false
+    },
+    {
+     "el": "#v2-side-panel",
+     "x": 0,
+     "y": 0,
+     "r": 768,
+     "b": 1024,
+     "outside": false
+    }
+   ],
+   "overlaps": [
+    "#v4-panel-frame \u2229 #build-badge: 445x36",
+    "#v4-panel-frame \u2229 #v2-orchestrator-hud: 133x159",
+    "#v4-panel-frame \u2229 #__boot_err: 768x76",
+    "#v4-panel-frame \u2229 #v2-panels-pip: 768x1024",
+    "#v4-panel-frame \u2229 #v2-side-panel: 768x1024",
+    "#build-badge \u2229 #__boot_err: 445x36",
+    "#build-badge \u2229 #v2-panels-pip: 445x36",
+    "#build-badge \u2229 #v2-side-panel: 445x36",
+    "#v2-orchestrator-hud \u2229 #v2-panels-pip: 133x159",
+    "#v2-orchestrator-hud \u2229 #v2-side-panel: 133x159",
+    "#__boot_err \u2229 #v2-panels-pip: 768x76",
+    "#__boot_err \u2229 #v2-side-panel: 768x76",
+    "#v2-panels-pip \u2229 #v2-side-panel: 768x1024"
+   ],
+   "smallTargets": [
+    {
+     "el": "#build-badge-copy",
+     "w": 22,
+     "h": 22
+    },
+    {
+     "el": "#v2-hud-trace-label",
+     "w": 116,
+     "h": 10
+    },
+    {
+     "el": "#v2-hud-universe-label",
+     "w": 116,
+     "h": 15
+    },
+    {
+     "el": "button.",
+     "w": 115,
+     "h": 31
+    },
+    {
+     "el": "button.swg-skip",
+     "w": 62,
+     "h": 31
+    },
+    {
+     "el": "button.swg-next",
+     "w": 90,
+     "h": 34
+    },
+    {
+     "el": "input.",
+     "w": 14,
+     "h": 14
+    }
+   ],
+   "glbs": [
+    {
+     "file": "Assets/npc/Avatar-New.glb",
+     "status": 200,
+     "bytes": 11999716
+    },
+    {
+     "file": "Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.lite.mobile.glb",
+     "status": 200,
+     "bytes": 192652
+    },
+    {
+     "file": "Assets/NPC.YB.glb",
+     "status": 200,
+     "bytes": 3163004
+    },
+    {
+     "file": "Assets/NPC.BHG.mobile.glb",
+     "status": 200,
+     "bytes": 1708448
+    },
+    {
+     "file": "Assets/NPC.REG.lite.mobile.glb",
+     "status": 200,
+     "bytes": 2541696
+    },
+    {
+     "file": "Assets/tree.glb",
+     "status": 200,
+     "bytes": 7072036
+    },
+    {
+     "file": "Assets/flora/reeds.glb",
+     "status": 200,
+     "bytes": 788624
+    },
+    {
+     "file": "Assets/bush.glb",
+     "status": 200,
+     "bytes": 907352
+    }
+   ],
+   "glbMB": 27.1,
+   "external": [
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka+One&family=Outfit:wght@400;500;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://unpkg.com/lucide@latest",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&family=Roboto:wght@400;500&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/OBJLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    }
+   ],
+   "jsFiles": [
+    "Assets/AxeData.js",
+    "js/BuildBadge.js",
+    "js/Data.Fish.js",
+    "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/MoldGrowHill.js",
+    "js/sanctuary/MoldPlaceTipi.js",
+    "js/sanctuary/MoldPlantBush.js",
+    "js/sanctuary/MoldPlantFlower.js",
+    "js/sanctuary/MoldPlantLily.js",
+    "js/sanctuary/MoldPlantRock.js",
+    "js/sanctuary/MoldPlantTree.js",
+    "js/sanctuary/SanctuaryAmbient.js",
+    "js/sanctuary/SanctuaryAvatar.js",
+    "js/sanctuary/SanctuaryBraziers.js",
+    "js/sanctuary/SanctuaryButterflies.js",
+    "js/sanctuary/SanctuaryCircles.js",
+    "js/sanctuary/SanctuaryClickToMove.js",
+    "js/sanctuary/SanctuaryControls.js",
+    "js/sanctuary/SanctuaryCursor.js",
+    "js/sanctuary/SanctuaryDayNight.js",
+    "js/sanctuary/SanctuaryDock.js",
+    "js/sanctuary/SanctuaryDragonfly.js",
+    "js/sanctuary/SanctuaryFish.js",
+    "js/sanctuary/SanctuaryFishJumps.js",
+    "js/sanctuary/SanctuaryFishing.js",
+    "js/sanctuary/SanctuaryFrogs.js",
+    "js/sanctuary/SanctuaryGround.js",
+    "js/sanctuary/SanctuaryHexGrid.js",
+    "js/sanctuary/SanctuaryInventory.js",
+    "js/sanctuary/SanctuaryJournalBridge.js",
+    "js/sanctuary/SanctuaryKeyboardLook.js",
+    "js/sanctuary/SanctuaryMapGeneratorUi.js",
+    "js/sanctuary/SanctuaryMutations.js",
+    "js/sanctuary/SanctuaryPondTrees.js",
+    "js/sanctuary/SanctuaryPool.js",
+    "js/sanctuary/SanctuarySceneConstructor.js",
+    "js/sanctuary/SanctuarySky.js",
+    "js/sanctuary/SanctuaryTipiNpcs.js",
+    "js/sanctuary/SanctuaryTipis.js",
+    "js/sanctuary/SanctuaryToolPalette.js",
+    "js/sanctuary/SanctuaryTravelDisc.js",
+    "js/sanctuary/SanctuaryVillagePad.js",
+    "js/sanctuary/SanctuaryWaterFootsteps.js",
+    "js/sanctuary/SanctuaryWeather.js",
+    "js/sanctuary/SanctuaryWelcomeGuide.js",
+    "js/sanctuary/SanctuaryWorldPlayerShim.js",
+    "js/sanctuary/SanctuaryZoom.js",
+    "js/v2/AnuModule.js",
+    "js/v2/BuildingPanelUI.js",
+    "js/v2/MapsConfig.js",
+    "js/v2/NPCBehaviour.js",
+    "js/v2/Orchestrator.js",
+    "js/v2/OrchestratorHud.js",
+    "js/v2/RuntimeServices.js",
+    "js/v2/TipiCampfire.js",
+    "js/v2/UIModule.js",
+    "js/v2/WorldMossyRock.js",
+    "js/v2/WorldSacredPlatform.js",
+    "js/v2/WorldStructures.js",
+    "js/v2/WorldTerrain.js",
+    "js/v2/WorldTipiJournalBalloon.js",
+    "js/v2/anu/AdaptiveRenderPolicy.js",
+    "js/v2/anu/AnuErrorAndStressLedger.js",
+    "js/v2/anu/AnuFuzzyPipelineSensor.js",
+    "js/v2/anu/AnuGovernanceRules.js",
+    "js/v2/anu/AnuNatureAwareness.js",
+    "js/v2/anu/AnuWorldSensorium.js",
+    "js/v2/anu/FrameBudget.js",
+    "js/v2/anu/InteractionBus.js",
+    "js/v2/anu/PipOrthoRingDiskClip.js",
+    "js/v2/anu/PipRenderStrategy.js",
+    "js/v2/anu/RenderingGovernor.js",
+    "js/v2/anu/SceneModelInventory.js",
+    "js/v2/anu/SimulationController.js",
+    "js/v2/anu/TravelFloorCircleMaterials.js",
+    "js/v2/anu/anuEvents.js",
+    "js/v2/anu/index.js",
+    "js/v2/anu/pipelineMemory.js",
+    "js/v2/constants.js",
+    "js/v2/deviceProfile.js",
+    "js/v2/gltfLoaderSetup.js",
+    "js/v2/pipCompassMath.js",
+    "vendor/es-module-shims/es-module-shims.js",
+    "vendor/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js",
+    "vendor/three/examples/jsm/loaders/DRACOLoader.js",
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js",
+    "vendor/three/examples/jsm/loaders/OBJLoader.js",
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+    "vendor/three/three.module.js"
+   ],
+   "failedLocal": [
+    "Assets/landscape-scenes/cinematic/animated-opening.mp4 net::ERR_ABORTED",
+    "build-signature.json?t=1792650260656 404",
+    "build-signature.json?t=1792650280947 404",
+    "build-signature.json?t=1792650290661 404"
+   ],
+   "errors": [
+    "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "pageerror: lucide is not defined",
+    "console: Failed to load resource: the server responded with a status of 404 (File not found)"
+   ]
+  },
+  "desktop": {
+   "profile": "desktop",
+   "booted": true,
+   "bootMs": 47854,
+   "orch": true,
+   "isMobileFlag": false,
+   "dpr": 1,
+   "drawingBuffer": [
+    1280,
+    800
+   ],
+   "shadows": true,
+   "maxTextureSize": 8192,
+   "lastFrame": {
+    "calls": 462,
+    "triangles": 1655221
+   },
+   "memory": {
+    "geometries": 346,
+    "textures": 117
+   },
+   "sceneTris": 1623000,
+   "meshes": 634,
+   "textures": 105,
+   "cpuImageMB": 529,
+   "topTextures": [
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_basecolor",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "Avatar-New_normal",
+     "owner": "sanctuary_avatar",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_basecolor",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "normalMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_normal",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 4096,
+     "h": 4096,
+     "name": "yb2_rm",
+     "owner": "population_npc_yellow_butterfly_tipi1_seated",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 4096,
+     "h": 4096,
+     "name": "grass+tuft+3d+model_basecolor.jpg",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 64
+    },
+    {
+     "slot": "map",
+     "w": 2048,
+     "h": 2048,
+     "name": "tipi.yellowbutterfly_basecolor",
+     "owner": "sanctuary_tipis_v2",
+     "tris": 0,
+     "cpuMB": 16
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "water_normal.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "rock.png",
+     "owner": "sanctuary_pool_root",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "structure_tipi_1_sacred_platform",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_basecolor",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "normalMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_normal",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "roughnessMap",
+     "w": 1024,
+     "h": 1024,
+     "name": "NPC-BHB-New_rm",
+     "owner": "population_npc_brings_happiness_girl_tipi2_seated",
+     "tris": 0,
+     "cpuMB": 4
+    },
+    {
+     "slot": "map",
+     "w": 1024,
+     "h": 1024,
+     "name": "",
+     "owner": "sanctuary_pond_trees",
+     "tris": 0,
+     "cpuMB": 4
+    }
+   ],
+   "gpu": {
+    "v4-canvas": {
+     "allocations": 117,
+     "estMB": 712.2,
+     "maxDim": 4096,
+     "over1024": 7
+    }
+   },
+   "mainCanvasId": "v4-canvas",
+   "pip": {
+    "renderer2ndCtx": false,
+    "mobileRT": false,
+    "rtSize": null,
+    "renderedLast": false
+   },
+   "frames": 8,
+   "viewport": [
+    1280,
+    800
+   ],
+   "hScroll": false,
+   "surfaces": [
+    {
+     "el": "#v4-panel-frame",
+     "x": 0,
+     "y": 0,
+     "r": 1280,
+     "b": 800,
+     "outside": false
+    },
+    {
+     "el": "#v2-orchestrator-hud",
+     "x": 1000,
+     "y": 12,
+     "r": 1280,
+     "b": 301,
+     "outside": false
+    },
+    {
+     "el": "#build-badge",
+     "x": 12,
+     "y": 752,
+     "r": 552,
+     "b": 788,
+     "outside": false
+    },
+    {
+     "el": "#__boot_err",
+     "x": 0,
+     "y": 724,
+     "r": 1280,
+     "b": 800,
+     "outside": false
+    },
+    {
+     "el": "#v2-panels-pip",
+     "x": 0,
+     "y": 0,
+     "r": 1280,
+     "b": 800,
+     "outside": false
+    },
+    {
+     "el": "#v2-side-panel",
+     "x": 0,
+     "y": 0,
+     "r": 1280,
+     "b": 800,
+     "outside": false
+    }
+   ],
+   "overlaps": [
+    "#v4-panel-frame \u2229 #v2-orchestrator-hud: 280x289",
+    "#v4-panel-frame \u2229 #build-badge: 540x36",
+    "#v4-panel-frame \u2229 #__boot_err: 1280x76",
+    "#v4-panel-frame \u2229 #v2-panels-pip: 1280x800",
+    "#v4-panel-frame \u2229 #v2-side-panel: 1280x800",
+    "#v2-orchestrator-hud \u2229 #v2-panels-pip: 280x289",
+    "#v2-orchestrator-hud \u2229 #v2-side-panel: 280x289",
+    "#build-badge \u2229 #__boot_err: 540x36",
+    "#build-badge \u2229 #v2-panels-pip: 540x36",
+    "#build-badge \u2229 #v2-side-panel: 540x36",
+    "#__boot_err \u2229 #v2-panels-pip: 1280x76",
+    "#__boot_err \u2229 #v2-side-panel: 1280x76",
+    "#v2-panels-pip \u2229 #v2-side-panel: 1280x800"
+   ],
+   "smallTargets": [
+    {
+     "el": "#v2-hud-trace-label",
+     "w": 238,
+     "h": 14
+    },
+    {
+     "el": "#v2-hud-universe-label",
+     "w": 238,
+     "h": 12
+    },
+    {
+     "el": "#build-badge-copy",
+     "w": 22,
+     "h": 22
+    },
+    {
+     "el": "button.",
+     "w": 115,
+     "h": 31
+    },
+    {
+     "el": "button.swg-skip",
+     "w": 79,
+     "h": 37
+    },
+    {
+     "el": "button.swg-next",
+     "w": 109,
+     "h": 41
+    },
+    {
+     "el": "input.",
+     "w": 14,
+     "h": 14
+    }
+   ],
+   "glbs": [
+    {
+     "file": "Assets/npc/Avatar-New.glb",
+     "status": 200,
+     "bytes": 11999716
+    },
+    {
+     "file": "Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.lite.glb",
+     "status": 200,
+     "bytes": 508932
+    },
+    {
+     "file": "Assets/NPC.YB.glb",
+     "status": 200,
+     "bytes": 3163004
+    },
+    {
+     "file": "Assets/NPC.BHG.glb",
+     "status": 200,
+     "bytes": 2037952
+    },
+    {
+     "file": "Assets/NPC.REG.lite.glb",
+     "status": 200,
+     "bytes": 5616912
+    },
+    {
+     "file": "Assets/bush.glb",
+     "status": 200,
+     "bytes": 907352
+    },
+    {
+     "file": "Assets/flora/reeds.glb",
+     "status": 200,
+     "bytes": 788624
+    },
+    {
+     "file": "Assets/tree.glb",
+     "status": 200,
+     "bytes": 7072036
+    }
+   ],
+   "glbMB": 30.6,
+   "external": [
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka+One&family=Outfit:wght@400;500;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&family=Roboto:wght@400;500&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://unpkg.com/lucide@latest",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/OBJLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    },
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap",
+     "failed": "net::ERR_TUNNEL_CONNECTION_FAILED"
+    }
+   ],
+   "jsFiles": [
+    "Assets/AxeData.js",
+    "js/BuildBadge.js",
+    "js/Data.Fish.js",
+    "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/MoldGrowHill.js",
+    "js/sanctuary/MoldPlaceTipi.js",
+    "js/sanctuary/MoldPlantBush.js",
+    "js/sanctuary/MoldPlantFlower.js",
+    "js/sanctuary/MoldPlantLily.js",
+    "js/sanctuary/MoldPlantRock.js",
+    "js/sanctuary/MoldPlantTree.js",
+    "js/sanctuary/SanctuaryAmbient.js",
+    "js/sanctuary/SanctuaryAvatar.js",
+    "js/sanctuary/SanctuaryBraziers.js",
+    "js/sanctuary/SanctuaryButterflies.js",
+    "js/sanctuary/SanctuaryCircles.js",
+    "js/sanctuary/SanctuaryClickToMove.js",
+    "js/sanctuary/SanctuaryControls.js",
+    "js/sanctuary/SanctuaryCursor.js",
+    "js/sanctuary/SanctuaryDayNight.js",
+    "js/sanctuary/SanctuaryDock.js",
+    "js/sanctuary/SanctuaryDragonfly.js",
+    "js/sanctuary/SanctuaryFish.js",
+    "js/sanctuary/SanctuaryFishJumps.js",
+    "js/sanctuary/SanctuaryFishing.js",
+    "js/sanctuary/SanctuaryFrogs.js",
+    "js/sanctuary/SanctuaryGround.js",
+    "js/sanctuary/SanctuaryHexGrid.js",
+    "js/sanctuary/SanctuaryInventory.js",
+    "js/sanctuary/SanctuaryJournalBridge.js",
+    "js/sanctuary/SanctuaryKeyboardLook.js",
+    "js/sanctuary/SanctuaryMapGeneratorUi.js",
+    "js/sanctuary/SanctuaryMutations.js",
+    "js/sanctuary/SanctuaryPondTrees.js",
+    "js/sanctuary/SanctuaryPool.js",
+    "js/sanctuary/SanctuarySceneConstructor.js",
+    "js/sanctuary/SanctuarySky.js",
+    "js/sanctuary/SanctuaryTipiNpcs.js",
+    "js/sanctuary/SanctuaryTipis.js",
+    "js/sanctuary/SanctuaryToolPalette.js",
+    "js/sanctuary/SanctuaryTravelDisc.js",
+    "js/sanctuary/SanctuaryVillagePad.js",
+    "js/sanctuary/SanctuaryWaterFootsteps.js",
+    "js/sanctuary/SanctuaryWeather.js",
+    "js/sanctuary/SanctuaryWelcomeGuide.js",
+    "js/sanctuary/SanctuaryWorldPlayerShim.js",
+    "js/sanctuary/SanctuaryZoom.js",
+    "js/v2/AnuModule.js",
+    "js/v2/BuildingPanelUI.js",
+    "js/v2/MapsConfig.js",
+    "js/v2/NPCBehaviour.js",
+    "js/v2/Orchestrator.js",
+    "js/v2/OrchestratorHud.js",
+    "js/v2/RuntimeServices.js",
+    "js/v2/TipiCampfire.js",
+    "js/v2/UIModule.js",
+    "js/v2/WorldMossyRock.js",
+    "js/v2/WorldSacredPlatform.js",
+    "js/v2/WorldStructures.js",
+    "js/v2/WorldTerrain.js",
+    "js/v2/WorldTipiJournalBalloon.js",
+    "js/v2/anu/AdaptiveRenderPolicy.js",
+    "js/v2/anu/AnuErrorAndStressLedger.js",
+    "js/v2/anu/AnuFuzzyPipelineSensor.js",
+    "js/v2/anu/AnuGovernanceRules.js",
+    "js/v2/anu/AnuNatureAwareness.js",
+    "js/v2/anu/AnuWorldSensorium.js",
+    "js/v2/anu/FrameBudget.js",
+    "js/v2/anu/InteractionBus.js",
+    "js/v2/anu/PipOrthoRingDiskClip.js",
+    "js/v2/anu/PipRenderStrategy.js",
+    "js/v2/anu/RenderingGovernor.js",
+    "js/v2/anu/SceneModelInventory.js",
+    "js/v2/anu/SimulationController.js",
+    "js/v2/anu/TravelFloorCircleMaterials.js",
+    "js/v2/anu/anuEvents.js",
+    "js/v2/anu/index.js",
+    "js/v2/anu/pipelineMemory.js",
+    "js/v2/constants.js",
+    "js/v2/deviceProfile.js",
+    "js/v2/gltfLoaderSetup.js",
+    "js/v2/pipCompassMath.js",
+    "vendor/es-module-shims/es-module-shims.js",
+    "vendor/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js",
+    "vendor/three/examples/jsm/loaders/DRACOLoader.js",
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js",
+    "vendor/three/examples/jsm/loaders/OBJLoader.js",
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+    "vendor/three/three.module.js"
+   ],
+   "failedLocal": [
+    "Assets/landscape-scenes/cinematic/animated-opening.mp4 net::ERR_ABORTED",
+    "build-signature.json?t=1792650304377 404",
+    "build-signature.json?t=1792650338796 404",
+    "Assets/sounds/avatar-walking.mp3 net::ERR_ABORTED",
+    "Assets/sounds/water-walking.mp3 net::ERR_ABORTED",
+    "build-signature.json?t=1792650349597 404"
+   ],
+   "errors": [
+    "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "pageerror: lucide is not defined",
+    "console: Failed to load resource: the server responded with a status of 404 (File not found)"
+   ]
+  }
+ }
+}

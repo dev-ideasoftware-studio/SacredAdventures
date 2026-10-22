@@ -265,11 +265,11 @@ FINDINGS = [
          effort="S", plan="PLN-15"),
     dict(id="FND-20", sev="Low", sub="SUB-14", title="Mobile detection duplicated in 4 places",
          assumed="—",
-         verified="Same UA regex in Orchestrator constructor, Orchestrator._ensurePipPipeline, AnuAdaptiveDpr.load and gltfLoaderSetup.",
-         evidence=evs(("js/v2/Orchestrator.js", r"this\._isMobile ="), ("js/v2/gltfLoaderSetup.js", r"function _isMobileUA")),
-         impact="Drift risk between paths.",
-         fix="One exported isMobileDevice() in RuntimeServices or constants.",
-         effort="S", plan="PLN-14"),
+         verified="RESOLVED (PLN-23, mobile Phase 1): was the same UA regex in Orchestrator constructor, Orchestrator._ensurePipPipeline, AnuAdaptiveDpr.load and gltfLoaderSetup; now one detectMobile() in js/v2/deviceProfile.js that all four read.",
+         evidence=evs(("js/v2/deviceProfile.js", r"export function detectMobile"), ("js/v2/Orchestrator.js", r"this\._isMobile = deviceProfile\.isMobile"), ("js/v2/gltfLoaderSetup.js", r"deviceProfile\.isMobile")),
+         impact="Drift risk between paths (removed).",
+         fix="Done: js/v2/deviceProfile.js.",
+         effort="S", plan="PLN-23"),
 ]
 STATUS = {
     "FND-01": "Fixed in code (PLN-01) — verify in browser", "FND-02": "Fixed in code (PLN-02) — verify in browser",
@@ -458,7 +458,7 @@ PLAN = [
     ("PLN-22", 22, "Mobile Phase 0 — ground-truth baseline", "", "docs/mobile/PHASE0_BASELINE.md; tools/mobile/*",
      "Every row has file:line or measurement evidence.", "Done", "MOBILE_OPTIMIZATION_PROMPT.md Phase 0. 6 profiles + online simulation."),
     ("PLN-23", 23, "Mobile Phase 1 — one 'is mobile' source", "", "js/v2/deviceProfile.js (new); Orchestrator.js; AnuAdaptiveDpr.js; gltfLoaderSetup.js",
-     "UA regex only in deviceProfile.js; Phase 0 measurements unchanged.", "Not started", "4 live copies (not 6); Orchestrator.js:1086 copy is dead on mobile."),
+     "UA regex only in deviceProfile.js; Phase 0 measurements unchanged.", "Done", "4 live copies replaced; 66/66 UA equivalence; 6-profile diff identical; ?device= override. docs/mobile/PHASE1_REPORT.md"),
     ("PLN-24", 24, "Mobile Phase 2 — panel icon renderer + source images", "", "js/components/Component.ThreeIcons.js; SacredGame.Panel.html; mobile variants of NPC.YB / flora/reeds (Avatar-New = PLN-20)",
      "Phone: no 2nd-context texture > 256 px; no 4096^2 source maps on mobile.", "Not started", "Online phone: 2nd WebGL context holds ~172 MB; 384 MB of 4096^2 source pixels. Coordinate with PLN-20 / FIX_PROMPT task 7."),
     ("PLN-25", 25, "Mobile Phase 3 — fluid UI for remaining panels", "", "OrchestratorHud.js (landscape breakpoint); UIModule.js (distance pill); SacredGame.Panel.html (center-stack); hidden sheets",
@@ -905,6 +905,8 @@ ATTEMPTS = [
     ("ATT-32", SESSION_1, "Coder 1", "REG + tipi", "Runtime check of ATT-21 (lite swap) desktop + iPhone UA", "Lite + mobile GLBs load (200), REG seated with 6 clips; scene 4.12M → 1.62M desktop", "docs/mobile/phase0-measurements.json", "No", "Pose/scale by eye and real-phone memory still NEEDS DEVICE."),
     ("ATT-33", SESSION_1, "Coder 1", "Measurement", "First probe: two python http.servers on one port (old one never died)", "Invalid run: branch measured as main; caught by identical numbers", "—", "Yes", "Check which process owns the port (readlink /proc/PID/cwd) before every run."),
     ("ATT-34", SESSION_1, "Coder 1", "Mobile Phase 0", "Measure 6 profiles + online simulation (CDN → vendor, lucide stub)", "Done; findings in PHASE0_BASELINE.md", "docs/mobile/PHASE0_BASELINE.md", "No", "Sandbox (offline) runs hide the panel's 2nd WebGL context — always add the online simulation."),
+    ("ATT-35", SESSION_1, "Coder 1", "Mobile Phase 1", "Replace 4 live UA copies with js/v2/deviceProfile.js", "Done; 66/66 equivalence; deterministic 6-profile measurements identical; override works both ways; npm test identical to base", "docs/mobile/PHASE1_REPORT.md", "No", ""),
+    ("ATT-36", SESSION_1, "Coder 1", "Measurement", "Diff 'top-15 textures' across runs", "False difference: arbitrary picks at the 4 MB (1024^2) tie line", "docs/mobile/PHASE1_REPORT.md", "Yes", "Compare above-tie entries + size histogram; GPU allocation counts on phones depend on frames rendered (lazy upload)."),
 ]
 sheet("63_Attempts_Ledger", "L6 Plan", "What was tried, by whom, the result, and whether it must not be retried.", "Before trying a fix — check it has not already failed.",
       "Attempts ledger", "Shared by every agent: append a row for every attempt, success or failure",
@@ -978,6 +980,8 @@ LOG = [
     ("LOG-15", SESSION_1, "Coder 1: wrote MOBILE_OPTIMIZATION_PROMPT.md (7 phases, zero-trust).", "Done", "Downloads handoff folder"),
     ("LOG-16", SESSION_1, "Coder 1: Mobile Phase 0 baseline measured and written.", "Done", "PLN-22; docs/mobile/PHASE0_BASELINE.md"),
     ("LOG-17", SESSION_1, "NEXT: Mark's go-ahead for mobile Phase 1; decide whether Phase 2 may touch js/components/Component.ThreeIcons.js + SacredGame.Panel.html; coordinate Avatar mobile variant with PLN-20.", "Next", ""),
+    ("LOG-18", SESSION_1, "Coder 1: Mobile Phase 1 done — js/v2/deviceProfile.js is the single 'is mobile' source.", "Done", "PLN-23; docs/mobile/PHASE1_REPORT.md"),
+    ("LOG-19", SESSION_1, "NEXT: Mobile Phase 2 (approved: may edit Component.ThreeIcons.js + SacredGame.Panel.html; Coder 1 makes the avatar mobile variant; beauty first). Then Phase 3+, then pond cards.", "Next", ""),
 ]
 sheet("70_Session_Log", "L7 Session", "What was done, in order, and the next step.", "Resuming work.", "Session log", "Newest last",
       ["Log ID", "Date", "What", "State", "Pointer"], [list(l) for l in LOG], [8, 11, 90, 11, 30])

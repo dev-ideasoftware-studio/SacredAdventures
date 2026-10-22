@@ -27,6 +27,7 @@
  */
 
 import { recordFrameDuration, getFrameBudgetSnapshot } from "../v2/anu/FrameBudget.js";
+import { deviceProfile } from "../v2/deviceProfile.js";
 import { dispatchInteraction } from "../v2/anu/InteractionBus.js";
 import { ANU_EVENTS } from "../v2/anu/anuEvents.js";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
@@ -155,12 +156,7 @@ export const AnuAdaptiveDprModule = {
     // memory + fill-rate the mobile GPU process can't spare, and the adaptive
     // stepper would otherwise ride DPR back UP to 1.5 whenever FPS looked fine.
     // This must match the Orchestrator's mobile clamp or the stepper overrides it.
-    const _ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
-    const _isMobile =
-      /Mobi|Android|iPhone|iPod/i.test(_ua) ||
-      /iPad/i.test(_ua) ||
-      (/Macintosh/.test(_ua) && (navigator.maxTouchPoints || 0) > 1);
-    const _dprCeil = _isMobile ? 1.0 : 1.5;
+    const _dprCeil = deviceProfile.dprCap; // 1.0 mobile / 1.5 desktop (js/v2/deviceProfile.js)
     _deviceDprCap =
       typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)
         ? Math.min(window.devicePixelRatio, _dprCeil)
