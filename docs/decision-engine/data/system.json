@@ -1,5 +1,5 @@
 {
- "commit": "2854704",
+ "commit": "3dd0fd0",
  "roots": [
   "js/v2/Orchestrator.js",
   "js/v2/AnuModule.js",
@@ -3107,16 +3107,16 @@
   {
    "file": "js/v2/UIModule.js",
    "layer": "v2 shared",
-   "lines": 307,
-   "kb": 11.2,
+   "lines": 544,
+   "kb": 23.7,
    "module_name": "PanelsPIP",
    "registered_symbol": "V2UIModule",
    "header": "",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 246,
-   "update_lines": 28,
-   "update_throttle": "every 10f",
+   "update_line": 471,
+   "update_lines": 30,
+   "update_throttle": "every 10f, every 600f",
    "hazards": {
     "dom_query": 1,
     "dom_write": 1

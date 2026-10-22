@@ -545,6 +545,7 @@ DECISIONS = [
     ("DEC-16", "Do not change the fishing DPR floor yet", "It was added on purpose for crispness; needs the user's call.", "—", "FND-28"),
     ("DEC-17", "Merge only direct children of a group, with animated parts skipped", "Groups keep moving (flower bob, turtle swim); window-published meshes (lily pads) must stay separate objects.", "test_mergeStatic / test_mergeOthers: identical vertices, pads untouched, refs still attached.", "PLN-21"),
     ("DEC-18", "Anything players can see change goes to the owner first", "Zero-trust + earlier reverts on visual changes (ATT-06, ATT-09).", "Playbook C-10 lists 8 such decisions.", "PLN-21"),
+    ("DEC-19", "Compass: restore the May-10 design, keep today's ids", "User: 'the design was far superior then'; 'align them center in each radial'.", "#pip-compass-wrapper, #v2-pip-canvas, #pip-click-zone, .compass-outer-ring and #v2-distance-pill unchanged, so Orchestrator, OrchestratorHud and the fishing glass CSS keep working; map render path untouched (PiP protect rule).", "—"),
     ("DEC-10", "Use per-pixel rasterization for low-poly previews", "Centroid sampling made big triangles look blotchy and would mislead.", "raster.py vs render.py side by side.", "FND-01, FND-02"),
 ]
 
@@ -931,6 +932,7 @@ ATTEMPTS = [
     ("ATT-30", SESSION_1, "Claude", "Tooling", "node glbjson.mjs Assets/flora/reeds.glb (input passed first)", "Damage: argv[2] is the OUTPUT — reeds.glb overwritten; restored with git checkout; guard added (refuses non-.json output)", "glbjson.mjs", "Yes", "Read a tool's usage line before running it on assets; check git status after."),
     ("ATT-31", SESSION_1, "Claude", "Limbo tracer", "Check only senders without receivers", "Missed listeners nothing fires (brazier night lights); added DEAF check → 3 found", "limbo.py", "Yes", "Trace both directions."),
     ("ATT-32", SESSION_1, "User + Claude", "Research", "Apply the Origami 'Mobile WebGL Culling' master prompt to this repo", "Its named methods do not exist here; 4 of 9 ideas apply (FND-45..48), the rest are already true or not applicable (CLM-24..32)", "CLM-24..32", "Yes", "Check a prompt's names against the code before running its passes."),
+    ("ATT-33", SESSION_1, "User + Claude", "Compass", "Restore the May-10 compass dial (moon-phase ring, thin bronze rim, glass lens, pointer) with every letter and moon centred on its own track", "Done in code: tracks no longer overlap; letters and moons measured 0 px off their midlines at 1280, 800 and phone widths and inside the real game; pill never clipped", "js/v2/UIModule.js; tests/v4-pip-align.spec.js", "No", "Geometry lives in CSS variables on #v2-panels-pip; the game sets box-sizing:border-box globally, so radii subtract the 1px wrapper border."),
 ]
 sheet("63_Attempts_Ledger", "L6 Plan", "What was tried, by whom, the result, and whether it must not be retried.", "Before trying a fix — check it has not already failed.",
       "Attempts ledger", "Shared by every agent: append a row for every attempt, success or failure",
@@ -1001,6 +1003,7 @@ LOG = [
     ("LOG-12", SESSION_1, "Wrote 'Pool & Fishing Optimization — Coder Playbook' with change cards C-01..C-10, research ranking and verification protocol; added patchcheck.mjs and census_pre.mjs.", "Done", "PLN-21"),
     ("LOG-13", SESSION_1, "NEXT: owner decisions in C-10; Coder 1 applies C-01..C-09 one per commit; browser checks per playbook section 'How to prove each change'.", "Next", "PLN-21"),
     ("LOG-14", SESSION_1, "Checked the mobile-culling master prompt against the code: CLM-24..32, FND-45..48, PLN-22, playbook cards C-11..C-13 + C-10 #9.", "Done", "PLN-22"),
+    ("LOG-15", SESSION_1, "Compass restored to the May-10 design with centred tracks (ATT-33, DEC-19). Movement bug still open: waiting for access to Coder 1's local copy.", "Done (code)", "ATT-33"),
 ]
 sheet("70_Session_Log", "L7 Session", "What was done, in order, and the next step.", "Resuming work.", "Session log", "Newest last",
       ["Log ID", "Date", "What", "State", "Pointer"], [list(l) for l in LOG], [8, 11, 90, 11, 30])

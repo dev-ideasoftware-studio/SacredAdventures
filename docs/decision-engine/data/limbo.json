@@ -562,7 +562,7 @@
    "kind": "postMessage type",
    "name": "TOGGLE_VIEW_MODE",
    "senders": [
-    "js/v2/UIModule.js:L233",
+    "js/v2/UIModule.js:L445",
     "js/components/Component.NewJournal.html:L815"
    ],
    "receivers": [
@@ -816,7 +816,7 @@
     "js/v2/OrchestratorHud.js:L92"
    ],
    "receivers": [
-    "js/v2/UIModule.js:L38"
+    "js/v2/UIModule.js:L80"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -838,8 +838,8 @@
    "name": "WorldPlayer",
    "senders": [
     "js/v2/Orchestrator.js:L1411",
-    "js/v2/UIModule.js:L231",
-    "js/v2/UIModule.js:L248"
+    "js/v2/UIModule.js:L443",
+    "js/v2/UIModule.js:L473"
    ],
    "receivers": [
     "js/sanctuary/SanctuaryWorldPlayerShim.js:L44"
@@ -1781,10 +1781,10 @@
    "name": "panel-frame",
    "senders": [
     "SacredGame.Journal.html:L329",
-    "js/v2/UIModule.js:L223"
+    "js/v2/UIModule.js:L433"
    ],
    "receivers": [
-    "js/v2/UIModule.js:L209"
+    "js/v2/UIModule.js:L406"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1807,10 +1807,10 @@
    "kind": "DOM id lookup",
    "name": "pip-click-zone",
    "senders": [
-    "js/v2/UIModule.js:L235"
+    "js/v2/UIModule.js:L447"
    ],
    "receivers": [
-    "js/v2/UIModule.js:L219"
+    "js/v2/UIModule.js:L415"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1959,10 +1959,10 @@
    "kind": "DOM id lookup",
    "name": "v2-distance-pill",
    "senders": [
-    "js/v2/UIModule.js:L253"
+    "js/v2/UIModule.js:L478"
    ],
    "receivers": [
-    "js/v2/UIModule.js:L210"
+    "js/v2/UIModule.js:L407"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2020,8 +2020,8 @@
    "kind": "DOM id lookup",
    "name": "v2-hint",
    "senders": [
-    "js/v2/UIModule.js:L237",
-    "js/v2/UIModule.js:L302"
+    "js/v2/UIModule.js:L462",
+    "js/v2/UIModule.js:L539"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 id not created anywhere in live code",
@@ -2137,8 +2137,8 @@
     "js/v2/OrchestratorHud.js:L939"
    ],
    "receivers": [
-    "js/v2/UIModule.js:L42",
-    "js/v2/UIModule.js:L42"
+    "js/v2/UIModule.js:L83",
+    "js/v2/UIModule.js:L83"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2160,10 +2160,10 @@
    "name": "v2-pip-canvas",
    "senders": [
     "js/v2/Orchestrator.js:L1417",
-    "js/v2/UIModule.js:L226"
+    "js/v2/UIModule.js:L438"
    ],
    "receivers": [
-    "js/v2/UIModule.js:L218"
+    "js/v2/UIModule.js:L409"
    ],
    "verdict": "Has receiver",
    "note": ""
