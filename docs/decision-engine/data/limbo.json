@@ -2621,6 +2621,36 @@
    ],
    "verdict": "Has receiver",
    "note": ""
+  },
+  {
+   "kind": "DOM CustomEvent",
+   "name": "anu:season-change",
+   "senders": [],
+   "receivers": [
+    "js/sanctuary/SanctuaryBraziers.js:L311"
+   ],
+   "verdict": "DEAF \u2014 listener never fired by live code",
+   "note": "Check for a renamed event or an ANU bus event with a similar name"
+  },
+  {
+   "kind": "DOM CustomEvent",
+   "name": "sanctuary:buildings:changed",
+   "senders": [],
+   "receivers": [
+    "js/v2/BuildingPanelUI.js:L134"
+   ],
+   "verdict": "DEAF \u2014 listener never fired by live code",
+   "note": "Check for a renamed event or an ANU bus event with a similar name"
+  },
+  {
+   "kind": "DOM CustomEvent",
+   "name": "v2-pip-zoom-change",
+   "senders": [],
+   "receivers": [
+    "js/v2/Orchestrator.js:L356"
+   ],
+   "verdict": "DEAF \u2014 listener never fired by live code",
+   "note": "Check for a renamed event or an ANU bus event with a similar name"
   }
  ]
 }

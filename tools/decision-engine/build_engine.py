@@ -400,6 +400,33 @@ FINDINGS += [
          evidence=ev("js/v2/Orchestrator.js", r"this\._pipOrtho\.layers\.enable\(0\)"),
          impact="Second WebGL context renders the whole scene.", fix="Research rank 1: layer-only PiP; owner OK needed (PiP protect rule).", effort="M", plan="PLN-06"),
 ]
+# ── checked against the "Mobile WebGL Culling & Rendering Pipeline Hardening" master prompt (CLM-24..32) ──
+FINDINGS += [
+    dict(id="FND-45", sev="High", sub="SUB-05", title="Mobile PiP reads pixels back synchronously every PiP frame",
+         assumed="Mobile PiP is cheap because it is 256² on the main context.",
+         verified="readRenderTargetPixels → gl.readPixels into client memory: the CPU waits for the GPU to finish everything queued (the whole main frame) before the next JS line runs. While fishing this happens every other frame; in top-down view every frame (no stride gate).",
+         evidence=evs(("js/v2/Orchestrator.js", r"r\.readRenderTargetPixels\(this\._pipRT"), ("js/v2/Orchestrator.js", r"if \(this\._fishingPipFrame % 2 !== 0\)")),
+         impact="A full CPU–GPU sync point per PiP frame on phones; the stutter source the prompt describes. Not measured here (no phone/GPU).",
+         fix="Playbook C-12: PBO + fenceSync + polled getBufferSubData (WebGL2), sync path kept as WebGL1 fallback.", effort="M", plan="PLN-22"),
+    dict(id="FND-46", sev="Medium", sub="SUB-06", title="Brazier night lights never turn on (deaf listener)",
+         assumed="Braziers listen to day/night and light up at night.",
+         verified="Braziers listen on window for 'anu:season-change'; DayNight sends ANU_EVENTS.SEASON_CHANGE ('anu-season-change') on the InteractionBus only, which never fires a window event. limbo.py (new DEAF check) also lists 'sanctuary:buildings:changed' and 'v2-pip-zoom-change' as listeners nothing fires.",
+         evidence=evs(("js/sanctuary/SanctuaryBraziers.js", r'addEventListener\("anu:season-change"'), ("js/sanctuary/SanctuaryDayNight.js", r"dispatchInteraction\(ANU_EVENTS\.SEASON_CHANGE")),
+         impact="Feature silently off. If fixed with light.visible toggles, every lit material builds a new program variant on the first night (compile hitch) — the prompt's E15 point.",
+         fix="Owner decision (playbook C-10 #9): wire to the bus, and pre-warm with renderer.compileAsync or keep lights visible at intensity 0 (costs 4 point lights in every lit pixel, always).", effort="S", plan="PLN-22"),
+    dict(id="FND-47", sev="Medium", sub="SUB-05", title="Mobile PiP flips scene.fog, forcing a program lookup for every fogged material twice per PiP frame",
+         assumed="Nulling fog for the PiP is free.",
+         verified="three r160 setProgram: material.fog && materialProperties.fog !== fog → getProgram → getParameters + getProgramCacheKey (L30232, L29985–30018). Programs stay cached per material (no GL recompile), but on mobile the PiP shares the main renderer, so fog null → Fog → null runs that path for every fogged material each PiP frame. Desktop PiP has its own renderer and is unaffected. Fishing close-up (layer 2) also flips the light hash the same way on mobile.",
+         evidence=evs(("js/v2/Orchestrator.js", r"this\.scene\.fog = null;"), ("vendor/three/three.module.js", r"material\.fog === true && materialProperties\.fog !== fog")),
+         impact="CPU cost scales with material count (pool alone 108). Not measured here.",
+         fix="Playbook C-11: keep the Fog object and push near/far out for the PiP pass (uniforms only).", effort="S", plan="PLN-22"),
+    dict(id="FND-48", sev="Low", sub="SUB-08", title="Footprint trail draws all 50 instances, hidden ones at scale 0",
+         assumed="Unused footprints cost nothing.",
+         verified="InstancedMesh(…, 50) with frustumCulled = false; unused slots get a zero-scale matrix and are still drawn; a new Object3D is allocated per walking frame.",
+         evidence=ev("js/sanctuary/SanctuaryClickToMove.js", r"_layFootprints\(px, pz, dirX, dirZ, distToGoal\) \{"),
+         impact="Small: one draw, 50 instances of vertex work, one allocation per frame while walking.",
+         fix="Playbook C-13: mesh.count = printCount (the prompt's count clipping).", effort="S", plan="PLN-22"),
+]
 STATUS.update({"FND-21": "Fixed in code", "FND-22": "Fixed in code", "FND-31": "Fixed in code"})
 for _f in FINDINGS:
     _f["status"] = STATUS.get(_f["id"], "Open")
@@ -455,6 +482,10 @@ PLAN = [
      "js/sanctuary/SanctuaryFishing.js; SanctuaryFish.js; SanctuaryPool.js; SanctuaryDock.js; SanctuaryCircles.js; new js/sanctuary/mergeStatic.js (from tools/decision-engine/proposals/)",
      "Census pond total 799 → 285 after C-04..C-07; merge tests exit 0; patchcheck dead count never rises; renderer.info.memory flat after 5 catches (C-01).",
      "Not started (proposals proven in Node)", "One card per commit; follow the playbook's Do-not lists. C-10 items wait for the owner."),
+    ("PLN-22", 22, "Mobile PiP sync + program churn (C-11..C-13)", "FND-45, FND-46, FND-47, FND-48",
+     "js/v2/Orchestrator.js (_preparePipScene, _restorePipScene, mobile branch of _renderWithMask); js/sanctuary/SanctuaryClickToMove.js",
+     "Phone Performance trace: no readPixels wait in PiP frames; no getProgram calls in PiP frames; PiP image unchanged.",
+     "Not started", "From the master-prompt applicability check (CLM-24..32). C-12 needs a phone to verify."),
     ("PLN-15", 15, "Correct README / CONTRIBUTING", "FND-19", "README.md; CONTRIBUTING.md; PROGRESS.md",
      "Docs match 10_System facts.", "Not started", ""),
 ]
@@ -483,6 +514,15 @@ CLAIMS = [
     ("CLM-21", "index.html comment", "This page relays PROCESS_INPUT / RETURN_TO_GAME.", "No handler for PROCESS_INPUT in index.html; only the comment mentions it.", "Contradicted", ev("index.html", r"relay PROCESS_INPUT")),
     ("CLM-22", "SanctuaryFish / SanctuaryPool comments", "Gauge removed from layer 2.", "_build3DGauge enables layer 2 on every child.", "Contradicted", ev("js/sanctuary/SanctuaryFishing.js", r"child\.layers\.enable\(2\)")),
     ("CLM-23", "gltfLoaderSetup.js comment (before edit)", "Avatar-New is already low-poly.", "245,991 tris, 2×4096² maps.", "Contradicted", ev("js/sanctuary/SanctuaryAvatar.js", r'let AVATAR_URL')),
+    ("CLM-24", "Mobile culling master prompt", "Hot paths are _refreshSegmentInstanceSourceAt, _tickUberCull, _tickSealedCull, _tickSuperSectionCull, _pipBlit, _compassionSample, _roomBillboardTrack.", "None exist in SacredAdventures. They are Origami Reality Engine names (only _pipBlit found: Origami-Release/js/v8/OniBaba8.js). The prompt targets a different engine.", "Not applicable", ev("js/v2/Orchestrator.js", r"  _renderPip\(\) \{")),
+    ("CLM-25", "Mobile culling master prompt", "Blocking GL calls (getError, getParameter, query reads) stall the hot loop.", "Game code has none of those, and both renderers set checkShaderErrors = false. One real sync point exists: mobile PiP readRenderTargetPixels (FND-45).", "Applies (1 site)", ev("js/v2/Orchestrator.js", r"r\.readRenderTargetPixels\(this\._pipRT")),
+    ("CLM-26", "Mobile culling master prompt", "Use fenceSync / clientWaitSync instead of blocking reads.", "Applies only to FND-45 (PBO readback). No GPU queries are used anywhere.", "Applies (1 site)", ev("js/v2/Orchestrator.js", r"r\.readRenderTargetPixels\(this\._pipRT")),
+    ("CLM-27", "Mobile culling master prompt", "Lock VAOs; stream matrices with bufferSubData instead of reallocating.", "three r160 already does both: VAOs per geometry/program and bufferSubData on needsUpdate (vendor L13607–13644, L15132). Game code makes no raw GL buffer calls.", "Already true", ev("vendor/three/three.module.js", r"function createVertexArrayObject\(\)")),
+    ("CLM-28", "Mobile culling master prompt", "Never hide lights with .visible; scale intensity to 0 (E15).", "Mechanism true in r160 (light counts are in the program key). Only braziers toggle .visible, and that toggle never fires today (FND-46). Intensity 0 keeps 4 point lights in every lit pixel, so pre-warming is the cheaper fix.", "Partly applies", ev("js/sanctuary/SanctuaryBraziers.js", r"b\.light\.visible = this\._isNight")),
+    ("CLM-29", "Mobile culling master prompt", "Reuse shadow render targets when shadow resolution drops under load.", "Shadow map size is set once (512², SanctuaryGround) and never changed; governors only toggle shadowMap.autoUpdate.", "Not applicable", ev("js/sanctuary/SanctuaryGround.js", r"key\.shadow\.mapSize\.set\(512, 512\)")),
+    ("CLM-30", "Mobile culling master prompt", "PiP and secondary passes must not evaluate redundant geometry (layer audit).", "PiP cameras enable layer 0, so they draw every default object (FND-44). Mobile PiP also flips fog per pass (FND-47).", "Applies", ev("js/v2/Orchestrator.js", r"this\._pipOrtho\.layers\.enable\(0\)")),
+    ("CLM-31", "Mobile culling master prompt", "Clip instanced draws with mesh.count when frustumCulled = false.", "One case: footprint trail (FND-48). Other per-frame instanced update is the 32-fish school (full upload of 2 KB, fine).", "Applies (low)", ev("js/sanctuary/SanctuaryClickToMove.js", r"dashes\.frustumCulled = false")),
+    ("CLM-32", "Mobile culling master prompt", "Budget VRAM per screen pixel; delete GL objects eagerly.", "VRAM here is fixed asset textures (FND-03), already capped at 256 px on mobile upload (ATT-14). Eager delete = dispose(); the real gap is the catch leak (FND-32).", "Not applicable as written", ev("js/v2/Orchestrator.js", r"gl\.texImage2D = function")),
     ("CLM-15", "Project description", "Village builder + hunting + fishing + crafting simulator.", "Fishing and village shaping exist; hunting and crafting have no code in the live build.", "Partly true", ev("js/sanctuary/SanctuaryInventory.js", r"Five item kinds")),
 ]
 
@@ -889,6 +929,8 @@ ATTEMPTS = [
     ("ATT-28", SESSION_1, "Claude", "Merge", "mergeStaticChildren on lilies, rocks, dock, turtle", "Worked in Node: 799 → 285 pond draws, identical geometry/colour; NOT yet in the game", "test_mergeStatic.mjs, test_mergeOthers.mjs", "No", "Ship via PLN-21 cards, one per commit."),
     ("ATT-29", SESSION_1, "Claude", "Merge", "mergeStaticChildren on frogs (tint as vertex colour, tongue/leg_ skipped)", "No gain: 160 → 160 (every part has its own material params)", "test_mergeOthers.mjs", "Yes", "Frogs need shared materials or BatchedMesh first (C-10 #3)."),
     ("ATT-30", SESSION_1, "Claude", "Tooling", "node glbjson.mjs Assets/flora/reeds.glb (input passed first)", "Damage: argv[2] is the OUTPUT — reeds.glb overwritten; restored with git checkout; guard added (refuses non-.json output)", "glbjson.mjs", "Yes", "Read a tool's usage line before running it on assets; check git status after."),
+    ("ATT-31", SESSION_1, "Claude", "Limbo tracer", "Check only senders without receivers", "Missed listeners nothing fires (brazier night lights); added DEAF check → 3 found", "limbo.py", "Yes", "Trace both directions."),
+    ("ATT-32", SESSION_1, "User + Claude", "Research", "Apply the Origami 'Mobile WebGL Culling' master prompt to this repo", "Its named methods do not exist here; 4 of 9 ideas apply (FND-45..48), the rest are already true or not applicable (CLM-24..32)", "CLM-24..32", "Yes", "Check a prompt's names against the code before running its passes."),
 ]
 sheet("63_Attempts_Ledger", "L6 Plan", "What was tried, by whom, the result, and whether it must not be retried.", "Before trying a fix — check it has not already failed.",
       "Attempts ledger", "Shared by every agent: append a row for every attempt, success or failure",
@@ -958,6 +1000,7 @@ LOG = [
     ("LOG-11", SESSION_1, "Line-by-line pass over pool, fish, fishing, frogs, dock, circles; Node scene census (799 pond draws); merge helper proven (→ 285).", "Done", "FND-32..44, ATT-25..30"),
     ("LOG-12", SESSION_1, "Wrote 'Pool & Fishing Optimization — Coder Playbook' with change cards C-01..C-10, research ranking and verification protocol; added patchcheck.mjs and census_pre.mjs.", "Done", "PLN-21"),
     ("LOG-13", SESSION_1, "NEXT: owner decisions in C-10; Coder 1 applies C-01..C-09 one per commit; browser checks per playbook section 'How to prove each change'.", "Next", "PLN-21"),
+    ("LOG-14", SESSION_1, "Checked the mobile-culling master prompt against the code: CLM-24..32, FND-45..48, PLN-22, playbook cards C-11..C-13 + C-10 #9.", "Done", "PLN-22"),
 ]
 sheet("70_Session_Log", "L7 Session", "What was done, in order, and the next step.", "Resuming work.", "Session log", "Newest last",
       ["Log ID", "Date", "What", "State", "Pointer"], [list(l) for l in LOG], [8, 11, 90, 11, 30])

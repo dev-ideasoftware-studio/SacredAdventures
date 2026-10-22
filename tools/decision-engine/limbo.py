@@ -127,6 +127,14 @@ for kind, send, recv in kinds:
             verdict = "LIMBO — no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)"
         rows.append({"kind": kind, "name": name, "senders": s, "receivers": r, "verdict": verdict,
                      "note": "Receiver may sit in another frame; both frames scanned" if cross_frame else ""})
+# Reverse direction (added 2026-10-22, ATT-31): custom DOM events that code LISTENS for but nothing
+# dispatches. Only names with ':' or '-' are custom; built-in DOM events (click, resize, …) never have them
+# except a few listed here.
+_DOM_BUILTIN_DASHED = {"DOMContentLoaded", "webglcontextlost", "webglcontextrestored", "visibilitychange"}
+for name in sorted(set(ce_recv) - set(ce_send)):
+    if (":" in name or "-" in name) and name not in _DOM_BUILTIN_DASHED:
+        rows.append({"kind": "DOM CustomEvent", "name": name, "senders": [], "receivers": ce_recv[name],
+                     "verdict": "DEAF — listener never fired by live code", "note": "Check for a renamed event or an ANU bus event with a similar name"})
 json.dump({"scope": SCOPE, "rows": rows}, open(OUT, "w"), indent=1)
 from collections import Counter
 print(Counter((r["kind"], r["verdict"].split(" —")[0]) for r in rows))
