@@ -1,9 +1,9 @@
 {
-  "subject": "feat(sanctuary): tipis are solid; tap-to-walk goes round them (Mark)",
-  "isoDate": "2026-10-22T21:57:51+00:00",
+  "subject": "feat(hud): phone HUD tabs, a tall FPS graph and a 25 % bigger minimap (Mark)",
+  "isoDate": "2026-10-22T21:59:37+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "78cfc97",
+  "commit": "0a6380e",
   "dirty": true,
-  "generatedAt": "2026-10-22T21:58:03.203Z"
+  "generatedAt": "2026-10-22T21:59:41.053Z"
 }

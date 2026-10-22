@@ -88,16 +88,59 @@
        anchored to the corner each panel hugs, so they stay tucked away. Desktop
        (fine pointer) keeps full size. */
     @media (pointer: coarse) {
-      /* Compass / minimap PiP — top-left */
+      /* Compass / minimap PiP — top-left. 0.625 = the old 0.5 + 25 % (Mark,
+         2026-10-22: "increase pip size by 25% on mobile"). */
       #pip-compass-wrapper {
-        transform: scale(0.5) !important;
+        transform: scale(0.625) !important;
         transform-origin: top left !important;
+      }
+      /* POS pill: follow the 0.625 dial (UIModule's coarse rule assumes 0.5). */
+      html.v4-hud-tabs #v2-distance-pill {
+        --pill-center: calc(var(--pip-left) + var(--pip-size) * 0.3125);
+        top: calc(var(--pip-top) + var(--pip-size) * 0.625 + var(--pip-ring-out) * 0.625 + 6px);
       }
       /* Telemetry / FPS panel — top-right */
       #v2-orchestrator-hud {
         transform: scale(0.68) !important;
         transform-origin: top right !important;
       }
+      /* Phone HUD tabs (Mark, 2026-10-22: "the side panels need to be flattened to
+         the right or left on mobile so they are 25% of their current size"). The
+         compass (left) and the telemetry box (right) start flattened against their
+         edge as small tabs; tapping a tab opens it, its ‹ / › button flattens it
+         again. The script is the "Phone HUD tabs" block near the end of <body>. */
+      html.v4-hudl-flat #pip-compass-wrapper {
+        transform: scale(0.3125) !important;    /* half the width and height of the 0.625 dial = 25% */
+        left: 10px !important;
+        top: 72px !important;                   /* below the panel's gear button */
+        cursor: pointer;
+      }
+      html.v4-hudl-flat #pip-compass-wrapper * { pointer-events: none !important; }
+      html.v4-hudl-flat #v2-distance-pill { display: none !important; }
+      /* Phone telemetry box (Mark, 2026-10-22: "on mobile give a cool graph for the
+         fps. no trace -- make it less wide more tall"): 150 px wide instead of 196,
+         a tall FPS graph under the headline (drawn by the "Phone FPS graph" script),
+         no TRACE section. The flattened tab shows the headline and the graph as a sparkline. */
+      html.v4-hud-tabs #v2-orchestrator-hud {
+        width: 150px !important;
+        max-height: min(560px, calc(100vh - 24px)) !important;
+      }
+      html.v4-hud-tabs #v2-orchestrator-hud #v2-frame-graph-wrap { width: 100% !important; }
+      html.v4-hud-tabs #v2-orchestrator-hud #v2-frame-graph { width: 100% !important; }
+      html.v4-hud-tabs #v2-hud-trace-label,
+      html.v4-hud-tabs #v2-trace-accordion-body,
+      html.v4-hud-tabs #v2-trace-accordion-body + div { display: none !important; }
+      html.v4-hud-tabs #v4-fps-graph-wrap { display: block; margin: 4px 0 8px; }
+      html.v4-hud-tabs #v4-fps-graph { display: block; width: 100%; height: 140px; border-radius: 9px; }
+      html.v4-hudr-flat #v2-orchestrator-hud {
+        max-height: 146px !important;           /* headline + a 44 px live sparkline: ~25 % of the open panel */
+        overflow: hidden !important;
+        cursor: pointer;
+      }
+      html.v4-hudr-flat #v2-orchestrator-hud * { pointer-events: none !important; }
+      html.v4-hudr-flat #v4-fps-graph { height: 44px; }
+      html.v4-hud-tabs:not(.v4-hudl-flat) #v4-hud-flatten-left,
+      html.v4-hud-tabs:not(.v4-hudr-flat) #v4-hud-flatten-right { display: flex; }
       /* Build / branch pill — flush to the bottom of the viewport */
       #build-badge {
         bottom: 0 !important;
@@ -107,6 +150,25 @@
       body.v4-top-down-view #build-badge {
         bottom: 54px !important;
       }
+    }
+    #v4-fps-graph-wrap { display: none; }
+    .v4-hud-flatten {
+      display: none;
+      position: fixed;
+      z-index: 10001;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid rgba(251, 192, 45, 0.42);
+      background: linear-gradient(165deg, #1e1408 0%, #2c1d09 55%, #1a1106 100%);
+      color: #fbc02d;
+      font: 700 26px/1 'Fredoka', 'Segoe UI', sans-serif;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
   </style>
   <!--
@@ -980,6 +1042,173 @@
         }
       }).catch(() => { /* caches API blocked — nothing to clean */ });
     }
+  </script>
+  <!-- Phone HUD tabs (Mark, 2026-10-22). Touch devices only: the compass (left)
+       and the telemetry box (right) start flattened against their edge at 25% of
+       their size; tap one to open it, tap its ‹ / › button to flatten it again.
+       The choice is remembered per device (v4.hud.left.open / v4.hud.right.open).
+       CSS: the "(pointer: coarse)" block in <head>. -->
+  <script>
+    (function () {
+      var mq = window.matchMedia ? window.matchMedia('(pointer: coarse)') : null;
+      var root = document.documentElement;
+      var SIDES = ['left', 'right'];
+      var KEY = { left: 'v4.hud.left.open', right: 'v4.hud.right.open' };
+      var FLAT = { left: 'v4-hudl-flat', right: 'v4-hudr-flat' };
+      function panel(side) { return document.getElementById(side === 'left' ? 'pip-compass-wrapper' : 'v2-orchestrator-hud'); }
+      function button(side) { return document.getElementById('v4-hud-flatten-' + side); }
+      function remembered(side) { try { return localStorage.getItem(KEY[side]) === '1'; } catch (_) { return false; } }
+      function place() {
+        var l = panel('left'), r = panel('right'), bl = button('left'), br = button('right');
+        if (l && bl) { var a = l.getBoundingClientRect(); bl.style.left = Math.round(a.right + 16) + 'px'; bl.style.top = Math.round(a.top) + 'px'; }
+        if (r && br) { var b = r.getBoundingClientRect(); br.style.left = Math.round(b.left - 50) + 'px'; br.style.top = Math.round(b.top) + 'px'; }
+      }
+      function setOpen(side, open, remember) {
+        root.classList.toggle(FLAT[side], !open);
+        var p = panel(side);
+        if (p) p.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (remember) { try { localStorage.setItem(KEY[side], open ? '1' : '0'); } catch (_) {} }
+        place();
+        requestAnimationFrame(place);
+      }
+      function apply() {
+        var on = !!(mq && mq.matches);
+        root.classList.toggle('v4-hud-tabs', on);
+        if (!on) { root.classList.remove(FLAT.left, FLAT.right); return; }
+        SIDES.forEach(function (side) { setOpen(side, remembered(side), false); });
+      }
+      SIDES.forEach(function (side) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.id = 'v4-hud-flatten-' + side;
+        b.className = 'v4-hud-flatten';
+        b.textContent = side === 'left' ? '\u2039' : '\u203A';
+        b.setAttribute('aria-label', side === 'left' ? 'Flatten the compass' : 'Flatten the telemetry panel');
+        b.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); setOpen(side, false, true); });
+        document.body.appendChild(b);
+      });
+      // A tap on a flattened tab opens it (capture phase, so the compass / HUD
+      // controls underneath never see that tap).
+      document.addEventListener('click', function (ev) {
+        if (!root.classList.contains('v4-hud-tabs')) return;
+        SIDES.forEach(function (side) {
+          var p = panel(side);
+          if (root.classList.contains(FLAT[side]) && p && ev.target && p.contains(ev.target)) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            setOpen(side, true, true);
+          }
+        });
+      }, true);
+      window.addEventListener('resize', place);
+      if (mq && mq.addEventListener) mq.addEventListener('change', apply);
+      apply();
+      // The compass and the HUD are built by modules after boot.
+      var tries = 0;
+      var wait = setInterval(function () {
+        tries++;
+        if ((panel('left') && panel('right')) || tries > 240) { clearInterval(wait); apply(); }
+      }, 250);
+    })();
+  </script>
+  <!-- Phone FPS graph (Mark, 2026-10-22: "on mobile give a cool graph for the fps").
+       Touch devices only: a 140 px tall graph of the last 30 s under the HUD's FPS
+       headline (4 samples a second from requestAnimationFrame; none while the page is
+       in the background or under the loading screen), coloured green at
+       55+ fps, gold around 45, red under 30, with the 60 and 30 fps lines. Lives in
+       index.html so js/v2/OrchestratorHud.js (held by the Compassion claim) is
+       untouched. CSS: the "(pointer: coarse)" block in <head>. -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var N = 120, samples = [], frames = 0, last = performance.now(), peak = 0;
+      function onFrame() { frames++; requestAnimationFrame(onFrame); }
+      requestAnimationFrame(onFrame);
+      function ensureCanvas() {
+        var c = document.getElementById('v4-fps-graph');
+        var row = document.getElementById('v2-fps-row');
+        if (c) { // keep it straight under the headline (other HUD rows get inserted there later)
+          if (row && row.parentNode && c.parentNode.previousElementSibling !== row) row.parentNode.insertBefore(c.parentNode, row.nextSibling);
+          return c;
+        }
+        if (!row || !row.parentNode) return null;
+        var wrap = document.createElement('div');
+        wrap.id = 'v4-fps-graph-wrap';
+        c = document.createElement('canvas');
+        c.id = 'v4-fps-graph';
+        c.setAttribute('role', 'img');
+        c.setAttribute('aria-label', 'Frames per second, last 30 seconds');
+        wrap.appendChild(c);
+        row.parentNode.insertBefore(wrap, row.nextSibling);
+        // Redraw at once when the tab opens or flattens, so the canvas is never shown stretched.
+        if (window.ResizeObserver) new ResizeObserver(function () { draw(); }).observe(c);
+        return c;
+      }
+      function colour(v) { return v >= 55 ? '#7ce38b' : v >= 40 ? '#fbc02d' : '#ff6b6b'; }
+      function draw() {
+        var c = ensureCanvas();
+        if (!c || !root.classList.contains('v4-hud-tabs') || !c.offsetWidth) return;
+        var dpr = Math.min(window.devicePixelRatio || 1, 2), w = c.offsetWidth, h = c.offsetHeight;
+        if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+        var g = c.getContext('2d');
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        g.clearRect(0, 0, w, h);
+        var bg = g.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, '#150e05'); bg.addColorStop(1, '#050302');
+        g.fillStyle = bg;
+        g.beginPath(); if (g.roundRect) g.roundRect(0, 0, w, h, 9); else g.rect(0, 0, w, h); g.fill();
+        var compact = h < 80; // the flattened tab's sparkline
+        var padT = compact ? 15 : 18, padB = compact ? 4 : 14, padL = 4, padR = 8;
+        var top = Math.max(66, Math.min(130, Math.ceil(peak * 1.1 / 10) * 10)); // 120 Hz phones fit; boot spikes don't squash it
+        function y(v) { return padT + (1 - Math.min(v, top) / top) * (h - padT - padB); }
+        // guide lines
+        g.font = '600 9px Fredoka, "Segoe UI", sans-serif';
+        [[60, 'rgba(251,192,45,0.55)'], [30, 'rgba(255,107,107,0.35)']].forEach(function (L) {
+          g.strokeStyle = L[1]; g.setLineDash([3, 3]); g.lineWidth = 1;
+          g.beginPath(); g.moveTo(padL, y(L[0]) + 0.5); g.lineTo(w - padR, y(L[0]) + 0.5); g.stroke();
+          g.setLineDash([]); g.fillStyle = L[1]; if (!compact) g.fillText(String(L[0]), padL + 3, y(L[0]) - 3);
+        });
+        if (samples.length > 1) {
+          var step = (w - padL - padR) / (N - 1), x0 = w - padR - (samples.length - 1) * step;
+          var grad = g.createLinearGradient(0, y(top), 0, y(0));
+          [[top, '#7ce38b'], [55, '#7ce38b'], [45, '#fbc02d'], [30, '#ff6b6b'], [0, '#ff6b6b']].forEach(function (s) { grad.addColorStop(Math.max(0, Math.min(1, 1 - s[0] / top)), s[1]); });
+          g.beginPath();
+          samples.forEach(function (v, i) { var px = x0 + i * step; if (i) g.lineTo(px, y(v)); else g.moveTo(px, y(v)); });
+          var line = new Path2D(); samples.forEach(function (v, i) { var px = x0 + i * step; if (i) line.lineTo(px, y(v)); else line.moveTo(px, y(v)); });
+          g.lineTo(x0 + (samples.length - 1) * step, h - padB); g.lineTo(x0, h - padB); g.closePath();
+          var cur = samples[samples.length - 1];
+          var glow = g.createLinearGradient(0, y(peak), 0, h - padB); // the current colour, fading to the floor
+          glow.addColorStop(0, colour(cur) + '66'); glow.addColorStop(1, colour(cur) + '00');
+          g.fillStyle = glow; g.fill();
+          g.shadowColor = colour(cur); g.shadowBlur = 8;
+          g.strokeStyle = grad; g.lineWidth = 2; g.lineJoin = 'round'; g.stroke(line);
+          g.shadowBlur = 0;
+          var cx = w - padR, cy = y(cur), pulse = 3 + 1.5 * Math.sin(performance.now() / 180);
+          g.fillStyle = colour(cur); g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill();
+          g.strokeStyle = colour(cur); g.globalAlpha = 0.45; g.beginPath(); g.arc(cx, cy, 3 + pulse, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+          var lo = Math.min.apply(null, samples), avg = samples.reduce(function (a, b) { return a + b; }, 0) / samples.length;
+          g.fillStyle = 'rgba(255,248,220,0.85)'; g.font = '700 10px Fredoka, "Segoe UI", sans-serif';
+          g.fillText('FPS', padL + 4, 12);
+          g.fillStyle = 'rgba(255,248,220,0.55)'; g.font = '600 9px Fredoka, "Segoe UI", sans-serif';
+          g.fillText('min ' + Math.round(lo) + ' · avg ' + Math.round(avg), padL + 28, 12);
+        }
+        if (compact) return;
+        g.fillStyle = 'rgba(255,248,220,0.35)'; g.font = '600 8px Fredoka, "Segoe UI", sans-serif';
+        g.fillText('30 s', padL + 4, h - 3); g.fillText('now', w - padR - 16, h - 3);
+      }
+      setInterval(function () {
+        var now = performance.now(), fps = frames * 1000 / Math.max(1, now - last);
+        var n = frames; frames = 0; last = now;
+        if (!root.classList.contains('v4-hud-tabs')) return;
+        // No frames means the page is in the background (rAF stopped), not a slow frame;
+        // and boot frames under the loading screen are not play. Keep both off the graph.
+        var lf = document.getElementById('v4-loading-iframe');
+        if (document.hidden || n === 0 || (lf && lf.style.opacity !== '0')) return;
+        samples.push(fps); if (samples.length > N) samples.shift();
+        peak = Math.max.apply(null, samples);
+        draw();
+      }, 250);
+    })();
   </script>
   <script type="module" src="./js/BuildBadge.js"></script>
 </body>
