@@ -973,6 +973,9 @@ ATTEMPTS = [
 sheet("63_Attempts_Ledger", "L6 Plan", "What was tried, by whom, the result, and whether it must not be retried.", "Before trying a fix — check it has not already failed.",
       "Attempts ledger", "Shared by every agent: append a row for every attempt, success or failure",
       ["Attempt ID", "Date", "Agent", "Area", "What was tried", "Result", "Evidence", "Do not retry", "Lesson"], [list(a) for a in ATTEMPTS], [10, 11, 14, 14, 44, 50, 32, 9, 40])
+for _f in FINDINGS:  # second status pass: findings appended after the first pass (FND-50 on) need a status too
+    _f["status"] = STATUS.get(_f["id"], "Open")
+FND_IDX = {f["id"]: f for f in FINDINGS}
 find_rows = [[x["id"], x["sev"], x["sub"], x["title"], x["assumed"], x["verified"], x["evidence"], x["impact"], x["fix"], x["effort"], x["plan"], x["status"]] for x in FINDINGS]
 fnd_ws, fnd_hr = sheet("50_Findings", "L5 Evidence", "Forensic findings: assumed vs verified, file:line evidence, fix, plan link.", "Prioritising work; proving a claim.",
                        "Findings", "Evidence line numbers are re-located by regex at every build; 'NOT FOUND' means the code moved",
