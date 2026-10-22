@@ -66,11 +66,14 @@ test('FPS HUD — ORCHESTRATOR accordion renders and expands', async ({ page }) 
   console.log(`✓ Frame graph canvas ${gw}×${gh}px present`);
 
   // ── 8. DRAW / TRI row present ─────────────────────────────────────────────
+  // The orchestrator HUD shows draw calls AND triangles in one element
+  // (OrchestratorHud.js: `draws: N | tris: N.Nk · …`). Check both numbers are
+  // really there; 666eb11 had pointed the "tri" locator at #v2-draws a second
+  // time, so triangles were never checked.
   const drawEl = page.locator('#v2-draws');
-  const triEl  = page.locator('#v2-draws');
   await expect(drawEl).toBeVisible();
-  await expect(triEl).toBeVisible();
-  console.log(`✓ DRAWS/TRI text="${await drawEl.textContent()}" row visible`);
+  await expect(drawEl).toHaveText(/draws:\s*\d+\s*\|\s*tris:\s*\d+(\.\d+)?k/, { timeout: 15000 });
+  console.log(`✓ DRAWS/TRI text="${await drawEl.textContent()}"`);
 
   // ── 9. UNIVERSE sub-button present ───────────────────────────────────────
   const uniBtn  = page.locator('#v2-hud-universe-label');
