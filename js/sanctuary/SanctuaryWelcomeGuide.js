@@ -314,21 +314,23 @@ function _injectStylesOnce() {
       outline: none;
     }
 
-    /* Mobile (≤ 768 px): perfectly centered and responsive across all viewports */
+    /* Mobile (≤ 768 px): docked to the bottom of the screen (Mark, 2026-10-22:
+       "on mobile make our welcome guide at bottom"), so the world stays visible
+       above it. Fluid width; clears the home indicator via the safe-area inset. */
     @media (max-width: 768px) {
       #sanctuary-welcome-guide {
-        top: 50%;
-        bottom: auto;
+        top: auto;
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
         left: 50%;
-        transform: translate(-50%, -50%);
-        width: min(626px, calc(100vw - 24px));  /* tablets: no wider than desktop */
-        max-height: 90vh;
+        transform: translateX(-50%);
+        width: min(626px, calc(100vw - 20px));  /* tablets: no wider than desktop */
+        max-height: min(62vh, calc(100vh - 40px));
         overflow-y: auto;
-        padding: 22px 16px 16px;
+        padding: 22px clamp(12px, 4vw, 16px) 14px;
         border-radius: 18px;
       }
       #sanctuary-welcome-guide.is-hidden {
-        transform: translate(-50%, calc(-50% - 12px));
+        transform: translate(-50%, 16px);
         opacity: 0;
         pointer-events: none;
       }
@@ -451,7 +453,21 @@ export const SanctuaryWelcomeGuideModule = {
     let suppress = false;
     try { suppress = localStorage.getItem(STORAGE_KEY) === "1"; } catch (_e) {}
     if (!suppress) {
-      this._showTimer = window.setTimeout(() => this._show(), 1800);
+      // Wait until the loading screen has gone (QA FND-69: the guide used to open
+      // on top of it, and on phones both now sit at the bottom), never earlier
+      // than 1.8 s after boot, and give up waiting after 60 s.
+      const t0 = performance.now();
+      const tryShow = () => {
+        const ifr = document.getElementById("v4-loading-iframe");
+        const loading = !!ifr && ifr.style.opacity !== "0";
+        const waited = performance.now() - t0;
+        if (waited < 1800 || (loading && waited < 60000)) {
+          this._showTimer = window.setTimeout(tryShow, 300);
+          return;
+        }
+        this._show();
+      };
+      this._showTimer = window.setTimeout(tryShow, 300);
     }
 
     console.log(
@@ -513,6 +529,25 @@ export const SanctuaryWelcomeGuideModule = {
       this._render();
     } else {
       this._close();
+      // Finished the guide (Begin) -> the Sacred Journal opens next
+      // (Mark, 2026-10-22: "we need the journal to popup after welcome guide is
+      // done"). Skip / Esc don't open it. Waits for the guide's 0.35 s fade.
+      setTimeout(() => {
+        try { if (typeof window._v4SetJournalOpen === "function") window._v4SetJournalOpen(true); } catch (_e) {}
+        // QA 2026-10-22 saw this first open leave the overlay up with the book
+        // never loaded (its logbook frame still about:blank). If that happens,
+        // ask the journal once more; a book that is merely still loading is
+        // left alone.
+        setTimeout(() => {
+          try {
+            const w = document.getElementById("v4-journal-frame")?.contentWindow;
+            const lb = w?.document?.getElementById("logbookFrame");
+            if (window._v4JournalOpen && lb && lb.getAttribute("src") === "about:blank") {
+              w.postMessage({ type: "FORCE_OPEN_JOURNAL" }, "*");
+            }
+          } catch (_e) {}
+        }, 1500);
+      }, 400);
     }
   },
 

@@ -1,9 +1,9 @@
 {
-  "subject": "feat(hud): phone HUD tabs, a tall FPS graph and a 25 % bigger minimap (Mark)",
-  "isoDate": "2026-10-22T21:59:37+00:00",
+  "subject": "feat(guide): Welcome Guide at the bottom on phones; the journal opens after it (Mark)",
+  "isoDate": "2026-10-22T21:59:56+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "0a6380e",
+  "commit": "2d37a43",
   "dirty": true,
-  "generatedAt": "2026-10-22T21:59:41.053Z"
+  "generatedAt": "2026-10-22T22:00:02.107Z"
 }
