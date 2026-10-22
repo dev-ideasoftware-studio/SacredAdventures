@@ -28,6 +28,8 @@
  * 5 m behind + 2.6 m above the body (matching the SanctuaryAvatar
  * height target). When `__sanctuaryTopDown === true` (set by the
  * Controls TOP-DOWN toggle), camera follow is suspended.
+ * While she walks, the camera follows close behind her, 1 ft above the
+ * top of her head (WALK_CAMERA, Mark 2026-10-22).
  */
 
 import * as THREE from "three";
@@ -42,6 +44,16 @@ const GRAVITY_MPS2 = 14;
 const CAMERA_BACK = 5.0;
 const CAMERA_UP = 2.6;
 const CAMERA_LOOK_FWD = 4.0;
+// Walking camera (Mark, 2026-10-22: "when walking move cam 1 foot above avatar head when walkbehind").
+// "behind": while she walks (keys, D-pad, joystick or click-to-move) the camera follows close behind
+// her, 1 ft above the top of her head (feathers included), looking ahead over her head.
+// "front": the May-19 view instead (W / up arrow puts the camera 3 ft in front at eye height).
+const WALK_CAMERA = "behind";
+const WALK_CAM_ABOVE_HEAD_M = 0.3048;  // 1 ft
+const WALK_CAM_BACK_M = 1.2;           // behind her, along the way she faces
+const WALK_CAM_START_MPS = 0.5;        // ground speed that counts as walking
+const WALK_CAM_HOLD_S = 0.35;          // keep the walking camera this long after she stops
+const HEAD_TOP_FALLBACK_M = 1.65;      // Avatar-New: top of the feathers above her feet
 // Drag-look + pitch (2026-10-22). Pitch is a look TILT: the camera stays where it is and only the
 // point it looks at moves up or down, so the camera can never dip into the ground.
 const PITCH_MIN_RAD = -40 * Math.PI / 180;  // look-down limit
@@ -65,6 +77,11 @@ export const SanctuaryKeyboardLookModule = {
   _onKeyUp: null,
   _cameraSmooth: null,
   _lookSmooth: null,
+  _walkCamHold: 0,        // seconds the walking camera stays on (refilled while she moves)
+  _walkCamPrevX: NaN,     // her position last frame, for the ground speed
+  _walkCamPrevZ: NaN,
+  _headTop: NaN,          // top of her head above her feet (measured once per avatar)
+  _headTopFor: null,
 
   async load(scene, camera) {
     this._scene = scene;
@@ -274,8 +291,28 @@ export const SanctuaryKeyboardLookModule = {
       // gives a clean over-the-top view of where she's heading.
       const FWD_ZOOM_M = 0.9144;
       const EYE_HEIGHT_M = 1.45;
+      // Walking = she really moves over the ground, whatever moves her, so a tap or a turn on the
+      // spot doesn't swing the camera. The hold keeps it steady through click-to-move turns.
+      const groundSpeed = Number.isFinite(this._walkCamPrevX) && delta > 0
+        ? Math.hypot(body.position.x - this._walkCamPrevX, body.position.z - this._walkCamPrevZ) / delta
+        : 0;
+      this._walkCamPrevX = body.position.x;
+      this._walkCamPrevZ = body.position.z;
+      if (groundSpeed > WALK_CAM_START_MPS) this._walkCamHold = WALK_CAM_HOLD_S;
+      else this._walkCamHold = Math.max(0, this._walkCamHold - delta);
+      const headTop = this._headTopAbove(body); // measured while she stands, so the first step doesn't hitch
       let camX, camY, camZ, lookX, lookY, lookZ, cLerp;
-      if (movingFwd) {
+      if (WALK_CAMERA === "behind" && this._walkCamHold > 0) {
+        // Walk-behind: close behind her, 1 ft above the top of her head, looking ahead over it.
+        // The drag-look tilt still applies; same snappy follow as the old forward view.
+        camX = body.position.x - fwdX * WALK_CAM_BACK_M;
+        camZ = body.position.z - fwdZ * WALK_CAM_BACK_M;
+        camY = body.position.y + headTop + WALK_CAM_ABOVE_HEAD_M;
+        lookX = body.position.x + fwdX * CAMERA_LOOK_FWD;
+        lookZ = body.position.z + fwdZ * CAMERA_LOOK_FWD;
+        lookY = body.position.y + 1.4 + Math.tan(this._pitch) * (WALK_CAM_BACK_M + CAMERA_LOOK_FWD);
+        cLerp = 1 - Math.pow(0.001, delta);
+      } else if (WALK_CAMERA === "front" && movingFwd) {
         camX = body.position.x + fwdX * FWD_ZOOM_M;
         camZ = body.position.z + fwdZ * FWD_ZOOM_M;
         camY = body.position.y + EYE_HEIGHT_M;
@@ -316,6 +353,32 @@ export const SanctuaryKeyboardLookModule = {
         }
       }
     }
+  },
+
+  /**
+   * Height of the top of her head (feathers included) above her feet, from the skinned mesh in
+   * its current pose (every 4th vertex). Measured once per avatar; until the model is in, the
+   * fallback is returned and nothing is cached.
+   */
+  _headTopAbove(body) {
+    if (this._headTopFor === body && Number.isFinite(this._headTop)) return this._headTop;
+    let top = -Infinity;
+    const v = new THREE.Vector3();
+    body.updateMatrixWorld(true);
+    body.traverse((m) => {
+      if (!m.isSkinnedMesh || !m.visible || !m.geometry?.attributes?.position) return;
+      const n = m.geometry.attributes.position.count;
+      for (let i = 0; i < n; i += 4) {
+        m.getVertexPosition(i, v);
+        v.applyMatrix4(m.matrixWorld);
+        if (v.y > top) top = v.y;
+      }
+    });
+    const h = top - body.position.y;
+    if (!(h > 0.5 && h < 4)) return HEAD_TOP_FALLBACK_M;
+    this._headTop = h;
+    this._headTopFor = body;
+    return h;
   },
 
   unload() {

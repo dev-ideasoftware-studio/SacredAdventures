@@ -1,9 +1,9 @@
 {
-  "subject": "docs(decision-engine): log cedars + billboards and the frame-counting ladder (ATT-83, ATT-84, LOG-37)",
-  "isoDate": "2026-10-22T19:09:46+00:00",
+  "subject": "feat(camera): walking camera follows behind her, 1 ft above her head (Mark)",
+  "isoDate": "2026-10-22T19:37:57+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "7ba6843",
+  "commit": "7f5458e",
   "dirty": true,
-  "generatedAt": "2026-10-22T19:09:50.202Z"
+  "generatedAt": "2026-10-22T19:38:00.798Z"
 }
