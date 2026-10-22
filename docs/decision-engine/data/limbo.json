@@ -1,0 +1,2626 @@
+{
+ "scope": [
+  "js/BuildBadge.js",
+  "js/sanctuary/AnuAdaptiveDpr.js",
+  "js/sanctuary/MoldGrowHill.js",
+  "js/sanctuary/MoldPlaceTipi.js",
+  "js/sanctuary/MoldPlantBush.js",
+  "js/sanctuary/MoldPlantFlower.js",
+  "js/sanctuary/MoldPlantLily.js",
+  "js/sanctuary/MoldPlantRock.js",
+  "js/sanctuary/MoldPlantTree.js",
+  "js/sanctuary/SanctuaryAmbient.js",
+  "js/sanctuary/SanctuaryAvatar.js",
+  "js/sanctuary/SanctuaryBraziers.js",
+  "js/sanctuary/SanctuaryButterflies.js",
+  "js/sanctuary/SanctuaryCircles.js",
+  "js/sanctuary/SanctuaryClickToMove.js",
+  "js/sanctuary/SanctuaryControls.js",
+  "js/sanctuary/SanctuaryCursor.js",
+  "js/sanctuary/SanctuaryDayNight.js",
+  "js/sanctuary/SanctuaryDock.js",
+  "js/sanctuary/SanctuaryDragonfly.js",
+  "js/sanctuary/SanctuaryFish.js",
+  "js/sanctuary/SanctuaryFishJumps.js",
+  "js/sanctuary/SanctuaryFishing.js",
+  "js/sanctuary/SanctuaryFrogs.js",
+  "js/sanctuary/SanctuaryGround.js",
+  "js/sanctuary/SanctuaryHexGrid.js",
+  "js/sanctuary/SanctuaryInventory.js",
+  "js/sanctuary/SanctuaryJournalBridge.js",
+  "js/sanctuary/SanctuaryKeyboardLook.js",
+  "js/sanctuary/SanctuaryMapGeneratorUi.js",
+  "js/sanctuary/SanctuaryMutations.js",
+  "js/sanctuary/SanctuaryPondTrees.js",
+  "js/sanctuary/SanctuaryPool.js",
+  "js/sanctuary/SanctuarySceneConstructor.js",
+  "js/sanctuary/SanctuarySky.js",
+  "js/sanctuary/SanctuaryTipiNpcs.js",
+  "js/sanctuary/SanctuaryTipis.js",
+  "js/sanctuary/SanctuaryToolPalette.js",
+  "js/sanctuary/SanctuaryTravelDisc.js",
+  "js/sanctuary/SanctuaryVillagePad.js",
+  "js/sanctuary/SanctuaryWaterFootsteps.js",
+  "js/sanctuary/SanctuaryWeather.js",
+  "js/sanctuary/SanctuaryWelcomeGuide.js",
+  "js/sanctuary/SanctuaryWorldPlayerShim.js",
+  "js/sanctuary/SanctuaryZoom.js",
+  "js/v2/AnuModule.js",
+  "js/v2/BuildingPanelUI.js",
+  "js/v2/MapsConfig.js",
+  "js/v2/NPCBehaviour.js",
+  "js/v2/Orchestrator.js",
+  "js/v2/OrchestratorHud.js",
+  "js/v2/RuntimeServices.js",
+  "js/v2/TipiCampfire.js",
+  "js/v2/UIModule.js",
+  "js/v2/WorldMossyRock.js",
+  "js/v2/WorldSacredPlatform.js",
+  "js/v2/WorldStructures.js",
+  "js/v2/WorldTerrain.js",
+  "js/v2/WorldTipiJournalBalloon.js",
+  "js/v2/anu/AdaptiveRenderPolicy.js",
+  "js/v2/anu/AnuErrorAndStressLedger.js",
+  "js/v2/anu/AnuFuzzyPipelineSensor.js",
+  "js/v2/anu/AnuGovernanceRules.js",
+  "js/v2/anu/AnuNatureAwareness.js",
+  "js/v2/anu/AnuWorldSensorium.js",
+  "js/v2/anu/FrameBudget.js",
+  "js/v2/anu/InteractionBus.js",
+  "js/v2/anu/PipOrthoRingDiskClip.js",
+  "js/v2/anu/PipRenderStrategy.js",
+  "js/v2/anu/RenderingGovernor.js",
+  "js/v2/anu/SceneModelInventory.js",
+  "js/v2/anu/SimulationController.js",
+  "js/v2/anu/TravelFloorCircleMaterials.js",
+  "js/v2/anu/anuEvents.js",
+  "js/v2/anu/index.js",
+  "js/v2/anu/pipelineMemory.js",
+  "js/v2/constants.js",
+  "js/v2/gltfLoaderSetup.js",
+  "js/v2/pipCompassMath.js",
+  "index.html",
+  "SacredGame.Panel.html",
+  "SacredGame.Journal.html",
+  "js/components/Component.NewJournal.html",
+  "js/components/Component.LoadingModal.html"
+ ],
+ "rows": [
+  {
+   "kind": "postMessage type",
+   "name": "ADD_PAGE",
+   "senders": [
+    "SacredGame.Panel.html:L2367",
+    "SacredGame.Panel.html:L2414"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L1298",
+    "SacredGame.Journal.html:L504 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "BOOT_ERROR",
+   "senders": [
+    "index.html:L68"
+   ],
+   "receivers": [
+    "js/components/Component.LoadingModal.html:L500"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "CANVAS_CLICK",
+   "senders": [
+    "SacredGame.Panel.html:L2896"
+   ],
+   "receivers": [
+    "index.html:L885"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "CLOSE_LOGBOOK",
+   "senders": [
+    "SacredGame.Panel.html:L2067",
+    "SacredGame.Journal.html:L376"
+   ],
+   "receivers": [
+    "index.html:L716",
+    "SacredGame.Panel.html:L2065",
+    "SacredGame.Journal.html:L455"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "CLOSE_QUEST",
+   "senders": [
+    "SacredGame.Panel.html:L1888"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "DO_OPEN_FLIP",
+   "senders": [
+    "SacredGame.Journal.html:L350",
+    "SacredGame.Journal.html:L357"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L1238",
+    "SacredGame.Journal.html:L504 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "FIND_HER_AUTOWALK",
+   "senders": [
+    "SacredGame.Panel.html:L2480"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "FISH_ACTION",
+   "senders": [
+    "SacredGame.Panel.html:L2553"
+   ],
+   "receivers": [
+    "index.html:L785"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "FORCE_OPEN_JOURNAL",
+   "senders": [
+    "index.html:L689"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L430",
+    "SacredGame.Panel.html:L2224 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "GATHER_ACTION",
+   "senders": [
+    "SacredGame.Panel.html:L2546"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "GO_TO_PAGE",
+   "senders": [
+    "SacredGame.Panel.html:L2340",
+    "SacredGame.Journal.html:L436",
+    "SacredGame.Journal.html:L469",
+    "SacredGame.Journal.html:L479",
+    "SacredGame.Journal.html:L498"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L1243",
+    "SacredGame.Journal.html:L504 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "JOURNAL_CLOSED",
+   "senders": [
+    "SacredGame.Journal.html:L374"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryJournalBridge.js:L106",
+    "js/sanctuary/SanctuaryJournalBridge.js:L109",
+    "SacredGame.Panel.html:L2104"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "JOURNAL_GREET_BHG",
+   "senders": [
+    "js/components/Component.NewJournal.html:L1036"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "JOURNAL_OPENED",
+   "senders": [
+    "SacredGame.Journal.html:L364"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryJournalBridge.js:L106",
+    "js/sanctuary/SanctuaryJournalBridge.js:L107",
+    "SacredGame.Panel.html:L2094"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "JOURNAL_START_GAME_INTRO",
+   "senders": [
+    "js/components/Component.NewJournal.html:L909"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "KEY_FORWARD",
+   "senders": [
+    "SacredGame.Panel.html:L2024",
+    "SacredGame.Panel.html:L2731",
+    "SacredGame.Panel.html:L2740",
+    "SacredGame.Journal.html:L616",
+    "SacredGame.Journal.html:L620"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L2459"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "LOADING_MODAL_ERROR",
+   "senders": [
+    "js/components/Component.LoadingModal.html:L486"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "LOGBOOK_ASPECT",
+   "senders": [
+    "SacredGame.Journal.html:L244",
+    "SacredGame.Journal.html:L262"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L504 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "LOGBOOK_VISIBILITY",
+   "senders": [
+    "SacredGame.Journal.html:L365",
+    "SacredGame.Journal.html:L375"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryJournalBridge.js:L106"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "OBSERVE_WILDLIFE_ACTION",
+   "senders": [
+    "SacredGame.Panel.html:L2559"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "OPEN_LOGBOOK",
+   "senders": [
+    "SacredGame.Panel.html:L2102"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L430"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "PROCESS_INPUT",
+   "senders": [
+    "js/components/Component.NewJournal.html:L970"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "QUEST_AUTOWALK",
+   "senders": [
+    "SacredGame.Panel.html:L2476"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L2089"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_ALIGN_SELFIE",
+   "senders": [
+    "js/components/Component.NewJournal.html:L1188"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_ALIGN_TIPI",
+   "senders": [
+    "js/components/Component.NewJournal.html:L1143"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L558",
+    "SacredGame.Panel.html:L2469 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_AUTOWALK_TO_ENTITY",
+   "senders": [
+    "SacredGame.Panel.html:L2364"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L2267"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_HIDE_AXE",
+   "senders": [
+    "js/components/Component.NewJournal.html:L648",
+    "js/components/Component.NewJournal.html:L1152",
+    "js/components/Component.NewJournal.html:L1165"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L550",
+    "SacredGame.Panel.html:L2469 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_HIDE_SELFIE",
+   "senders": [
+    "js/components/Component.NewJournal.html:L649",
+    "js/components/Component.NewJournal.html:L1172",
+    "js/components/Component.NewJournal.html:L1190"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_HIDE_TIPI",
+   "senders": [
+    "SacredGame.Journal.html:L377",
+    "js/components/Component.NewJournal.html:L647",
+    "js/components/Component.NewJournal.html:L1127",
+    "js/components/Component.NewJournal.html:L1145"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L579",
+    "SacredGame.Panel.html:L2469 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_START_AUTO_WALK",
+   "senders": [
+    "SacredGame.Panel.html:L2086",
+    "SacredGame.Panel.html:L2348"
+   ],
+   "receivers": [
+    "index.html:L901"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_TOGGLE_JOURNAL",
+   "senders": [
+    "SacredGame.Panel.html:L2571"
+   ],
+   "receivers": [
+    "index.html:L751"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_TOGGLE_LOGBOOK",
+   "senders": [
+    "js/components/Component.NewJournal.html:L650"
+   ],
+   "receivers": [
+    "index.html:L717",
+    "SacredGame.Panel.html:L2261",
+    "SacredGame.Journal.html:L424"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "REQ_WORLD_RECONFIG",
+   "senders": [
+    "SacredGame.Panel.html:L1614"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "RESTORE_STATE",
+   "senders": [
+    "js/components/Component.NewJournal.html:L696"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "RETURN_TO_GAME",
+   "senders": [
+    "js/components/Component.NewJournal.html:L651"
+   ],
+   "receivers": [
+    "index.html:L716"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "SEEK_ENTITY",
+   "senders": [
+    "SacredGame.Panel.html:L2859"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "SWITCH_TAB",
+   "senders": [
+    "SacredGame.Panel.html:L2339",
+    "SacredGame.Panel.html:L2356",
+    "SacredGame.Panel.html:L2377",
+    "SacredGame.Panel.html:L2426",
+    "SacredGame.Journal.html:L489"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L1250",
+    "SacredGame.Journal.html:L504 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "THUMB_MOVE",
+   "senders": [
+    "SacredGame.Panel.html:L1841",
+    "SacredGame.Panel.html:L1855"
+   ],
+   "receivers": [
+    "index.html:L882"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "TOGGLE_VIEW_MODE",
+   "senders": [
+    "js/v2/UIModule.js:L233",
+    "js/components/Component.NewJournal.html:L815"
+   ],
+   "receivers": [
+    "index.html:L876"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "VIDEO_READY",
+   "senders": [
+    "js/components/Component.LoadingModal.html:L275"
+   ],
+   "receivers": [
+    "index.html:L417"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "VISIBILITY_CHANGE",
+   "senders": [
+    "index.html:L690",
+    "index.html:L730",
+    "SacredGame.Journal.html:L351",
+    "SacredGame.Journal.html:L358",
+    "SacredGame.Journal.html:L370"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L1225",
+    "SacredGame.Journal.html:L504 (relay list)"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "VOLUME_CHANGE",
+   "senders": [
+    "SacredGame.Panel.html:L2450",
+    "SacredGame.Panel.html:L2452"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L2456"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "DOM CustomEvent",
+   "name": "anu:weather-change",
+   "senders": [
+    "js/sanctuary/SanctuaryWeather.js:L139"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "FAUNA_TICK",
+   "senders": [
+    "js/v2/anu/AnuNatureAwareness.js:L217"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "FUZZY_PIPELINE_SENSOR",
+   "senders": [
+    "js/v2/AnuModule.js:L405",
+    "js/v2/AnuModule.js:L411"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "GOVERNANCE_SNAPSHOT",
+   "senders": [
+    "js/v2/AnuModule.js:L434",
+    "js/v2/AnuModule.js:L440"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "ITEM_EVENT",
+   "senders": [
+    "js/sanctuary/SanctuaryInventory.js:L209"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "MODULE_ACTIVATED",
+   "senders": [
+    "js/v2/Orchestrator.js:L447"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "MODULE_DEACTIVATED",
+   "senders": [
+    "js/v2/Orchestrator.js:L511"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "MODULE_LOAD_ERROR",
+   "senders": [
+    "js/v2/anu/AnuErrorAndStressLedger.js:L63"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "ORCHESTRATOR_BENCH_COMPLETE",
+   "senders": [
+    "js/v2/Orchestrator.js:L851"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "ORCHESTRATOR_LOOP_ERROR",
+   "senders": [
+    "js/v2/anu/AnuErrorAndStressLedger.js:L45"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "PIPELINE_STRESS_LEVEL",
+   "senders": [
+    "js/v2/anu/AnuErrorAndStressLedger.js:L102"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "PLAYER_NPC_GREETING",
+   "senders": [
+    "js/v2/NPCBehaviour.js:L275"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "RENDERING_DPR_CHANGE",
+   "senders": [
+    "js/sanctuary/AnuAdaptiveDpr.js:L136"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "SANCTUARY_MOLD",
+   "senders": [
+    "js/sanctuary/SanctuaryMutations.js:L79"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "SANCTUARY_WORLD_STATE",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L330",
+    "js/sanctuary/SanctuaryControls.js:L349"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "SCENE_INVENTORY_TICK",
+   "senders": [
+    "js/v2/anu/SceneModelInventory.js:L365"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "SEASON_CHANGE",
+   "senders": [
+    "js/sanctuary/SanctuaryDayNight.js:L121"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "ANU bus event",
+   "name": "WORLD_SENSORIUM",
+   "senders": [
+    "js/v2/AnuModule.js:L454",
+    "js/v2/AnuModule.js:L460"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
+   "note": ""
+  },
+  {
+   "kind": "Runtime service lookup",
+   "name": "PipOrthoBranchClip",
+   "senders": [
+    "js/v2/Orchestrator.js:L1630"
+   ],
+   "receivers": [
+    "js/v2/anu/PipOrthoRingDiskClip.js:L44"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "Runtime service lookup",
+   "name": "WebFontsService",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L92"
+   ],
+   "receivers": [
+    "js/v2/UIModule.js:L38"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "Runtime service lookup",
+   "name": "WorldPhysics",
+   "senders": [
+    "js/v2/WorldStructures.js:L822",
+    "js/v2/WorldStructures.js:L1281",
+    "js/v2/anu/AnuNatureAwareness.js:L235"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 no receiver in live code",
+   "note": ""
+  },
+  {
+   "kind": "Runtime service lookup",
+   "name": "WorldPlayer",
+   "senders": [
+    "js/v2/Orchestrator.js:L1411",
+    "js/v2/UIModule.js:L231",
+    "js/v2/UIModule.js:L248"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryWorldPlayerShim.js:L44"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "ThreeIconManager",
+   "senders": [
+    "SacredGame.Panel.html:L1900"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 never assigned in live code",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "__regenerateBraziers",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L438"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryBraziers.js:L315"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "__regenerateDock",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L448"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryDock.js:L458"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "__regeneratePoolObjects",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L443"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 never assigned in live code",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "__regenerateTerrain",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L423"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 never assigned in live code",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "__regenerateTipiNpcs",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L433"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryTipiNpcs.js:L290"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "__regenerateTipis",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L428"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryTipis.js:L336"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "__sanctuaryFishingSpawnRipple",
+   "senders": [
+    "js/sanctuary/SanctuaryFish.js:L1209",
+    "js/sanctuary/SanctuaryFish.js:L1258",
+    "js/sanctuary/SanctuaryFish.js:L1342",
+    "js/sanctuary/SanctuaryFishing.js:L2230"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryFishing.js:L991"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "__sanctuarySpawnBabyFish",
+   "senders": [
+    "js/sanctuary/SanctuaryFish.js:L604",
+    "js/sanctuary/SanctuaryFishing.js:L2439"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryFish.js:L547"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "_v4CancelClickToMove",
+   "senders": [
+    "js/sanctuary/SanctuaryFishing.js:L1521",
+    "js/sanctuary/SanctuaryFishing.js:L2641",
+    "js/sanctuary/SanctuaryKeyboardLook.js:L80",
+    "js/sanctuary/SanctuaryKeyboardLook.js:L136",
+    "js/sanctuary/SanctuaryKeyboardLook.js:L170",
+    "index.html:L828",
+    "index.html:L904"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryClickToMove.js:L223"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "_v4SmartWalkTo",
+   "senders": [
+    "index.html:L854",
+    "index.html:L858"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryClickToMove.js:L252"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "_v4StartFishing",
+   "senders": [
+    "index.html:L832"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryFishing.js:L1272"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "_v4ToggleJournal",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L246",
+    "index.html:L294",
+    "index.html:L661"
+   ],
+   "receivers": [
+    "index.html:L693"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "_v4TogglePanel",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L241",
+    "index.html:L313",
+    "index.html:L791"
+   ],
+   "receivers": [
+    "index.html:L736"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "_v4TogglePip",
+   "senders": [
+    "index.html:L801"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 never assigned in live code",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "_v4ToggleTopDown",
+   "senders": [
+    "index.html:L880"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L278"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "_v4WalkTo",
+   "senders": [
+    "js/sanctuary/SanctuaryClickToMove.js:L283",
+    "js/sanctuary/SanctuaryClickToMove.js:L323",
+    "index.html:L851"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryClickToMove.js:L236"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "addPage",
+   "senders": [
+    "js/components/Component.NewJournal.html:L862",
+    "js/components/Component.NewJournal.html:L1299"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L785"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "getPageFontIndex",
+   "senders": [
+    "js/components/Component.NewJournal.html:L670",
+    "js/components/Component.NewJournal.html:L683"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L665"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "initPanelIcons",
+   "senders": [
+    "SacredGame.Panel.html:L73",
+    "SacredGame.Panel.html:L1939"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1898"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "sanctuaryGrant",
+   "senders": [
+    "js/sanctuary/SanctuaryFishing.js:L2446"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryInventory.js:L155"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "sanctuaryPulse",
+   "senders": [
+    "js/sanctuary/MoldPlantLily.js:L107",
+    "js/sanctuary/SanctuaryFish.js:L939",
+    "js/sanctuary/SanctuaryFish.js:L1011",
+    "js/sanctuary/SanctuaryFish.js:L1076",
+    "js/sanctuary/SanctuaryFish.js:L1146",
+    "js/sanctuary/SanctuaryFish.js:L1153",
+    "js/sanctuary/SanctuaryFish.js:L1396",
+    "js/sanctuary/SanctuaryFish.js:L1581",
+    "js/sanctuary/SanctuaryFishJumps.js:L152",
+    "js/sanctuary/SanctuaryFishJumps.js:L172",
+    "js/sanctuary/SanctuaryFishing.js:L2232",
+    "js/sanctuary/SanctuaryFrogs.js:L886"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryCircles.js:L191"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "startGameSequence",
+   "senders": [
+    "js/components/Component.NewJournal.html:L1022",
+    "js/components/Component.NewJournal.html:L1094"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L907"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "switchBookTab",
+   "senders": [
+    "js/components/Component.NewJournal.html:L799",
+    "js/components/Component.NewJournal.html:L869"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L763"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "window.* function call",
+   "name": "toggleLogbook",
+   "senders": [
+    "SacredGame.Panel.html:L2085",
+    "SacredGame.Panel.html:L2191",
+    "SacredGame.Panel.html:L2475",
+    "SacredGame.Panel.html:L2479",
+    "SacredGame.Panel.html:L2537",
+    "SacredGame.Journal.html:L425",
+    "SacredGame.Journal.html:L432",
+    "SacredGame.Journal.html:L449",
+    "SacredGame.Journal.html:L458",
+    "SacredGame.Journal.html:L466",
+    "SacredGame.Journal.html:L476",
+    "SacredGame.Journal.html:L486"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L2565",
+    "SacredGame.Journal.html:L339"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "__boot_err",
+   "senders": [
+    "index.html:L36"
+   ],
+   "receivers": [
+    "index.html:L38",
+    "index.html:L38"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "__boot_err_text",
+   "senders": [
+    "index.html:L62"
+   ],
+   "receivers": [
+    "index.html:L55",
+    "index.html:L55"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "action-log",
+   "senders": [
+    "SacredGame.Panel.html:L2796"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1796"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "action-zone",
+   "senders": [
+    "SacredGame.Panel.html:L2579",
+    "SacredGame.Panel.html:L2594",
+    "SacredGame.Panel.html:L2604",
+    "SacredGame.Panel.html:L2648",
+    "SacredGame.Panel.html:L2707"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1664"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "adventure-row-top",
+   "senders": [
+    "SacredGame.Panel.html:L2116"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1749"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "aria-announcer",
+   "senders": [
+    "SacredGame.Panel.html:L2290"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1621"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "aria-live-narrator",
+   "senders": [
+    "SacredGame.Panel.html:L2817"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1800"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "avatar-static-fallback",
+   "senders": [
+    "SacredGame.Panel.html:L1921"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1674"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "axe-3d-target",
+   "senders": [
+    "js/components/Component.NewJournal.html:L1155"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 id not created anywhere in live code",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "bar-logic",
+   "senders": [
+    "js/components/Component.LoadingModal.html:L532",
+    "js/components/Component.LoadingModal.html:L560",
+    "js/components/Component.LoadingModal.html:L594"
+   ],
+   "receivers": [
+    "js/components/Component.LoadingModal.html:L250"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "book-drag-handle",
+   "senders": [
+    "SacredGame.Journal.html:L275"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L203"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "book-resize-handle",
+   "senders": [
+    "SacredGame.Journal.html:L276"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L204"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "book-wrapper",
+   "senders": [
+    "SacredGame.Panel.html:L2315",
+    "SacredGame.Journal.html:L274",
+    "SacredGame.Journal.html:L340",
+    "SacredGame.Journal.html:L382",
+    "SacredGame.Journal.html:L391",
+    "SacredGame.Journal.html:L431",
+    "SacredGame.Journal.html:L447",
+    "SacredGame.Journal.html:L456",
+    "SacredGame.Journal.html:L465",
+    "SacredGame.Journal.html:L475",
+    "SacredGame.Journal.html:L485",
+    "SacredGame.Journal.html:L516",
+    "SacredGame.Journal.html:L559",
+    "SacredGame.Journal.html:L586",
+    "SacredGame.Journal.html:L612"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L202"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "btn-items",
+   "senders": [
+    "SacredGame.Panel.html:L2516"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1680"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "btn-journal",
+   "senders": [
+    "SacredGame.Panel.html:L2099",
+    "SacredGame.Panel.html:L2110"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1685"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "build-badge",
+   "senders": [
+    "js/BuildBadge.js:L59"
+   ],
+   "receivers": [
+    "js/BuildBadge.js:L62",
+    "js/BuildBadge.js:L62"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "build-badge-copy",
+   "senders": [
+    "js/BuildBadge.js:L136"
+   ],
+   "receivers": [
+    "js/BuildBadge.js:L134"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "card-fish-btn",
+   "senders": [
+    "SacredGame.Panel.html:L2554"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1771"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "card-gather-btn",
+   "senders": [
+    "SacredGame.Panel.html:L2548"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1765"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "card-log-btn",
+   "senders": [
+    "SacredGame.Panel.html:L2098",
+    "SacredGame.Panel.html:L2109"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1783"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "card-quest-btn",
+   "senders": [
+    "SacredGame.Panel.html:L2124",
+    "SacredGame.Panel.html:L2198",
+    "SacredGame.Panel.html:L2252",
+    "SacredGame.Panel.html:L2483",
+    "SacredGame.Panel.html:L2505",
+    "SacredGame.Panel.html:L2512",
+    "SacredGame.Panel.html:L2539"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1756"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "card-search-btn",
+   "senders": [
+    "SacredGame.Panel.html:L2205",
+    "SacredGame.Panel.html:L2560"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1777"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "center-stack",
+   "senders": [
+    "SacredGame.Panel.html:L2313"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1747"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "debug-viewport",
+   "senders": [
+    "SacredGame.Panel.html:L2673"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 id not created anywhere in live code",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "desc-quest",
+   "senders": [
+    "SacredGame.Panel.html:L2484",
+    "SacredGame.Panel.html:L2506"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1761"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "dynamic-font-override",
+   "senders": [
+    "js/components/Component.NewJournal.html:L686"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L689",
+    "js/components/Component.NewJournal.html:L689"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "event-log",
+   "senders": [
+    "SacredGame.Panel.html:L2282",
+    "SacredGame.Panel.html:L2433"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1879"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "font-size-display",
+   "senders": [
+    "js/components/Component.NewJournal.html:L676"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L573"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "guides-container",
+   "senders": [
+    "SacredGame.Panel.html:L1945",
+    "SacredGame.Panel.html:L2096",
+    "SacredGame.Panel.html:L2107"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1754"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "icon-logbook-axe",
+   "senders": [
+    "SacredGame.Journal.html:L514",
+    "SacredGame.Journal.html:L551"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L210"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "journal-frame",
+   "senders": [
+    "SacredGame.Panel.html:L1960",
+    "SacredGame.Journal.html:L334"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 id not created anywhere in live code",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "left-panel",
+   "senders": [
+    "SacredGame.Panel.html:L1985",
+    "SacredGame.Panel.html:L2004",
+    "SacredGame.Panel.html:L2114",
+    "SacredGame.Panel.html:L2314"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1642"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "llm-input",
+   "senders": [
+    "SacredGame.Panel.html:L2668",
+    "SacredGame.Panel.html:L2748",
+    "SacredGame.Panel.html:L2816",
+    "js/components/Component.NewJournal.html:L915"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L592"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "loading",
+   "senders": [
+    "js/components/Component.LoadingModal.html:L267",
+    "js/components/Component.LoadingModal.html:L640"
+   ],
+   "receivers": [
+    "js/components/Component.LoadingModal.html:L221"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "loading-log",
+   "senders": [
+    "js/components/Component.LoadingModal.html:L510"
+   ],
+   "receivers": [
+    "js/components/Component.LoadingModal.html:L258"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "loading-video",
+   "senders": [
+    "js/components/Component.LoadingModal.html:L268"
+   ],
+   "receivers": [
+    "js/components/Component.LoadingModal.html:L222"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "logbook-container",
+   "senders": [
+    "SacredGame.Panel.html:L2824"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 id not created anywhere in live code",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "logbookFrame",
+   "senders": [
+    "SacredGame.Journal.html:L242",
+    "SacredGame.Journal.html:L260",
+    "SacredGame.Journal.html:L341",
+    "SacredGame.Journal.html:L381",
+    "SacredGame.Journal.html:L435",
+    "SacredGame.Journal.html:L468",
+    "SacredGame.Journal.html:L478",
+    "SacredGame.Journal.html:L488",
+    "SacredGame.Journal.html:L497",
+    "SacredGame.Journal.html:L507",
+    "SacredGame.Journal.html:L515",
+    "SacredGame.Journal.html:L565"
+   ],
+   "receivers": [
+    "SacredGame.Journal.html:L205"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "mobile-thumb-zone",
+   "senders": [
+    "SacredGame.Panel.html:L1805"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1644"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "p-logic",
+   "senders": [
+    "js/components/Component.LoadingModal.html:L538",
+    "js/components/Component.LoadingModal.html:L586"
+   ],
+   "receivers": [
+    "js/components/Component.LoadingModal.html:L247"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "p-logic-slot",
+   "senders": [
+    "js/components/Component.LoadingModal.html:L541",
+    "js/components/Component.LoadingModal.html:L583",
+    "js/components/Component.LoadingModal.html:L621"
+   ],
+   "receivers": [
+    "js/components/Component.LoadingModal.html:L248"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "page-content-left",
+   "senders": [
+    "js/components/Component.NewJournal.html:L740"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L544"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "page-content-right",
+   "senders": [
+    "js/components/Component.NewJournal.html:L741"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L555"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "page-num-left",
+   "senders": [
+    "js/components/Component.NewJournal.html:L742"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L546"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "page-num-right",
+   "senders": [
+    "js/components/Component.NewJournal.html:L743"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L562"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "panel-frame",
+   "senders": [
+    "SacredGame.Journal.html:L329",
+    "js/v2/UIModule.js:L223"
+   ],
+   "receivers": [
+    "js/v2/UIModule.js:L209"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "parser-feedback",
+   "senders": [
+    "js/components/Component.NewJournal.html:L916",
+    "js/components/Component.NewJournal.html:L1304",
+    "js/components/Component.NewJournal.html:L1330"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L596"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "pip-click-zone",
+   "senders": [
+    "js/v2/UIModule.js:L235"
+   ],
+   "receivers": [
+    "js/v2/UIModule.js:L219"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "res-indicator",
+   "senders": [
+    "js/components/Component.NewJournal.html:L1207"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L600"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "right-panel",
+   "senders": [
+    "SacredGame.Panel.html:L2115",
+    "SacredGame.Panel.html:L2608"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1663"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "sacred-logbook-engine",
+   "senders": [
+    "js/components/Component.NewJournal.html:L628",
+    "js/components/Component.NewJournal.html:L641"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L508"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "sanctuary-welcome-guide-css",
+   "senders": [
+    "js/sanctuary/SanctuaryWelcomeGuide.js:L59"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryWelcomeGuide.js:L61",
+    "js/sanctuary/SanctuaryWelcomeGuide.js:L61"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "setup-modal",
+   "senders": [
+    "SacredGame.Panel.html:L1601",
+    "SacredGame.Panel.html:L1615",
+    "SacredGame.Panel.html:L1617"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1606"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "sr-announcer",
+   "senders": [
+    "js/components/Component.NewJournal.html:L631",
+    "js/components/Component.NewJournal.html:L644",
+    "js/components/Component.NewJournal.html:L678",
+    "js/components/Component.NewJournal.html:L747",
+    "js/components/Component.NewJournal.html:L983",
+    "js/components/Component.NewJournal.html:L1315"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L506"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "tab-",
+   "senders": [
+    "js/components/Component.NewJournal.html:L768"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 id not created anywhere in live code",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "tab-log",
+   "senders": [
+    "js/components/Component.NewJournal.html:L633"
+   ],
+   "receivers": [
+    "js/components/Component.NewJournal.html:L519"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "ui-layer",
+   "senders": [
+    "SacredGame.Panel.html:L2677"
+   ],
+   "receivers": [
+    "SacredGame.Panel.html:L1599"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-anu-alert",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L672"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L40"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-bench",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L613"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L80"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-distance-pill",
+   "senders": [
+    "js/v2/UIModule.js:L253"
+   ],
+   "receivers": [
+    "js/v2/UIModule.js:L210"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-draws",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L612"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L41"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-font",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L96"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L98",
+    "js/v2/OrchestratorHud.js:L98"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-fps",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L611"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L34"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-frame-graph",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L652"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L36"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-hint",
+   "senders": [
+    "js/v2/UIModule.js:L237",
+    "js/v2/UIModule.js:L302"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 id not created anywhere in live code",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-hud-trace-label",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L461"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L47"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-hud-universe-label",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L205"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L74"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-load",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L650"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L37"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-load-detail",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L651"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L38"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-map-picker",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L540"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L85"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-modules",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L589"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L79"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-orchestrator-hud",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L478",
+    "js/v2/OrchestratorHud.js:L879",
+    "js/v2/OrchestratorHud.js:L938",
+    "index.html:L437",
+    "index.html:L868"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L152",
+    "js/v2/OrchestratorHud.js:L152"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-orchestrator-hud-mobile-css",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L108"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L110",
+    "js/v2/OrchestratorHud.js:L110"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-panels-pip",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L887",
+    "js/v2/OrchestratorHud.js:L939"
+   ],
+   "receivers": [
+    "js/v2/UIModule.js:L42",
+    "js/v2/UIModule.js:L42"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-pip",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L637"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L42"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-pip-canvas",
+   "senders": [
+    "js/v2/Orchestrator.js:L1417",
+    "js/v2/UIModule.js:L226"
+   ],
+   "receivers": [
+    "js/v2/UIModule.js:L218"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-trace-accordion-body",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L462"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L61"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-trace-copy-pill",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L465"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L56"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-trace-dur",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L464"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L54"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-trace-spark",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L480"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L62"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-trace-stats",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L474",
+    "js/v2/OrchestratorHud.js:L482"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L66"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-trace-toggle-icon",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L463"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L52"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-universe-accordion-body",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L206"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L78"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-universe-count",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L590"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L76"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-universe-pct",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L706"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L75"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-universe-toggle-icon",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L207"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L75"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-village-builder",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L899",
+    "js/v2/OrchestratorHud.js:L940"
+   ],
+   "receivers": [],
+   "verdict": "LIMBO \u2014 id not created anywhere in live code",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-ambient-style",
+   "senders": [
+    "js/sanctuary/SanctuaryAmbient.js:L240"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryAmbient.js:L170",
+    "js/sanctuary/SanctuaryAmbient.js:L170"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-banner",
+   "senders": [
+    "index.html:L766"
+   ],
+   "receivers": [
+    "index.html:L325"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-btn-clear-scene",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L460"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryToolPalette.js:L370",
+    "js/sanctuary/SanctuaryToolPalette.js:L370"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-btn-gen-scene",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L453"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryToolPalette.js:L365",
+    "js/sanctuary/SanctuaryToolPalette.js:L365"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-btn-journal",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L245"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L171"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-btn-panel",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L240"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L170"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-btn-reset",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L254"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L174"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-btn-save",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L270"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L175"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-btn-top",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L233"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L169"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-canvas",
+   "senders": [
+    "index.html:L430",
+    "index.html:L891"
+   ],
+   "receivers": [
+    "index.html:L291"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-confirm-cancel",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L257"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L187"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-confirm-yes",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L260"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L188"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-controls",
+   "senders": [
+    "js/sanctuary/SanctuaryAmbient.js:L189",
+    "js/sanctuary/SanctuaryDayNight.js:L89",
+    "js/sanctuary/SanctuaryWeather.js:L111"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L158",
+    "js/sanctuary/SanctuaryControls.js:L158"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-controls-style",
+   "senders": [
+    "js/sanctuary/SanctuaryControls.js:L149",
+    "js/sanctuary/SanctuaryControls.js:L364"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryControls.js:L151",
+    "js/sanctuary/SanctuaryControls.js:L151"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-fishing-pip-glass-style",
+   "senders": [
+    "js/sanctuary/SanctuaryFishing.js:L1012"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryFishing.js:L1014",
+    "js/sanctuary/SanctuaryFishing.js:L1014"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-inventory-style",
+   "senders": [
+    "js/sanctuary/SanctuaryInventory.js:L96",
+    "js/sanctuary/SanctuaryInventory.js:L224"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryInventory.js:L98",
+    "js/sanctuary/SanctuaryInventory.js:L98"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-journal-frame",
+   "senders": [
+    "index.html:L676"
+   ],
+   "receivers": [
+    "index.html:L304"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-journal-overlay",
+   "senders": [
+    "js/sanctuary/SanctuaryKeyboardLook.js:L276",
+    "index.html:L675",
+    "index.html:L699"
+   ],
+   "receivers": [
+    "index.html:L296"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-journal-overlay-close",
+   "senders": [
+    "index.html:L697"
+   ],
+   "receivers": [
+    "index.html:L299"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-loading-iframe",
+   "senders": [
+    "index.html:L67",
+    "index.html:L383",
+    "index.html:L410"
+   ],
+   "receivers": [
+    "index.html:L285"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-map-type-select",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L411"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryToolPalette.js:L308",
+    "js/sanctuary/SanctuaryToolPalette.js:L308"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-panel-frame",
+   "senders": [
+    "index.html:L725"
+   ],
+   "receivers": [
+    "index.html:L320"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-tool-cursor-style",
+   "senders": [
+    "js/sanctuary/SanctuaryCursor.js:L66",
+    "js/sanctuary/SanctuaryCursor.js:L120"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryCursor.js:L68",
+    "js/sanctuary/SanctuaryCursor.js:L68"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-village-build-style",
+   "senders": [
+    "js/sanctuary/SanctuaryToolPalette.js:L274",
+    "js/sanctuary/SanctuaryToolPalette.js:L516"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryToolPalette.js:L276",
+    "js/sanctuary/SanctuaryToolPalette.js:L276"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v4-walk-hide-style",
+   "senders": [
+    "js/sanctuary/SanctuaryKeyboardLook.js:L93"
+   ],
+   "receivers": [
+    "js/sanctuary/SanctuaryKeyboardLook.js:L95",
+    "js/sanctuary/SanctuaryKeyboardLook.js:L95"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  }
+ ]
+}
