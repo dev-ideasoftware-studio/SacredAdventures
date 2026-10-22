@@ -1,9 +1,9 @@
 {
-  "subject": "feat(compassion): tree rungs (billboards nearer) + count missed frames, not medians (Compassionate UI step 3c)",
-  "isoDate": "2026-10-22T19:09:18+00:00",
+  "subject": "docs(decision-engine): log cedars + billboards and the frame-counting ladder (ATT-83, ATT-84, LOG-37)",
+  "isoDate": "2026-10-22T19:09:46+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "831d488",
+  "commit": "7ba6843",
   "dirty": true,
-  "generatedAt": "2026-10-22T19:09:22.092Z"
+  "generatedAt": "2026-10-22T19:09:50.202Z"
 }
