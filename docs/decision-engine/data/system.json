@@ -1,5 +1,5 @@
 {
- "commit": "8ac6fcd",
+ "commit": "05633c6",
  "roots": [
   "js/v2/Orchestrator.js",
   "js/v2/AnuModule.js",
@@ -45,6 +45,7 @@
   "js/sanctuary/SanctuaryDragonfly.js",
   "js/sanctuary/SanctuaryPondTrees.js",
   "js/sanctuary/SanctuaryGrass.js",
+  "js/sanctuary/SanctuaryCompassion.js",
   "js/sanctuary/SanctuaryFrogs.js",
   "js/sanctuary/AnuAdaptiveDpr.js",
   "js/BuildBadge.js"
@@ -93,6 +94,7 @@
   "SanctuaryDragonflyModule",
   "SanctuaryPondTreesModule",
   "SanctuaryGrassModule",
+  "SanctuaryCompassionModule",
   "SanctuaryFrogsModule"
  ],
  "activated": [
@@ -139,6 +141,7 @@
   "SanctuaryDragonfly",
   "SanctuaryPondTrees",
   "SanctuaryGrass",
+  "SanctuaryCompassion",
   "SanctuaryFrogs"
  ],
  "activation_commented_out": [
@@ -895,6 +898,47 @@
    "fishing_suspended": true
   },
   {
+   "file": "js/sanctuary/SanctuaryCompassion.js",
+   "layer": "Sanctuary world",
+   "lines": 245,
+   "kb": 9.9,
+   "module_name": "SanctuaryCompassion",
+   "registered_symbol": "SanctuaryCompassionModule",
+   "header": "Sacred Adventures \u2014 SanctuaryCompassion: the Compassionate UI controller. Mark 2026-10-22 (the culling guide: fix prompt Part E, \"Compassionate UI\"): \"check the user's fps, and if lower than 60 fps we try to cull the landscape the most: make billboards of the trees and forest and background scenery in the distance.\" The floor is 60 fps, always. Mark's ladder (2026-10-22, replaces guide E1.7): \"when FPS is bad - remove grass, start removing # of trees at distance - use more billboards for distant objects until 60fps is achieved. do not throttle.\" No resolution drop. Village View (top-down), Mar",
+   "anu_domain_claimed": "",
+   "has_update": true,
+   "update_line": 121,
+   "update_lines": 15,
+   "update_throttle": "",
+   "hazards": {},
+   "imports": [
+    "js/sanctuary/SanctuaryGrass.js",
+    "js/sanctuary/SanctuaryPondTrees.js"
+   ],
+   "imported_by": [],
+   "globals_written": [
+    "__sanctuaryCompassion",
+    "__sanctuaryCompassionOff"
+   ],
+   "globals_read": [
+    "location"
+   ],
+   "anu_events_dispatched": [],
+   "anu_events_subscribed": [],
+   "dom_events_dispatched": [],
+   "dom_events_listened": [],
+   "postmessage_types": [],
+   "assets": [],
+   "services_registered": [],
+   "services_used": [],
+   "last_commit": "2026-10-22 feat(compassion): fps ladder sheds grass first, until 60 fps (Compassionate UI step 2)",
+   "commit_count": 2,
+   "also_in_v2_build": false,
+   "status": "Active",
+   "activation_order": 44,
+   "fishing_suspended": false
+  },
+  {
    "file": "js/sanctuary/SanctuaryControls.js",
    "layer": "Sanctuary world",
    "lines": 373,
@@ -1112,15 +1156,15 @@
   {
    "file": "js/sanctuary/SanctuaryFish.js",
    "layer": "Sanctuary world",
-   "lines": 1730,
-   "kb": 70.7,
+   "lines": 1760,
+   "kb": 72.4,
    "module_name": "SanctuaryFish",
    "registered_symbol": "SanctuaryFishModule",
    "header": "Sacred Adventures \u2014 sanctuary part 4 of 5: THE FISH. Loads `Assets/Fish/fish.obj` (same trout mesh as v2 Pool2), bakes the 3DS Max Z-up export upright, and swims with velocity-based orbital physics: head leads the path, body wiggles on yaw, gentle depth bob.",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 699,
-   "update_lines": 898,
+   "update_line": 724,
+   "update_lines": 900,
    "update_throttle": "",
    "hazards": {
     "traverse": 2,
@@ -1130,7 +1174,8 @@
    "imports": [
     "js/sanctuary/SanctuaryGround.js",
     "js/v2/anu/FrameBudget.js",
-    "js/v2/anu/SimulationController.js"
+    "js/v2/anu/SimulationController.js",
+    "js/v2/deviceProfile.js"
    ],
    "imported_by": [],
    "globals_written": [
@@ -1138,6 +1183,7 @@
     "__sanctuaryFishSchool",
     "__sanctuaryFishTemplate",
     "__sanctuaryFrogOnLily",
+    "__sanctuaryPipLite",
     "__sanctuarySpawnBabyFish"
    ],
    "globals_read": [
@@ -1162,8 +1208,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-29 feat(sanctuary): overhaul sacred pool depth, schooling small fish, funny real-fish eat-jumps, and freeze PIP animations",
-   "commit_count": 17,
+   "last_commit": "2026-10-22 perf(mobile): phones draw a 2,000-triangle koi in the fishing minimap (Mark: \"yes for mobile we do it\")",
+   "commit_count": 19,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 6,
@@ -1282,8 +1328,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 perf(flora): split pond trees/bushes/reeds into 8 view-cullable sectors (CULL-01)",
-   "commit_count": 41,
+   "last_commit": "2026-10-22 merge: fix/antigravity-damage into claude/mobile-optimization (Mark: \"folder and github commits\")",
+   "commit_count": 43,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 38,
@@ -1412,20 +1458,20 @@
    "commit_count": 10,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 44,
+   "activation_order": 45,
    "fishing_suspended": false
   },
   {
    "file": "js/sanctuary/SanctuaryGrass.js",
    "layer": "Sanctuary world",
-   "lines": 919,
-   "kb": 39.5,
+   "lines": 942,
+   "kb": 40.6,
    "module_name": "SanctuaryGrass",
    "registered_symbol": "SanctuaryGrassModule",
    "header": "Sacred Adventures \u2014 sanctuary: SanctuaryGrass (photoreal meadow on the ground texture) Mark 2026-10-22: \"I want to see the grass atop the existing ground texture \u2026 the most hyper realistic grass \u2026 super efficient\". Design from the grass research (Sacred-Ones project doc claude/grass-research.md), with its four changes to the billboard plan: 1. Cards are locked upright (cylindrical) and recline toward a high camera, so the top-down village view sees their face instead of a sticker edge. 2. Each card is trimmed to its blade outline (8 verts / 6 tris, not a quad), so fewer pixels reach the alpha ",
    "anu_domain_claimed": "FLORA",
    "has_update": true,
-   "update_line": 854,
+   "update_line": 860,
    "update_lines": 11,
    "update_throttle": "",
    "hazards": {},
@@ -1434,7 +1480,9 @@
     "js/sanctuary/SanctuaryPondTrees.js",
     "js/v2/anu/SimulationController.js"
    ],
-   "imported_by": [],
+   "imported_by": [
+    "js/sanctuary/SanctuaryCompassion.js"
+   ],
    "globals_written": [
     "__sanctuaryGrass",
     "__sanctuaryGrassOff"
@@ -1455,8 +1503,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 feat(flora): photoreal meadow on the ground texture (SanctuaryGrass)",
-   "commit_count": 1,
+   "last_commit": "2026-10-22 feat(compassion): fps ladder sheds grass first, until 60 fps (Compassionate UI step 2)",
+   "commit_count": 3,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 43,
@@ -1790,14 +1838,14 @@
   {
    "file": "js/sanctuary/SanctuaryPondTrees.js",
    "layer": "Sanctuary world",
-   "lines": 401,
-   "kb": 16.4,
+   "lines": 419,
+   "kb": 17.3,
    "module_name": "SanctuaryPondTrees",
    "registered_symbol": "SanctuaryPondTreesModule",
    "header": "Sacred Adventures \u2014 sanctuary: SanctuaryPondTrees (InstancedMesh refactor) Recreates the misty sacred pond atmosphere using high-quality photorealistic assets (tree.glb, bush.glb, and reeds.glb). All flora is now rendered using THREE.InstancedMesh to achieve massive density (18 trees, 24 bushes, 14 reed patches; see the counts below), split into angular sectors so three.js can frustum-cull the ring (CULL-01). Anu domain: FLORA",
    "anu_domain_claimed": "FLORA",
    "has_update": true,
-   "update_line": 382,
+   "update_line": 400,
    "update_lines": 8,
    "update_throttle": "",
    "hazards": {},
@@ -1806,6 +1854,7 @@
     "js/v2/gltfLoaderSetup.js"
    ],
    "imported_by": [
+    "js/sanctuary/SanctuaryCompassion.js",
     "js/sanctuary/SanctuaryGrass.js"
    ],
    "globals_written": [],
@@ -1822,8 +1871,8 @@
    ],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 perf(flora): split pond trees/bushes/reeds into 8 view-cullable sectors (CULL-01)",
-   "commit_count": 8,
+   "last_commit": "2026-10-22 feat(compassion): Village View pauses tree/leaf/grass wind, hides pond fish, minimap at 15 Hz",
+   "commit_count": 9,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 42,
@@ -1832,14 +1881,14 @@
   {
    "file": "js/sanctuary/SanctuaryPool.js",
    "layer": "Sanctuary world",
-   "lines": 2272,
+   "lines": 2273,
    "kb": 93.8,
    "module_name": "SanctuaryPool",
    "registered_symbol": "SanctuaryPoolModule",
    "header": "Sacred Adventures \u2014 sanctuary part 2 of 5: THE POOL. The centrepiece. A sacred dark-water pool with organic edges. Anu domain: ENVIRONMENT (water itself isn't a structure; it's part of the ground-and-atmosphere that bodies must obey). Pieces: \u2022 Water surface \u2014 CircleGeometry, 48 segments, animated 3-wave ripple shader. Sits at `groundY(center) + WATER_DROP_M`. Transparent at 0.62 so the fish and bowl floor read through cleanly. \u2022 Basin floor \u2014 second darker disc just under the water, gives the pool a sense of depth (the carved terrain under it is mostly hidden). \u2022 Lily pads \u2014 14 instanced low-",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 2152,
+   "update_line": 2153,
    "update_lines": 90,
    "update_throttle": "",
    "hazards": {},
@@ -1865,8 +1914,8 @@
    ],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-06-02 feat(pool): clearer water reveals the deep basin + 10 bigger frogs",
-   "commit_count": 39,
+   "last_commit": "2026-10-22 fix(pool): basin floor, drain and rocks sit on the visible pond floor (Mark: \"yes fix\")",
+   "commit_count": 42,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 4,
@@ -2360,8 +2409,8 @@
    "services_used": [
     "WorldPlayer"
    ],
-   "last_commit": "2026-05-24 Fix compass PIP letters rightside up and register Antigravity in Anu governance",
-   "commit_count": 2,
+   "last_commit": "2026-10-22 fix(anu): remove fake window.WorldPhysics added by 8127cc9 (AUDIT 1, B1)",
+   "commit_count": 3,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 11,
@@ -2765,8 +2814,8 @@
     "WorldPhysics",
     "WorldPlayer"
    ],
-   "last_commit": "2026-05-30 perf(scene): cull far flora + raise PIP stride + tree frustum-cull/leaf-shadow",
-   "commit_count": 9,
+   "last_commit": "2026-10-22 refactor(pip): delete the hollow PipOrthoRingDiskClip module emptied by b0b4575 (AUDIT 3, B11)",
+   "commit_count": 10,
    "also_in_v2_build": true,
    "status": "Legacy v2 build only (index.v2.html)",
    "activation_order": null,
@@ -2901,8 +2950,8 @@
   {
    "file": "js/v2/Orchestrator.js",
    "layer": "Engine shell",
-   "lines": 1830,
-   "kb": 77.6,
+   "lines": 1848,
+   "kb": 78.6,
    "module_name": "",
    "registered_symbol": "",
    "header": "Sacred Adventures v2 \u2014 SacredOrchestrator (Anu engine shell) Responsibilities: 1. Own the Three.js renderer, scene, camera, and clock 2. Maintain a MODULE REGISTRY \u2014 each module is a named object with { name, load(), unload(), update(delta) } 3. Benchmark FPS cost of every module in isolation 4. Drive the requestAnimationFrame loop and call active module updates 5. Render an on-screen HUD showing live FPS and active module list 6. Expose the live shell as window.anuOrchestrator (canonical). window.Orchestrator is a legacy alias for the same instance. Class SacredOrchestrator \u2260 global: import t",
@@ -2939,6 +2988,7 @@
     "__sanctuaryBobberPos",
     "__sanctuaryFishingActive",
     "__sanctuaryFloraTimeUniform",
+    "__sanctuaryPipLite",
     "_globalTime",
     "addEventListener",
     "devicePixelRatio",
@@ -2967,8 +3017,8 @@
    "services_used": [
     "WorldPlayer"
    ],
-   "last_commit": "2026-10-22 perf(anu): stress ladder also reads the real frame interval (CULL-02)",
-   "commit_count": 53,
+   "last_commit": "2026-10-22 perf(mobile): phones draw a 2,000-triangle koi in the fishing minimap (Mark: \"yes for mobile we do it\")",
+   "commit_count": 58,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -3078,8 +3128,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-27 refactor(fonts): centralize font loading via WebFontsService and implement advanced proximity culling for high-res PiP minimap",
-   "commit_count": 3,
+   "last_commit": "2026-10-22 refactor(pip): delete the hollow PipOrthoRingDiskClip module emptied by b0b4575 (AUDIT 3, B11)",
+   "commit_count": 4,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -4066,8 +4116,8 @@
    "services_used": [
     "WorldPhysics"
    ],
-   "last_commit": "2026-05-24 refactor(paths): migrate remaining WORDPRESS/ asset paths to canonical root Assets/ folder",
-   "commit_count": 15,
+   "last_commit": "2026-10-22 refactor(pip): delete the hollow PipOrthoRingDiskClip module emptied by b0b4575 (AUDIT 3, B11)",
+   "commit_count": 16,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -4363,8 +4413,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 chore(security): remove all Antigravity hooks (ATT-37)",
-   "commit_count": 3,
+   "last_commit": "2026-10-22 fix(anu): remove fake window.WorldPhysics added by 8127cc9 (AUDIT 1, B1)",
+   "commit_count": 4,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -5070,6 +5120,7 @@
    "imports": [],
    "imported_by": [
     "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/SanctuaryFish.js",
     "js/v2/Orchestrator.js",
     "js/v2/gltfLoaderSetup.js"
    ],
@@ -5134,8 +5185,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 perf(mobile): Phase 2 part 1 \u2014 texture-only phone models + capped panel icon renderer",
-   "commit_count": 10,
+   "last_commit": "2026-10-22 perf(mobile): phone avatar 246k -> 100k triangles, rig intact (Q21)",
+   "commit_count": 11,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
