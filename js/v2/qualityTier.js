@@ -17,11 +17,16 @@ import * as THREE from "three";
 
 const CACHE_KEY = "sacred.quality.v1";
 const CACHE_TTL_MS = 30 * 24 * 3600 * 1000;
-const VERSION = 1;
+const VERSION = 2;   // 2: the phone screen-size rule (saved v1 results are re-tested)
 /** GPU time for one unit of the reference scene (ms), measured at the canvas size.
  *  Above MEDIUM_MS -> at most "medium"; above LOW_MS -> "low". Calibrate on real devices. */
 export const MEDIUM_MS = 7;
 export const LOW_MS = 16;
+/** Phones and tablets (Mark 2026-10-22): the screen's long side, in CSS px, below this -> "low",
+ *  at or above it -> at most "medium". Long side, not width: every phone is < 800 px wide upright,
+ *  but the long side splits them — iPhone SE/8 667, old 360×640/760 Androids -> low;
+ *  iPhone 12+ 844+, recent Androids 800-915, tablets 1024+ -> medium. */
+export const PHONE_LONG_SIDE_PX = 800;
 const GPU_BUDGET_MS = 2200;
 const MIN_SHOW_MS = 900;
 
@@ -52,6 +57,18 @@ function readCache(key) {
   return null;
 }
 function writeCache(rec) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(rec)); } catch (_) {} }
+
+function isMobileDevice(dc) {
+  if (dc && dc.facts && typeof dc.facts.mobile === "boolean") return dc.facts.mobile;
+  try {
+    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean" && navigator.userAgentData.mobile) return true;
+    const ua = navigator.userAgent || "";
+    return /iPhone|iPad|iPod|Android|Mobi/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  } catch (_) { return false; }
+}
+function screenLongSide() {
+  try { const w = screen.width, h = screen.height; return w && h ? Math.max(w, h) : 0; } catch (_) { return 0; }
+}
 
 // ---- GPU test --------------------------------------------------------------------------------
 const _mc = typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
@@ -181,6 +198,14 @@ export async function runQualityTest(renderer, progress = () => {}) {
     why.push(`saved for this device (${new Date(saved.at).toISOString().slice(0, 10)})`);
   } else {
     if (dc) { tier = fromNumber(dc.tier); why.push(`device check: tier ${dc.tier}${dc.reasons.length ? " — " + dc.reasons.join("; ") : ""}`); }
+    if (isMobileDevice(dc)) {
+      const long = screenLongSide();
+      if (long) {
+        const st = long < PHONE_LONG_SIDE_PX ? "low" : "medium";
+        why.push(`phone/tablet screen ${long} px long side -> ${st}`);
+        tier = lower(tier, st);
+      }
+    }
     say(25, "Testing drawing speed…");
     const g = await gpuTest(renderer, (p) => say(p));
     msPerUnit = g.ms;
