@@ -442,7 +442,11 @@
       }
     });
 
-    orc.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    // Pixel-ratio ceiling comes from the single device profile (js/v2/deviceProfile.js):
+    // 1.0 on phones/tablets (GPU memory + fill rate), 1.5 on desktop. This line used to
+    // hard-code 1.5 and silently overrode the engine's mobile clamp (AUDIT B12, Mark 2026-10-22:
+    // "we need memory for mobiles").
+    orc.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.SacredDeviceProfile?.dprCap ?? 1.5));
 
     // The five parts of the sanctuary. Each is a self-contained Anu-
     // governed module. Order is intentional: ground first (provides
