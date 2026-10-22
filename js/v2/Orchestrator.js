@@ -1379,10 +1379,8 @@ export class SacredOrchestrator {
     const isTopDown = document.body.classList.contains("v4-top-down-view");
     const isFishingActive =
       window.__sanctuaryFishingActive === true && window.__sanctuaryBobberPos != null;
-    // During fishing: render the PIP every other frame (every 2 frames) to
-    // completely eliminate the WebGL context switching bottleneck between the two
-    // canvasses, restoring the frame rate to 60-120 FPS on integrated and mobile GPUs
-    // while keeping dial needle movement perfectly smooth.
+    // During fishing the minimap renders every other frame. Mark 2026-10-22
+    // (Q17): "every other frame - fish dont move that much".
     if (isFishingActive) {
       this._fishingPipFrame = ((this._fishingPipFrame ?? 0) + 1);
       if (this._fishingPipFrame % 2 !== 0) {
@@ -1573,8 +1571,11 @@ export class SacredOrchestrator {
       this._pipOrtho.bottom = -halfH;
       this._pipOrtho.updateProjectionMatrix();
 
-      // Focus the camera strictly on layer 2 to cull the entire rest of the 3D world scene!
-      // This completely resolves the fishing game FPS drop, bringing it back to 120 FPS.
+      // Only the ring around the bobber is drawn: the camera sees layer 2 only
+      // (pool water, basin floor, fish, gauge) and the renderer's frustum test
+      // drops anything outside this 0.98 m box. Measured 2026-10-22 (desktop,
+      // fish gathered at the lure): 37 draws, 288k triangles, 98 % of them the
+      // 18 koi (15,644 triangles each); nothing outside the ring is drawn.
       this._pipOrtho.layers.set(2);
 
       // Camera sits 4 m above the water surface, looking straight down
@@ -1589,7 +1590,19 @@ export class SacredOrchestrator {
       // brings the colored arc to the TOP half of the PIP frame.
       this._pipOrtho.up.set(1, 0, 0);
       this._pipOrtho.lookAt(bp.x, WATER_Y, bp.z);
-      this._renderWithMask(this._pipOrtho);
+      // Don't recompute the whole map's world matrices for this small view
+      // (Q17: "stop rendering the entire map in that pip"). The main render,
+      // which runs just before _renderPip() in the same frame, already updated
+      // them, and _preparePipScene changes nothing on layer 2. The camera still
+      // updates its own matrix (it has no parent). Fishing pass CPU, desktop:
+      // 1.2 -> 0.4 ms.
+      const autoMatrices = this.scene.matrixWorldAutoUpdate;
+      this.scene.matrixWorldAutoUpdate = false;
+      try {
+        this._renderWithMask(this._pipOrtho);
+      } finally {
+        this.scene.matrixWorldAutoUpdate = autoMatrices;
+      }
 
       // Restore the camera to the default layers 0, 1, and 3
       this._pipOrtho.layers.set(0);
