@@ -1,9 +1,9 @@
 {
-  "subject": "perf(mobile): Phase 2 part 1 — texture-only phone models + capped panel icon renderer",
-  "isoDate": "2026-10-22T06:56:57+00:00",
+  "subject": "docs(mobile): add the phased mobile-optimization prompt (source of Phases 0-7)",
+  "isoDate": "2026-10-22T06:59:39+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "d7ef0a3",
+  "commit": "6f9e12a",
   "dirty": true,
-  "generatedAt": "2026-10-22T06:56:57.632Z"
+  "generatedAt": "2026-10-22T06:59:42.476Z"
 }
