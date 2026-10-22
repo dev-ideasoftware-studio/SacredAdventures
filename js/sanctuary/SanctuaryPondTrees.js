@@ -8,11 +8,25 @@
  * (18 trees, 24 bushes, 14 reed patches; see the counts below), split into
  * angular sectors so three.js can frustum-cull the ring (CULL-01).
  *
+ * Cedars (Mark 2026-10-22: "draw better trees, more random more cedar trees"):
+ * procedural western red cedars (SanctuaryCedars.js) in random groves on the
+ * hill ring around the village, kept out of the flat village ring, the open
+ * valley mouth and the tipi circles. Kill switch: ?cedars=0.
+ *
+ * Billboards (culling guide E1.6, Mark: "use more billboards for distant
+ * objects"): every tree, bush, reed patch and cedar is baked once into a card;
+ * beyond the card distance (set by the Compassionate UI ladder) the main camera
+ * sees the card instead of the 3D model. Cards face the pond centre; Village
+ * View and the minimap always show 3D (SanctuaryImpostors.js). ?billboards=0.
+ *
  * Anu domain: FLORA
  */
 
 import * as THREE from "three";
 import { GLTFLoaderWithDraco } from "../v2/gltfLoaderSetup.js";
+import { deviceProfile } from "../v2/deviceProfile.js";
+import { bakeImpostorAtlas, ImpostorField, billboardsDisabledByUser } from "./SanctuaryImpostors.js";
+import { buildCedarMaterials, buildCedarModel, CEDAR_VARIANTS, CEDAR_MODEL_HEIGHT_M } from "./SanctuaryCedars.js";
 
 import {
   SANCTUARY_POOL_CENTER_X,
@@ -54,6 +68,25 @@ const TREE_INNER     = SANCTUARY_POOL_RADIUS_M + 8.0;
 const TREE_OUTER     = SANCTUARY_POOL_RADIUS_M + 24.0;
 const TREE_H_MIN     = 3.5;
 const TREE_H_MAX     = 7.0;
+
+// Cedars: the hill ring (SanctuaryGround: village flat to 26 m, hills 28-52 m,
+// open valley mouth ±45° around +Z, terrain square ±55 m).
+const CEDAR_COUNT_DESKTOP = 120;
+const CEDAR_COUNT_MOBILE  = 64;
+const CEDAR_R_MIN         = 33;    // clear of the flat village ring and the hill foot
+const CEDAR_EDGE_M        = 52;    // |x|, |z| ≤ this
+const CEDAR_SPACING_M     = 3.4;   // minimum trunk spacing (scaled by tree size)
+const CEDAR_H_MIN         = 7.0;
+const CEDAR_H_MAX         = 12.5;
+const CEDAR_TREE_GAP_M    = 4.0;   // from the pond ring's trees
+const CEDAR_KEEPOUT_PAD_M = 3.0;   // around tipi circles, braziers, the village pad
+const VALLEY_MOUTH_RAD    = Math.PI / 2;
+const VALLEY_MOUTH_HALF   = Math.PI / 4;
+
+// Billboards: beyond this distance from the main camera a tree is drawn as its card.
+// The Compassionate UI ladder pulls it closer (setCardDistance).
+const CARD_DISTANCE_DESKTOP_M = 45;
+const CARD_DISTANCE_MOBILE_M  = 32;
 
 const MIST_COLOR     = 0x9badb8;
 const MIST_NEAR      = 35;
@@ -226,6 +259,75 @@ function splitIntoSectors(im) {
   return out;
 }
 
+// ── Cedar groves ──────────────────────────────────────────────────────────
+function cedarsDisabledByUser() {
+  try {
+    if (window.__sanctuaryCedarsOff === true) return true;
+    const q = new URLSearchParams(window.location.search);
+    return q.get("cedars") === "0" || q.get("cedars") === "off";
+  } catch (_) {
+    return false;
+  }
+}
+
+/** Circles to keep clear: tipi circles, braziers, the village pad, seated NPCs. */
+function cedarKeepOuts(scene) {
+  const out = [];
+  const box = new THREE.Box3(), c = new THREE.Vector3(), sz = new THREE.Vector3();
+  for (const o of scene.children) {
+    const kind = String(o.userData?.anuKind || "");
+    if (!/sacred_circle_platform|sanctuary_brazier|sanctuary_village_pad|sanctuary_npc/.test(kind)) continue;
+    box.setFromObject(o);
+    if (!isFinite(box.min.x) || box.max.y - box.min.y > 50) continue;
+    box.getCenter(c); box.getSize(sz);
+    out.push({ x: c.x, z: c.z, r: Math.max(sz.x, sz.z) * 0.5 + CEDAR_KEEPOUT_PAD_M });
+  }
+  return out;
+}
+
+/** Groves and clearings: a smooth density field, so the forest is clumped, not even. */
+function groveDensity(x, z) {
+  return 0.5 + 0.42 * Math.sin(x * 0.085 + 1.3) * Math.cos(z * 0.075 - 0.4) + 0.24 * Math.sin((x - z) * 0.11 + 2.1);
+}
+
+function placeCedars(scene, treePositions, count, rand) {
+  const keep = cedarKeepOuts(scene);
+  const spots = [];
+  const tint = new THREE.Color();
+  const warm = new THREE.Color(0xd9e4b8), cool = new THREE.Color(0xc2d6c4);
+  for (let attempt = 0; attempt < count * 80 && spots.length < count; attempt++) {
+    const x = (rand() * 2 - 1) * CEDAR_EDGE_M;
+    const z = (rand() * 2 - 1) * CEDAR_EDGE_M;
+    const r = Math.hypot(x - SANCTUARY_POOL_CENTER_X, z - SANCTUARY_POOL_CENTER_Z);
+    if (r < CEDAR_R_MIN) continue;
+    let p = groveDensity(x, z);
+    let ad = Math.abs(Math.atan2(z, x) - VALLEY_MOUTH_RAD);
+    if (ad > Math.PI) ad = 2 * Math.PI - ad;
+    if (ad < VALLEY_MOUTH_HALF) p *= 0.12;        // the approach stays open
+    if (rand() > p) continue;
+    if (keep.some((k) => Math.hypot(x - k.x, z - k.z) < k.r)) continue;
+    if (treePositions.some((t) => Math.hypot(x - t.px, z - t.pz) < CEDAR_TREE_GAP_M)) continue;
+    const h = CEDAR_H_MIN + rand() * (CEDAR_H_MAX - CEDAR_H_MIN);
+    const room = CEDAR_SPACING_M * (0.75 + 0.5 * (h - CEDAR_H_MIN) / (CEDAR_H_MAX - CEDAR_H_MIN));
+    if (spots.some((o) => Math.hypot(x - o.x, z - o.z) < Math.max(room, o.room))) continue;
+    // Sink the buttress more on slopes so the downhill side never floats.
+    const gy = sanctuaryGroundY(x, z);
+    const slope = Math.max(
+      Math.abs(sanctuaryGroundY(x + 0.8, z) - gy), Math.abs(sanctuaryGroundY(x - 0.8, z) - gy),
+      Math.abs(sanctuaryGroundY(x, z + 0.8) - gy), Math.abs(sanctuaryGroundY(x, z - 0.8) - gy),
+    );
+    tint.setRGB(1, 1, 1).lerp(rand() < 0.5 ? warm : cool, rand() * 0.55);
+    spots.push({
+      x, z, y: gy - 0.15 - slope * 0.6, h, room,
+      variant: Math.floor(rand() * CEDAR_VARIANTS) % CEDAR_VARIANTS,
+      yaw: rand() * Math.PI * 2,
+      widen: 0.88 + rand() * 0.24,
+      color: tint.clone(),
+    });
+  }
+  return spots;
+}
+
 // ── Module ────────────────────────────────────────────────────────────────
 export const SanctuaryPondTreesModule = {
   name: "SanctuaryPondTrees",
@@ -233,12 +335,19 @@ export const SanctuaryPondTreesModule = {
   _materialsToUpdate: [],
   _time: 0,
   _windPaused: false,
+  _field: null,          // SanctuaryImpostors.ImpostorField (billboards), or null
+  _cedars: null,         // { materials, models, count }
+  _topDown: false,
 
-  async load(scene) {
+  async load(scene, camera, renderer) {
     this._scene = scene;
     this._materialsToUpdate = [];
     this._time = 0;
     this._windPaused = false;
+    this._field = null;
+    this._cedars = null;
+    this._topDown = false;
+    const mobile = deviceProfile.isMobile === true;
     const rand = lcg(101);
 
     // Save original fog so unload() can restore it
@@ -380,12 +489,101 @@ export const SanctuaryPondTreesModule = {
       });
     }
 
+    // ── CEDARS ────────────────────────────────────────────────────────────
+    if (!cedarsDisabledByUser()) {
+      try {
+        const materials = buildCedarMaterials({ mobile });
+        const models = Array.from({ length: CEDAR_VARIANTS }, (_, v) => buildCedarModel(v, materials, { mobile }));
+        const spots = placeCedars(scene, treePositions, mobile ? CEDAR_COUNT_MOBILE : CEDAR_COUNT_DESKTOP, lcg(2026));
+        for (let v = 0; v < CEDAR_VARIANTS; v++) {
+          const mine = spots.filter((sp) => sp.variant === v);
+          if (!mine.length) continue;
+          // No shadow casting: the hill ring is mostly outside the key light's shadow map, and
+          // 120 more casters would add shadow-pass draws for nothing visible.
+          const cedarMeshes = buildInstancedMeshGroup(models[v], mine.length, true, false, `sanctuary_cedar_tree_${v}`);
+          mine.forEach((sp, i) => {
+            const k = sp.h / CEDAR_MODEL_HEIGHT_M;
+            _p.set(sp.x, sp.y, sp.z);
+            _q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), sp.yaw);
+            _s.set(k * sp.widen, k, k * sp.widen);
+            _m.compose(_p, _q, _s);
+            cedarMeshes.forEach((im) => { im.setMatrixAt(i, _m); im.setColorAt(i, sp.color); });
+          });
+          cedarMeshes.forEach((im) => {
+            im.userData.anuSimulationDomain = "flora";
+            for (const part of splitIntoSectors(im)) _group.add(part);
+          });
+        }
+        this._cedars = { materials, models, count: spots.length };
+      } catch (e) {
+        console.warn("[SanctuaryPondTrees] cedars skipped:", e);
+      }
+    }
+
     scene.add(_group);
 
+    // ── BILLBOARDS (culling guide E1.6) ──────────────────────────────────
+    if (renderer && camera && !billboardsDisabledByUser()) {
+      try {
+        const entries = [];
+        if (treeGltf?.scene) entries.push({ key: "tree", object: treeGltf.scene });
+        if (bushGltf?.scene) entries.push({ key: "bush", object: bushGltf.scene });
+        if (reedGltf?.scene) entries.push({ key: "reeds", object: reedGltf.scene });
+        (this._cedars?.models || []).forEach((m, v) => entries.push({ key: `cedar${v}`, object: m }));
+        const atlas = bakeImpostorAtlas(renderer, entries, mobile
+          ? { cellW: 128, cellH: 256, cols: 4 }
+          : { cellW: 256, cellH: 512, cols: 4 });
+        const field = new ImpostorField({
+          camera, atlas, parent: _group,
+          distanceM: mobile ? CARD_DISTANCE_MOBILE_M : CARD_DISTANCE_DESKTOP_M,
+        });
+        const kind = (name) => _group.children.filter((o) => o.isInstancedMesh && o.name === name);
+        field.addKind("sanctuary_pond_tree_dense", kind("sanctuary_pond_tree_dense"), "tree");
+        field.addKind("sanctuary_pond_bush_dense", kind("sanctuary_pond_bush_dense"), "bush");
+        field.addKind("sanctuary_pond_reeds", kind("sanctuary_pond_reeds"), "reeds");
+        for (let v = 0; v < CEDAR_VARIANTS; v++) field.addKind(`sanctuary_cedar_tree_${v}`, kind(`sanctuary_cedar_tree_${v}`), `cedar${v}`);
+        field.setEnabled(!this._topDown);
+        this._field = field;
+      } catch (e) {
+        console.warn("[SanctuaryPondTrees] billboards skipped:", e);
+        this._field = null;
+      }
+    }
+    this._installGlobal();
+
+    const fs = this._field?.stats();
     console.log(
-      `%c[SanctuaryPondTrees] 🌿 Instanced flora: ${TREE_COUNT} trees, ${BUSH_COUNT} bushes, ${REED_PATCHES} reed patches in ${_group.children.length} sector meshes.`,
+      `%c[SanctuaryPondTrees] 🌿 Instanced flora: ${TREE_COUNT} trees, ${BUSH_COUNT} bushes, ${REED_PATCHES} reed patches, ${this._cedars?.count ?? 0} cedars in ${_group.children.length} meshes; billboards ${fs ? `on (${fs.atlas.width}×${fs.atlas.height} atlas baked in ${fs.atlas.bakeMs} ms, cards beyond ${fs.distanceM} m)` : "off"}.`,
       "color:#3d5629;font-weight:bold;",
     );
+  },
+
+  /** Compassionate UI ladder: trees farther than this from the main camera are drawn as cards. */
+  setCardDistance(m) {
+    this._field?.setDistance(m);
+  },
+
+  /** Village View: every tree in 3D, no cards (guide E1.6). */
+  setTopDown(on) {
+    this._topDown = !!on;
+    this._field?.setEnabled(!this._topDown);
+  },
+
+  _forestStats() {
+    return {
+      cedars: this._cedars?.count ?? 0,
+      billboards: this._field ? this._field.stats() : null,
+      topDown: this._topDown,
+    };
+  },
+
+  _installGlobal() {
+    const self = this;
+    window.__sanctuaryForest = {
+      stats: () => self._forestStats(),
+      setCardDistance: (m) => self.setCardDistance(m),
+      setTopDown: (on) => self.setTopDown(on),
+    };
   },
 
   /** Village View (SanctuaryCompassion): freeze the wind clock and skip the sway
@@ -400,6 +598,7 @@ export const SanctuaryPondTreesModule = {
 
   update(dt) {
     if (!this._windPaused) this._time += dt;
+    this._field?.update();
     for (let i = 0; i < this._materialsToUpdate.length; i++) {
       const mat = this._materialsToUpdate[i];
       if (mat.userData.uTime) {
@@ -409,10 +608,20 @@ export const SanctuaryPondTreesModule = {
   },
 
   unload() {
+    this._field?.dispose();
+    this._field = null;
+    if (this._cedars) {
+      this._cedars.models.forEach((m) => m.traverse((o) => o.geometry?.dispose?.()));
+      this._cedars.materials.textures.forEach((t) => t.dispose());
+      this._cedars.materials.foliage.dispose();
+      this._cedars.materials.trunk.dispose();
+      this._cedars = null;
+    }
     if (_group && this._scene) this._scene.remove(_group);
     if (this._scene && _origFog !== undefined) this._scene.fog = _origFog;
     _group  = null;
     this._materialsToUpdate = [];
     this._scene = null;
+    if (window.__sanctuaryForest) delete window.__sanctuaryForest;
   },
 };
