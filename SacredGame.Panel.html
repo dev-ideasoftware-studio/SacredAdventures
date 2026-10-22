@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adventure UI Panel</title>
 
-    <!-- Dependencies (CDN for consistency with journalnewsource.html) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- FND-49 (2026-10-22): lucide removed. No element uses data-lucide, and loading it from
+         unpkg@latest meant one failed download stopped click-to-move and keyboard focus. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Nunito:wght@600;700;800&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -1952,8 +1952,53 @@
         });
     </script>
 
+    <!-- FND-49: input relay in its own script block, first, so no error elsewhere in this
+         page can switch off click-to-move or keyboard focus again. -->
     <script>
-        lucide.createIcons();
+        // 1.5 ACTIVE FOCUS RESTORATION (Prevents UI buttons from infinitely trapping WASD focus)
+        document.addEventListener('mouseup', (e) => {
+            // Ignore if interacting with a text-field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            // Prevent the browser from letting an iframe button swallow keyboard scope
+            setTimeout(() => { if(window.parent) window.parent.focus(); }, 10);
+        });
+
+        // 2. CLICK TUNNELING (Background Clicks -> Movement)
+        document.addEventListener('mousedown', (e) => {
+            // Check if we clicked a UI button or active element
+            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.u-btn') || e.target.closest('.modal-box') || e.target.closest('.guide-card')) return;
+
+            // Allow click-through to game even if Logbook is open, but block explicit UI dim overlays.
+            // NOTE: #ui-container is a structural full-cover layer (pointer-events:none, vignette
+            // removed) — it must NOT block tunneling. Real-click-to-move regression fix.
+            if (e.target.classList.contains('ui-dimmed')) return;
+
+            // If logbook is open, clicking the void should close the logbook instead of moving the player
+            if (document.body.classList.contains('logbook-active')) {
+                if (typeof toggleLogbook === 'function') toggleLogbook();
+                return; 
+            }
+
+            // If clicking the "void" (body or container), forward to game
+            // Normalize coordinates (0 - 1)
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+
+            window.parent.postMessage({
+                type: 'CANVAS_CLICK',
+                x: x,
+                y: y,
+                button: e.button
+            }, '*');
+        });
+
+        // 3. Tell the game page the relay is running; index.html only lets this iframe
+        //    catch clicks after this (#v4-panel-frame.input-ready).
+        window.__panelInputReady = true;
+        try { window.parent.postMessage({ type: 'PANEL_INPUT_READY' }, '*'); } catch (_) {}
+    </script>
+
+    <script>
 
         // journal-frame lives in index.html (parent), not in this Panel document
         function getJournalFrame() {
@@ -2864,42 +2909,6 @@
             }
         }
 
-        // 1.5 ACTIVE FOCUS RESTORATION (Prevents UI buttons from infinitely trapping WASD focus)
-        document.addEventListener('mouseup', (e) => {
-            // Ignore if interacting with a text-field
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            // Prevent the browser from letting an iframe button swallow keyboard scope
-            setTimeout(() => { if(window.parent) window.parent.focus(); }, 10);
-        });
-
-        // 2. CLICK TUNNELING (Background Clicks -> Movement)
-        document.addEventListener('mousedown', (e) => {
-            // Check if we clicked a UI button or active element
-            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.u-btn') || e.target.closest('.modal-box') || e.target.closest('.guide-card')) return;
-
-            // Allow click-through to game even if Logbook is open, but block explicit UI dim overlays.
-            // NOTE: #ui-container is a structural full-cover layer (pointer-events:none, vignette
-            // removed) — it must NOT block tunneling. Real-click-to-move regression fix.
-            if (e.target.classList.contains('ui-dimmed')) return;
-
-            // If logbook is open, clicking the void should close the logbook instead of moving the player
-            if (document.body.classList.contains('logbook-active')) {
-                if (typeof toggleLogbook === 'function') toggleLogbook();
-                return; 
-            }
-
-            // If clicking the "void" (body or container), forward to game
-            // Normalize coordinates (0 - 1)
-            const x = e.clientX / window.innerWidth;
-            const y = e.clientY / window.innerHeight;
-
-            window.parent.postMessage({
-                type: 'CANVAS_CLICK',
-                x: x,
-                y: y,
-                button: e.button
-            }, '*');
-        });
     </script>
 
     

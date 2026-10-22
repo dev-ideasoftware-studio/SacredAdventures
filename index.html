@@ -230,8 +230,14 @@
       border: none;
       z-index: 3000;
       background: transparent;
-      pointer-events: auto; /* panel body=none; buttons=auto; void clicks tunnel via CANVAS_CLICK */
+      /* FND-49: no clicks until the panel's input relay has started (.input-ready, set below
+         when SacredGame.Panel.html says PANEL_INPUT_READY). If the panel fails to load or its
+         script throws, clicks fall through to the game canvas instead of being swallowed. */
+      pointer-events: none;
       transition: opacity 0.25s ease;
+    }
+    #v4-panel-frame.input-ready {
+      pointer-events: auto; /* panel body=none; buttons=auto; void clicks tunnel via CANVAS_CLICK */
     }
     #v4-panel-frame.hidden {
       opacity: 0;
@@ -756,6 +762,23 @@
       if (t === 'REQ_TOGGLE_JOURNAL') _v4ToggleJournal();   // panel JOURNAL buttons (journal re-hook 2026-06-01)
       if (t === 'REQ_CLOSE_PANEL') _v4SetPanelOpen(false);
     });
+
+    // FND-49 safety net: the panel iframe catches clicks only once its input relay is running.
+    // Checked three ways because the panel can finish loading before or after this script runs.
+    (function () {
+      const frame = document.getElementById('v4-panel-frame');
+      if (!frame) return;
+      const markReady = () => {
+        try {
+          if (frame.contentWindow && frame.contentWindow.__panelInputReady === true) frame.classList.add('input-ready');
+        } catch (_) {}
+      };
+      frame.addEventListener('load', markReady);
+      window.addEventListener('message', (event) => {
+        if (event.source === frame.contentWindow && event.data?.type === 'PANEL_INPUT_READY') frame.classList.add('input-ready');
+      });
+      markReady();
+    })();
 
     // ── Panel ACTION-button router ──────────────────────────────────
     // SacredGame.Panel.html's right-panel action ring fires

@@ -1,9 +1,9 @@
 {
-  "subject": "docs(decision-engine): log the grass meadow (ATT-39, LOG-24)",
-  "isoDate": "2026-10-22T16:01:49+00:00",
+  "subject": "fix(input): panel input relay no longer depends on unpkg lucide (FND-49)",
+  "isoDate": "2026-10-22T16:14:42+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "c8818aa",
+  "commit": "75d4c2a",
   "dirty": true,
-  "generatedAt": "2026-10-22T16:01:52.971Z"
+  "generatedAt": "2026-10-22T16:14:46.173Z"
 }
