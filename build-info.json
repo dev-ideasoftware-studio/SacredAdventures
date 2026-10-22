@@ -1,9 +1,9 @@
 {
-  "subject": "feat(anu): Compassionate UI sensors — AnuUniverse.compassion, COMPASSION_STEP, real-fps trace (step 3b)",
-  "isoDate": "2026-10-22T17:13:01+00:00",
+  "subject": "fix(input): receive KEY_FORWARD so the on-screen D-pad and panel/journal keys work (FND-50)",
+  "isoDate": "2026-10-22T18:52:01+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "549006a",
+  "commit": "afbf27e",
   "dirty": true,
-  "generatedAt": "2026-10-22T17:13:04.251Z"
+  "generatedAt": "2026-10-22T18:52:08.067Z"
 }

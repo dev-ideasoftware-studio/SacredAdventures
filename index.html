@@ -917,6 +917,18 @@
       } else if (t === 'THUMB_MOVE') {
         window.__sanctuaryJoystickInput.x = Number(d.x) || 0;
         window.__sanctuaryJoystickInput.y = Number(d.y) || 0;
+      } else if (t === 'KEY_FORWARD') {
+        // FND-xx (2026-10-22): the panel D-pad, keys pressed while focus is in the panel, and the
+        // journal forward keys here. Only js/EngineMain.js (frozen, not loaded) used to receive
+        // them, so the D-pad did nothing. Re-fire as a real key event so SanctuaryKeyboardLook,
+        // the J / P toggles and fishing hear it exactly like a key press.
+        const panelWin = document.getElementById('v4-panel-frame')?.contentWindow;
+        const journalWin = document.getElementById('v4-journal-frame')?.contentWindow;
+        if (event.source !== panelWin && event.source !== journalWin) return;
+        const key = typeof d.key === 'string' ? d.key : '';
+        if (key && (d.eventType === 'keydown' || d.eventType === 'keyup')) {
+          document.dispatchEvent(new KeyboardEvent(d.eventType, { key, bubbles: true, cancelable: true }));
+        }
       } else if (t === 'CANVAS_CLICK') {
         // Panel tunnels background taps here so the canvas click-to-move
         // still fires even though the iframe is now pointer-events:auto.
