@@ -294,6 +294,12 @@
                     <div class="loading-bar-container"><div id="bar-init" class="loading-bar"></div></div>
                 </div>
 
+                <!-- TESTING (testing-pack T1): the device test that runs before anything loads. -->
+                <div class="diag-row">
+                    <div class="diag-label"><span>Testing...</span><span id="p-test" class="pct-cell">0%</span></div>
+                    <div class="loading-bar-container"><div id="bar-test" class="loading-bar"></div></div>
+                </div>
+
                 <div id="loading-log" aria-live="polite" aria-relevant="additions"></div>
             </div>
 
@@ -422,6 +428,7 @@
                 assets: { strip: null, current: 0, flipped100: false },
                 logic:  { strip: null, current: 0, flipped100: false },
                 init:   { strip: null, current: 0, flipped100: false },
+                test:   { strip: null, current: 0, flipped100: false },
             };
 
             /**
@@ -454,8 +461,21 @@
                 return strip;
             }
 
+            function appendTestLog(msg) {
+                const logBox = document.getElementById('loading-log');
+                if (!logBox || !msg) return;
+                const now = new Date();
+                const timeStr = [now.getHours(), now.getMinutes(), now.getSeconds()]
+                    .map((n) => String(n).padStart(2, '0')).join(':');
+                const logEntry = document.createElement('div');
+                logEntry.textContent = '[' + timeStr + '] ' + msg;
+                logBox.appendChild(logEntry);
+                while (logBox.children.length > 12) logBox.removeChild(logBox.firstChild);
+                logBox.scrollTop = logBox.scrollHeight;
+            }
+
             function initAllOdometers() {
-                const ids = { video: 'p-video', assets: 'p-assets', logic: 'p-logic', init: 'p-init' };
+                const ids = { video: 'p-video', assets: 'p-assets', logic: 'p-logic', init: 'p-init', test: 'p-test' };
                 Object.keys(ids).forEach((k) => {
                     const el = document.getElementById(ids[k]);
                     if (el) buildOdometerStrip(k, el);
@@ -639,6 +659,27 @@
                         applyRowUpdate('init', actualInit, 'p-init', 'bar-init');
                         break;
                     }
+                    // TESTING row (testing-pack T1). The host posts TEST_BEGIN, TEST_PROGRESS
+                    // { pct, msg? } and TEST_END { tier, msg }. The opening reel pauses while
+                    // the GPU is being timed, so the video doesn't skew the measurement.
+                    case 'TEST_BEGIN': {
+                        const v = document.getElementById('loading-video');
+                        if (v && !v.paused) { try { v.pause(); v.dataset.testPaused = '1'; } catch (_) {} }
+                        applyRowUpdate('test', 2, 'p-test', 'bar-test');
+                        break;
+                    }
+                    case 'TEST_PROGRESS': {
+                        if (data.msg) appendTestLog(data.msg);
+                        applyRowUpdate('test', Math.min(99, data.pct), 'p-test', 'bar-test');
+                        break;
+                    }
+                    case 'TEST_END': {
+                        const v = document.getElementById('loading-video');
+                        if (v && v.dataset.testPaused) { delete v.dataset.testPaused; try { v.play().catch(() => {}); } catch (_) {} }
+                        if (data.msg) appendTestLog(data.msg);
+                        applyRowUpdate('test', 100, 'p-test', 'bar-test');
+                        break;
+                    }
                     case 'LOADING_COMPLETE': {
                         // Defensive: force every row's odometer to land on
                         // 100 if the host hasn't already asserted it.
@@ -650,6 +691,7 @@
                             { key: 'assets', lab: 'p-assets', bar: 'bar-assets' },
                             { key: 'logic',  lab: 'p-logic',  bar: 'bar-logic'  },
                             { key: 'init',   lab: 'p-init',   bar: 'bar-init'   },
+                            { key: 'test',   lab: 'p-test',   bar: 'bar-test'   },
                         ];
                         for (const r of rows) {
                             // For logic specifically: if the GPU slot is still

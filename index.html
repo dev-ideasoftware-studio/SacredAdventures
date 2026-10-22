@@ -518,6 +518,21 @@
     // "we need memory for mobiles").
     orc.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.SacredDeviceProfile?.dprCap ?? 1.5));
 
+    // TESTING (testing-pack T1, Mark 2026-10-22): test this device before any module loads, so
+    // every module starts at the right size. Publishes window.SacredQuality (js/v2/qualityTier.js).
+    // The loading screen's TESTING row shows it; the opening reel pauses while the GPU is timed.
+    try {
+      const { runQualityTest, kindLine } = await import('./js/v2/qualityTier.js');
+      postToLoadingModal({ type: 'TEST_BEGIN' });
+      const q = await runQualityTest(orc.renderer, (pct, line) => postToLoadingModal({ type: 'TEST_PROGRESS', pct, msg: line }));
+      if (!q.budgets.shadows) orc.renderer.shadowMap.enabled = false;   // before any material compiles
+      postToLoadingModal({ type: 'TEST_END', tier: q.tier, msg: kindLine(q.tier) });
+      console.log('[TESTING] ' + q.report());
+    } catch (e) {
+      postToLoadingModal({ type: 'TEST_END', tier: 'high', msg: 'This device: Full world' });
+      console.warn('[TESTING] skipped:', e);
+    }
+
     // The five parts of the sanctuary. Each is a self-contained Anu-
     // governed module. Order is intentional: ground first (provides
     // groundY + waterY anchors), then pool, dock, fish, circles.

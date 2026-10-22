@@ -1,9 +1,9 @@
 {
-  "subject": "fix(fish, loader): read ?tier= at load time, so the budgets apply from the first frame",
-  "isoDate": "2026-10-22T22:28:42+00:00",
+  "subject": "feat(loading): TESTING row — test the device before anything loads (testing-pack T1, Mark)",
+  "isoDate": "2026-10-22T23:17:21+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "e46be36",
+  "commit": "728122d",
   "dirty": true,
-  "generatedAt": "2026-10-22T22:28:48.091Z"
+  "generatedAt": "2026-10-22T23:17:28.310Z"
 }
