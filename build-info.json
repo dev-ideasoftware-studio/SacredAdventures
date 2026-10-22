@@ -1,9 +1,9 @@
 {
-  "subject": "chore(security): remove all Antigravity hooks (ATT-37)",
-  "isoDate": "2026-10-22T07:04:38+00:00",
-  "branch": "HEAD",
+  "subject": "feat(flora): photoreal meadow on the ground texture (SanctuaryGrass)",
+  "isoDate": "2026-10-22T16:00:00+00:00",
+  "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "91a99e2",
+  "commit": "e4e39b3",
   "dirty": true,
-  "generatedAt": "2026-10-22T07:04:41.447Z"
+  "generatedAt": "2026-10-22T16:00:03.289Z"
 }

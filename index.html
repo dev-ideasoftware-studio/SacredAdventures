@@ -372,6 +372,7 @@
     import { SanctuaryJournalBridgeModule }  from './js/sanctuary/SanctuaryJournalBridge.js';
     import { SanctuaryDragonflyModule }      from './js/sanctuary/SanctuaryDragonfly.js';
     import { SanctuaryPondTreesModule }      from './js/sanctuary/SanctuaryPondTrees.js';
+    import { SanctuaryGrassModule }          from './js/sanctuary/SanctuaryGrass.js';
     import { SanctuaryFrogsModule }          from './js/sanctuary/SanctuaryFrogs.js';
     import { AnuAdaptiveDprModule }          from './js/sanctuary/AnuAdaptiveDpr.js';
 
@@ -491,6 +492,7 @@
     orc.register(SanctuaryJournalBridgeModule);
     orc.register(SanctuaryDragonflyModule);
     orc.register(SanctuaryPondTreesModule);
+    orc.register(SanctuaryGrassModule);
     orc.register(SanctuaryFrogsModule);
 
     v4Log('Anu — opening her ear', 100, 22, 14, 10);
@@ -621,6 +623,9 @@
 
     v4Log('pond trees — 12 sacred pines ringing the water', 100, 100, 100, 100);
     await orc.activate('SanctuaryPondTrees');
+
+    v4Log('meadow — photoreal grass on the ground texture', 100, 100, 100, 100);
+    await orc.activate('SanctuaryGrass');
 
     v4Log('frogs — jumping and swimming', 100, 100, 100, 100);
     await orc.activate('SanctuaryFrogs');
