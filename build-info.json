@@ -1,9 +1,9 @@
 {
-  "subject": "feat(controls): A/D turn, Shift+A/D strafe, run after 2 s of walking, real jump (Mark)",
-  "isoDate": "2026-10-22T19:44:40+00:00",
+  "subject": "docs(decision-engine): log the avatar, blur part 2, walking camera and controls (ATT-69, ATT-85, ATT-88, ATT-89, LOG-34, LOG-38, DEC-20, DEC-21)",
+  "isoDate": "2026-10-22T19:50:24+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "b3a47dc",
+  "commit": "6dae924",
   "dirty": true,
-  "generatedAt": "2026-10-22T19:44:42.377Z"
+  "generatedAt": "2026-10-22T19:50:26.999Z"
 }
