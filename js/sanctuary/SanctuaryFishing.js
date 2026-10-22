@@ -1287,7 +1287,7 @@ export const SanctuaryFishingModule = {
   },
 
   // ── Fishing zone isolation ────────────────────────────────────────────────
-  // Hides all scene objects more than 16m from pool centre during fishing so
+  // Hides all scene objects more than CULL_R (70 m; was 16 m until ATT-04) from pool centre during fishing so
   // the renderer only processes the pond area — big FPS win on shadow maps,
   // draw calls and update traversals.
   _enterFishingZone() {

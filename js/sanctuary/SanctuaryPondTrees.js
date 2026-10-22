@@ -5,7 +5,8 @@
  * assets (tree.glb, bush.glb, and reeds.glb).
  *
  * All flora is now rendered using THREE.InstancedMesh to achieve massive density
- * (36 trees, 72 bushes, 24 reeds) with exactly zero FPS drop.
+ * (18 trees, 24 bushes, 14 reed patches; see the counts below), split into
+ * angular sectors so three.js can frustum-cull the ring (CULL-01).
  *
  * Anu domain: FLORA
  */
@@ -151,11 +152,9 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
       // shadow map for a barely-visible result. Trunks/branches still cast.
       const isAlphaLeaf = mat.alphaTest > 0 || mat.transparent === true;
       im.castShadow = castShadow && !isAlphaLeaf;
-      // FPS T1: frustumCulled true (was false). The InstancedMesh bounding
-      // sphere is recomputed over ALL placed instances after placement (see
-      // load()), so the spread-out ring culls correctly only when the whole
-      // ring is off-screen — no per-instance pop, but the draw is skipped
-      // when the player faces fully away from the pond.
+      // FPS T1: frustumCulled true (was false). load() splits this mesh into
+      // angular sectors after placement (splitIntoSectors, CULL-01), each with its
+      // own bounding sphere, so wedges behind the camera are skipped.
       im.frustumCulled = true;
       im.layers.enable(1);
       
@@ -165,6 +164,60 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
     }
   });
   return instances;
+}
+
+// ── CULL-01: angular sectors so three.js can frustum-cull the ring ──────────
+// Each ring InstancedMesh above holds every instance, so its bounding sphere wraps
+// the whole ring around the pool and is never off-screen: all pond flora drew every
+// frame whichever way the camera faced (probe: 601,788 of 947,559 triangles while
+// facing away from the pool). This splits each placed InstancedMesh into up to
+// FLORA_SECTORS wedges around the pool centre, each with its own bounding sphere,
+// so wedges behind the camera are skipped. View-based only (ATT-04 / DEC-13): no
+// instance is hidden, moved or recoloured; geometry and material stay shared, so
+// the wind shader and _materialsToUpdate are unchanged.
+const FLORA_SECTORS = 8;
+// Wind moves vertices a little past the rest pose; pad each wedge's sphere so a
+// swaying tree never pops at the screen edge (cf. FND-33, frozen fish-school sphere).
+const FLORA_SECTOR_BOUNDS_PAD_M = 1.0;
+
+function splitIntoSectors(im) {
+  const n = im.count;
+  const buckets = Array.from({ length: FLORA_SECTORS }, () => []);
+  const m = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    im.getMatrixAt(i, m);
+    p.setFromMatrixPosition(m);
+    const a = Math.atan2(p.z - SANCTUARY_POOL_CENTER_Z, p.x - SANCTUARY_POOL_CENTER_X); // −π..π
+    const s = Math.min(FLORA_SECTORS - 1, Math.floor(((a + Math.PI) / (Math.PI * 2)) * FLORA_SECTORS));
+    buckets[s].push(i);
+  }
+  const out = [];
+  const c = new THREE.Color();
+  buckets.forEach((idx, s) => {
+    if (idx.length === 0) return;
+    const part = new THREE.InstancedMesh(im.geometry, im.material, idx.length);
+    idx.forEach((src, dst) => {
+      im.getMatrixAt(src, m);
+      part.setMatrixAt(dst, m);
+      if (im.instanceColor) { im.getColorAt(src, c); part.setColorAt(dst, c); }
+    });
+    part.instanceMatrix.needsUpdate = true;
+    if (part.instanceColor) part.instanceColor.needsUpdate = true;
+    part.receiveShadow = im.receiveShadow;
+    part.castShadow = im.castShadow;
+    part.frustumCulled = true;
+    part.layers.mask = im.layers.mask;            // keeps layer 1 (minimap)
+    part.name = im.name;                          // fishing/minimap rules match on name
+    part.userData = { ...im.userData, floraSector: s };
+    part.computeBoundingSphere();
+    part.boundingSphere.radius += FLORA_SECTOR_BOUNDS_PAD_M;
+    out.push(part);
+  });
+  // The un-split mesh is dropped. Do NOT dispose its geometry or material: the
+  // sector meshes share them. Only its own per-instance buffers go with it.
+  im.dispose();
+  return out;
 }
 
 // ── Module ────────────────────────────────────────────────────────────────
@@ -237,10 +290,8 @@ export const SanctuaryPondTreesModule = {
         });
       }
       reedMeshes.forEach(im => {
-        im.instanceMatrix.needsUpdate = true;
-        if (im.instanceColor) im.instanceColor.needsUpdate = true;
-        im.computeBoundingSphere(); // FPS T1: bounds over all instances → frustumCulled safe
-        _group.add(im);
+        // CULL-01: add one wedge mesh per sector instead of the ring-wide mesh.
+        for (const part of splitIntoSectors(im)) _group.add(part);
       });
     }
 
@@ -275,10 +326,8 @@ export const SanctuaryPondTreesModule = {
         });
       }
       treeMeshes.forEach(im => {
-        im.instanceMatrix.needsUpdate = true;
-        if (im.instanceColor) im.instanceColor.needsUpdate = true;
-        im.computeBoundingSphere(); // FPS T1: bounds over all instances → frustumCulled safe
-        _group.add(im);
+        // CULL-01: add one wedge mesh per sector instead of the ring-wide mesh.
+        for (const part of splitIntoSectors(im)) _group.add(part);
       });
     }
 
@@ -318,17 +367,15 @@ export const SanctuaryPondTreesModule = {
         });
       }
       bushMeshes.forEach(im => {
-        im.instanceMatrix.needsUpdate = true;
-        if (im.instanceColor) im.instanceColor.needsUpdate = true;
-        im.computeBoundingSphere(); // FPS T1: bounds over all instances → frustumCulled safe
-        _group.add(im);
+        // CULL-01: add one wedge mesh per sector instead of the ring-wide mesh.
+        for (const part of splitIntoSectors(im)) _group.add(part);
       });
     }
 
     scene.add(_group);
 
     console.log(
-      "%c[SanctuaryPondTrees] 🌿 Instanced flora: 36 trees, 72 bushes, 24 reeds (Zero FPS Drop!).",
+      `%c[SanctuaryPondTrees] 🌿 Instanced flora: ${TREE_COUNT} trees, ${BUSH_COUNT} bushes, ${REED_PATCHES} reed patches in ${_group.children.length} sector meshes.`,
       "color:#3d5629;font-weight:bold;",
     );
   },
