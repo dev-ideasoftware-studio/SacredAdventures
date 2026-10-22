@@ -798,8 +798,8 @@
    "kind": "ANU bus event",
    "name": "SANCTUARY_WORLD_STATE",
    "senders": [
-    "js/sanctuary/SanctuaryControls.js:L330",
-    "js/sanctuary/SanctuaryControls.js:L349"
+    "js/sanctuary/SanctuaryControls.js:L335",
+    "js/sanctuary/SanctuaryControls.js:L354"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
@@ -2508,7 +2508,7 @@
    "name": "v4-controls-style",
    "senders": [
     "js/sanctuary/SanctuaryControls.js:L149",
-    "js/sanctuary/SanctuaryControls.js:L364"
+    "js/sanctuary/SanctuaryControls.js:L369"
    ],
    "receivers": [
     "js/sanctuary/SanctuaryControls.js:L151",
