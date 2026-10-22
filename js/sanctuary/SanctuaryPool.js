@@ -40,24 +40,20 @@ import {
 const _poolTimeUniform = { value: 0 };
 
 /**
- * POND-DEEP (2026-06-01) — basin-floor depth exaggeration.
+ * Pool floor depth below the ground datum (y = 0): the same depth the terrain
+ * carves (SanctuaryGround.js sanctuaryGroundY: -SANCTUARY_POOL_DEPTH_M * bowl),
+ * so the sand basin floor, drain and rocks sit on the floor the player sees.
  *
- * The user wants the sacred pond to read genuinely DEEP. The shared surface
- * datum `SANCTUARY_POOL_DEPTH_M` (SanctuaryGround.js) ALSO drives WATER_Y via
- * `waterY = groundCentre + SANCTUARY_POOL_DEPTH_M - SANCTUARY_WATER_DROP_M`, and
- * the 7 frogs + lilies + fish are pinned to WATER_Y (SanctuaryFrogs.js hardcodes
- * WATER_Y = -0.6). So we must NOT touch that constant — moving it would re-submerge
- * the frogs (the instr_009 FROG-RESTORE regression).
- *
- * Instead we deepen the FLOOR only: every basin-floor bowl term uses
- * `POOL_FLOOR_DEPTH_M = SANCTUARY_POOL_DEPTH_M * POOL_FLOOR_DEEPEN`, dropping the
- * centre well below the surface while the rim still meets the bank at the same
- * waterline. The bowl stays the same quadratic (smooth shelf → deep centre), just
- * scaled deeper. The drain, turtle and underwater rocks track the same factor so
- * nothing floats off the new floor.
+ * 2026-10-22 (Mark: "yes fix"): a72ef50 had multiplied this by 1.18 without
+ * deepening the terrain. Measured: the sand basin floor lay under the terrain
+ * at every point inside the pond (0 of 21 downward raycasts reached it), the
+ * drain sat at y -4.90 and the rocks were partly buried. The plan a72ef50
+ * acknowledged said floorY = -3.63 m, which this gives (-3.65 + 0.02).
+ * WATER_Y is unchanged, so frogs, lilies and fish stay where they are.
  */
-const POOL_FLOOR_DEEPEN = 1.18; // +18% floor drop, surface datum unchanged
-const POOL_FLOOR_DEPTH_M = SANCTUARY_POOL_DEPTH_M * POOL_FLOOR_DEEPEN;
+const POOL_FLOOR_DEPTH_M = SANCTUARY_POOL_DEPTH_M;
+/** Rocks keep this far from the pool centre (sandy clearing for the drain and turtle). */
+const ROCK_CLEARING_M = 1.6;
 
 function organicRimRadius(angle) {
   return (
@@ -412,7 +408,7 @@ export function basinFloorYAt(r, waterY) {
     : (typeof window !== "undefined" && Number.isFinite(window.__sanctuaryWaterY) ? window.__sanctuaryWaterY : -0.6);
   const inner = Math.min(1, r / SANCTUARY_POOL_RADIUS_M);
   const bowl = 1 - inner * inner;
-  const draped = -POOL_FLOOR_DEPTH_M * bowl + 0.02;     // sand draped on the deepened bowl
+  const draped = -POOL_FLOOR_DEPTH_M * bowl + 0.02;     // sand draped on the bowl
   return Math.min(draped, wY - 0.03);                   // never above the waterline
 }
 
@@ -438,13 +434,13 @@ function buildBasinFloor(centerY) {
   // "sand at the rim" bug. Above the waterline the shore bank (terrain)
   // shows, which is correct. mesh.position.y is now 0 (offset baked here).
   const SAND_CLAMP_Z = centerY - 0.03;
-  positions.push(0, 0, Math.min(-POOL_FLOOR_DEPTH_M + 0.02, SAND_CLAMP_Z));  // deepened centre vertex
+  positions.push(0, 0, Math.min(-POOL_FLOOR_DEPTH_M + 0.02, SAND_CLAMP_Z));  // centre vertex
   uvs.push(0.5, 0.5);
   for (let ring = 1; ring <= RINGS; ring++) {
     const ringR = (ring / RINGS) * RADIUS;
     const inner = ringR / SANCTUARY_POOL_RADIUS_M;
     const bowl = 1 - inner * inner;     // quadratic — matches terrain
-    const localZ = Math.min(-POOL_FLOOR_DEPTH_M * bowl + 0.02, SAND_CLAMP_Z); // draped deeper, clamped under water
+    const localZ = Math.min(-POOL_FLOOR_DEPTH_M * bowl + 0.02, SAND_CLAMP_Z); // draped, clamped under water
     for (let i = 0; i <= SEGS; i++) {
       const theta = (i / SEGS) * Math.PI * 2;
       const x = Math.cos(theta) * ringR;
@@ -508,8 +504,10 @@ function buildDrainHole(centerY) {
   group.userData.anuKind = "sanctuary_pool_drain_hole";
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
-  // Sits at the bottom center of the carved (deepened) pool basin
-  const y = centerY - POOL_FLOOR_DEPTH_M + 0.005; // Elevated a tiny bit to prevent z-fighting with basin floor
+  // On the basin floor's centre (ground datum), 5 mm above it to avoid
+  // z-fighting. centerY is the WATER line: measuring from it put the drain
+  // 0.6 m below the floor (y -4.90, measured 2026-10-22).
+  const y = basinFloorYAt(0, centerY) + 0.005;
 
   // Outer bronze rustic ring
   const ringGeo = new THREE.RingGeometry(0.35, 0.45, 32);
@@ -1059,7 +1057,7 @@ function buildPoolRocks(centerY) {
   group.userData.anuSimulationDomain = ANU_SIMULATION_DOMAIN.ENVIRONMENT;
 
   const rng = mulberry32(0xbeadca1a);
-  const bottomY = centerY - POOL_FLOOR_DEPTH_M * 0.62; // (unused fallback) track deepened floor
+  const bottomY = centerY - POOL_FLOOR_DEPTH_M * 0.62; // (unused fallback)
 
   // Earthy palette — sampled per-instance into instanceColor.
   // No moss-green or algae-gray; underwater they read as "grass" against
@@ -1125,7 +1123,10 @@ function buildPoolRocks(centerY) {
       const scaleZ = r * (0.85 + rng() * 0.35);
 
       const theta = rng() * Math.PI * 2;
-      const minD = 0.65 + scaleX;
+      // Sandy clearing round the drain where the turtle swims (it roams
+      // ~0.55 m from the centre and is ~0.9 m long), so the rocks frame it
+      // instead of hiding it. Was 0.65 m, when the floor sat under the terrain.
+      const minD = ROCK_CLEARING_M + scaleX;
       const maxD = SANCTUARY_POOL_RADIUS_M * 0.88 - scaleX;
       const actualMaxD = Math.max(minD + 0.1, maxD);
       const d = minD + Math.pow(rng(), 1.5) * (actualMaxD - minD); // Biased toward the center of the pool
