@@ -33,6 +33,7 @@ import {
   getFrameBudgetSnapshot,
   getFrameSamples,
   getSystemStressLevel,
+  recordFrameInterval,
   STRESS_LEVELS,
 } from "./anu/FrameBudget.js";
 import { tickAdaptiveRenderPolicy } from "./anu/AdaptiveRenderPolicy.js";
@@ -677,6 +678,9 @@ export class SacredOrchestrator {
         }
         // Mark FPS ready after 60 frames of warmup
         if (!this._fpsReady && this._frameCount >= 60) this._fpsReady = true;
+        // CULL-02: feed the stress ladder the real frame interval (includes GPU time and
+        // vsync waits), skipping boot warm-up frames. `delta` is capped at 0.1 s above.
+        if (this._fpsReady && delta > 0) recordFrameInterval(delta * 1000);
         // Track peak (theoretical max) — only after warmup, cap at monitor refresh
         if (this._fpsReady && this.smoothFPS > this._peakFPS) {
           this._peakFPS = this.smoothFPS;

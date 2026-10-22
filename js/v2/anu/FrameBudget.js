@@ -21,6 +21,24 @@ export function recordFrameDuration(ms) {
   if (_samples.length > _ROLL_LEN) _samples.shift();
 }
 
+// CULL-02: real frame interval (time between requestAnimationFrame calls). frameMs above
+// is JavaScript time only, so a GPU-bound frame (e.g. 30 fps with 6 ms of JS) never read
+// as stressed. The interval includes GPU time and vsync waits, so it sees those drops.
+const _intervals = [];
+
+export function recordFrameInterval(ms) {
+  if (!(ms > 0) || !Number.isFinite(ms)) return;
+  _intervals.push(ms);
+  if (_intervals.length > _ROLL_LEN) _intervals.shift();
+}
+
+export function getRollingAvgIntervalMs() {
+  if (_intervals.length === 0) return 0;
+  let s = 0;
+  for (let i = 0; i < _intervals.length; i++) s += _intervals[i];
+  return s / _intervals.length;
+}
+
 export function getLastFrameMs() {
   return _lastMs;
 }
@@ -101,9 +119,22 @@ export function getSystemStressLevel() {
     const stressThreshold = targetMs * 1.25;
     const criticalThreshold = targetMs * 1.6;
 
-    if (avg <= stressThreshold) return STRESS_LEVELS.OPTIMAL;
-    if (avg <= criticalThreshold) return STRESS_LEVELS.STRESS;
-    return STRESS_LEVELS.CRITICAL;
+    let cpuLevel = STRESS_LEVELS.CRITICAL;
+    if (avg <= stressThreshold) cpuLevel = STRESS_LEVELS.OPTIMAL;
+    else if (avg <= criticalThreshold) cpuLevel = STRESS_LEVELS.STRESS;
+
+    // CULL-02: the same thresholds applied to the real frame interval. Its reference
+    // never asks for more than 60 fps: the refresh probe times a single rAF interval at
+    // boot and can report 120 Hz on a screen that actually runs at 60 (iOS Safari caps
+    // rAF at 60 by default), which would otherwise read as permanent stress.
+    let gpuLevel = STRESS_LEVELS.OPTIMAL;
+    const interval = getRollingAvgIntervalMs();
+    if (interval > 0 && _intervals.length >= _ROLL_LEN) {
+      const refMs = Math.max(targetMs, 1000 / 60);
+      if (interval > refMs * 1.6) gpuLevel = STRESS_LEVELS.CRITICAL;
+      else if (interval > refMs * 1.25) gpuLevel = STRESS_LEVELS.STRESS;
+    }
+    return Math.max(cpuLevel, gpuLevel);
   } catch (_) {
     return STRESS_LEVELS.OPTIMAL; // safe fallback
   }

@@ -1,9 +1,9 @@
 {
-  "subject": "perf(flora): split pond trees/bushes/reeds into 8 view-cullable sectors (CULL-01)",
-  "isoDate": "2026-10-22T16:23:14+00:00",
+  "subject": "perf(anu): stress ladder also reads the real frame interval (CULL-02)",
+  "isoDate": "2026-10-22T16:26:10+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "e80e99b",
+  "commit": "0cab7a2",
   "dirty": true,
-  "generatedAt": "2026-10-22T16:23:17.879Z"
+  "generatedAt": "2026-10-22T16:26:13.915Z"
 }
