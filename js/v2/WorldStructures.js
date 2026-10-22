@@ -48,7 +48,6 @@ import {
   V2_TIPI_SMOKE_ABOVE_APEX_M,
   V2_TIPI_YELLOW_BUTTERFLY_TARGET_HEIGHT_M,
 } from "./constants.js";
-import { applyPipOrthoRingDiskClipToSubtree } from "./anu/PipOrthoRingDiskClip.js";
 import {
   createPhotorealTravelDiscMaterial,
   createPhotorealTravelRingMaterial,
@@ -1077,10 +1076,6 @@ export async function loadCenterTipi({ scene, objects, worldPhysics }) {
     };
 
     /* PiP ortho inner-circle discard: foliage / airborne VFX only — keep tipi/YB/platform visible under compass. */
-    applyPipOrthoRingDiskClipToSubtree(fireCtl.group);
-    applyPipOrthoRingDiskClipToSubtree(ceremonialFireCtl.group);
-    applyPipOrthoRingDiskClipToSubtree(smokeCtl.group);
-    applyPipOrthoRingDiskClipToSubtree(journalBalloon.root);
 
     tipi.userData.anuSubsystemIds = Object.freeze([
       platMesh.userData.anuId,
@@ -1694,8 +1689,6 @@ export async function loadTipi2WithBhg({ scene, objects, worldPhysics }) {
       questAxeCtl?.update(dt);
     };
 
-    applyPipOrthoRingDiskClipToSubtree(fireCtl.group);
-    applyPipOrthoRingDiskClipToSubtree(smokeCtl.group);
 
     tipi.userData.anuSubsystemIds = Object.freeze([
       platMesh.userData.anuId,

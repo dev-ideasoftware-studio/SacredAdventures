@@ -15,7 +15,6 @@ import {
   ANU_SIMULATION_DOMAIN,
 } from "./anu/SimulationController.js";
 import { getRuntimeService } from "./RuntimeServices.js";
-import { installMeshMaterialPipRingDiskClip } from "./anu/PipOrthoRingDiskClip.js";
 import {
   SEASON_SURFACE_TINTS,
   V2_FLORA_MAX_TREE_INSTANCES,
@@ -317,7 +316,6 @@ transformed.z += leafFlutter * 0.6 * heightFactor;
             vertMods,
           );
         };
-        installMeshMaterialPipRingDiskClip(material);
       } else {
         /**
          * Trunk / branch sway — subtler than canopy leaves (lower freq,
@@ -369,7 +367,6 @@ transformed.y += wobY;
             branchSwayMods,
           );
         };
-        installMeshMaterialPipRingDiskClip(material);
       }
 
       const instancedMesh = new THREE.InstancedMesh(mesh.geometry, material, N);
@@ -535,7 +532,6 @@ transformed.y += wobY;
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       });
-      installMeshMaterialPipRingDiskClip(dirtMat);
       const dirtMesh = new THREE.Mesh(dirtGeo, dirtMat);
       dirtMesh.renderOrder = 1;
       dirtMesh.name = "SacredFlora_TreeDirtPatch";

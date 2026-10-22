@@ -51,7 +51,6 @@ import {
   getRuntimeServicesSnapshot,
   validateRuntimeServiceContracts,
 } from "./RuntimeServices.js";
-import { ensurePipOrthoRingClipRuntimeServiceRegistered } from "./anu/PipOrthoRingDiskClip.js";
 /**
  * Side-effect import — registers `AnuNatureAwareness` on `RuntimeServices`
  * at load time. The orchestrator pumps `.tick()` once per frame so the
@@ -359,8 +358,6 @@ export class SacredOrchestrator {
     window.anuOrchestrator = this;
     /** Legacy alias — must stay identical to anuOrchestrator (singleton engine shell). */
     window.Orchestrator = this;
-
-    ensurePipOrthoRingClipRuntimeServiceRegistered();
 
     console.log(
       "%c[SacredOrchestrator] 🚀 Sacred Adventures v2 — Engine Online",
@@ -1616,23 +1613,7 @@ export class SacredOrchestrator {
       this._pipOrtho.position.set(feet.x, feet.y + elev, feet.z);
       this._pipOrtho.up.set(0, 0, -1);
       this._pipOrtho.lookAt(feet.x, feet.y, feet.z);
-      const pipClip = getRuntimeService("PipOrthoBranchClip");
-      let clipArmed = false;
-      if (
-        pipClip &&
-        typeof pipClip.armOrthoClip === "function" &&
-        typeof pipClip.clearOrthoClip === "function"
-      ) {
-        clipArmed = pipClip.armOrthoClip(this._pipW, this._pipH) === true;
-      }
       this._renderWithMask(this._pipOrtho);
-      if (
-        clipArmed &&
-        pipClip &&
-        typeof pipClip.clearOrthoClip === "function"
-      ) {
-        pipClip.clearOrthoClip();
-      }
       return;
     }
 

@@ -301,7 +301,9 @@ test("rendering governor + service contracts respond to mutations and restore cl
     const restored = gov.getRenderingSnapshot();
 
     // ── Contracts: read-only verification of the current registry. Includes
-    // optional + present services (PipOrthoBranchClip is registered live).
+    // optional + present services. (PipOrthoBranchClip was removed on
+    // 2026-10-22: b0b4575 had emptied it to no-ops while its contract still
+    // claimed it clipped the minimap; see AUDIT 3 / B11.)
     const contracts = svc.validateRuntimeServiceContracts(
       [...window.anuOrchestrator._activeModules],
     );
@@ -339,7 +341,7 @@ test("rendering governor + service contracts respond to mutations and restore cl
   expect(probe.contracts.missing).toEqual([]);
   expect(probe.contracts.malformed).toEqual([]);
   expect(probe.contractKeys).toEqual(
-    expect.arrayContaining(["WorldPhysics", "WorldPlayer", "PipOrthoBranchClip"]),
+    expect.arrayContaining(["WorldPhysics", "WorldPlayer"]),
   );
 
   expect(pageErrors).toEqual([]);
