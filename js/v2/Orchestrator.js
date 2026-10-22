@@ -72,6 +72,8 @@ const _pipSpiritLook = new THREE.Vector3();
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 const BENCH_FRAMES   = 180;   // frames to average for a benchmark
+/** PiP time-uniform cache lifetime (frames). See _getPipTimeUniforms. */
+const PIP_TIME_UNIFORM_REFRESH_FRAMES = 240;
 const SMOOTH_ALPHA   = 0.05;  // EMA smoothing for live FPS
 
 // Modules whose update() is suspended while fishing is active.
@@ -1114,7 +1116,11 @@ export class SacredOrchestrator {
       alpha: true,
       antialias: true,
       powerPreference: "high-performance",
-      preserveDrawingBuffer: true,
+      // 2026-10-22 (FND-21): false. The only reader of this canvas's pixels was the
+      // PIP_FRAME createImageBitmap relay, which had no receiver and is removed.
+      // Between PiP renders the browser keeps showing the last presented frame, so
+      // "hold last frame" (stride / CRITICAL bypass) still works.
+      preserveDrawingBuffer: false,
     });
     this._pipRenderer.shadowMap.enabled = false; // Disable expensive shadow rendering for the tiny PIP viewport!
     this._pipRenderer.setPixelRatio(1);
@@ -1281,6 +1287,13 @@ export class SacredOrchestrator {
     if (!isFishingActive) {
       return stashed;
     }
+    // 2026-10-22 (FND-22): when the bobber exists, _renderPipPass draws the fish-finder
+    // close-up with `_pipOrtho.layers.set(2)` — only layer-2 objects (pool water, basin,
+    // fish, gauge) can be drawn, and none of them match the hide rules below. The
+    // full-scene name scan therefore changed nothing on screen; skip it.
+    if (window.__sanctuaryBobberPos != null) {
+      return stashed;
+    }
     const cullingRadiusSq = 30 * 30; // 30-meter proximity culling radius
     if (this.scene) {
       this.scene.traverse((o) => {
@@ -1427,17 +1440,9 @@ export class SacredOrchestrator {
     try {
       this._renderPipPass(state);
       this._pipRenderedLastFrame = true;
-
-      // Transfer the frame to the iframe via zero-copy ImageBitmap transferable
-      // Only do this expensive createImageBitmap call if the panel is actually visible
-      const iframe = document.getElementById("v4-panel-frame");
-      if (!isFishingActive && iframe && iframe.contentWindow && window._v4PanelOpen !== false) {
-        // Mobile has no _pipRenderer — its frame lives on the 2D pip canvas.
-        const pipSrc = this._pipRenderer ? this._pipRenderer.domElement : pipCanvas;
-        createImageBitmap(pipSrc).then((bitmap) => {
-          iframe.contentWindow.postMessage({ type: "PIP_FRAME", bitmap }, "*", [bitmap]);
-        }).catch(() => {});
-      }
+      // 2026-10-22 (FND-21): removed the PIP_FRAME createImageBitmap + postMessage
+      // relay. Mechanical trace (limbo.py): no live frame listens for PIP_FRAME, so
+      // every PiP render paid for a bitmap nobody read.
     } finally {
       this._restorePipScene(state);
     }
@@ -1453,9 +1458,15 @@ export class SacredOrchestrator {
     this.scene.fog = null;
     this.scene.background = null;
 
-    // Add temporary bright ambient light for minimap legibility under all conditions
-    const pipLight = new THREE.AmbientLight(0xffffff, 1.2);
-    pipLight.layers.enable(2); // Enable layer 2 so it lights the fishing gauge!
+    // Add temporary bright ambient light for minimap legibility under all conditions.
+    // 2026-10-22 (FND-06): one cached light, added/removed per pass (was a new
+    // AmbientLight allocated every PiP render).
+    if (!this._pipAmbientLight) {
+      this._pipAmbientLight = new THREE.AmbientLight(0xffffff, 1.2);
+      this._pipAmbientLight.name = "pip_ambient_light";
+      this._pipAmbientLight.layers.enable(2); // Enable layer 2 so it lights the fishing gauge!
+    }
+    const pipLight = this._pipAmbientLight;
     this.scene.add(pipLight);
 
     // Freeze all time-based uniforms during the PIP render pass to completely remove all animations
@@ -1474,27 +1485,13 @@ export class SacredOrchestrator {
       });
       window.__sanctuaryFloraTimeUniform.value = 0;
     }
-    this.scene.traverse((obj) => {
-      if (obj.material) {
-        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-        for (const mat of mats) {
-          if (mat.uniforms && mat.uniforms.uTime) {
-            stashedUniforms.push({
-              uniform: mat.uniforms.uTime,
-              value: mat.uniforms.uTime.value,
-            });
-            mat.uniforms.uTime.value = 0;
-          }
-          if (mat.userData && mat.userData.uTimeRef) {
-            stashedUniforms.push({
-              uniform: mat.userData.uTimeRef,
-              value: mat.userData.uTimeRef.value,
-            });
-            mat.userData.uTimeRef.value = 0;
-          }
-        }
-      }
-    });
+    // 2026-10-22 (FND-06): the per-material time uniforms are collected by a scene walk
+    // at most every PIP_TIME_UNIFORM_REFRESH_FRAMES frames instead of on every PiP pass.
+    // A material added between refreshes keeps animating in the PiP for < ~4 s.
+    for (const u of this._getPipTimeUniforms()) {
+      stashedUniforms.push({ uniform: u, value: u.value });
+      u.value = 0;
+    }
 
     // Also freeze CPU-based tree rotations during the PIP render pass
     const stashedRotations = [];
@@ -1532,6 +1529,35 @@ export class SacredOrchestrator {
       stashedUniforms,
       stashedRotations,
     };
+  }
+
+  /**
+   * Cached list of per-material time uniforms (`uniforms.uTime` and
+   * `userData.uTimeRef`) that the PiP pass zeroes. Rebuilt by one scene walk when
+   * older than PIP_TIME_UNIFORM_REFRESH_FRAMES. A Set de-duplicates uniforms
+   * shared by several materials, so each is stashed and restored exactly once.
+   */
+  _getPipTimeUniforms() {
+    const now = this._frameCount;
+    if (this._pipTimeUniforms && now - this._pipTimeUniformsAt < PIP_TIME_UNIFORM_REFRESH_FRAMES) {
+      return this._pipTimeUniforms;
+    }
+    const found = new Set();
+    this.scene.traverse((obj) => {
+      if (!obj.material) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of mats) {
+        if (!mat) continue;
+        if (mat.uniforms && mat.uniforms.uTime) found.add(mat.uniforms.uTime);
+        if (mat.userData && mat.userData.uTimeRef) found.add(mat.userData.uTimeRef);
+      }
+    });
+    // The two shared clocks are stashed separately in _preparePipScene.
+    if (window._globalTime) found.delete(window._globalTime);
+    if (window.__sanctuaryFloraTimeUniform) found.delete(window.__sanctuaryFloraTimeUniform);
+    this._pipTimeUniforms = [...found];
+    this._pipTimeUniformsAt = now;
+    return this._pipTimeUniforms;
   }
 
   /**

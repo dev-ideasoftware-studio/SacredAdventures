@@ -362,9 +362,14 @@ function _build3DGauge(scene) {
   // Clear plastic — user-requested 2026-05-28:
   // Single shared material across both cameras (same low opacity in FPV and PIP).
   // opacity 0.04 to let PIP fish show clearly through the transparent dial.
-  const clearMat = new THREE.MeshPhysicalMaterial({
-    color: 0xddeeff, transmission: 0.98, opacity: 0.04,
-    ior: 1.5, roughness: 0.05,
+  // 2026-10-22 (FND-18): plain transparent standard material instead of
+  // MeshPhysicalMaterial{transmission:0.98}. Any visible transmissive mesh makes
+  // three.js re-render every opaque object into a transmission target each frame
+  // (the whole pond scene, twice per frame, for a 4%-opaque dial). Same colour,
+  // opacity, roughness, blending and depth rules; only the refraction shimmer goes.
+  const clearMat = new THREE.MeshStandardMaterial({
+    color: 0xddeeff, opacity: 0.04,
+    roughness: 0.05, metalness: 0,
     transparent: true, side: THREE.DoubleSide,
     depthWrite: false, depthTest: true,
   });
