@@ -44,10 +44,14 @@ export function getSharedDRACOLoader() {
 // sibling at load time — every module using this loader benefits, no per-module
 // edits. Desktop always loads the full-detail originals.
 // Only assets with a BIG triangle win AND a small decimated file. Excluded:
-// NPC.REG (skipped on mobile in SanctuaryTipiNpcs — too heavy to ship), and
-// Avatar-New / Avatar3 / pond1 / tree / rock.mossy / NPC.YB (already low-poly or
-// texture-bound files where the geometry win doesn't justify the download).
+// Avatar-New / Avatar3 / pond1 / tree / rock.mossy / NPC.YB (texture-bound files
+// where the geometry win doesn't justify the download).
+// Every entry must be the basename the LIVE code actually requests — a name that is
+// never requested is a silent no-op (tipi.yellowbutterfly-compressed.glb below is
+// requested by nothing in index.html's import graph; kept for the legacy v2 build).
 const MOBILE_GLB_VARIANTS = new Set([
+  "NPC.REG.lite.glb",              // PLN-01 → NPC.REG.lite.mobile.glb (31k tris, 256 px)
+  "tipi.yellowbutterfly.lite.glb", // PLN-02 → tipi.yellowbutterfly.lite.mobile.glb (15k tris, 1024 px)
   "tipi.player.glb",
   "tipi.yellowbutterfly-compressed.glb",
   "NPC.BHG.glb",

@@ -22,7 +22,10 @@ import {
 } from "../v2/constants.js";
 import { sanctuaryGroundY } from "./SanctuaryGround.js";
 
-const TIPI_GLB_URL = "./Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.glb";
+// PLN-02 (2026-10-22): decimated tipi — 40,000 tris / 2048 px map (was 245,880 tris /
+// 4096 px, ×3 clones). Mobile gets tipi.yellowbutterfly.lite.mobile.glb (14,998 tris /
+// 1024 px) through MOBILE_GLB_VARIANTS. Height is still fitted from the bbox below.
+const TIPI_GLB_URL = "./Assets/Tipi.yellowbutterfly/tipi.yellowbutterfly.lite.glb";
 const TIPI_1_YAW_RAD = Math.PI / 2;
 
 function _tagTipiMeshes(tipi, tipiKind, idPrefix) {

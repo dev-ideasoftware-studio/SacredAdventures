@@ -41,7 +41,10 @@ import {
 
 const YB_URL = "./Assets/NPC.YB.glb";
 const BHG_URL = "./Assets/NPC.BHG.glb";
-const REG_URL = "./Assets/NPC.REG.glb";
+// PLN-01 (2026-10-22): decimated REG — 60,410 tris / 512 px maps (was 1,942,136 tris,
+// 54 maps ≈ 294 MB VRAM). Same 41-joint rig + 6 clips. On mobile the loader swaps in
+// NPC.REG.lite.mobile.glb (31,096 tris / 256 px) via MOBILE_GLB_VARIANTS.
+const REG_URL = "./Assets/NPC.REG.lite.glb";
 
 function _fitSeatedNpc(model, targetH, sizeMul) {
   const box0 = new THREE.Box3().setFromObject(model);
@@ -249,16 +252,10 @@ export const SanctuaryTipiNpcsModule = {
       console.warn("[SanctuaryTipiNpcs] BHG load failed:", err);
     }
 
-    // MOBILE: skip the REG NPC entirely. NPC.REG.glb is ~1.9M triangles (26MB) —
-    // the single biggest first-view geometry hog and a top OOM/GPU-crash cause on
-    // phones ("PROCESS KILLED mid-run"). The other two seated NPCs (YB, BHG) stay.
-    // Desktop loads REG at full detail.
-    const _regUA = (typeof navigator !== "undefined" && navigator.userAgent) || "";
-    const _skipRegMobile =
-      /Mobi|Android|iPhone|iPod/i.test(_regUA) ||
-      /iPad/i.test(_regUA) ||
-      (/Macintosh/.test(_regUA) && (navigator.maxTouchPoints || 0) > 1);
-    if (plat4 && tipi4Hex && !_skipRegMobile) {
+    // REG loads on every device now (PLN-01). The old mobile skip existed because
+    // NPC.REG.glb was ~1.9M triangles; the lite model is 60k (desktop) and the
+    // loader serves a 31k / 256 px variant on mobile.
+    if (plat4 && tipi4Hex) {
       try {
         this._reg = await _buildSeatedNpcV2({
           url: REG_URL,
