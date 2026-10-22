@@ -1,5 +1,5 @@
 {
- "commit": "49dabb0",
+ "commit": "b59e8a2",
  "roots": [
   "js/v2/Orchestrator.js",
   "js/v2/AnuModule.js",
@@ -2228,8 +2228,8 @@
   {
    "file": "js/sanctuary/SanctuaryWelcomeGuide.js",
    "layer": "Sanctuary world",
-   "lines": 465,
-   "kb": 15.9,
+   "lines": 539,
+   "kb": 19.1,
    "module_name": "SanctuaryWelcomeGuide",
    "registered_symbol": "SanctuaryWelcomeGuideModule",
    "header": "Sacred Adventures \u2014 sanctuary: Welcome Guide. 5-page tutorial overlay shown on first visit (persisted via localStorage). Visual language: 1:1 with the user's preserved screenshot \u2014 warm-tone transparent dark background, gold \"WELCOME GUIDE\" pill, gold title, cream body, page-dots / Skip / Next controls. Palette borrowed from the OrchestratorHud so the guide reads as part of the same visual world: bg : linear-gradient warm browns + 80 % opacity (translucent) gold : #fbc02d / #c6a035 cream : #fff7d0 / #ffe9a8 border: rgba(251,192,45,0.42) Behaviour: \u2022 Auto-shows ~1.8 s after orchestrator boot (g",
@@ -2254,14 +2254,17 @@
    "dom_events_listened": [
     "change",
     "click",
-    "keydown"
+    "keydown",
+    "resize"
    ],
    "postmessage_types": [],
-   "assets": [],
+   "assets": [
+    "Assets/SacredOnes.Logo.160.png"
+   ],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-29 feat(sanctuary): center-screen responsive welcome guide, organic shore, and mossy boulders",
-   "commit_count": 8,
+   "last_commit": "2026-10-22 feat(ui): Sacred Ones logo in loading modal, welcome guide, FPS HUD + fluid panels",
+   "commit_count": 9,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 39,
@@ -2924,8 +2927,8 @@
   {
    "file": "js/v2/OrchestratorHud.js",
    "layer": "Engine shell",
-   "lines": 972,
-   "kb": 40.6,
+   "lines": 977,
+   "kb": 41.1,
    "module_name": "",
    "registered_symbol": "",
    "header": "SacredOrchestrator HUD \u2014 extracted from Orchestrator.js (Phase 9+ split). Pure rendering / DOM functions. No lifecycle state of its own; every function takes the live orchestrator (`orc`) and reads from its public surface (`renderer.info`, `_activeModules`, `_hud`, `_bench`, \u2026). Why split: Orchestrator.js had grown to 1267 LOC and the HUD HTML + `_updateHUDValues` + `_drawFrameGraph` accounted for ~300 of those \u2014 orthogonal to the coordination role the file should have. Pulling them out drops Orchestrator.js to ~960 LOC and gives the HUD its own surface that can be reskinned without touching t",
@@ -2967,13 +2970,15 @@
     "resize"
    ],
    "postmessage_types": [],
-   "assets": [],
+   "assets": [
+    "Assets/SacredOnes.Logo.160.png"
+   ],
    "services_registered": [],
    "services_used": [
     "WebFontsService"
    ],
-   "last_commit": "2026-06-01 feat(mobile): village build panel \u2192 neumorphic bottom sheet + de-dupe map",
-   "commit_count": 10,
+   "last_commit": "2026-10-22 feat(ui): Sacred Ones logo in loading modal, welcome guide, FPS HUD + fluid panels",
+   "commit_count": 11,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,

@@ -455,6 +455,18 @@ PLAN = [
      "js/sanctuary/SanctuaryFishing.js; SanctuaryFish.js; SanctuaryPool.js; SanctuaryDock.js; SanctuaryCircles.js; new js/sanctuary/mergeStatic.js (from tools/decision-engine/proposals/)",
      "Census pond total 799 → 285 after C-04..C-07; merge tests exit 0; patchcheck dead count never rises; renderer.info.memory flat after 5 catches (C-01).",
      "Not started (proposals proven in Node)", "One card per commit; follow the playbook's Do-not lists. C-10 items wait for the owner."),
+    ("PLN-22", 22, "Mobile Phase 0 — ground-truth baseline", "", "docs/mobile/PHASE0_BASELINE.md; tools/mobile/*",
+     "Every row has file:line or measurement evidence.", "Done", "MOBILE_OPTIMIZATION_PROMPT.md Phase 0. 6 profiles + online simulation."),
+    ("PLN-23", 23, "Mobile Phase 1 — one 'is mobile' source", "", "js/v2/deviceProfile.js (new); Orchestrator.js; AnuAdaptiveDpr.js; gltfLoaderSetup.js",
+     "UA regex only in deviceProfile.js; Phase 0 measurements unchanged.", "Not started", "4 live copies (not 6); Orchestrator.js:1086 copy is dead on mobile."),
+    ("PLN-24", 24, "Mobile Phase 2 — panel icon renderer + source images", "", "js/components/Component.ThreeIcons.js; SacredGame.Panel.html; mobile variants of NPC.YB / flora/reeds (Avatar-New = PLN-20)",
+     "Phone: no 2nd-context texture > 256 px; no 4096^2 source maps on mobile.", "Not started", "Online phone: 2nd WebGL context holds ~172 MB; 384 MB of 4096^2 source pixels. Coordinate with PLN-20 / FIX_PROMPT task 7."),
+    ("PLN-25", 25, "Mobile Phase 3 — fluid UI for remaining panels", "", "OrchestratorHud.js (landscape breakpoint); UIModule.js (distance pill); SacredGame.Panel.html (center-stack); hidden sheets",
+     "tests/v4-mobile-layout.spec.js passes on all 6 profiles.", "Not started", ""),
+    ("PLN-26", 26, "Mobile Phase 4 — minimap without readback", "FND-04", "js/v2/Orchestrator.js (_renderWithMask mobile branch)",
+     "No readRenderTargetPixels on the mobile live path.", "Awaiting approval", "Needs Mark's written approval (PiP protect rule)."),
+    ("PLN-27", 27, "Mobile Phase 6 — self-host lucide / three / fonts", "", "SacredGame.Panel.html; vendor/",
+     "All-external-blocked boot: zero page errors.", "Not started", "Offline: lucide@latest failure leaves panel action handlers undefined."),
     ("PLN-15", 15, "Correct README / CONTRIBUTING", "FND-19", "README.md; CONTRIBUTING.md; PROGRESS.md",
      "Docs match 10_System facts.", "Not started", ""),
 ]
@@ -810,7 +822,7 @@ for sid, name, assumed, verified in SUBSYSTEMS:
     mods = [r for r in mod_rows if r[2] == sid]
     sub_rows.append([sid, name, assumed, verified, None, None, None,
                      ", ".join(r[0] for r in mods), ", ".join(x["id"] for x in FINDINGS if x["sub"] == sid),
-                     ", ".join(p[0] for p in PLAN if any(FND_IDX[f.strip()]["sub"] == sid for f in p[3].split(",")))])
+                     ", ".join(p[0] for p in PLAN if any(FND_IDX.get(f.strip(), {}).get("sub") == sid for f in p[3].split(",")))])
 SUB_HEAD = ["Subsystem ID", "Subsystem", "Assumed role (docs/comments)", "Verified reality (mechanical)", "Files (count)",
             "Active modules", "Lines of code", "Module IDs", "Findings", "Plan steps"]
 sub_ws, sub_hr = sheet("20_Subsystems", "L2 Subsystems", "Each subsystem: assumed role vs verified reality, size, members, findings, plan.", "Choosing where a change belongs.",
@@ -889,6 +901,10 @@ ATTEMPTS = [
     ("ATT-28", SESSION_1, "Claude", "Merge", "mergeStaticChildren on lilies, rocks, dock, turtle", "Worked in Node: 799 → 285 pond draws, identical geometry/colour; NOT yet in the game", "test_mergeStatic.mjs, test_mergeOthers.mjs", "No", "Ship via PLN-21 cards, one per commit."),
     ("ATT-29", SESSION_1, "Claude", "Merge", "mergeStaticChildren on frogs (tint as vertex colour, tongue/leg_ skipped)", "No gain: 160 → 160 (every part has its own material params)", "test_mergeOthers.mjs", "Yes", "Frogs need shared materials or BatchedMesh first (C-10 #3)."),
     ("ATT-30", SESSION_1, "Claude", "Tooling", "node glbjson.mjs Assets/flora/reeds.glb (input passed first)", "Damage: argv[2] is the OUTPUT — reeds.glb overwritten; restored with git checkout; guard added (refuses non-.json output)", "glbjson.mjs", "Yes", "Read a tool's usage line before running it on assets; check git status after."),
+    ("ATT-31", SESSION_1, "Coder 1", "Tooling", "Run Playwright with the preinstalled /opt/pw-browsers/chromium (executablePath) + SwiftShader args", "Worked: game boots headless; ~6–13 frames per 3 s, so layout/geometry/network only", "tools/mobile/p0probe.js", "No", "Supersedes ATT-15 when a Chromium binary is present; never use for FPS claims."),
+    ("ATT-32", SESSION_1, "Coder 1", "REG + tipi", "Runtime check of ATT-21 (lite swap) desktop + iPhone UA", "Lite + mobile GLBs load (200), REG seated with 6 clips; scene 4.12M → 1.62M desktop", "docs/mobile/phase0-measurements.json", "No", "Pose/scale by eye and real-phone memory still NEEDS DEVICE."),
+    ("ATT-33", SESSION_1, "Coder 1", "Measurement", "First probe: two python http.servers on one port (old one never died)", "Invalid run: branch measured as main; caught by identical numbers", "—", "Yes", "Check which process owns the port (readlink /proc/PID/cwd) before every run."),
+    ("ATT-34", SESSION_1, "Coder 1", "Mobile Phase 0", "Measure 6 profiles + online simulation (CDN → vendor, lucide stub)", "Done; findings in PHASE0_BASELINE.md", "docs/mobile/PHASE0_BASELINE.md", "No", "Sandbox (offline) runs hide the panel's 2nd WebGL context — always add the online simulation."),
 ]
 sheet("63_Attempts_Ledger", "L6 Plan", "What was tried, by whom, the result, and whether it must not be retried.", "Before trying a fix — check it has not already failed.",
       "Attempts ledger", "Shared by every agent: append a row for every attempt, success or failure",
@@ -958,6 +974,10 @@ LOG = [
     ("LOG-11", SESSION_1, "Line-by-line pass over pool, fish, fishing, frogs, dock, circles; Node scene census (799 pond draws); merge helper proven (→ 285).", "Done", "FND-32..44, ATT-25..30"),
     ("LOG-12", SESSION_1, "Wrote 'Pool & Fishing Optimization — Coder Playbook' with change cards C-01..C-10, research ranking and verification protocol; added patchcheck.mjs and census_pre.mjs.", "Done", "PLN-21"),
     ("LOG-13", SESSION_1, "NEXT: owner decisions in C-10; Coder 1 applies C-01..C-09 one per commit; browser checks per playbook section 'How to prove each change'.", "Next", "PLN-21"),
+    ("LOG-14", SESSION_1, "Coder 1: Sacred Ones logo in loading modal, welcome guide (sized to tip height), FPS HUD; fluid loading modal + guide (320–1280 + landscape).", "Done", "commit 8d1570e"),
+    ("LOG-15", SESSION_1, "Coder 1: wrote MOBILE_OPTIMIZATION_PROMPT.md (7 phases, zero-trust).", "Done", "Downloads handoff folder"),
+    ("LOG-16", SESSION_1, "Coder 1: Mobile Phase 0 baseline measured and written.", "Done", "PLN-22; docs/mobile/PHASE0_BASELINE.md"),
+    ("LOG-17", SESSION_1, "NEXT: Mark's go-ahead for mobile Phase 1; decide whether Phase 2 may touch js/components/Component.ThreeIcons.js + SacredGame.Panel.html; coordinate Avatar mobile variant with PLN-20.", "Next", ""),
 ]
 sheet("70_Session_Log", "L7 Session", "What was done, in order, and the next step.", "Resuming work.", "Session log", "Newest last",
       ["Log ID", "Date", "What", "State", "Pointer"], [list(l) for l in LOG], [8, 11, 90, 11, 30])

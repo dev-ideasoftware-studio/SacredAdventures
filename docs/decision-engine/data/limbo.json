@@ -107,7 +107,7 @@
     "index.html:L68"
    ],
    "receivers": [
-    "js/components/Component.LoadingModal.html:L500"
+    "js/components/Component.LoadingModal.html:L539"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -293,7 +293,7 @@
    "kind": "postMessage type",
    "name": "LOADING_MODAL_ERROR",
    "senders": [
-    "js/components/Component.LoadingModal.html:L486"
+    "js/components/Component.LoadingModal.html:L525"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no receiver in live code",
@@ -575,7 +575,7 @@
    "kind": "postMessage type",
    "name": "VIDEO_READY",
    "senders": [
-    "js/components/Component.LoadingModal.html:L275"
+    "js/components/Component.LoadingModal.html:L314"
    ],
    "receivers": [
     "index.html:L417"
@@ -813,7 +813,7 @@
    "kind": "Runtime service lookup",
    "name": "WebFontsService",
    "senders": [
-    "js/v2/OrchestratorHud.js:L92"
+    "js/v2/OrchestratorHud.js:L95"
    ],
    "receivers": [
     "js/v2/UIModule.js:L38"
@@ -1300,12 +1300,12 @@
    "kind": "DOM id lookup",
    "name": "bar-logic",
    "senders": [
-    "js/components/Component.LoadingModal.html:L532",
-    "js/components/Component.LoadingModal.html:L560",
-    "js/components/Component.LoadingModal.html:L594"
+    "js/components/Component.LoadingModal.html:L571",
+    "js/components/Component.LoadingModal.html:L599",
+    "js/components/Component.LoadingModal.html:L633"
    ],
    "receivers": [
-    "js/components/Component.LoadingModal.html:L250"
+    "js/components/Component.LoadingModal.html:L289"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1623,11 +1623,11 @@
    "kind": "DOM id lookup",
    "name": "loading",
    "senders": [
-    "js/components/Component.LoadingModal.html:L267",
-    "js/components/Component.LoadingModal.html:L640"
+    "js/components/Component.LoadingModal.html:L306",
+    "js/components/Component.LoadingModal.html:L679"
    ],
    "receivers": [
-    "js/components/Component.LoadingModal.html:L221"
+    "js/components/Component.LoadingModal.html:L256"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1636,10 +1636,10 @@
    "kind": "DOM id lookup",
    "name": "loading-log",
    "senders": [
-    "js/components/Component.LoadingModal.html:L510"
+    "js/components/Component.LoadingModal.html:L549"
    ],
    "receivers": [
-    "js/components/Component.LoadingModal.html:L258"
+    "js/components/Component.LoadingModal.html:L297"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1648,10 +1648,10 @@
    "kind": "DOM id lookup",
    "name": "loading-video",
    "senders": [
-    "js/components/Component.LoadingModal.html:L268"
+    "js/components/Component.LoadingModal.html:L307"
    ],
    "receivers": [
-    "js/components/Component.LoadingModal.html:L222"
+    "js/components/Component.LoadingModal.html:L257"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1705,11 +1705,11 @@
    "kind": "DOM id lookup",
    "name": "p-logic",
    "senders": [
-    "js/components/Component.LoadingModal.html:L538",
-    "js/components/Component.LoadingModal.html:L586"
+    "js/components/Component.LoadingModal.html:L577",
+    "js/components/Component.LoadingModal.html:L625"
    ],
    "receivers": [
-    "js/components/Component.LoadingModal.html:L247"
+    "js/components/Component.LoadingModal.html:L286"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1718,12 +1718,12 @@
    "kind": "DOM id lookup",
    "name": "p-logic-slot",
    "senders": [
-    "js/components/Component.LoadingModal.html:L541",
-    "js/components/Component.LoadingModal.html:L583",
-    "js/components/Component.LoadingModal.html:L621"
+    "js/components/Component.LoadingModal.html:L580",
+    "js/components/Component.LoadingModal.html:L622",
+    "js/components/Component.LoadingModal.html:L660"
    ],
    "receivers": [
-    "js/components/Component.LoadingModal.html:L248"
+    "js/components/Component.LoadingModal.html:L287"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1935,10 +1935,10 @@
    "kind": "DOM id lookup",
    "name": "v2-anu-alert",
    "senders": [
-    "js/v2/OrchestratorHud.js:L672"
+    "js/v2/OrchestratorHud.js:L677"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L40"
+    "js/v2/OrchestratorHud.js:L43"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1947,10 +1947,10 @@
    "kind": "DOM id lookup",
    "name": "v2-bench",
    "senders": [
-    "js/v2/OrchestratorHud.js:L613"
+    "js/v2/OrchestratorHud.js:L618"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L80"
+    "js/v2/OrchestratorHud.js:L83"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1971,10 +1971,10 @@
    "kind": "DOM id lookup",
    "name": "v2-draws",
    "senders": [
-    "js/v2/OrchestratorHud.js:L612"
+    "js/v2/OrchestratorHud.js:L617"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L41"
+    "js/v2/OrchestratorHud.js:L44"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1983,11 +1983,11 @@
    "kind": "DOM id lookup",
    "name": "v2-font",
    "senders": [
-    "js/v2/OrchestratorHud.js:L96"
+    "js/v2/OrchestratorHud.js:L99"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L98",
-    "js/v2/OrchestratorHud.js:L98"
+    "js/v2/OrchestratorHud.js:L101",
+    "js/v2/OrchestratorHud.js:L101"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1996,10 +1996,10 @@
    "kind": "DOM id lookup",
    "name": "v2-fps",
    "senders": [
-    "js/v2/OrchestratorHud.js:L611"
+    "js/v2/OrchestratorHud.js:L616"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L34"
+    "js/v2/OrchestratorHud.js:L36"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2008,10 +2008,10 @@
    "kind": "DOM id lookup",
    "name": "v2-frame-graph",
    "senders": [
-    "js/v2/OrchestratorHud.js:L652"
+    "js/v2/OrchestratorHud.js:L657"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L36"
+    "js/v2/OrchestratorHud.js:L39"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2031,10 +2031,10 @@
    "kind": "DOM id lookup",
    "name": "v2-hud-trace-label",
    "senders": [
-    "js/v2/OrchestratorHud.js:L461"
+    "js/v2/OrchestratorHud.js:L466"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L47"
+    "js/v2/OrchestratorHud.js:L50"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2043,10 +2043,10 @@
    "kind": "DOM id lookup",
    "name": "v2-hud-universe-label",
    "senders": [
-    "js/v2/OrchestratorHud.js:L205"
+    "js/v2/OrchestratorHud.js:L210"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L74"
+    "js/v2/OrchestratorHud.js:L77"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2055,10 +2055,10 @@
    "kind": "DOM id lookup",
    "name": "v2-load",
    "senders": [
-    "js/v2/OrchestratorHud.js:L650"
+    "js/v2/OrchestratorHud.js:L655"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L37"
+    "js/v2/OrchestratorHud.js:L40"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2067,10 +2067,10 @@
    "kind": "DOM id lookup",
    "name": "v2-load-detail",
    "senders": [
-    "js/v2/OrchestratorHud.js:L651"
+    "js/v2/OrchestratorHud.js:L656"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L38"
+    "js/v2/OrchestratorHud.js:L41"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2079,10 +2079,10 @@
    "kind": "DOM id lookup",
    "name": "v2-map-picker",
    "senders": [
-    "js/v2/OrchestratorHud.js:L540"
+    "js/v2/OrchestratorHud.js:L545"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L85"
+    "js/v2/OrchestratorHud.js:L88"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2091,10 +2091,10 @@
    "kind": "DOM id lookup",
    "name": "v2-modules",
    "senders": [
-    "js/v2/OrchestratorHud.js:L589"
+    "js/v2/OrchestratorHud.js:L594"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L79"
+    "js/v2/OrchestratorHud.js:L82"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2104,14 +2104,14 @@
    "name": "v2-orchestrator-hud",
    "senders": [
     "js/sanctuary/SanctuaryToolPalette.js:L478",
-    "js/v2/OrchestratorHud.js:L879",
-    "js/v2/OrchestratorHud.js:L938",
+    "js/v2/OrchestratorHud.js:L884",
+    "js/v2/OrchestratorHud.js:L943",
     "index.html:L437",
     "index.html:L868"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L152",
-    "js/v2/OrchestratorHud.js:L152"
+    "js/v2/OrchestratorHud.js:L157",
+    "js/v2/OrchestratorHud.js:L157"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2120,11 +2120,11 @@
    "kind": "DOM id lookup",
    "name": "v2-orchestrator-hud-mobile-css",
    "senders": [
-    "js/v2/OrchestratorHud.js:L108"
+    "js/v2/OrchestratorHud.js:L111"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L110",
-    "js/v2/OrchestratorHud.js:L110"
+    "js/v2/OrchestratorHud.js:L113",
+    "js/v2/OrchestratorHud.js:L113"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2133,8 +2133,8 @@
    "kind": "DOM id lookup",
    "name": "v2-panels-pip",
    "senders": [
-    "js/v2/OrchestratorHud.js:L887",
-    "js/v2/OrchestratorHud.js:L939"
+    "js/v2/OrchestratorHud.js:L892",
+    "js/v2/OrchestratorHud.js:L944"
    ],
    "receivers": [
     "js/v2/UIModule.js:L42",
@@ -2147,10 +2147,10 @@
    "kind": "DOM id lookup",
    "name": "v2-pip",
    "senders": [
-    "js/v2/OrchestratorHud.js:L637"
+    "js/v2/OrchestratorHud.js:L642"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L42"
+    "js/v2/OrchestratorHud.js:L45"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2172,10 +2172,10 @@
    "kind": "DOM id lookup",
    "name": "v2-trace-accordion-body",
    "senders": [
-    "js/v2/OrchestratorHud.js:L462"
+    "js/v2/OrchestratorHud.js:L467"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L61"
+    "js/v2/OrchestratorHud.js:L64"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2184,10 +2184,10 @@
    "kind": "DOM id lookup",
    "name": "v2-trace-copy-pill",
    "senders": [
-    "js/v2/OrchestratorHud.js:L465"
+    "js/v2/OrchestratorHud.js:L470"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L56"
+    "js/v2/OrchestratorHud.js:L59"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2196,10 +2196,10 @@
    "kind": "DOM id lookup",
    "name": "v2-trace-dur",
    "senders": [
-    "js/v2/OrchestratorHud.js:L464"
+    "js/v2/OrchestratorHud.js:L469"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L54"
+    "js/v2/OrchestratorHud.js:L57"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2208,10 +2208,10 @@
    "kind": "DOM id lookup",
    "name": "v2-trace-spark",
    "senders": [
-    "js/v2/OrchestratorHud.js:L480"
+    "js/v2/OrchestratorHud.js:L485"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L62"
+    "js/v2/OrchestratorHud.js:L65"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2220,11 +2220,11 @@
    "kind": "DOM id lookup",
    "name": "v2-trace-stats",
    "senders": [
-    "js/v2/OrchestratorHud.js:L474",
-    "js/v2/OrchestratorHud.js:L482"
+    "js/v2/OrchestratorHud.js:L479",
+    "js/v2/OrchestratorHud.js:L487"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L66"
+    "js/v2/OrchestratorHud.js:L69"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2233,10 +2233,10 @@
    "kind": "DOM id lookup",
    "name": "v2-trace-toggle-icon",
    "senders": [
-    "js/v2/OrchestratorHud.js:L463"
+    "js/v2/OrchestratorHud.js:L468"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L52"
+    "js/v2/OrchestratorHud.js:L55"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2245,7 +2245,31 @@
    "kind": "DOM id lookup",
    "name": "v2-universe-accordion-body",
    "senders": [
-    "js/v2/OrchestratorHud.js:L206"
+    "js/v2/OrchestratorHud.js:L211"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L81"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-universe-count",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L595"
+   ],
+   "receivers": [
+    "js/v2/OrchestratorHud.js:L79"
+   ],
+   "verdict": "Has receiver",
+   "note": ""
+  },
+  {
+   "kind": "DOM id lookup",
+   "name": "v2-universe-pct",
+   "senders": [
+    "js/v2/OrchestratorHud.js:L711"
    ],
    "receivers": [
     "js/v2/OrchestratorHud.js:L78"
@@ -2255,36 +2279,12 @@
   },
   {
    "kind": "DOM id lookup",
-   "name": "v2-universe-count",
-   "senders": [
-    "js/v2/OrchestratorHud.js:L590"
-   ],
-   "receivers": [
-    "js/v2/OrchestratorHud.js:L76"
-   ],
-   "verdict": "Has receiver",
-   "note": ""
-  },
-  {
-   "kind": "DOM id lookup",
-   "name": "v2-universe-pct",
-   "senders": [
-    "js/v2/OrchestratorHud.js:L706"
-   ],
-   "receivers": [
-    "js/v2/OrchestratorHud.js:L75"
-   ],
-   "verdict": "Has receiver",
-   "note": ""
-  },
-  {
-   "kind": "DOM id lookup",
    "name": "v2-universe-toggle-icon",
    "senders": [
-    "js/v2/OrchestratorHud.js:L207"
+    "js/v2/OrchestratorHud.js:L212"
    ],
    "receivers": [
-    "js/v2/OrchestratorHud.js:L75"
+    "js/v2/OrchestratorHud.js:L78"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2293,8 +2293,8 @@
    "kind": "DOM id lookup",
    "name": "v2-village-builder",
    "senders": [
-    "js/v2/OrchestratorHud.js:L899",
-    "js/v2/OrchestratorHud.js:L940"
+    "js/v2/OrchestratorHud.js:L904",
+    "js/v2/OrchestratorHud.js:L945"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 id not created anywhere in live code",
