@@ -699,6 +699,8 @@ export const SanctuaryFishModule = {
 
   update(delta, frameCount) {
     if (!this._fishMeshes.length) return;
+    // Hidden in Village View (SanctuaryCompassion, Mark 2026-10-22): no fish AI either.
+    if (this._root && this._root.visible === false) return;
 
     // Prioritized Bypassing & Stride Governor: skips frames under stress but maintains a % sampling so as not to freeze entirely.
     const stress = getSystemStressLevel();

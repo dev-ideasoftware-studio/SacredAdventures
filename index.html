@@ -378,6 +378,7 @@
     import { SanctuaryDragonflyModule }      from './js/sanctuary/SanctuaryDragonfly.js';
     import { SanctuaryPondTreesModule }      from './js/sanctuary/SanctuaryPondTrees.js';
     import { SanctuaryGrassModule }          from './js/sanctuary/SanctuaryGrass.js';
+    import { SanctuaryCompassionModule }     from './js/sanctuary/SanctuaryCompassion.js';
     import { SanctuaryFrogsModule }          from './js/sanctuary/SanctuaryFrogs.js';
     import { AnuAdaptiveDprModule }          from './js/sanctuary/AnuAdaptiveDpr.js';
 
@@ -501,6 +502,7 @@
     orc.register(SanctuaryDragonflyModule);
     orc.register(SanctuaryPondTreesModule);
     orc.register(SanctuaryGrassModule);
+    orc.register(SanctuaryCompassionModule);
     orc.register(SanctuaryFrogsModule);
 
     v4Log('Anu — opening her ear', 100, 22, 14, 10);
@@ -634,6 +636,9 @@
 
     v4Log('meadow — photoreal grass on the ground texture', 100, 100, 100, 100);
     await orc.activate('SanctuaryGrass');
+
+    v4Log('compassion — keeps every device kind and smooth', 100, 100, 100, 100);
+    await orc.activate('SanctuaryCompassion');
 
     v4Log('frogs — jumping and swimming', 100, 100, 100, 100);
     await orc.activate('SanctuaryFrogs');

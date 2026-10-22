@@ -76,6 +76,10 @@ const BENCH_FRAMES   = 180;   // frames to average for a benchmark
 /** PiP time-uniform cache lifetime (frames). See _getPipTimeUniforms. */
 const PIP_TIME_UNIFORM_REFRESH_FRAMES = 240;
 const SMOOTH_ALPHA   = 0.05;  // EMA smoothing for live FPS
+/** Village View (top-down) minimap cadence. Mark 2026-10-22: "we can slow render
+ *  updates on village view in top down". It rendered every frame there since
+ *  2f0c13c; every 4th frame = 15 Hz at 60 fps. */
+const TOPDOWN_PIP_EVERY_N_FRAMES = 4;
 
 // Modules whose update() is suspended while fishing is active.
 // Geometries are already culled by _enterFishingZone; these CPU loops
@@ -1391,7 +1395,7 @@ export class SacredOrchestrator {
         this._pipRenderedLastFrame = false;
         return;
       }
-    } else if (!isTopDown && !shouldRenderPipSceneThisFrame()) {
+    } else if (isTopDown ? (this._frameCount % TOPDOWN_PIP_EVERY_N_FRAMES !== 0) : !shouldRenderPipSceneThisFrame()) {
       this._pipRenderedLastFrame = false;
       return;
     }

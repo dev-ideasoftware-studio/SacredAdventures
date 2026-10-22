@@ -1,9 +1,9 @@
 {
-  "subject": "docs(decision-engine): log CULL-01/02 (ATT-41, ATT-42, LOG-26)",
-  "isoDate": "2026-10-22T16:26:58+00:00",
+  "subject": "feat(compassion): Village View pauses tree/leaf/grass wind, hides pond fish, minimap at 15 Hz",
+  "isoDate": "2026-10-22T16:41:55+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "b365637",
+  "commit": "428797e",
   "dirty": true,
-  "generatedAt": "2026-10-22T16:27:00.638Z"
+  "generatedAt": "2026-10-22T16:41:57.308Z"
 }

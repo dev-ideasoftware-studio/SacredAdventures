@@ -75,15 +75,19 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
       // Inject wind sway shader logic
       if (anuKind.includes("tree") || anuKind.includes("bush") || anuKind.includes("reeds")) {
         mat.userData.uTime = { value: 0 };
+        // 1 = sway; 0 = paused (Village View, SanctuaryCompassion): the shader skips all sway math.
+        mat.userData.uWindOn = { value: 1 };
         SanctuaryPondTreesModule._materialsToUpdate.push(mat);
 
         mat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = mat.userData.uTime;
+          shader.uniforms.uWindOn = mat.userData.uWindOn;
           
           shader.vertexShader = shader.vertexShader.replace(
             `#include <common>`,
             `#include <common>
-            uniform float uTime;`
+            uniform float uTime;
+            uniform float uWindOn;`
           );
 
           let swayScale = 0.02;
@@ -99,6 +103,7 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
           shader.vertexShader = shader.vertexShader.replace(
             `#include <begin_vertex>`,
             `#include <begin_vertex>
+            if (uWindOn > 0.5) { // paused in Village View: skip all sway math
             // Synchronized travelling wind gust wave coming from West-Southwest (1.0, 0.8)
             vec2 windDir = vec2(0.78, 0.62);
             
@@ -137,6 +142,7 @@ function buildInstancedMeshGroup(gltfScene, count, receiveShadow, castShadow, an
             // Apply high-frequency branch fluttering/wiggling
             transformed.x += cos(branchPhase) * (${swayScale} * 0.25) * radialDist;
             transformed.z += branchSway;
+            } // uWindOn
             `
           );
         };
@@ -226,11 +232,13 @@ export const SanctuaryPondTreesModule = {
   _scene: null,
   _materialsToUpdate: [],
   _time: 0,
+  _windPaused: false,
 
   async load(scene) {
     this._scene = scene;
     this._materialsToUpdate = [];
     this._time = 0;
+    this._windPaused = false;
     const rand = lcg(101);
 
     // Save original fog so unload() can restore it
@@ -380,8 +388,18 @@ export const SanctuaryPondTreesModule = {
     );
   },
 
+  /** Village View (SanctuaryCompassion): freeze the wind clock and skip the sway
+   *  math in the shader. The grass reads _time, so it pauses with the trees. */
+  setWindPaused(paused) {
+    this._windPaused = !!paused;
+    for (let i = 0; i < this._materialsToUpdate.length; i++) {
+      const w = this._materialsToUpdate[i].userData.uWindOn;
+      if (w) w.value = this._windPaused ? 0 : 1;
+    }
+  },
+
   update(dt) {
-    this._time += dt;
+    if (!this._windPaused) this._time += dt;
     for (let i = 0; i < this._materialsToUpdate.length; i++) {
       const mat = this._materialsToUpdate[i];
       if (mat.userData.uTime) {

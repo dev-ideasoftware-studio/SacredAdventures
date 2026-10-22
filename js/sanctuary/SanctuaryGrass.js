@@ -505,6 +505,7 @@ uniform vec2  uGGridUV;    // (n-1)/n, 0.5/n for the vertex-grid textures
 uniform float uGTime;
 uniform vec2  uGWindDir;
 uniform float uGWindAmp;
+uniform float uGWindOn;    // 0 = paused (Village View): skip wind + trample
 uniform float uGSpacing;
 uniform vec2  uGOrigin;    // first grid cell of this frame's window (world-aligned)
 uniform float uGCols;      // window width in cells
@@ -599,6 +600,7 @@ const GRASS_VERTEX_MAIN = /* glsl */ `
   float gYv = position.y;
   vec3 gPos = gRoot + gRight * (position.x * gW) + gUp * (gYv * gHt);
 
+  if (uGWindOn > 0.5) {   // paused in Village View (SanctuaryCompassion)
   // ── wind: the trees' exact gust (SanctuaryPondTrees.js) + a little flutter
   float gAlong = dot(gXZ, uGWindDir);
   float gGust = 0.5 + 0.5 * sin(uGTime * 0.84 - gAlong * 0.05);
@@ -617,6 +619,7 @@ const GRASS_VERTEX_MAIN = /* glsl */ `
     gPos.xz += (gDp / max(gDist, 0.01)) * gTr * 0.7;
     gPos.y -= gTr * 0.45;
   }
+  } // uGWindOn
   if (!gKeep || gHt < 0.01) gPos = vec3(0.0, -9999.0, 0.0);   // zero-area: never rasterised
 
   // ── atlas cell + colour (root = the ground under it; tips brighter, patchy dryness)
@@ -693,6 +696,7 @@ function makeMaterial(shared, ring) {
     uGPlayer: shared.player,
     uGWindDir: { value: WIND_DIR },
     uGWindAmp: { value: WIND_AMP },
+    uGWindOn: shared.windOn,        // shared: one switch pauses both rings
     uGSpacing: { value: ring.spacing },
     uGOrigin: { value: new THREE.Vector2(0, 0) },
     uGCols: { value: ring.grid },
@@ -721,7 +725,7 @@ function makeMaterial(shared, ring) {
     fs = replaceOnce(fs, "#include <map_fragment>", GRASS_FRAGMENT_MAP, "map_fragment");
     shader.fragmentShader = fs;
   };
-  mat.customProgramCacheKey = () => "sanctuary-grass-v2";
+  mat.customProgramCacheKey = () => "sanctuary-grass-v3";
   return mat;
 }
 
@@ -814,6 +818,7 @@ export const SanctuaryGrassModule = {
       maskTex, maskData, atlas: atlas.tex, atlasGain: atlas.gain,
       albedo: meanAlbedo(terrain),
       time: { value: 0 },
+      windOn: { value: 1 },
       player: { value: new THREE.Vector3(0, 0, 0) },
     };
 
@@ -876,6 +881,12 @@ export const SanctuaryGrassModule = {
     return true;
   },
 
+  /** Village View (SanctuaryCompassion): skip wind and trample in the shader. */
+  setWindPaused(paused) {
+    this._windPaused = !!paused;
+    if (this._shared) this._shared.windOn.value = this._windPaused ? 0 : 1;
+  },
+
   _stats() {
     const inst = this._meshes.reduce((a, m) => a + (m.userData.grassInstances || 0), 0);
     return {
@@ -895,6 +906,7 @@ export const SanctuaryGrassModule = {
       setEnabled(on) { self._enabled = !!on; if (self._group) self._group.visible = self._enabled; return self._enabled; },
       stats: () => self._stats(),
       rebake: () => self._maybeRebake(true),
+      setWindPaused: (p) => self.setWindPaused(p),
     };
   },
 
