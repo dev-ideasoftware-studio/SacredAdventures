@@ -67,8 +67,9 @@ function render(info, sig) {
       zIndex: "999999",
       padding: "6px 18px 6px 6px",
       borderRadius: "999px",
-      background: "rgba(25, 18, 12, 0.45)",
-      backdropFilter: "blur(12px) saturate(160%)",
+      // Static frost (no live blur): a live blur over the game canvas kept most
+      // frames at 33 ms on the M1 (claude/finding-live-blur-fps.md).
+      background: "rgba(25, 18, 12, 0.63)",
       webkitBackdropFilter: "blur(12px) saturate(160%)",
       color: "#f5ecdc",
       font: "11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace",

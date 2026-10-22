@@ -189,8 +189,8 @@ export function buildOrchestratorHud() {
         inset 0 -1px 0 rgba(0,0,0,0.45),
         0 0 22px rgba(251, 192, 45, 0.08);
       user-select: none;
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      /* No live blur: the panel is opaque, and a live blur over the game
+         canvas kept most frames at 33 ms on the M1 (claude/finding-live-blur-fps.md). */
     `;
   hud.innerHTML = ORCHESTRATOR_HUD_HTML;
   document.body.appendChild(hud);
