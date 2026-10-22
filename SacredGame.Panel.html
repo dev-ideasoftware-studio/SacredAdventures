@@ -2022,7 +2022,11 @@
         //    and sent at most once per animation frame as LOOK_DRAG (dx, dy in viewport widths).
         //    No layout reads, no DOM writes and no allocations per move.
         (function () {
-            const IGNORE = 'button, input, textarea, select, a, [role="button"], .u-btn, .ctrl-btn, '
+            // Anything with its own click handler keeps its input. The pointer capture below would
+            // otherwise move its click to <html>: the gear (#setup-trigger, a div with onclick)
+            // stopped opening its modal that way (FND-49 re-check, 2026-10-22). New panel controls
+            // must match this list too.
+            const IGNORE = 'button, input, textarea, select, a, [role="button"], [onclick], .u-btn, .ctrl-btn, '
                          + '.modal-box, .guide-card, #mobile-thumb-zone, .thumb-btn';
             const SLOP_MOUSE_PX = 6;   // CSS px before a press becomes a drag (mouse, pen)
             const SLOP_TOUCH_PX = 12;  // CSS px before a press becomes a drag (finger)

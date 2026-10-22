@@ -1,9 +1,9 @@
 {
-  "subject": "docs(decision-engine): log the centred Village View camera (ATT-95)",
-  "isoDate": "2026-10-22T20:19:04+00:00",
+  "subject": "fix(input): the top-left gear opens its Simulation Universe modal again (drag-look ignore list)",
+  "isoDate": "2026-10-22T21:47:31+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "d9529c0",
+  "commit": "65b9292",
   "dirty": true,
-  "generatedAt": "2026-10-22T20:19:09.696Z"
+  "generatedAt": "2026-10-22T21:47:38.157Z"
 }
