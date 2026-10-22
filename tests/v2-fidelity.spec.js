@@ -250,27 +250,20 @@ test("moondial UI surfaces present and season ring is click-pass-through", async
   });
 
   expect(ui.hasWrap).toBe(true);
+  expect(ui.hasSeasonRing).toBe(true);
   expect(ui.hasCompass).toBe(true);
-  if (ui.hasLunar) {
-    expect(ui.hasLunar).toBe(true);
-  }
-  if (ui.hasGlass) {
-    expect(ui.hasGlass).toBe(true);
-  }
-  if (ui.zoomBtnCount > 0) {
-    // UIModule renders a + and a − zoom button.
-    expect(ui.zoomBtnCount).toBe(2);
-  }
+  expect(ui.hasLunar).toBe(true);
+  expect(ui.hasGlass).toBe(true);
+  // UIModule renders a + and a − zoom button.
+  expect(ui.zoomBtnCount).toBe(2);
 
-  if (ui.hasSeasonRing) {
-    // Phase 2.5 contract: season ring background is transparent (no fill,
-    // no shadow) and pointer-events:none on the bg so the ring interior
-    // does not block clicks to the WebGL/PiP glass beneath.
-    expect(ui.seasonBgPointerEvents).toBe("none");
-    // Interior point should resolve to something OTHER than the season ring's
-    // own bg/ring (i.e. the glass, the wrapper, the body, or a deeper layer).
-    expect(ui.interiorTarget).not.toMatch(/season-outer-bg|season-outer-ring/);
-  }
+  // Phase 2.5 contract: season ring background is transparent (no fill,
+  // no shadow) and pointer-events:none on the bg so the ring interior
+  // does not block clicks to the WebGL/PiP glass beneath.
+  expect(ui.seasonBgPointerEvents).toBe("none");
+  // Interior point should resolve to something OTHER than the season ring's
+  // own bg/ring (i.e. the glass, the wrapper, the body, or a deeper layer).
+  expect(ui.interiorTarget).not.toMatch(/season-outer-bg|season-outer-ring/);
 
   expect(pageErrors).toEqual([]);
   expect(fatalConsole).toEqual([]);
