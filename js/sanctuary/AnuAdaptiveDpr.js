@@ -1,39 +1,29 @@
 /**
- * AnuAdaptiveDpr — Anu's omnipresent FPS guardian.
+ * AnuAdaptiveDpr — Anu's resolution actuator and display sensor.
  *
- * Per the user's spec: "ANU/World/Animals = controlled by an omnipresent
- * AI that monitors everything, including current FPS. This game must
- * have threshold for 120fps at super high resolutions."
+ * Mark 2026-10-22 (Compassionate UI): "do not throttle" / "a - culling only -
+ * but if severe 20FPS - go ahead and lets start dropping resolution every 10
+ * seconds to find what resolution can get them to 60fps ... but start high,
+ * we use ANU sensors". So this module no longer steps the pixel ratio on its
+ * own (it used to, from CPU-only frame time, and also raised the minimap stride
+ * and lowered the device cap under load). It now:
+ *   • senses: the monitor refresh rate (rAF probe -> targetMs, read by
+ *     FrameBudget) and the renderer's real pixel ratio;
+ *   • acts only when asked: SanctuaryCompassion (the one controller, culling
+ *     guide E1.3) calls setIndex() during its severe-only resolution search;
+ *     fishing pins a floor with setMinDpr()/clearMinDpr().
  *
- * What this does:
- *   • Watches `FrameBudget.avgMs` every N frames (Anu's own sensor).
- *   • If the rolling average drops below a target wall (default 120 FPS
- *     → 8.33 ms), Anu scales the renderer's pixel ratio DOWN one step.
- *   • If the rolling average comfortably exceeds the target with
- *     hysteresis, Anu scales DPR UP one step (capped at the user's
- *     device DPR).
- *
- * Why DPR instead of LOD-of-meshes:
- *   • The sanctuary scene is < 25 k tris — vertex throughput isn't the
- *     cost, fragment shading is. At DPR=2 on a 4K monitor that's 33 M
- *     fragments/frame; at DPR=1 it's 8 M. The slider has a huge effect.
- *   • DPR change is instant + reversible — Anu can ride it up and down
- *     in real time without disturbing the scene graph.
- *
- * Anu publishes the current state under `AnuUniverse.adaptiveDpr.snapshot()`
- * so the HUD / dev console can show what she's doing. The module also
- * records dispatches via `dispatchInteraction(ANU_EVENTS.RENDERING_DPR_CHANGE)`
- * so the InteractionBus reflects every step.
+ * Every change is published as ANU_EVENTS.RENDERING_DPR_CHANGE and in
+ * `AnuUniverse.adaptiveDpr.snapshot()`.
  */
 
-import { recordFrameDuration, getFrameBudgetSnapshot } from "../v2/anu/FrameBudget.js";
+import { getFrameBudgetSnapshot } from "../v2/anu/FrameBudget.js";
 import { deviceProfile } from "../v2/deviceProfile.js";
 import { dispatchInteraction } from "../v2/anu/InteractionBus.js";
 import { ANU_EVENTS } from "../v2/anu/anuEvents.js";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
-import { getEffectivePipStride, setAdaptivePipStrideTarget } from "../v2/anu/RenderingGovernor.js";
 
-/** Discrete DPR ladder Anu can step through. Order: highest → lowest. */
+/** Discrete DPR ladder (highest → lowest). Rungs above the device cap render at the cap. */
 const DPR_LADDER = [2.0, 1.75, 1.5, 1.25, 1.0, 0.85, 0.75];
 
 /** Aspirational FPS — the spec target. Used as a *cap* on the
@@ -48,23 +38,16 @@ const ASPIRATIONAL_FPS = 65;
  *  on a 60 Hz monitor means Anu sees stress on every single frame and
  *  step-downs DPR forever — chasing a wall she can't pass. */
 let TARGET_MS = 1000 / 60;
-/** Headroom before stepping UP — avg ms must beat target by this margin
- *  for the relax window before Anu lifts DPR back up. */
-const RELAX_HEADROOM_MS = 1.5;
-/** Streak counters before Anu acts — hysteresis to prevent oscillation.
- *  Tuned for 60 FPS; gets re-scaled if the detected refresh is higher. */
-let STRESS_STREAK = 45;  // ~0.75 s @ 60 FPS
-let RELAX_STREAK  = 120; // ~2.0 s @ 60 FPS
 
 let _renderer = null;
 let _deviceDprCap = 2;
 let _currentIndex = 0; // ladder index of the current DPR
-let _stressFrames = 0;
-let _relaxFrames = 0;
+let _capIndex = 0;     // highest rung the device cap allows (the "start high" rung)
 let _stepCount = 0;
+let _lastReason = "boot";
 let _lastChangeAt = 0;
 let _detectedHz = 60;
-/** Max ladder index Anu is allowed to descend to. Default = last rung
+/** Max ladder index the actuator may descend to. Default = last rung
  *  (no floor). Modules can raise this floor for scenes that need to stay
  *  visually crisp (e.g. fishing close-up) by calling `setMinDpr(value)`. */
 let _floorIndex = 6; // DPR_LADDER.length - 1
@@ -102,27 +85,32 @@ function snapshot() {
   const budget = getFrameBudgetSnapshot();
   return Object.freeze({
     enabled: !!_renderer,
+    mode: "actuator",            // steps only when SanctuaryCompassion (or a manual call) asks
     currentDpr: DPR_LADDER[_currentIndex],
+    actualDpr: _renderer ? _renderer.getPixelRatio() : null,
+    index: _currentIndex,
+    capIndex: _capIndex,
+    floorIndex: _floorIndex,
     deviceDprCap: _deviceDprCap,
     ladder: DPR_LADDER.slice(),
     targetMs: TARGET_MS,
     avgMs: budget?.avgMs ?? null,
     lastMs: budget?.lastMs ?? null,
-    stressFrames: _stressFrames,
-    relaxFrames: _relaxFrames,
     stepCount: _stepCount,
+    lastReason: _lastReason,
     lastChangeAt: _lastChangeAt,
     detectedHz: _detectedHz,
   });
 }
 
 function applyDpr(idx, reason) {
-  if (!_renderer) return;
-  // Respect the floor — scenes can pin a minimum DPR (e.g. fishing close-up
-  // needs to stay crisp; the adaptive stepper must not descend below that).
-  const clamped = Math.max(0, Math.min(_floorIndex, idx));
-  if (clamped === _currentIndex) return;
+  if (!_renderer) return _currentIndex;
+  // Never above the device cap ("start high" = the cap), never below the floor
+  // a scene pinned (e.g. fishing close-up stays crisp).
+  const clamped = Math.max(_capIndex, Math.min(_floorIndex, idx | 0));
+  if (clamped === _currentIndex) return _currentIndex;
   _currentIndex = clamped;
+  _lastReason = reason;
   const dpr = DPR_LADDER[clamped];
   _renderer.setPixelRatio(Math.min(dpr, _deviceDprCap));
   // Force a render-size refresh so the canvas backing store resizes.
@@ -141,6 +129,7 @@ function applyDpr(idx, reason) {
       t: _lastChangeAt,
     });
   } catch (_) { /* event channel best-effort */ }
+  return _currentIndex;
 }
 
 export const AnuAdaptiveDprModule = {
@@ -150,12 +139,11 @@ export const AnuAdaptiveDprModule = {
     _renderer = renderer;
     // FPS cap (user-approved 2026-06-01): clamp the max device DPR to 1.5 so
     // hi-DPI (Retina) displays never render above 1.5× — ~44% fewer pixels than
-    // 2.0 for a large FPS gain at a slight sharpness cost. The adaptive ladder
-    // still scales DOWN from here under load; this only caps the ceiling.
+    // 2.0 for a large FPS gain at a slight sharpness cost. Only the Compassionate
+    // UI's severe-only search (~20 fps) scales DOWN from here; this caps the ceiling.
     // Mobile gets a hard 1.0 ceiling: a fullscreen Retina buffer at 1.5–3× is
-    // memory + fill-rate the mobile GPU process can't spare, and the adaptive
-    // stepper would otherwise ride DPR back UP to 1.5 whenever FPS looked fine.
-    // This must match the Orchestrator's mobile clamp or the stepper overrides it.
+    // memory + fill-rate the mobile GPU process can't spare.
+    // This must match the Orchestrator's mobile clamp.
     const _dprCeil = deviceProfile.dprCap; // 1.0 mobile / 1.5 desktop (js/v2/deviceProfile.js)
     _deviceDprCap =
       typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)
@@ -169,6 +157,12 @@ export const AnuAdaptiveDprModule = {
       DPR_LADDER.findIndex((d) => Math.abs(d - currentDpr) < 0.02),
     );
     if (_currentIndex < 0) _currentIndex = 0;
+    // "Start high": the highest rung the device cap allows.
+    _capIndex = Math.max(0, DPR_LADDER.findIndex((d) => d <= _deviceDprCap + 0.001));
+    if (_currentIndex < _capIndex) _currentIndex = _capIndex;
+    _floorIndex = DPR_LADDER.length - 1;
+    _stepCount = 0;
+    _lastReason = "boot";
 
     // Probe the monitor's actual refresh rate. Target the lesser of the
     // aspirational 120 FPS spec and the monitor's vsync wall — chasing
@@ -177,10 +171,8 @@ export const AnuAdaptiveDprModule = {
       _detectedHz = hz;
       const targetHz = Math.min(ASPIRATIONAL_FPS, hz);
       TARGET_MS = 1000 / targetHz;
-      STRESS_STREAK = Math.round(0.75 * targetHz);
-      RELAX_STREAK = Math.round(2.0 * targetHz);
       console.log(
-        `%c[AnuAdaptiveDpr] refresh-rate probe: ${hz} Hz monitor → target ${targetHz} FPS (${TARGET_MS.toFixed(2)} ms). Streaks: stress ${STRESS_STREAK} / relax ${RELAX_STREAK}.`,
+        `%c[AnuAdaptiveDpr] refresh-rate probe: ${hz} Hz monitor → target ${targetHz} FPS (${TARGET_MS.toFixed(2)} ms).`,
         "color:#80deea;font-weight:bold;",
       );
     });
@@ -192,10 +184,11 @@ export const AnuAdaptiveDprModule = {
       if (Anu) {
         Anu.adaptiveDpr = Object.freeze({
           snapshot,
-          setIndex: (i) => applyDpr(i, "manual"),
+          /** Actuator: go to ladder index i (clamped to [capIndex, floorIndex]). Returns the index in force. */
+          setIndex: (i, reason) => applyDpr(i, reason || "manual"),
           stepUp: () => applyDpr(_currentIndex - 1, "manual_up"),
           stepDown: () => applyDpr(_currentIndex + 1, "manual_down"),
-          /** Pin a minimum DPR — adaptive stepper won't descend below this.
+          /** Pin a minimum DPR — the actuator won't descend below this.
            *  If the current DPR is already lower, bump up to the new floor
            *  immediately so the scene looks crisp on the very next frame. */
           setMinDpr: (minDpr) => {
@@ -204,8 +197,8 @@ export const AnuAdaptiveDprModule = {
               applyDpr(_floorIndex, `floor_raised(min=${minDpr})`);
             }
           },
-          /** Remove the DPR floor — adaptive stepper can again descend to the
-           *  ladder's lowest rung if frame budget demands it. */
+          /** Remove the DPR floor — the actuator can again descend to the
+           *  ladder's lowest rung when the Compassionate UI asks. */
           clearMinDpr: () => {
             _floorIndex = DPR_LADDER.length - 1;
           },
@@ -214,61 +207,9 @@ export const AnuAdaptiveDprModule = {
     }
 
     console.log(
-      `%c[AnuAdaptiveDpr] online — initial target ${TARGET_MS.toFixed(2)} ms (refresh probe pending), device cap ${_deviceDprCap.toFixed(2)}, start DPR ${DPR_LADDER[_currentIndex].toFixed(2)}`,
+      `%c[AnuAdaptiveDpr] online (actuator: steps only for the Compassionate UI) — device cap ${_deviceDprCap.toFixed(2)}, start DPR ${renderer.getPixelRatio().toFixed(2)}`,
       "color:#80deea;font-weight:bold;",
     );
-  },
-
-  update(_delta) {
-    if (!_renderer) return;
-    const budget = getFrameBudgetSnapshot();
-    if (!budget || !Number.isFinite(budget.avgMs) || budget.samples < 30) return;
-
-    const avg = budget.avgMs;
-    // Stressed: avg slower than target → consider stepping DOWN.
-    if (avg > TARGET_MS) {
-      _stressFrames++;
-      _relaxFrames = 0;
-      if (_stressFrames >= STRESS_STREAK && _currentIndex < _floorIndex) {
-        applyDpr(_currentIndex + 1, "stressed_down");
-        _stressFrames = 0;
-
-        // Closed-Loop Regulatory Feedback: throttle the PiP cadence when stressed
-        const curStride = getEffectivePipStride();
-        if (curStride > 0) {
-          setAdaptivePipStrideTarget(curStride + 1);
-        }
-
-        // Severe stress (true wall-clock display rate choke, avg > target * 1.3)
-        if (avg > TARGET_MS * 1.3) {
-          // Drop the device cap down to 1.25 to prevent dynamic resolution upscaling under high pressure
-          _deviceDprCap = Math.max(1.0, Math.min(_deviceDprCap, 1.25));
-          if (curStride > 0) {
-            setAdaptivePipStrideTarget(curStride + 2); // throttle even faster
-          }
-        }
-      }
-      return;
-    }
-    // Relaxed: avg comfortably under target → consider stepping UP.
-    if (avg < TARGET_MS - RELAX_HEADROOM_MS) {
-      _relaxFrames++;
-      _stressFrames = 0;
-      if (_relaxFrames >= RELAX_STREAK && _currentIndex > 0) {
-        applyDpr(_currentIndex - 1, "relaxed_up");
-        _relaxFrames = 0;
-
-        // Closed-Loop Regulatory Feedback: gradually ease the PiP cadence back when stable
-        const curStride = getEffectivePipStride();
-        if (curStride > 0) {
-          setAdaptivePipStrideTarget(curStride - 1);
-        }
-      }
-      return;
-    }
-    // Goldilocks band — bleed both counters back to zero.
-    _stressFrames = Math.max(0, _stressFrames - 1);
-    _relaxFrames = Math.max(0, _relaxFrames - 1);
   },
 
   unload() {

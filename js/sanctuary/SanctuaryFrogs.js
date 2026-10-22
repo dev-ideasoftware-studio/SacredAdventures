@@ -18,7 +18,6 @@
  */
 
 import * as THREE from "three";
-import { STRESS_LEVELS, getSystemStressLevel } from "../v2/anu/FrameBudget.js";
 import {
   SANCTUARY_POOL_CENTER_X,
   SANCTUARY_POOL_CENTER_Z,
@@ -475,7 +474,6 @@ function _clearFrogEvent(f) {
 // Pre-allocated static vectors for Layer 3 Zero-Allocation
 const _staticFrogDir = new THREE.Vector3();
 const _staticTempVec = new THREE.Vector3();
-let _lastFrogFrameCount = 0;
 
 export const SanctuaryFrogsModule = {
   name: "SanctuaryFrogs",
@@ -646,20 +644,9 @@ export const SanctuaryFrogsModule = {
   update(dt, frameCount, scene, camera) {
     if (!dt || !_group) return;
 
-    // Prioritized Bypassing & Stride Governor: skips frames under stress but maintains a % sampling so as not to freeze entirely.
-    const stress = getSystemStressLevel();
-    let stride = 1;
-    if (stress === STRESS_LEVELS.CRITICAL) {
-      stride = 6; // 16.7% sampling to bypass bottleneck without freezing entirely
-    } else if (stress === STRESS_LEVELS.STRESS) {
-      stride = 2; // 50% sampling
-    }
-    const ticks = frameCount !== undefined ? frameCount : ++_lastFrogFrameCount;
-    if (ticks % stride !== 0) {
-      return;
-    }
-
-    const scaledDt = dt * stride;
+    // No stress stride (Mark 2026-10-22, Compassionate UI: "do not throttle"). This
+    // updates every frame; when fps is low, SanctuaryCompassion culls content instead.
+    const scaledDt = dt;
     _clock += scaledDt;
 
     // Lily pad bobbing — when reusing SanctuaryPool's pads (the typical

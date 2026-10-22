@@ -20,7 +20,6 @@
  */
 
 import * as THREE from "three";
-import { STRESS_LEVELS, getSystemStressLevel } from "../v2/anu/FrameBudget.js";
 import { ANU_SIMULATION_DOMAIN, ANU_INTERACTION_VERB } from "../v2/anu/SimulationController.js";
 import { sanctuaryGroundY } from "./SanctuaryGround.js";
 
@@ -183,8 +182,6 @@ function _ritualSlot(i, n, centerX, centerZ, groundY) {
   return new THREE.Vector3(x, groundY + RITUAL_HEIGHT_OVER_GROUND_M, z);
 }
 
-let _lastButterflyFrameCount = 0;
-
 export const SanctuaryButterfliesModule = {
   name: "SanctuaryButterflies",
 
@@ -323,20 +320,9 @@ export const SanctuaryButterfliesModule = {
   update(delta, frameCount) {
     if (!this._root) return;
 
-    // Prioritized Bypassing & Stride Governor: skips frames under stress but maintains a % sampling so as not to freeze entirely.
-    const stress = getSystemStressLevel();
-    let stride = 1;
-    if (stress === STRESS_LEVELS.CRITICAL) {
-      stride = 6; // 16.7% sampling to bypass bottleneck without freezing entirely
-    } else if (stress === STRESS_LEVELS.STRESS) {
-      stride = 2; // 50% sampling
-    }
-    const ticks = frameCount !== undefined ? frameCount : ++_lastButterflyFrameCount;
-    if (ticks % stride !== 0) {
-      return;
-    }
-
-    const scaledDelta = delta * stride;
+    // No stress stride (Mark 2026-10-22, Compassionate UI: "do not throttle"). This
+    // updates every frame; when fps is low, SanctuaryCompassion culls content instead.
+    const scaledDelta = delta;
     this._elapsed += scaledDelta;
 
     // Phase transitions.

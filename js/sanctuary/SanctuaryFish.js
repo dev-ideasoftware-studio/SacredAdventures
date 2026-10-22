@@ -7,7 +7,6 @@
  */
 
 import * as THREE from "three";
-import { STRESS_LEVELS, getSystemStressLevel } from "../v2/anu/FrameBudget.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { ANU_SIMULATION_DOMAIN, ANU_INTERACTION_VERB } from "../v2/anu/SimulationController.js";
 import {
@@ -358,8 +357,6 @@ function _buildSmallFishGeometry() {
   return geom;
 }
 
-let _lastFrameCount = 0;
-
 export const SanctuaryFishModule = {
   name: "SanctuaryFish",
 
@@ -702,21 +699,11 @@ export const SanctuaryFishModule = {
     // Hidden in Village View (SanctuaryCompassion, Mark 2026-10-22): no fish AI either.
     if (this._root && this._root.visible === false) return;
 
-    // Prioritized Bypassing & Stride Governor: skips frames under stress but maintains a % sampling so as not to freeze entirely.
-    const stress = getSystemStressLevel();
-    let stride = 1;
-    if (stress === STRESS_LEVELS.CRITICAL) {
-      stride = 6; // 16.7% sampling to bypass bottleneck without freezing entirely
-    } else if (stress === STRESS_LEVELS.STRESS) {
-      stride = 2; // 50% sampling
-    }
-    const ticks = frameCount !== undefined ? frameCount : ++_lastFrameCount;
-    if (ticks % stride !== 0) {
-      return;
-    }
+    // No stress stride (Mark 2026-10-22, Compassionate UI: "do not throttle"). This
+    // updates every frame; when fps is low, SanctuaryCompassion culls content instead.
 
-    this._elapsed += delta * stride;
-    this._fishBioTime += delta * stride;
+    this._elapsed += delta;
+    this._fishBioTime += delta;
     const tb = this._fishBioTime;
     const t = this._elapsed;
 
@@ -728,7 +715,7 @@ export const SanctuaryFishModule = {
       for (let g = 0; g < NUM_GROUPS; g++) {
         const leader = this._smallFishGroups[g];
         // Slow orbital progression
-        const ang = Math.atan2(leader.z - this._cz, leader.x - this._cx) + leader.orbitSpeed * delta * stride;
+        const ang = Math.atan2(leader.z - this._cz, leader.x - this._cx) + leader.orbitSpeed * delta;
         leader.x = this._cx + Math.cos(ang) * leader.orbitR;
         leader.z = this._cz + Math.sin(ang) * leader.orbitR;
         leader.y = this._fishCenterY + Math.sin(t * 0.6 + g) * 0.18;
@@ -754,7 +741,7 @@ export const SanctuaryFishModule = {
         const targetY = leader.y + fishData.offsetY + Math.sin(t * 3.5 + i) * 0.05;
 
         // Smooth follow/lerp physics toward target position
-        const followSpeed = 3.5 * delta * stride;
+        const followSpeed = 3.5 * delta;
         fishData.x += (targetX - fishData.x) * Math.min(1.0, followSpeed);
         fishData.z += (targetZ - fishData.z) * Math.min(1.0, followSpeed);
         fishData.y += (targetY - fishData.y) * Math.min(1.0, followSpeed);
@@ -768,7 +755,7 @@ export const SanctuaryFishModule = {
         let dH = targetHeading - fishData.heading;
         while (dH > Math.PI) dH -= Math.PI * 2;
         while (dH < -Math.PI) dH += Math.PI * 2;
-        fishData.heading += dH * Math.min(1.0, 4.0 * delta * stride);
+        fishData.heading += dH * Math.min(1.0, 4.0 * delta);
 
         // Micro tail wiggle animation
         const wiggle = Math.sin(t * fishData.wiggleSpeed + fishData.wigglePhase) * 0.18;
@@ -783,7 +770,7 @@ export const SanctuaryFishModule = {
     }
 
     // ── Safe Low-Frequency Funny Jump Event Roll (Phase 4) ──
-    this._funnyJumpCheckTimer = (this._funnyJumpCheckTimer || 0) + delta * stride;
+    this._funnyJumpCheckTimer = (this._funnyJumpCheckTimer || 0) + delta;
     if (this._funnyJumpCheckTimer >= 5.0) {
       this._funnyJumpCheckTimer = 0.0;
       // 5% chance per minute = 5% * 5s / 60s = 0.00416 (0.416% chance per check)
@@ -793,7 +780,7 @@ export const SanctuaryFishModule = {
     }
 
     // 30-minute pool reset: resets all fish growth scale back to 1.0
-    this._poolResetTimer = (this._poolResetTimer || 0) + delta * stride;
+    this._poolResetTimer = (this._poolResetTimer || 0) + delta;
     if (this._poolResetTimer >= 1800) {
       this._poolResetTimer = 0;
       for (const fish of this._fishMeshes) {
@@ -809,7 +796,7 @@ export const SanctuaryFishModule = {
         : -0.05;
 
     if (this._butterflySprite) {
-      this._butterflyTimer += delta * stride;
+      this._butterflyTimer += delta;
       // Spawn/reveal butterfly every 5 minutes (300 seconds)
       if (this._butterflyTimer >= 300) {
         this._butterflyTimer = 0;
@@ -830,7 +817,7 @@ export const SanctuaryFishModule = {
       }
       
       if (this._butterflyActiveTime > 0) {
-        this._butterflyActiveTime -= delta * stride;
+        this._butterflyActiveTime -= delta;
         
         // Find the biggest koi fish
         let biggestFish = null;
@@ -849,7 +836,7 @@ export const SanctuaryFishModule = {
           const flutterZ = Math.cos(t * 5) * 0.18;
           
           if (this._butterflyFlyInTimer > 0) {
-            this._butterflyFlyInTimer -= delta * stride;
+            this._butterflyFlyInTimer -= delta;
             const pct = Math.max(0, this._butterflyFlyInTimer / 3.0);
             this._butterflySprite.position.lerpVectors(
               new THREE.Vector3(fp.x + flutterX, targetY, fp.z + flutterZ),
@@ -908,7 +895,7 @@ export const SanctuaryFishModule = {
 
       // ── HILARIOUS HIJACKED JUMP-AND-EAT PREY STATE MACHINE (Phase 4) ──
       if (ud._funnyEatState) {
-        ud._funnyEatTimer += delta * stride;
+        ud._funnyEatTimer += delta;
         const target = ud._funnyEatTarget;
         const JUMP_DURATION = 1.2; // 1.2 seconds of cinematic leap
         const PEAK_HEIGHT = 1.45; // Spectacular high vertical leap!
@@ -923,7 +910,7 @@ export const SanctuaryFishModule = {
           
           if (dist > 0.35 && ud._funnyEatTimer < 1.5) {
             // Rapid charge under the prey
-            const chargeSpeed = 3.6 * delta * stride;
+            const chargeSpeed = 3.6 * delta;
             fish.position.x += (dx / dist) * chargeSpeed;
             fish.position.z += (dz / dist) * chargeSpeed;
             // Face the target
@@ -1086,7 +1073,7 @@ export const SanctuaryFishModule = {
           
           // Dive slightly below water and slowly float back up
           const diveDepth = normalY - 0.28;
-          fish.position.y += (diveDepth - fish.position.y) * Math.min(1.0, 5.0 * delta * stride);
+          fish.position.y += (diveDepth - fish.position.y) * Math.min(1.0, 5.0 * delta);
           
           // Shrink frog legs to 0 as it digests
           if (ud._frogLegs) {
@@ -1118,7 +1105,7 @@ export const SanctuaryFishModule = {
 
       // ── Dragonfly Hunt & Parabolic Jump State Machine ──
       if (ud._dfJumpState === "jump") {
-        ud._dfJumpTimer += delta * stride;
+        ud._dfJumpTimer += delta;
         const JUMP_DURATION_S = 0.85;
         const JUMP_PEAK_M = 0.65;
         const jt = Math.min(1.0, ud._dfJumpTimer / JUMP_DURATION_S);
@@ -1127,7 +1114,7 @@ export const SanctuaryFishModule = {
         const normalY = ud.fishMidY ?? this._fishCenterY;
         
         // Continue moving forward along current heading during jump
-        const jumpSpeed = 0.25 * delta * stride;
+        const jumpSpeed = 0.25 * delta;
         fish.position.x += Math.cos(ud._currentHeading || 0) * jumpSpeed;
         fish.position.z += Math.sin(ud._currentHeading || 0) * jumpSpeed;
         fish.position.y = normalY + JUMP_PEAK_M * arc;

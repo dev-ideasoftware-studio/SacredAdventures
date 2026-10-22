@@ -32,11 +32,8 @@ import {
   recordFrameDuration,
   getFrameBudgetSnapshot,
   getFrameSamples,
-  getSystemStressLevel,
   recordFrameInterval,
-  STRESS_LEVELS,
 } from "./anu/FrameBudget.js";
-import { tickAdaptiveRenderPolicy } from "./anu/AdaptiveRenderPolicy.js";
 import {
   recordSacredLoopError,
   recordModuleLoadError,
@@ -729,55 +726,15 @@ export class SacredOrchestrator {
         }
       }
 
-      // ── Prioritized Rendering Pipeline Governor (Prioritized Bypassing & % Sampling) ──
-      // FPS stress sensor runs BEFORE renderer.render() below, so a throw here
-      // would otherwise abort the frame and skip the render entirely. Trap it
-      // and fall back to OPTIMAL (full quality, no bypass) — the safe default
-      // that keeps the world rendering even if the sensor is unavailable.
-      let stress;
-      try {
-        stress = getSystemStressLevel();
-      } catch (stressErr) {
-        stress = STRESS_LEVELS.OPTIMAL;
-        recordSacredLoopError(stressErr, {
-          phase: "fps_stress_sensor",
-          frameCount: this._frameCount,
-        });
-      }
-      if (stress === STRESS_LEVELS.OPTIMAL) {
-        this.renderer.shadowMap.autoUpdate = true;
-      } else {
-        this.renderer.shadowMap.autoUpdate = false;
-        // Stressed: 33% sampling (every 3rd frame)
-        // Critical: 16.7% sampling (every 6th frame)
-        const shadowStride = stress === STRESS_LEVELS.STRESS ? 3 : 6;
-        if (this._frameCount % shadowStride === 0) {
-          this.renderer.shadowMap.needsUpdate = true;
-        }
-      }
-
-      // ── RENDER PRIORITY LADDER (ANU-governed bottleneck bypass) ───────────
-      // ANU's #1 bottleneck is "pip-pass": the PiP re-renders the WHOLE scene
-      // into a SECOND WebGL context — the most expensive, least-important pass.
-      // So it sheds FIRST under frame pressure (ANU rec: "temporarily disable
-      // PiP 3D"). Render priority:
-      //   P0  main scene — ALWAYS rendered at full quality, never skipped.
-      //   P1  shadows    — sampled under STRESS / CRITICAL (handled above).
-      //   P2  PiP 3D     — stride-throttled under STRESS (AdaptiveRenderPolicy),
-      //                    and fully BYPASSED under CRITICAL. Hysteresis: enter
-      //                    bypass at CRITICAL, only resume at OPTIMAL — so it
-      //                    never oscillates on/off around the threshold. The
-      //                    minimap simply holds its last frame while bypassed,
-      //                    handing the freed GPU time back to the main view.
-      if (stress === STRESS_LEVELS.CRITICAL) this._pipBypass = true;
-      else if (stress === STRESS_LEVELS.OPTIMAL) this._pipBypass = false;
-
-      this.renderer.render(this.scene, this.camera); // P0 — never skipped
-      if (this._pipBypass) {
-        this._pipRenderedLastFrame = false;          // P2 bypassed — hold last PiP frame
-      } else {
-        this._renderPip();
-      }
+      // ── Render — no stress throttles ──────────────────────────────────────
+      // Mark 2026-10-22 (Compassionate UI): "do not throttle", "a - culling only".
+      // Shadows update every frame and the minimap keeps its fixed cadence (every
+      // V2_PIP_RENDER_EVERY_N_FRAMES-th frame; every 4th in Village View). This
+      // used to sample shadows every 3rd/6th frame and freeze the minimap under
+      // load. When fps drops, SanctuaryCompassion culls content instead (grass,
+      // then distant trees), and only at ~20 fps does it search a lower resolution.
+      this.renderer.render(this.scene, this.camera);
+      this._renderPip();
 
       // ── HUD update (every 20 frames) ──────────────────────────────────────
       // HUD reflects the FPS sensors; trap it so a render of a bad value can
@@ -799,7 +756,6 @@ export class SacredOrchestrator {
       const frameMs = performance.now() - frameT0;
       try {
         recordFrameDuration(frameMs);
-        tickAdaptiveRenderPolicy(frameMs);
       } catch (budgetErr) {
         recordSacredLoopError(budgetErr, {
           phase: "fps_frame_budget",

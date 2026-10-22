@@ -24,7 +24,6 @@
  */
 
 import * as THREE from "three";
-import { STRESS_LEVELS, getSystemStressLevel } from "../v2/anu/FrameBudget.js";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
 import { SanctuarySceneConstructor } from "./SanctuarySceneConstructor.js";
 import {
@@ -2092,7 +2091,6 @@ function buildLilyPads(centerY) {
 const _staticNormal = new THREE.Vector3();
 const _staticQuat = new THREE.Quaternion();
 const _staticUp = new THREE.Vector3(0, 1, 0);
-let _lastFrameCount = 0;
 let _turtleGroup = null;
 
 export const SanctuaryPoolModule = {
@@ -2156,18 +2154,8 @@ export const SanctuaryPoolModule = {
     this._elapsed += delta;
     _poolTimeUniform.value = this._elapsed;
 
-    // Prioritized Bypassing & Stride Governor: skips frames under stress but maintains a % sampling so as not to freeze entirely.
-    const stress = getSystemStressLevel();
-    let stride = 1;
-    if (stress === STRESS_LEVELS.CRITICAL) {
-      stride = 6; // 16.7% sampling to bypass bottleneck without freezing entirely
-    } else if (stress === STRESS_LEVELS.STRESS) {
-      stride = 2; // 50% sampling
-    }
-    const ticks = frameCount !== undefined ? frameCount : ++_lastFrameCount;
-    if (ticks % stride !== 0) {
-      return;
-    }
+    // No stress stride (Mark 2026-10-22, Compassionate UI: "do not throttle"). This
+    // updates every frame; when fps is low, SanctuaryCompassion culls content instead.
 
     // Float and tilt the lily pads dynamically in sync with physical Gerstner Waves!
     if (this._lilyPadsGroup) {
