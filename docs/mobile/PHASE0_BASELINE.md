@@ -4,11 +4,13 @@
 
 ```
 PHASE 0 — Ground truth
-Base: f5e535e on claude/mobile-optimization
-      = ae31a9f (main) + 7d8d880, af4d52e, e22e24d (lite-models bundle)
-        + f5e535e (logo + fluid panels, from Mark's working tree)
+Base: 8d1570e on claude/mobile-optimization
+      = ae31a9f (main) + 7d8d880, af4d52e, e22e24d, 49dabb0, 2854704 (lite-models bundle, 5-commit version)
+        + 8d1570e (logo + fluid panels, from Mark's working tree)
 Files claimed: none (read-only phase). New files: docs/mobile/*, tools/mobile/*
 ```
+
+Measured on the pre-rebase base `f5e535e` (same tree minus `49dabb0`, `2854704`). Those two commits change no game code: `git diff e22e24d 2854704 -- js Assets index.html SacredGame.Panel.html` is empty, so every number below holds for this base.
 
 Raw data: `docs/mobile/phase0-measurements.json`. Probes (re-runnable): `tools/mobile/p0probe.js`, `p0online.js`, `p0panels.js`, `graph.py`.
 
