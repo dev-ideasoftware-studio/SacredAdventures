@@ -25,6 +25,32 @@ const FISH_LITE_OBJ_URL = "./Assets/Fish/fish.mobile.obj";
  *  are cheap; a future InstancedMesh refactor (filed earlier) would
  *  drop the whole school to one draw call regardless of count. */
 const FISH_COUNT = 18;
+// Fish budget per device (master prompt C1, Mark 2026-10-22): low keeps 25 % (never fewer than
+// FISH_FLOOR big fish), medium 50 %, high everything. Every fish is still generated in today's
+// RNG order and an evenly spread subset is kept, so the fish that remain are the same on every
+// device. Catches never thin the school: each caught fish is replaced by a baby
+// (window.__sanctuarySpawnBabyFish), so the floor holds after any number of catches.
+const FISH_FLOOR = 5;
+function fishBudgetFrac() {
+  if (typeof window === "undefined") return 1;
+  const q = window.SacredQuality && window.SacredQuality.budgets && window.SacredQuality.budgets.fish;
+  if (Number.isFinite(q)) return Math.max(0, Math.min(1, q));
+  const name = window.SacredQuality && window.SacredQuality.budget;
+  if (name === "low") return 0.25;
+  if (name === "medium") return 0.5;
+  if (name === "high") return 1;
+  const tier = window.SacredDeviceCheck && window.SacredDeviceCheck.tier;
+  if (tier === 0 || tier === 2) return 0.25; // very slow / weak desktop = low
+  if (tier === 1) return 0.5;                // phone = medium
+  return 1;
+}
+/** Indices to keep: n of total, evenly spread, deterministic. */
+function keepEvenly(total, n) {
+  const keep = new Set();
+  if (n >= total) { for (let i = 0; i < total; i++) keep.add(i); return keep; }
+  for (let k = 0; k < n; k++) keep.add(Math.floor((k * total) / n));
+  return keep;
+}
 /** Body length after scale — matches v2 guidebook trout read. */
 const FISH_TARGET_LENGTH_M = 0.44;
 const SWIM_DEPTH_CENTER_M = 0.55;
@@ -534,6 +560,20 @@ export const SanctuaryFishModule = {
         this._fishMeshes.push(fish);
       }
 
+      // Budget: drop the big fish this device doesn't keep (after the full RNG sequence ran).
+      const budgetFrac = fishBudgetFrac();
+      if (budgetFrac < 1) {
+        const keepBig = keepEvenly(this._fishMeshes.length, Math.max(FISH_FLOOR, Math.round(this._fishMeshes.length * budgetFrac)));
+        const kept = [];
+        this._fishMeshes.forEach((fish, i) => {
+          if (keepBig.has(i)) { kept.push(fish); return; }
+          root.remove(fish);
+          const m = fish.material;
+          if (m) { if (m.map) m.map.dispose(); m.dispose(); }
+        });
+        this._fishMeshes = kept;
+      }
+
       if (typeof window !== "undefined") {
         window.__sanctuaryFishSchool = this._fishMeshes;
         window.__sanctuaryFishCount = this._fishMeshes.length;
@@ -713,6 +753,13 @@ export const SanctuaryFishModule = {
           wiggleSpeed: 10 + rng() * 5,
         });
       }
+      // Budget: keep an evenly spread share of the small fish (same RNG draws as before).
+      if (budgetFrac < 1) {
+        const keepSmall = keepEvenly(SMALL_FISH_COUNT, Math.max(1, Math.round(SMALL_FISH_COUNT * budgetFrac)));
+        this._smallFishData = this._smallFishData.filter((_, i) => keepSmall.has(i));
+        this._smallFishMesh.count = this._smallFishData.length;
+      }
+      console.log(`[SanctuaryFish] budget ${Math.round(budgetFrac * 100)} %: ${this._fishMeshes.length} big fish, ${this._smallFishData.length} small`);
 
     } catch (err) {
       console.warn("[SanctuaryFish] fish.obj load failed:", err);
