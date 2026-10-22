@@ -299,8 +299,13 @@ export const SanctuaryControlsModule = {
         typeof window !== "undefined" && Number.isFinite(window.__sanctuaryTopDownHeight)
           ? window.__sanctuaryTopDownHeight
           : 40;
-      this._camera.position.set(0, y, 0.1);
-      this._camera.lookAt(0, 0, 0);
+      // Start straight above the avatar; SanctuaryKeyboardLook keeps her centred from here on
+      // (Mark, 2026-10-22: "make sure avatar is always centered in top down").
+      const av = typeof window !== "undefined" ? window.__sanctuaryAvatar : null;
+      const cx = av?.position ? av.position.x : 0;
+      const cz = av?.position ? av.position.z : 0;
+      this._camera.position.set(cx, y, cz + 0.1);
+      this._camera.lookAt(cx, 0, cz);
       this._camera.fov = 60;
       this._camera.updateProjectionMatrix();
       document.body.classList.add("v4-top-down-view");

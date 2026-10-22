@@ -371,6 +371,18 @@ export const SanctuaryKeyboardLookModule = {
           else journal.classList.remove("v4-hide-on-walk");
         }
       }
+    } else if (inTopDown && body !== this._camera) {
+      // Village View keeps the avatar in the middle of the screen (Mark, 2026-10-22: "make sure
+      // avatar is always centered in top down"). The camera sits straight above her at the
+      // height SanctuaryZoom publishes, with the same 0.1 m offset and north-up view the toggle
+      // has always used. This module updates after Avatar and ClickToMove, so it sees her final
+      // spot for the frame. No easing (exactly centred) and no allocation.
+      const h = (typeof window !== "undefined" && Number.isFinite(window.__sanctuaryTopDownHeight))
+        ? window.__sanctuaryTopDownHeight
+        : 40;
+      const bx = body.position.x, bz = body.position.z;
+      this._camera.position.set(bx, h, bz + 0.1);
+      this._camera.lookAt(bx, 0, bz);
     }
   },
 
