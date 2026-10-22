@@ -1,5 +1,5 @@
 {
- "commit": "05633c6",
+ "commit": "c1943c4",
  "roots": [
   "js/v2/Orchestrator.js",
   "js/v2/AnuModule.js",
@@ -24,6 +24,7 @@
   "js/sanctuary/SanctuaryMapGeneratorUi.js",
   "js/v2/BuildingPanelUI.js",
   "js/sanctuary/SanctuaryKeyboardLook.js",
+  "js/sanctuary/SanctuaryDragLook.js",
   "js/sanctuary/SanctuaryZoom.js",
   "js/v2/UIModule.js",
   "js/sanctuary/SanctuaryVillagePad.js",
@@ -73,6 +74,7 @@
   "SanctuaryToolPaletteModule",
   "SanctuaryMapGeneratorUiModule",
   "SanctuaryKeyboardLookModule",
+  "SanctuaryDragLookModule",
   "SanctuaryZoomModule",
   "V2UIModule",
   "SanctuaryVillagePadModule",
@@ -121,6 +123,7 @@
   "SanctuaryButterflies",
   "SanctuaryToolPalette",
   "SanctuaryMapGeneratorUi",
+  "SanctuaryDragLook",
   "SanctuaryKeyboardLook",
   "SanctuaryZoom",
   "PanelsPIP",
@@ -265,8 +268,8 @@
   {
    "file": "js/BuildBadge.js",
    "layer": "v2 shared",
-   "lines": 179,
-   "kb": 7.4,
+   "lines": 180,
+   "kb": 7.5,
    "module_name": "",
    "registered_symbol": "",
    "header": "BuildBadge \u2014 fixed bottom-left commit/sync indicator. Reads build-info.json (written by scripts/build-info.mjs via the post-commit hook) and renders a high-contrast pill showing the last commit subject, timestamp (relative + absolute), branch, SW cache version, and a DIRTY flag if the working tree has uncommitted changes. Purpose: every AI agent + the user can see at a glance which commit the current page actually reflects, so \"I committed X\" claims can be verified against on-screen truth. Placed bottom-left, high z-index, always on top of the main canvas.",
@@ -290,8 +293,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 chore(security): remove all Antigravity hooks (ATT-37)",
-   "commit_count": 6,
+   "last_commit": "2026-10-22 perf(ui): static frost instead of live blur on control buttons, FPS panel, build badge (blur part 1)",
+   "commit_count": 7,
    "also_in_v2_build": false,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -300,21 +303,20 @@
   {
    "file": "js/sanctuary/AnuAdaptiveDpr.js",
    "layer": "ANU governance",
-   "lines": 281,
-   "kb": 11.4,
+   "lines": 222,
+   "kb": 9.1,
    "module_name": "AnuAdaptiveDpr",
    "registered_symbol": "AnuAdaptiveDprModule",
-   "header": "AnuAdaptiveDpr \u2014 Anu's omnipresent FPS guardian. Per the user's spec: \"ANU/World/Animals = controlled by an omnipresent AI that monitors everything, including current FPS. This game must have threshold for 120fps at super high resolutions.\" What this does: \u2022 Watches `FrameBudget.avgMs` every N frames (Anu's own sensor). \u2022 If the rolling average drops below a target wall (default 120 FPS \u2192 8.33 ms), Anu scales the renderer's pixel ratio DOWN one step. \u2022 If the rolling average comfortably exceeds the target with hysteresis, Anu scales DPR UP one step (capped at the user's device DPR). Why DPR in",
+   "header": "AnuAdaptiveDpr \u2014 Anu's resolution actuator and display sensor. Mark 2026-10-22 (Compassionate UI): \"do not throttle\" / \"a - culling only - but if severe 20FPS - go ahead and lets start dropping resolution every 10 seconds to find what resolution can get them to 60fps ... but start high, we use ANU sensors\". So this module no longer steps the pixel ratio on its own (it used to, from CPU-only frame time, and also raised the minimap stride and lowered the device cap under load). It now: \u2022 senses: the monitor refresh rate (rAF probe -> targetMs, read by FrameBudget) and the renderer's real pixel r",
    "anu_domain_claimed": "",
-   "has_update": true,
-   "update_line": 221,
-   "update_lines": 50,
+   "has_update": false,
+   "update_line": null,
+   "update_lines": 0,
    "update_throttle": "",
    "hazards": {},
    "imports": [
     "js/v2/anu/FrameBudget.js",
     "js/v2/anu/InteractionBus.js",
-    "js/v2/anu/RenderingGovernor.js",
     "js/v2/anu/SimulationController.js",
     "js/v2/anu/anuEvents.js",
     "js/v2/deviceProfile.js"
@@ -337,8 +339,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 perf(mobile): Phase 1 \u2014 one source of truth for \"is mobile\"",
-   "commit_count": 6,
+   "last_commit": "2026-10-22 perf(compassion): no stress throttles \u2014 culling only (Compassionate UI step 3a)",
+   "commit_count": 7,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 2,
@@ -655,21 +657,21 @@
    "commit_count": 2,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 35,
+   "activation_order": 36,
    "fishing_suspended": true
   },
   {
    "file": "js/sanctuary/SanctuaryAvatar.js",
    "layer": "Sanctuary world",
-   "lines": 729,
-   "kb": 30.4,
+   "lines": 732,
+   "kb": 30.7,
    "module_name": "SanctuaryAvatar",
    "registered_symbol": "SanctuaryAvatarModule",
    "header": "Sacred Adventures \u2014 sanctuary part 7 of N: AVATAR. Loads `Assets/Avatar3.glb` (Draco-compressed + decimated to ~205 k tris in the May-17 simplify pass) and plants it on the sanctuary ground. Anu domain: PLAYER (the witness body). Anti-transparency treatment per user spec (\"try best not to allow it to have any transparencies across its entire mesh and fill in any gaps in it with skin color filler\"): 1. Every material on the rig is forced opaque: transparent = false opacity = 1.0 alphaTest = 0 depthWrite = true This kills the most common Tripo-GLB face-transparency artifact where alpha-test frag",
    "anu_domain_claimed": "PLAYER",
    "has_update": true,
    "update_line": 558,
-   "update_lines": 147,
+   "update_lines": 150,
    "update_throttle": "",
    "hazards": {
     "alloc_three": 4,
@@ -705,8 +707,8 @@
    ],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-30 feat(fishing): two-handed hand-line to left hand + calm the rod motion",
-   "commit_count": 17,
+   "last_commit": "2026-10-22 feat(controls): A/D turn, Shift+A/D strafe, run after 2 s of walking, real jump (Mark)",
+   "commit_count": 18,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 8,
@@ -761,26 +763,25 @@
    "commit_count": 2,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 30,
+   "activation_order": 31,
    "fishing_suspended": true
   },
   {
    "file": "js/sanctuary/SanctuaryButterflies.js",
    "layer": "Sanctuary world",
-   "lines": 436,
-   "kb": 15.5,
+   "lines": 422,
+   "kb": 15.0,
    "module_name": "SanctuaryButterflies",
    "registered_symbol": "SanctuaryButterfliesModule",
    "header": "Sacred Adventures \u2014 sanctuary part 17 of N: BUTTERFLIES. Anu domain: FAUNA. **May-18 2026 rewrite:** all butterflies are YELLOW now, they live at Tipi 1 (Yellow Butterfly's tipi \u2014 hence the name), and every 5 minutes they perform a sacred ritual: \u2022 IDLE \u2014 drift in a loose cloud around Tipi 1. \u2022 SUMMON (every 5 min, first at +5 s) \u2014 every butterfly flies to a slot on a circle around YB (the seated NPC on Tipi 1's deck). A radial light bloom fades in at the centre, ramping for 1.5 s. \u2022 HOLD \u2014 the circle holds for ~6 s, bloom at full strength. \u2022 DISPERSE \u2014 bloom fades out, butterflies fan back to",
    "anu_domain_claimed": "FAUNA",
    "has_update": true,
-   "update_line": 322,
-   "update_lines": 98,
+   "update_line": 319,
+   "update_lines": 87,
    "update_throttle": "",
    "hazards": {},
    "imports": [
     "js/sanctuary/SanctuaryGround.js",
-    "js/v2/anu/FrameBudget.js",
     "js/v2/anu/SimulationController.js"
    ],
    "imported_by": [],
@@ -796,12 +797,49 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-26 feat(perf): prioritize pipeline traffic via adaptive shadow scheduling and dynamic stride sampling for lesser priorities under stress",
-   "commit_count": 4,
+   "last_commit": "2026-10-22 perf(compassion): no stress throttles \u2014 culling only (Compassionate UI step 3a)",
+   "commit_count": 5,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 21,
    "fishing_suspended": true
+  },
+  {
+   "file": "js/sanctuary/SanctuaryCedars.js",
+   "layer": "Sanctuary world",
+   "lines": 354,
+   "kb": 15.1,
+   "module_name": "",
+   "registered_symbol": "",
+   "header": "Sacred Adventures \u2014 SanctuaryCedars: procedural western red cedars. Mark 2026-10-22: \"draw better trees, more random more cedar trees\". Western red cedar (Thuja plicata), as children see it from the village: - a narrow conical crown with a drooping leader at the very top; - branches that sweep down and turn up at the tips (J shape), carrying flat, lacy sprays of scale leaves that hang like curtains; - a reddish-brown trunk of long fibrous bark strips, flared and fluted (buttressed) at the base. Each variant is ~10 m tall in model units (instances scale it), about 700 triangles (\u2248500 on phones)",
+   "anu_domain_claimed": "",
+   "has_update": false,
+   "update_line": null,
+   "update_lines": 0,
+   "update_throttle": "",
+   "hazards": {},
+   "imports": [
+    "js/sanctuary/SanctuaryImpostors.js"
+   ],
+   "imported_by": [
+    "js/sanctuary/SanctuaryPondTrees.js"
+   ],
+   "globals_written": [],
+   "globals_read": [],
+   "anu_events_dispatched": [],
+   "anu_events_subscribed": [],
+   "dom_events_dispatched": [],
+   "dom_events_listened": [],
+   "postmessage_types": [],
+   "assets": [],
+   "services_registered": [],
+   "services_used": [],
+   "last_commit": "2026-10-22 feat(flora): cedar groves on the hill ring + distant-tree billboards (Compassionate UI step 3c-4)",
+   "commit_count": 1,
+   "also_in_v2_build": false,
+   "status": "Imported library (no module lifecycle)",
+   "activation_order": null,
+   "fishing_suspended": false
   },
   {
    "file": "js/sanctuary/SanctuaryCircles.js",
@@ -847,15 +885,15 @@
   {
    "file": "js/sanctuary/SanctuaryClickToMove.js",
    "layer": "Sanctuary world",
-   "lines": 558,
-   "kb": 21.3,
+   "lines": 565,
+   "kb": 21.6,
    "module_name": "SanctuaryClickToMove",
    "registered_symbol": "SanctuaryClickToMoveModule",
    "header": "Sacred Adventures \u2014 sanctuary part 6 of N: CLICK-TO-MOVE + KID FOOTPRINTS. Anu domain: PLAYER (the witness point \u2014 input + intent + body). What it does: \u2022 Listens for left-click on the main canvas, raycasts against the sanctuary terrain to find a (x, z) goal, and sets it as the smart-path target. \u2022 Walks the player smoothly toward the target each frame, snapping yaw so the avatar faces forward along the path. \u2022 Lays down a trail of cute kid footprints \u2014 wide chubby toes, soft short heels, slightly bigger than scale would normally suggest so they read as charming, not technical \u2014 starting a few",
    "anu_domain_claimed": "PLAYER",
    "has_update": true,
-   "update_line": 412,
-   "update_lines": 72,
+   "update_line": 415,
+   "update_lines": 76,
    "update_throttle": "",
    "hazards": {},
    "imports": [
@@ -890,8 +928,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-29 feat(sanctuary): center-screen responsive welcome guide, organic shore, and mossy boulders",
-   "commit_count": 11,
+   "last_commit": "2026-10-22 feat(controls): A/D turn, Shift+A/D strafe, run after 2 s of walking, real jump (Mark)",
+   "commit_count": 12,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 9,
@@ -900,20 +938,23 @@
   {
    "file": "js/sanctuary/SanctuaryCompassion.js",
    "layer": "Sanctuary world",
-   "lines": 245,
-   "kb": 9.9,
+   "lines": 479,
+   "kb": 22.8,
    "module_name": "SanctuaryCompassion",
    "registered_symbol": "SanctuaryCompassionModule",
-   "header": "Sacred Adventures \u2014 SanctuaryCompassion: the Compassionate UI controller. Mark 2026-10-22 (the culling guide: fix prompt Part E, \"Compassionate UI\"): \"check the user's fps, and if lower than 60 fps we try to cull the landscape the most: make billboards of the trees and forest and background scenery in the distance.\" The floor is 60 fps, always. Mark's ladder (2026-10-22, replaces guide E1.7): \"when FPS is bad - remove grass, start removing # of trees at distance - use more billboards for distant objects until 60fps is achieved. do not throttle.\" No resolution drop. Village View (top-down), Mar",
+   "header": "Sacred Adventures \u2014 SanctuaryCompassion: the Compassionate UI controller. Mark 2026-10-22 (the culling guide: fix prompt Part E, \"Compassionate UI\"): \"check the user's fps, and if lower than 60 fps we try to cull the landscape the most: make billboards of the trees and forest and background scenery in the distance.\" The floor is 60 fps, always. Mark's ladder (2026-10-22, replaces guide E1.7): \"when FPS is bad - remove grass, start removing # of trees at distance - use more billboards for distant objects until 60fps is achieved. do not throttle.\" No resolution drop in normal operation. The one ",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 121,
-   "update_lines": 15,
+   "update_line": 220,
+   "update_lines": 18,
    "update_throttle": "",
    "hazards": {},
    "imports": [
     "js/sanctuary/SanctuaryGrass.js",
-    "js/sanctuary/SanctuaryPondTrees.js"
+    "js/sanctuary/SanctuaryPondTrees.js",
+    "js/v2/anu/InteractionBus.js",
+    "js/v2/anu/anuEvents.js",
+    "js/v2/deviceProfile.js"
    ],
    "imported_by": [],
    "globals_written": [
@@ -921,9 +962,12 @@
     "__sanctuaryCompassionOff"
    ],
    "globals_read": [
+    "AnuUniverse",
     "location"
    ],
-   "anu_events_dispatched": [],
+   "anu_events_dispatched": [
+    "COMPASSION_STEP"
+   ],
    "anu_events_subscribed": [],
    "dom_events_dispatched": [],
    "dom_events_listened": [],
@@ -931,11 +975,11 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 feat(compassion): fps ladder sheds grass first, until 60 fps (Compassionate UI step 2)",
-   "commit_count": 2,
+   "last_commit": "2026-10-22 feat(compassion): tree rungs (billboards nearer) + count missed frames, not medians (Compassionate UI step 3c)",
+   "commit_count": 5,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 44,
+   "activation_order": 45,
    "fishing_suspended": false
   },
   {
@@ -986,7 +1030,7 @@
    "commit_count": 4,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 32,
+   "activation_order": 33,
    "fishing_suspended": false
   },
   {
@@ -1027,7 +1071,7 @@
    "commit_count": 1,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 34,
+   "activation_order": 35,
    "fishing_suspended": true
   },
   {
@@ -1068,7 +1112,7 @@
    "commit_count": 2,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 33,
+   "activation_order": 34,
    "fishing_suspended": false
   },
   {
@@ -1115,22 +1159,70 @@
    "fishing_suspended": false
   },
   {
+   "file": "js/sanctuary/SanctuaryDragLook.js",
+   "layer": "Sanctuary world",
+   "lines": 124,
+   "kb": 5.3,
+   "module_name": "SanctuaryDragLook",
+   "registered_symbol": "SanctuaryDragLookModule",
+   "header": "Sacred Adventures \u2014 sanctuary: DRAG-LOOK input adapter (2026-10-22). Anu domain: PLAYER (input + intent). The panel iframe covers the screen, so it tells taps from drags itself (SacredGame.Panel.html, FND-49 relay block) and sends { type: 'LOOK_DRAG', phase: 'start' | 'move' | 'end', dx, dy } (dx, dy in viewport widths) at most once per animation frame. This module: \u2022 adds those deltas to window.__sanctuaryLookDrag, which SanctuaryKeyboardLook turns into yaw and pitch (same pattern as window.__sanctuaryJoystickInput); \u2022 cancels a click-to-move walk when a drag starts (keys and the joystick alr",
+   "anu_domain_claimed": "PLAYER",
+   "has_update": true,
+   "update_line": 91,
+   "update_lines": 18,
+   "update_throttle": "",
+   "hazards": {},
+   "imports": [],
+   "imported_by": [],
+   "globals_written": [
+    "__sanctuaryLookDrag",
+    "_v4DragLook"
+   ],
+   "globals_read": [
+    "__sanctuaryFishingActive",
+    "__sanctuaryJoystickInput",
+    "_v2InputSuppressed",
+    "_v4CancelClickToMove",
+    "_v4InputSuppressed",
+    "addEventListener",
+    "removeEventListener"
+   ],
+   "anu_events_dispatched": [],
+   "anu_events_subscribed": [],
+   "dom_events_dispatched": [],
+   "dom_events_listened": [
+    "load",
+    "message"
+   ],
+   "postmessage_types": [
+    "DRAG_LOOK_MODE"
+   ],
+   "assets": [],
+   "services_registered": [],
+   "services_used": [],
+   "last_commit": "2026-10-22 feat(input): click-drag / one-finger drag to look, plus look buttons and PageUp/PageDown/Home (DRAG-LOOK)",
+   "commit_count": 1,
+   "also_in_v2_build": false,
+   "status": "Active",
+   "activation_order": 24,
+   "fishing_suspended": false
+  },
+  {
    "file": "js/sanctuary/SanctuaryDragonfly.js",
    "layer": "Sanctuary world",
-   "lines": 301,
-   "kb": 9.7,
+   "lines": 287,
+   "kb": 9.2,
    "module_name": "SanctuaryDragonfly",
    "registered_symbol": "SanctuaryDragonflyModule",
    "header": "Sacred Adventures \u2014 sanctuary: Dragonfly. One small photo-real dragonfly that zips across the pond at random intervals. Per user spec (May-25 2026): \"small dragon fly zips by in photo realistic style\" Implementation: \u2022 Single THREE.Sprite using a procedural CanvasTexture so we don't fetch any asset. Body + wings + jewel-tone iridescence drawn once into a 256\u00d7256 canvas; sprite always faces the camera. \u2022 Flight path = a Bezier-ish arc across the pond at random start / end points, height 0.6-1.6 m above water. Each \"zip\" lasts 2-4 s. \u2022 Idle gap between zips: 12-30 s (this is ambient flavor, not ",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 240,
-   "update_lines": 44,
+   "update_line": 237,
+   "update_lines": 33,
    "update_throttle": "",
    "hazards": {},
    "imports": [
     "js/sanctuary/SanctuaryGround.js",
-    "js/v2/anu/FrameBudget.js",
     "js/v2/anu/SimulationController.js"
    ],
    "imported_by": [],
@@ -1146,25 +1238,25 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-26 feat(perf): prioritize pipeline traffic via adaptive shadow scheduling and dynamic stride sampling for lesser priorities under stress",
-   "commit_count": 4,
+   "last_commit": "2026-10-22 perf(compassion): no stress throttles \u2014 culling only (Compassionate UI step 3a)",
+   "commit_count": 5,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 41,
+   "activation_order": 42,
    "fishing_suspended": false
   },
   {
    "file": "js/sanctuary/SanctuaryFish.js",
    "layer": "Sanctuary world",
-   "lines": 1760,
-   "kb": 72.4,
+   "lines": 1747,
+   "kb": 71.8,
    "module_name": "SanctuaryFish",
    "registered_symbol": "SanctuaryFishModule",
    "header": "Sacred Adventures \u2014 sanctuary part 4 of 5: THE FISH. Loads `Assets/Fish/fish.obj` (same trout mesh as v2 Pool2), bakes the 3DS Max Z-up export upright, and swims with velocity-based orbital physics: head leads the path, body wiggles on yaw, gentle depth bob.",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 724,
-   "update_lines": 900,
+   "update_line": 721,
+   "update_lines": 890,
    "update_throttle": "",
    "hazards": {
     "traverse": 2,
@@ -1173,7 +1265,6 @@
    },
    "imports": [
     "js/sanctuary/SanctuaryGround.js",
-    "js/v2/anu/FrameBudget.js",
     "js/v2/anu/SimulationController.js",
     "js/v2/deviceProfile.js"
    ],
@@ -1209,7 +1300,7 @@
    "services_registered": [],
    "services_used": [],
    "last_commit": "2026-10-22 perf(mobile): phones draw a 2,000-triangle koi in the fishing minimap (Mark: \"yes for mobile we do it\")",
-   "commit_count": 19,
+   "commit_count": 20,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 6,
@@ -1253,7 +1344,7 @@
    "commit_count": 4,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 31,
+   "activation_order": 32,
    "fishing_suspended": false
   },
   {
@@ -1332,7 +1423,7 @@
    "commit_count": 43,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 38,
+   "activation_order": 39,
    "fishing_suspended": false
   },
   {
@@ -1417,20 +1508,19 @@
   {
    "file": "js/sanctuary/SanctuaryFrogs.js",
    "layer": "Sanctuary world",
-   "lines": 1120,
-   "kb": 41.5,
+   "lines": 1107,
+   "kb": 41.0,
    "module_name": "SanctuaryFrogs",
    "registered_symbol": "SanctuaryFrogsModule",
    "header": "Sacred Adventures \u2014 sanctuary: SanctuaryFrogs Procedural implementation of frogs and lily pads with AI state machines. Elements: 1. Lily Pads & Flowers: Flat cylinders with v-notches + procedural petal clusters. 2. Frogs: Procedural geometry (green body, white belly, eyes, black smile). AI States: - SWIM: Moving in water, only eyes/top visible. - BASK_LILY: Resting on a lily pad. - BASK_SHORE: Resting on the shore. - FLEE: Jumps from shore to water/lily when player approaches. - JUMP: Parabolic motion between two points. Anu domain: FAUNA + FLORA",
    "anu_domain_claimed": "FAUNA",
    "has_update": true,
-   "update_line": 645,
-   "update_lines": 281,
+   "update_line": 643,
+   "update_lines": 270,
    "update_throttle": "",
    "hazards": {},
    "imports": [
-    "js/sanctuary/SanctuaryGround.js",
-    "js/v2/anu/FrameBudget.js"
+    "js/sanctuary/SanctuaryGround.js"
    ],
    "imported_by": [],
    "globals_written": [
@@ -1454,11 +1544,11 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-06-02 feat(pool): clearer water reveals the deep basin + 10 bigger frogs",
-   "commit_count": 10,
+   "last_commit": "2026-10-22 perf(compassion): no stress throttles \u2014 culling only (Compassionate UI step 3a)",
+   "commit_count": 11,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 45,
+   "activation_order": 46,
    "fishing_suspended": false
   },
   {
@@ -1507,7 +1597,7 @@
    "commit_count": 3,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 43,
+   "activation_order": 44,
    "fishing_suspended": false
   },
   {
@@ -1550,6 +1640,7 @@
     "js/sanctuary/SanctuaryFrogs.js",
     "js/sanctuary/SanctuaryGrass.js",
     "js/sanctuary/SanctuaryHexGrid.js",
+    "js/sanctuary/SanctuaryImpostors.js",
     "js/sanctuary/SanctuaryKeyboardLook.js",
     "js/sanctuary/SanctuaryPondTrees.js",
     "js/sanctuary/SanctuaryPool.js",
@@ -1617,6 +1708,47 @@
    "fishing_suspended": false
   },
   {
+   "file": "js/sanctuary/SanctuaryImpostors.js",
+   "layer": "Sanctuary world",
+   "lines": 585,
+   "kb": 23.1,
+   "module_name": "",
+   "registered_symbol": "",
+   "header": "Sacred Adventures \u2014 SanctuaryImpostors: distant-tree billboards (culling guide E1.6). Mark 2026-10-22: \"make billboards of the trees and forest and background scenery in the distance\"; \"when FPS is bad - remove grass, start removing # of trees at distance - use more billboards for distant objects until 60fps is achieved\". Guide E1.6: bake each tree/bush model once at load into a small texture (side view, transparent background); every card faces the pond centre (never the camera), so cards don't swim or read as broken wall panels; fade cards at steep viewing angles and keep the 3D tree wheneve",
+   "anu_domain_claimed": "",
+   "has_update": true,
+   "update_line": 489,
+   "update_lines": 31,
+   "update_throttle": "",
+   "hazards": {},
+   "imports": [
+    "js/sanctuary/SanctuaryGround.js"
+   ],
+   "imported_by": [
+    "js/sanctuary/SanctuaryCedars.js",
+    "js/sanctuary/SanctuaryPondTrees.js"
+   ],
+   "globals_written": [],
+   "globals_read": [
+    "__sanctuaryBillboardsOff",
+    "location"
+   ],
+   "anu_events_dispatched": [],
+   "anu_events_subscribed": [],
+   "dom_events_dispatched": [],
+   "dom_events_listened": [],
+   "postmessage_types": [],
+   "assets": [],
+   "services_registered": [],
+   "services_used": [],
+   "last_commit": "2026-10-22 feat(flora): cedar groves on the hill ring + distant-tree billboards (Compassionate UI step 3c-4)",
+   "commit_count": 1,
+   "also_in_v2_build": false,
+   "status": "Imported library (no module lifecycle)",
+   "activation_order": null,
+   "fishing_suspended": false
+  },
+  {
    "file": "js/sanctuary/SanctuaryInventory.js",
    "layer": "Sanctuary world",
    "lines": 238,
@@ -1657,7 +1789,7 @@
    "commit_count": 1,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 36,
+   "activation_order": 37,
    "fishing_suspended": true
   },
   {
@@ -1704,21 +1836,21 @@
    "commit_count": 1,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 40,
+   "activation_order": 41,
    "fishing_suspended": true
   },
   {
    "file": "js/sanctuary/SanctuaryKeyboardLook.js",
    "layer": "Sanctuary world",
-   "lines": 294,
-   "kb": 11.9,
+   "lines": 412,
+   "kb": 19.6,
    "module_name": "SanctuaryKeyboardLook",
    "registered_symbol": "SanctuaryKeyboardLookModule",
-   "header": "Sacred Adventures \u2014 sanctuary part 18 of N: KEYBOARD MOVE + LOOK. Anu domain: PLAYER (input + intent). The click-to-move module already walks the body to a goal point; this module adds WASD direct steering + arrow-key look-around so the player can do what they want every frame instead of one click at a time. Binding (kid-friendly, no caps required, no modifiers): W / \u2191 move forward (toward where the camera is looking, on the XZ plane) S / \u2193 move backward A strafe left D strafe right Q turn yaw left (also rebinds to bumper-thumb friendly) E turn yaw right \u2190 \u2192 turn yaw left / right (arrow altern",
+   "header": "Sacred Adventures \u2014 sanctuary part 18 of N: KEYBOARD MOVE + LOOK. Anu domain: PLAYER (input + intent). The click-to-move module already walks the body to a goal point; this module adds WASD direct steering + arrow-key look-around so the player can do what they want every frame instead of one click at a time. Binding (Mark, 2026-10-22; Decision Engine DEC-20): W / \u2191 walk forward (toward where the camera looks); after 2 s it becomes a run S / \u2193 walk backward A / D, \u2190 / \u2192 turn left / right (Q / E turn too) Shift + A / D strafe left / right (Shift + \u2190 / \u2192 as well) space jump (a small hop; the heig",
    "anu_domain_claimed": "PLAYER",
    "has_update": true,
-   "update_line": 112,
-   "update_lines": 170,
+   "update_line": 150,
+   "update_lines": 224,
    "update_throttle": "",
    "hazards": {
     "alloc_three": 2,
@@ -1735,6 +1867,7 @@
    "globals_read": [
     "__sanctuaryAvatar",
     "__sanctuaryJoystickInput",
+    "__sanctuaryLookDrag",
     "__sanctuaryZoomFactor",
     "_v4CancelClickToMove",
     "_v4InputSuppressed",
@@ -1752,11 +1885,11 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-28 fix(fishing,avatar,travel): gauge stays in PIP at low opacity + half-submerged swim + 40mm decal clearance",
-   "commit_count": 7,
+   "last_commit": "2026-10-22 feat(controls): A/D turn, Shift+A/D strafe, run after 2 s of walking, real jump (Mark)",
+   "commit_count": 10,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 24,
+   "activation_order": 25,
    "fishing_suspended": true
   },
   {
@@ -1838,27 +1971,35 @@
   {
    "file": "js/sanctuary/SanctuaryPondTrees.js",
    "layer": "Sanctuary world",
-   "lines": 419,
-   "kb": 17.3,
+   "lines": 628,
+   "kb": 27.3,
    "module_name": "SanctuaryPondTrees",
    "registered_symbol": "SanctuaryPondTreesModule",
-   "header": "Sacred Adventures \u2014 sanctuary: SanctuaryPondTrees (InstancedMesh refactor) Recreates the misty sacred pond atmosphere using high-quality photorealistic assets (tree.glb, bush.glb, and reeds.glb). All flora is now rendered using THREE.InstancedMesh to achieve massive density (18 trees, 24 bushes, 14 reed patches; see the counts below), split into angular sectors so three.js can frustum-cull the ring (CULL-01). Anu domain: FLORA",
+   "header": "Sacred Adventures \u2014 sanctuary: SanctuaryPondTrees (InstancedMesh refactor) Recreates the misty sacred pond atmosphere using high-quality photorealistic assets (tree.glb, bush.glb, and reeds.glb). All flora is now rendered using THREE.InstancedMesh to achieve massive density (18 trees, 24 bushes, 14 reed patches; see the counts below), split into angular sectors so three.js can frustum-cull the ring (CULL-01). Cedars (Mark 2026-10-22: \"draw better trees, more random more cedar trees\"): procedural western red cedars (SanctuaryCedars.js) in random groves on the hill ring around the village, kept ",
    "anu_domain_claimed": "FLORA",
    "has_update": true,
-   "update_line": 400,
-   "update_lines": 8,
+   "update_line": 598,
+   "update_lines": 9,
    "update_throttle": "",
    "hazards": {},
    "imports": [
+    "js/sanctuary/SanctuaryCedars.js",
     "js/sanctuary/SanctuaryGround.js",
+    "js/sanctuary/SanctuaryImpostors.js",
+    "js/v2/deviceProfile.js",
     "js/v2/gltfLoaderSetup.js"
    ],
    "imported_by": [
     "js/sanctuary/SanctuaryCompassion.js",
     "js/sanctuary/SanctuaryGrass.js"
    ],
-   "globals_written": [],
-   "globals_read": [],
+   "globals_written": [
+    "__sanctuaryForest"
+   ],
+   "globals_read": [
+    "__sanctuaryCedarsOff",
+    "location"
+   ],
    "anu_events_dispatched": [],
    "anu_events_subscribed": [],
    "dom_events_dispatched": [],
@@ -1871,31 +2012,30 @@
    ],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 feat(compassion): Village View pauses tree/leaf/grass wind, hides pond fish, minimap at 15 Hz",
-   "commit_count": 9,
+   "last_commit": "2026-10-22 feat(flora): cedar groves on the hill ring + distant-tree billboards (Compassionate UI step 3c-4)",
+   "commit_count": 10,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 42,
+   "activation_order": 43,
    "fishing_suspended": false
   },
   {
    "file": "js/sanctuary/SanctuaryPool.js",
    "layer": "Sanctuary world",
-   "lines": 2273,
-   "kb": 93.8,
+   "lines": 2261,
+   "kb": 93.3,
    "module_name": "SanctuaryPool",
    "registered_symbol": "SanctuaryPoolModule",
    "header": "Sacred Adventures \u2014 sanctuary part 2 of 5: THE POOL. The centrepiece. A sacred dark-water pool with organic edges. Anu domain: ENVIRONMENT (water itself isn't a structure; it's part of the ground-and-atmosphere that bodies must obey). Pieces: \u2022 Water surface \u2014 CircleGeometry, 48 segments, animated 3-wave ripple shader. Sits at `groundY(center) + WATER_DROP_M`. Transparent at 0.62 so the fish and bowl floor read through cleanly. \u2022 Basin floor \u2014 second darker disc just under the water, gives the pool a sense of depth (the carved terrain under it is mostly hidden). \u2022 Lily pads \u2014 14 instanced low-",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 2153,
-   "update_lines": 90,
+   "update_line": 2151,
+   "update_lines": 80,
    "update_throttle": "",
    "hazards": {},
    "imports": [
     "js/sanctuary/SanctuaryGround.js",
     "js/sanctuary/SanctuarySceneConstructor.js",
-    "js/v2/anu/FrameBudget.js",
     "js/v2/anu/SimulationController.js"
    ],
    "imported_by": [],
@@ -1914,8 +2054,8 @@
    ],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 fix(pool): basin floor, drain and rocks sit on the visible pond floor (Mark: \"yes fix\")",
-   "commit_count": 42,
+   "last_commit": "2026-10-22 perf(compassion): no stress throttles \u2014 culling only (Compassionate UI step 3a)",
+   "commit_count": 43,
    "also_in_v2_build": false,
    "status": "Active",
    "activation_order": 4,
@@ -2048,7 +2188,7 @@
    "commit_count": 4,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 29,
+   "activation_order": 30,
    "fishing_suspended": true
   },
   {
@@ -2113,7 +2253,7 @@
    "commit_count": 7,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 28,
+   "activation_order": 29,
    "fishing_suspended": true
   },
   {
@@ -2240,7 +2380,7 @@
    "commit_count": 1,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 27,
+   "activation_order": 28,
    "fishing_suspended": true
   },
   {
@@ -2324,7 +2464,7 @@
    "commit_count": 1,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 37,
+   "activation_order": 38,
    "fishing_suspended": true
   },
   {
@@ -2365,11 +2505,11 @@
    ],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-10-22 feat(ui): Sacred Ones logo in loading modal, welcome guide, FPS HUD + fluid panels",
-   "commit_count": 9,
+   "last_commit": "2026-10-22 feat(controls): A/D turn, Shift+A/D strafe, run after 2 s of walking, real jump (Mark)",
+   "commit_count": 10,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 39,
+   "activation_order": 40,
    "fishing_suspended": true
   },
   {
@@ -2498,20 +2638,20 @@
    "commit_count": 1,
    "also_in_v2_build": false,
    "status": "Active",
-   "activation_order": 25,
+   "activation_order": 26,
    "fishing_suspended": true
   },
   {
    "file": "js/v2/AnuModule.js",
    "layer": "ANU governance",
-   "lines": 561,
-   "kb": 20.3,
+   "lines": 570,
+   "kb": 20.6,
    "module_name": "Anu",
    "registered_symbol": "AnuModule",
    "header": "Anu Universe \u2014 AnuModule IS the orchestrator module: the SacredOrchestrator instance (renderer, scene, loop, registry) is Anu's engine shell. window.AnuUniverse exposes governance (pipeline memory, rendering governor, interaction bus). Naming (bulletproof): - Class: SacredOrchestrator (import from Orchestrator.js) - Canonical live singleton: window.anuOrchestrator (same object as AnuUniverse.anuOrchestrator) - Legacy alias: window.Orchestrator (same object \u2014 prefer anuOrchestrator) - Discriminator on the live shell: instance.isSacredOrchestratorShell === true Product (governance label): The Em",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 534,
+   "update_line": 543,
    "update_lines": 3,
    "update_throttle": "every 240f",
    "hazards": {},
@@ -2546,8 +2686,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-27 fix(hud,anu): unify FPS source on orc.smoothFPS + make .report() return real snapshots",
-   "commit_count": 21,
+   "last_commit": "2026-10-22 feat(anu): Compassionate UI sensors \u2014 AnuUniverse.compassion, COMPASSION_STEP, real-fps trace (step 3b)",
+   "commit_count": 22,
    "also_in_v2_build": true,
    "status": "Active",
    "activation_order": 1,
@@ -2950,8 +3090,8 @@
   {
    "file": "js/v2/Orchestrator.js",
    "layer": "Engine shell",
-   "lines": 1848,
-   "kb": 78.6,
+   "lines": 1804,
+   "kb": 76.7,
    "module_name": "",
    "registered_symbol": "",
    "header": "Sacred Adventures v2 \u2014 SacredOrchestrator (Anu engine shell) Responsibilities: 1. Own the Three.js renderer, scene, camera, and clock 2. Maintain a MODULE REGISTRY \u2014 each module is a named object with { name, load(), unload(), update(delta) } 3. Benchmark FPS cost of every module in isolation 4. Drive the requestAnimationFrame loop and call active module updates 5. Render an on-screen HUD showing live FPS and active module list 6. Expose the live shell as window.anuOrchestrator (canonical). window.Orchestrator is a legacy alias for the same instance. Class SacredOrchestrator \u2260 global: import t",
@@ -2964,7 +3104,6 @@
    "imports": [
     "js/v2/OrchestratorHud.js",
     "js/v2/RuntimeServices.js",
-    "js/v2/anu/AdaptiveRenderPolicy.js",
     "js/v2/anu/AnuErrorAndStressLedger.js",
     "js/v2/anu/AnuNatureAwareness.js",
     "js/v2/anu/FrameBudget.js",
@@ -3018,7 +3157,7 @@
     "WorldPlayer"
    ],
    "last_commit": "2026-10-22 perf(mobile): phones draw a 2,000-triangle koi in the fishing minimap (Mark: \"yes for mobile we do it\")",
-   "commit_count": 58,
+   "commit_count": 59,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -3027,8 +3166,8 @@
   {
    "file": "js/v2/OrchestratorHud.js",
    "layer": "Engine shell",
-   "lines": 977,
-   "kb": 41.1,
+   "lines": 1028,
+   "kb": 43.6,
    "module_name": "",
    "registered_symbol": "",
    "header": "SacredOrchestrator HUD \u2014 extracted from Orchestrator.js (Phase 9+ split). Pure rendering / DOM functions. No lifecycle state of its own; every function takes the live orchestrator (`orc`) and reads from its public surface (`renderer.info`, `_activeModules`, `_hud`, `_bench`, \u2026). Why split: Orchestrator.js had grown to 1267 LOC and the HUD HTML + `_updateHUDValues` + `_drawFrameGraph` accounted for ~300 of those \u2014 orthogonal to the coordination role the file should have. Pulling them out drops Orchestrator.js to ~960 LOC and gives the HUD its own surface that can be reskinned without touching t",
@@ -3077,8 +3216,8 @@
    "services_used": [
     "WebFontsService"
    ],
-   "last_commit": "2026-10-22 feat(ui): Sacred Ones logo in loading modal, welcome guide, FPS HUD + fluid panels",
-   "commit_count": 11,
+   "last_commit": "2026-10-22 perf(ui): static frost instead of live blur on control buttons, FPS panel, build badge (blur part 1)",
+   "commit_count": 13,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -3211,16 +3350,16 @@
   {
    "file": "js/v2/UIModule.js",
    "layer": "v2 shared",
-   "lines": 307,
-   "kb": 11.2,
+   "lines": 543,
+   "kb": 23.7,
    "module_name": "PanelsPIP",
    "registered_symbol": "V2UIModule",
    "header": "",
    "anu_domain_claimed": "",
    "has_update": true,
-   "update_line": 246,
-   "update_lines": 28,
-   "update_throttle": "every 10f",
+   "update_line": 470,
+   "update_lines": 30,
+   "update_throttle": "every 10f, every 600f",
    "hazards": {
     "dom_query": 1,
     "dom_write": 1
@@ -3252,11 +3391,11 @@
    "services_used": [
     "WorldPlayer"
    ],
-   "last_commit": "2026-05-31 refactor(pip): rename 'moondial' -> 'pip-compass' (it is a compass, not a moondial)",
-   "commit_count": 33,
+   "last_commit": "2026-10-22 perf(ui): static frost instead of live blur on panel buttons, cards, banner and compass bracket (blur part 2)",
+   "commit_count": 35,
    "also_in_v2_build": true,
    "status": "Active",
-   "activation_order": 26,
+   "activation_order": 27,
    "fishing_suspended": false
   },
   {
@@ -4265,7 +4404,6 @@
     "js/v2/constants.js"
    ],
    "imported_by": [
-    "js/v2/Orchestrator.js",
     "js/v2/anu/index.js"
    ],
    "globals_written": [],
@@ -4337,8 +4475,8 @@
   {
    "file": "js/v2/anu/AnuFuzzyPipelineSensor.js",
    "layer": "ANU governance",
-   "lines": 219,
-   "kb": 6.3,
+   "lines": 242,
+   "kb": 7.6,
    "module_name": "",
    "registered_symbol": "",
    "header": "Fuzzy bottleneck sensor for Anu. Converts raw frame/render/scene/error telemetry into an AI-readable diagnosis. This is intentionally heuristic: it should point attention to the likely pressure point without pretending one metric is the whole truth.",
@@ -4361,6 +4499,7 @@
    ],
    "globals_written": [],
    "globals_read": [
+    "AnuUniverse",
     "anuOrchestrator"
    ],
    "anu_events_dispatched": [],
@@ -4371,8 +4510,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-27 fix(hud,anu): remove trees-banner CTA and fix pip-pass false-bottleneck label",
-   "commit_count": 2,
+   "last_commit": "2026-10-22 feat(anu): Compassionate UI sensors \u2014 AnuUniverse.compassion, COMPASSION_STEP, real-fps trace (step 3b)",
+   "commit_count": 3,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -4471,8 +4610,8 @@
   {
    "file": "js/v2/anu/AnuWorldSensorium.js",
    "layer": "ANU governance",
-   "lines": 162,
-   "kb": 6.3,
+   "lines": 165,
+   "kb": 6.7,
    "module_name": "",
    "registered_symbol": "",
    "header": "Anu World Sensorium. A single awareness snapshot for AI/tools: what is alive in the V2 world, what domain it belongs to, whether it is interactable, and what ANU should watch before more flora/fauna/NPC/building/item systems are added.",
@@ -4492,7 +4631,9 @@
     "js/v2/anu/index.js"
    ],
    "globals_written": [],
-   "globals_read": [],
+   "globals_read": [
+    "AnuUniverse"
+   ],
    "anu_events_dispatched": [],
    "anu_events_subscribed": [],
    "dom_events_dispatched": [],
@@ -4501,8 +4642,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-10 feat(v2): add ANU world governance sensorium",
-   "commit_count": 1,
+   "last_commit": "2026-10-22 feat(anu): Compassionate UI sensors \u2014 AnuUniverse.compassion, COMPASSION_STEP, real-fps trace (step 3b)",
+   "commit_count": 2,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -4527,11 +4668,6 @@
    ],
    "imported_by": [
     "js/sanctuary/AnuAdaptiveDpr.js",
-    "js/sanctuary/SanctuaryButterflies.js",
-    "js/sanctuary/SanctuaryDragonfly.js",
-    "js/sanctuary/SanctuaryFish.js",
-    "js/sanctuary/SanctuaryFrogs.js",
-    "js/sanctuary/SanctuaryPool.js",
     "js/v2/Orchestrator.js",
     "js/v2/OrchestratorHud.js",
     "js/v2/UIModule.js",
@@ -4575,6 +4711,7 @@
    "imports": [],
    "imported_by": [
     "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/SanctuaryCompassion.js",
     "js/sanctuary/SanctuaryControls.js",
     "js/sanctuary/SanctuaryDayNight.js",
     "js/sanctuary/SanctuaryInventory.js",
@@ -4667,7 +4804,6 @@
     "js/v2/constants.js"
    ],
    "imported_by": [
-    "js/sanctuary/AnuAdaptiveDpr.js",
     "js/v2/Orchestrator.js",
     "js/v2/OrchestratorHud.js",
     "js/v2/anu/AdaptiveRenderPolicy.js",
@@ -4876,8 +5012,8 @@
   {
    "file": "js/v2/anu/anuEvents.js",
    "layer": "ANU governance",
-   "lines": 51,
-   "kb": 2.9,
+   "lines": 53,
+   "kb": 3.1,
    "module_name": "",
    "registered_symbol": "",
    "header": "Canonical interaction names \u2014 grep-friendly & stable for tools / LLMs.",
@@ -4890,6 +5026,7 @@
    "imports": [],
    "imported_by": [
     "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/SanctuaryCompassion.js",
     "js/sanctuary/SanctuaryControls.js",
     "js/sanctuary/SanctuaryDayNight.js",
     "js/sanctuary/SanctuaryInventory.js",
@@ -4918,8 +5055,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-19 feat(full-session): fishing overhaul, FPS fix, dock elevation, clean world, sanctuary v2",
-   "commit_count": 6,
+   "last_commit": "2026-10-22 feat(anu): Compassionate UI sensors \u2014 AnuUniverse.compassion, COMPASSION_STEP, real-fps trace (step 3b)",
+   "commit_count": 7,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -5120,7 +5257,9 @@
    "imports": [],
    "imported_by": [
     "js/sanctuary/AnuAdaptiveDpr.js",
+    "js/sanctuary/SanctuaryCompassion.js",
     "js/sanctuary/SanctuaryFish.js",
+    "js/sanctuary/SanctuaryPondTrees.js",
     "js/v2/Orchestrator.js",
     "js/v2/gltfLoaderSetup.js"
    ],

@@ -168,7 +168,7 @@
   "fileMB": 4.96
  },
  "Assets/npc/Avatar-New.glb": {
-  "tris": 245991,
+  "tris": 119993,
   "prims": 1,
   "materials": 1,
   "skinned": true,
@@ -177,7 +177,7 @@
   "maxTex": 4096,
   "vramMB": 170.6,
   "draco": true,
-  "fileMB": 11.44
+  "fileMB": 10.96
  },
  "Assets/pond1.glb": {
   "tris": 136410,
