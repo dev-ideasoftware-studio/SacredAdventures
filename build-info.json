@@ -1,9 +1,9 @@
 {
-  "subject": "feat(compassion): fps ladder sheds grass first, until 60 fps (Compassionate UI step 2)",
-  "isoDate": "2026-10-22T16:56:13+00:00",
+  "subject": "docs(decision-engine): log Compassionate UI steps 1-2 (ATT-64, ATT-65, LOG-31)",
+  "isoDate": "2026-10-22T16:57:03+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "4a23da9",
+  "commit": "96b8704",
   "dirty": true,
-  "generatedAt": "2026-10-22T16:56:19.276Z"
+  "generatedAt": "2026-10-22T16:57:06.507Z"
 }
