@@ -42,6 +42,14 @@ const GRAVITY_MPS2 = 14;
 const CAMERA_BACK = 5.0;
 const CAMERA_UP = 2.6;
 const CAMERA_LOOK_FWD = 4.0;
+// Drag-look + pitch (2026-10-22). Pitch is a look TILT: the camera stays where it is and only the
+// point it looks at moves up or down, so the camera can never dip into the ground.
+const PITCH_MIN_RAD = -40 * Math.PI / 180;  // look-down limit
+const PITCH_MAX_RAD = 35 * Math.PI / 180;   // look-up limit
+const PITCH_RATE_RAD_PER_S = 1.2;           // PageUp / PageDown and the panel ▲ ▼ buttons
+const DRAG_RAD_PER_VIEW_WIDTH = Math.PI;    // one full-width drag = half a turn (× sensitivity)
+const DRAG_CAMERA_LERP_BASE = 0.001;        // same fast follow as walking forward (L252)
+const PITCH_TAP_STEP_RAD = 5 * Math.PI / 180; // a tap on ▲ / ▼ (or PageUp / PageDown) still moves the view
 
 export const SanctuaryKeyboardLookModule = {
   name: "SanctuaryKeyboardLook",
@@ -49,6 +57,7 @@ export const SanctuaryKeyboardLookModule = {
   _scene: null,
   _camera: null,
   _yaw: Math.PI,         // facing -Z by default; player looks INTO the pool
+  _pitch: 0,             // look tilt, + = up; clamped to [PITCH_MIN_RAD, PITCH_MAX_RAD]
   _bodyVy: 0,
   _grounded: true,
   _keys: {},
@@ -74,6 +83,14 @@ export const SanctuaryKeyboardLookModule = {
       const ae = document.activeElement;
       if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) return;
       const k = (e.key || "").toLowerCase();
+      if (k === "pageup" || k === "pagedown" || k === "home") e.preventDefault();
+      // A quick tap (a panel ▲ ● ▼ button) can send key-down and key-up inside one frame, so
+      // update() would never see the key held. Act on the key-down itself as well.
+      if (!e.repeat && window._v4InputSuppressed !== true) {
+        if (k === "home") this._pitch = 0;
+        else if (k === "pageup") this._pitch = Math.min(PITCH_MAX_RAD, this._pitch + PITCH_TAP_STEP_RAD);
+        else if (k === "pagedown") this._pitch = Math.max(PITCH_MIN_RAD, this._pitch - PITCH_TAP_STEP_RAD);
+      }
       // Any key cancels an in-flight click-to-move path so the kid
       // takes manual control immediately. (May-19 2026 user spec.)
       if (typeof window !== "undefined" && typeof window._v4CancelClickToMove === "function") {
@@ -137,6 +154,23 @@ export const SanctuaryKeyboardLookModule = {
         this._yaw -= j.x * TURN_RATE_RAD_PER_S * delta;
       }
     }
+
+    // Drag-look (SanctuaryDragLook fills this from the panel; dx/dy are in viewport widths).
+    // Drag right → look right (same sign as E); drag up → look up.
+    const look = (typeof window !== "undefined") ? window.__sanctuaryLookDrag : null;
+    if (look && (look.dx !== 0 || look.dy !== 0)) {
+      const rad = DRAG_RAD_PER_VIEW_WIDTH * (Number(look.sens) || 1);
+      this._yaw -= look.dx * rad;
+      this._pitch -= look.dy * rad * (look.invertY ? -1 : 1);
+      look.dx = 0;
+      look.dy = 0;
+    }
+    // Keyboard pitch (the panel ▲ ● ▼ buttons send the same keys through KEY_FORWARD).
+    if (k["pageup"])   this._pitch += PITCH_RATE_RAD_PER_S * delta;
+    if (k["pagedown"]) this._pitch -= PITCH_RATE_RAD_PER_S * delta;
+    if (k["home"])     this._pitch = 0;
+    if (this._pitch > PITCH_MAX_RAD) this._pitch = PITCH_MAX_RAD;
+    else if (this._pitch < PITCH_MIN_RAD) this._pitch = PITCH_MIN_RAD;
 
     // Sync yaw from click-to-move when active so the camera follows
     // behind the path direction instead of staying at a stale angle.
@@ -247,7 +281,7 @@ export const SanctuaryKeyboardLookModule = {
         camY = body.position.y + EYE_HEIGHT_M;
         lookX = body.position.x + fwdX * (FWD_ZOOM_M + CAMERA_LOOK_FWD);
         lookZ = body.position.z + fwdZ * (FWD_ZOOM_M + CAMERA_LOOK_FWD);
-        lookY = body.position.y + EYE_HEIGHT_M - 0.10;
+        lookY = body.position.y + EYE_HEIGHT_M - 0.10 + Math.tan(this._pitch) * CAMERA_LOOK_FWD;
         // Snappy forward lerp.
         cLerp = 1 - Math.pow(0.001, delta);
       } else {
@@ -259,10 +293,12 @@ export const SanctuaryKeyboardLookModule = {
         camY = body.position.y + up;
         lookX = body.position.x + fwdX * CAMERA_LOOK_FWD;
         lookZ = body.position.z + fwdZ * CAMERA_LOOK_FWD;
-        lookY = body.position.y + 1.4;
+        lookY = body.position.y + 1.4 + Math.tan(this._pitch) * (back + CAMERA_LOOK_FWD);
         // Slower lerp so the camera lazily catches up to yaw changes —
         // the player's head turns first, the camera drifts to match.
-        cLerp = 1 - Math.pow(0.18, delta);
+        // While a drag is in progress the camera follows as fast as when walking forward, so the
+        // view stays under the finger instead of drifting ~0.6 s behind it.
+        cLerp = 1 - Math.pow(look && look.dragging ? DRAG_CAMERA_LERP_BASE : 0.18, delta);
       }
       this._cameraSmooth.lerp(new THREE.Vector3(camX, camY, camZ), cLerp);
       this._lookSmooth.lerp(new THREE.Vector3(lookX, lookY, lookZ), cLerp);

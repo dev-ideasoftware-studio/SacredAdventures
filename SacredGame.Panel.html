@@ -1592,7 +1592,40 @@
             transition: all 0.3s;
         }
         #setup-trigger:hover { transform: rotate(45deg) scale(1.1); background: #fbc02d; color: #000; }
-        </style>
+        #look-pad {
+            position: fixed;
+            right: max(16px, env(safe-area-inset-right));
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: var(--z-hud);
+            pointer-events: none;
+        }
+        #look-pad .look-btn {
+            pointer-events: auto;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: linear-gradient(180deg, rgba(40, 26, 20, 0.94), rgba(15, 10, 8, 0.97));
+            border: 1px solid rgba(255, 217, 122, 0.30);
+            color: #ffd97a;
+            font-size: 18px;
+            line-height: 1;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        #look-pad .look-btn:focus-visible { outline: 3px solid #ffd97a; outline-offset: 2px; }
+        #look-pad .look-btn.active-state { filter: brightness(1.25); }
+        body.logbook-active #look-pad { display: none; }
+</style>
 </head>
 
 <body>
@@ -1875,6 +1908,32 @@
 
 
 
+        <!-- DRAG-LOOK (2026-10-22): tap alternative for looking up / down (WCAG 2.5.7) and the
+             keys they stand for (PageUp / PageDown / Home, WCAG 2.1.3). Same wiring as the D-pad
+             (.ctrl-btn[data-key] → KEY_FORWARD). Right edge, clear of the PiP (top-left). -->
+        <div id="look-pad" role="group" aria-label="Look up and down">
+            <div class="ctrl-btn look-btn" data-key="pageup" role="button" tabindex="0" aria-label="Look up" title="Look up (Page Up)">▲</div>
+            <div class="ctrl-btn look-btn" data-key="home" role="button" tabindex="0" aria-label="Look straight ahead" title="Look straight ahead (Home)">●</div>
+            <div class="ctrl-btn look-btn" data-key="pagedown" role="button" tabindex="0" aria-label="Look down" title="Look down (Page Down)">▼</div>
+        </div>
+        <script>
+            // Enter / Space on a focused look button act like pressing it (WCAG 2.1.1). Stop the
+            // event so the panel's own key forwarding doesn't also send it (Space = jump).
+            document.querySelectorAll('#look-pad .look-btn').forEach((btn) => {
+                const send = (eventType) => window.parent.postMessage({ type: 'KEY_FORWARD', key: btn.dataset.key, eventType }, '*');
+                btn.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault(); e.stopPropagation();
+                    if (!e.repeat) send('keydown');
+                });
+                btn.addEventListener('keyup', (e) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault(); e.stopPropagation();
+                    send('keyup');
+                });
+            });
+        </script>
+
         <!-- LOG -->
         <div id="event-log" style="position: fixed; top: 10px; left: 10px; z-index: 10000; color: white;"></div>
 
@@ -1963,34 +2022,91 @@
             setTimeout(() => { if(window.parent) window.parent.focus(); }, 10);
         });
 
-        // 2. CLICK TUNNELING (Background Clicks -> Movement)
-        document.addEventListener('mousedown', (e) => {
-            // Check if we clicked a UI button or active element
-            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.u-btn') || e.target.closest('.modal-box') || e.target.closest('.guide-card')) return;
+        // 2. CLICK TUNNELING + DRAG-LOOK (pointer events: mouse, touch and pen)
+        //    The game page says whether drag-look is on (DRAG_LOOK_MODE, from
+        //    js/sanctuary/SanctuaryDragLook.js). Until it does, and whenever it's off (fishing,
+        //    journal, Village View), a press is sent as CANVAS_CLICK at once, as before.
+        //    When it's on: a press that moves less than the slop before release is a TAP
+        //    (CANVAS_CLICK on release, at the press point); past the slop it's a LOOK DRAG, summed
+        //    and sent at most once per animation frame as LOOK_DRAG (dx, dy in viewport widths).
+        //    No layout reads, no DOM writes and no allocations per move.
+        (function () {
+            const IGNORE = 'button, input, textarea, select, a, [role="button"], .u-btn, .ctrl-btn, '
+                         + '.modal-box, .guide-card, #mobile-thumb-zone, .thumb-btn';
+            const SLOP_MOUSE_PX = 6;   // CSS px before a press becomes a drag (mouse, pen)
+            const SLOP_TOUCH_PX = 12;  // CSS px before a press becomes a drag (finger)
+            let enabled = false;       // the game page turns this on (DRAG_LOOK_MODE)
+            let vw = window.innerWidth || 1, vh = window.innerHeight || 1;
+            let id = null, type = '', sx = 0, sy = 0, lx = 0, ly = 0, dragging = false;
+            let accX = 0, accY = 0, flushQueued = false;
+            const look = { type: 'LOOK_DRAG', phase: 'move', dx: 0, dy: 0 }; // reused; postMessage copies it
 
-            // Allow click-through to game even if Logbook is open, but block explicit UI dim overlays.
-            // NOTE: #ui-container is a structural full-cover layer (pointer-events:none, vignette
-            // removed) — it must NOT block tunneling. Real-click-to-move regression fix.
-            if (e.target.classList.contains('ui-dimmed')) return;
+            // One-finger drags must reach this script instead of panning or zooming the page, or
+            // swiping the browser back. touch-action doesn't cross into iframes, so it is set here.
+            // Scrollable panel areas still scroll (touch-action only combines up to the nearest
+            // scrolling element).
+            document.documentElement.style.touchAction = 'none';
 
-            // If logbook is open, clicking the void should close the logbook instead of moving the player
-            if (document.body.classList.contains('logbook-active')) {
-                if (typeof toggleLogbook === 'function') toggleLogbook();
-                return; 
-            }
+            const send = (phase, dx, dy) => { look.phase = phase; look.dx = dx; look.dy = dy; window.parent.postMessage(look, '*'); };
+            const sendClick = (x, y, button) => window.parent.postMessage({ type: 'CANVAS_CLICK', x: x / vw, y: y / vh, button }, '*');
+            const flush = () => {
+                flushQueued = false;
+                if (!dragging || (accX === 0 && accY === 0)) return;
+                send('move', accX / vw, accY / vw);
+                accX = 0; accY = 0;
+            };
+            const endGesture = () => {
+                if (id === null) return;
+                const pid = id, wasDragging = dragging;
+                if (wasDragging) flush();
+                id = null; dragging = false; accX = 0; accY = 0;   // reset BEFORE release (lostpointercapture)
+                if (wasDragging) send('end', 0, 0);
+                try { document.documentElement.releasePointerCapture(pid); } catch (_) {}
+            };
 
-            // If clicking the "void" (body or container), forward to game
-            // Normalize coordinates (0 - 1)
-            const x = e.clientX / window.innerWidth;
-            const y = e.clientY / window.innerHeight;
+            window.addEventListener('resize', () => { vw = window.innerWidth || 1; vh = window.innerHeight || 1; });
+            window.addEventListener('message', (e) => {
+                if (e.source !== window.parent || !e.data || e.data.type !== 'DRAG_LOOK_MODE') return;
+                enabled = e.data.enabled === true;
+                if (!enabled) endGesture();
+            });
 
-            window.parent.postMessage({
-                type: 'CANVAS_CLICK',
-                x: x,
-                y: y,
-                button: e.button
-            }, '*');
-        });
+            document.addEventListener('pointerdown', (e) => {
+                if (id !== null) { endGesture(); return; }             // a second finger stops the look
+                const t = e.target;
+                if (t && t.closest && t.closest(IGNORE)) return;        // panel controls keep their input
+                if (t && t.classList && t.classList.contains('ui-dimmed')) return;
+                if (document.body.classList.contains('logbook-active')) {
+                    if (typeof toggleLogbook === 'function') toggleLogbook();
+                    return;
+                }
+                if (!enabled || e.button !== 0) { sendClick(e.clientX, e.clientY, e.button); return; }
+                id = e.pointerId; type = e.pointerType;
+                sx = lx = e.clientX; sy = ly = e.clientY;
+                try { document.documentElement.setPointerCapture(id); } catch (_) {}
+            });
+            document.addEventListener('pointermove', (e) => {
+                if (e.pointerId !== id) return;
+                if (!dragging) {
+                    const slop = type === 'touch' ? SLOP_TOUCH_PX : SLOP_MOUSE_PX;
+                    const mx = e.clientX - sx, my = e.clientY - sy;
+                    if (mx * mx + my * my < slop * slop) return;
+                    dragging = true; lx = e.clientX; ly = e.clientY;    // travel inside the slop is dropped
+                    send('start', 0, 0);
+                    return;
+                }
+                accX += e.clientX - lx; accY += e.clientY - ly;
+                lx = e.clientX; ly = e.clientY;
+                if (!flushQueued) { flushQueued = true; requestAnimationFrame(flush); }
+            });
+            document.addEventListener('pointerup', (e) => {
+                if (e.pointerId !== id) return;
+                if (!dragging) sendClick(sx, sy, 0);                    // a tap: walk on release
+                endGesture();
+            });
+            document.addEventListener('pointercancel', (e) => { if (e.pointerId === id) endGesture(); });
+            document.addEventListener('lostpointercapture', (e) => { if (e.pointerId === id) endGesture(); });
+        })();
 
         // 3. Tell the game page the relay is running; index.html only lets this iframe
         //    catch clicks after this (#v4-panel-frame.input-ready).
