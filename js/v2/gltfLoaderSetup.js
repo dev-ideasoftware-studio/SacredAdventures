@@ -73,9 +73,23 @@ const MOBILE_GLB_VARIANTS = new Set([
   "animated.stag.glb",
 ]);
 
-/** On mobile, rewrite `…/X.glb` → `…/X.mobile.glb` for known heavy assets. */
+/**
+ * A weak desktop or very slow device (master prompt C3, Mark 2026-10-22) loads the same light
+ * variants as phones: the quality budget "low" (testing bar, window.SacredQuality) or, until
+ * that exists, the device check's tier 0 / 2 (window.SacredDeviceCheck). Assets requested
+ * before the check has run still load in full.
+ */
+function lowBudgetDesktop() {
+  if (typeof window === "undefined") return false;
+  const q = window.SacredQuality;
+  if (q && typeof q.budget === "string") return q.budget === "low";
+  const t = window.SacredDeviceCheck && window.SacredDeviceCheck.tier;
+  return t === 0 || t === 2;
+}
+
+/** On mobile (or a low-budget desktop), rewrite `…/X.glb` → `…/X.mobile.glb` for known heavy assets. */
 export function mobileGlbUrl(url) {
-  if (typeof url !== "string" || !deviceProfile.isMobile) return url;
+  if (typeof url !== "string" || !(deviceProfile.isMobile || lowBudgetDesktop())) return url;
   const base = url.split("/").pop().split("?")[0];
   if (MOBILE_GLB_VARIANTS.has(base)) {
     return url.replace(/\.glb(\?|$)/i, ".mobile.glb$1");

@@ -1,9 +1,9 @@
 {
-  "subject": "feat(fish): fish budget per device, never fewer than 5 big fish (master prompt C1, Mark)",
-  "isoDate": "2026-10-22T22:24:14+00:00",
+  "subject": "feat(loader): low-budget desktops load the light .mobile.glb variants (master prompt C3, Mark)",
+  "isoDate": "2026-10-22T22:24:59+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "c05c3b9",
+  "commit": "da7cb59",
   "dirty": true,
-  "generatedAt": "2026-10-22T22:24:18.295Z"
+  "generatedAt": "2026-10-22T22:25:03.084Z"
 }
