@@ -26,7 +26,7 @@ async function probe(page) {
       moonW:       Math.round(m.width),
       pillW:       Math.round(p.width),
       gap:         Math.round(p.top - m.bottom),
-      audit: (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length,
+      audit: (window.AnuUniverse?.audit?.() || []).length,
     };
   });
 }

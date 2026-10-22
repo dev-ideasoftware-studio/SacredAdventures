@@ -53,7 +53,7 @@ async function bootAndProbe(page, label) {
       moonTrack:   moonCs ? moonCs.getPropertyValue('--pip-moon-track').trim() : null,
       compassTrack:moonCs ? moonCs.getPropertyValue('--pip-compass-track').trim() : null,
       outerTrack:  moonCs ? moonCs.getPropertyValue('--pip-outer-track').trim() : null,
-      auditLen: (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length,
+      auditLen: (window.AnuUniverse?.audit?.() || []).length,
     };
   });
 

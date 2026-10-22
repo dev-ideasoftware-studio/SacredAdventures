@@ -67,7 +67,7 @@ test('DESKTOP — guide centred between PIP & HUD with ≥30px buffers + AAA con
       titleColor: titleEl ? getComputedStyle(titleEl).color : null,
       bodyColor:  bodyEl  ? getComputedStyle(bodyEl).color  : null,
       blur: cs.backdropFilter || cs.webkitBackdropFilter,
-      auditLen: (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length,
+      auditLen: (window.AnuUniverse?.audit?.() || []).length,
     };
   });
 
