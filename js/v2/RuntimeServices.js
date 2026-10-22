@@ -30,16 +30,6 @@ export const RUNTIME_SERVICE_CONTRACTS = Object.freeze({
     requiredWhenActive: "World",
     description: "Live governed player pose, avatar, yaw, movement, and distance state.",
   }),
-  PipOrthoBranchClip: Object.freeze({
-    owner: "PipOrthoRingDiskClip",
-    optional: true,
-    description:
-      "PiP ortho ring/disk clip — discards forest fragments under the moondial bezel so the compass reads cleanly.",
-    methods: Object.freeze({
-      armOrthoClip: Object.freeze({ kind: "function", arity: 2 }),
-      clearOrthoClip: Object.freeze({ kind: "function", arity: 0 }),
-    }),
-  }),
   WebFontsService: Object.freeze({
     owner: "UIModule",
     optional: true,

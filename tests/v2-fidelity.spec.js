@@ -250,27 +250,20 @@ test("moondial UI surfaces present and season ring is click-pass-through", async
   });
 
   expect(ui.hasWrap).toBe(true);
+  expect(ui.hasSeasonRing).toBe(true);
   expect(ui.hasCompass).toBe(true);
-  if (ui.hasLunar) {
-    expect(ui.hasLunar).toBe(true);
-  }
-  if (ui.hasGlass) {
-    expect(ui.hasGlass).toBe(true);
-  }
-  if (ui.zoomBtnCount > 0) {
-    // UIModule renders a + and a − zoom button.
-    expect(ui.zoomBtnCount).toBe(2);
-  }
+  expect(ui.hasLunar).toBe(true);
+  expect(ui.hasGlass).toBe(true);
+  // UIModule renders a + and a − zoom button.
+  expect(ui.zoomBtnCount).toBe(2);
 
-  if (ui.hasSeasonRing) {
-    // Phase 2.5 contract: season ring background is transparent (no fill,
-    // no shadow) and pointer-events:none on the bg so the ring interior
-    // does not block clicks to the WebGL/PiP glass beneath.
-    expect(ui.seasonBgPointerEvents).toBe("none");
-    // Interior point should resolve to something OTHER than the season ring's
-    // own bg/ring (i.e. the glass, the wrapper, the body, or a deeper layer).
-    expect(ui.interiorTarget).not.toMatch(/season-outer-bg|season-outer-ring/);
-  }
+  // Phase 2.5 contract: season ring background is transparent (no fill,
+  // no shadow) and pointer-events:none on the bg so the ring interior
+  // does not block clicks to the WebGL/PiP glass beneath.
+  expect(ui.seasonBgPointerEvents).toBe("none");
+  // Interior point should resolve to something OTHER than the season ring's
+  // own bg/ring (i.e. the glass, the wrapper, the body, or a deeper layer).
+  expect(ui.interiorTarget).not.toMatch(/season-outer-bg|season-outer-ring/);
 
   expect(pageErrors).toEqual([]);
   expect(fatalConsole).toEqual([]);
@@ -308,7 +301,9 @@ test("rendering governor + service contracts respond to mutations and restore cl
     const restored = gov.getRenderingSnapshot();
 
     // ── Contracts: read-only verification of the current registry. Includes
-    // optional + present services (PipOrthoBranchClip is registered live).
+    // optional + present services. (PipOrthoBranchClip was removed on
+    // 2026-10-22: b0b4575 had emptied it to no-ops while its contract still
+    // claimed it clipped the minimap; see AUDIT 3 / B11.)
     const contracts = svc.validateRuntimeServiceContracts(
       [...window.anuOrchestrator._activeModules],
     );
@@ -346,7 +341,7 @@ test("rendering governor + service contracts respond to mutations and restore cl
   expect(probe.contracts.missing).toEqual([]);
   expect(probe.contracts.malformed).toEqual([]);
   expect(probe.contractKeys).toEqual(
-    expect.arrayContaining(["WorldPhysics", "WorldPlayer", "PipOrthoBranchClip"]),
+    expect.arrayContaining(["WorldPhysics", "WorldPlayer"]),
   );
 
   expect(pageErrors).toEqual([]);

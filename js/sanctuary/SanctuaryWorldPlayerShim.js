@@ -48,17 +48,6 @@ export const SanctuaryWorldPlayerShimModule = {
     }
     if (typeof window !== "undefined") {
       window.WorldPlayer = this._shim;
-      window.WorldPhysics = {
-        gravityEnabled: true,
-        elevationPhysicsEnabled: true,
-        getAnuPhysicsSnapshot() {
-          return {
-            gravityEnabled: true,
-            elevationPhysicsEnabled: true,
-            v4Shim: true
-          };
-        }
-      };
     }
 
     console.log(
@@ -75,9 +64,8 @@ export const SanctuaryWorldPlayerShimModule = {
   },
 
   unload() {
-    if (typeof window !== "undefined") {
-      if (window.WorldPlayer === this._shim) delete window.WorldPlayer;
-      if (window.WorldPhysics) delete window.WorldPhysics;
+    if (typeof window !== "undefined" && window.WorldPlayer === this._shim) {
+      delete window.WorldPlayer;
     }
     this._shim = null;
     this._feet = null;

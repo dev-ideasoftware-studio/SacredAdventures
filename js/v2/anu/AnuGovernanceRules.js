@@ -101,13 +101,13 @@ export function getGovernanceSnapshot(orchestrator = null) {
       ANU_GOVERNANCE_RULES.PHYSICS_3D_GRAVITY.id,
       physics?.gravityEnabled === true,
       physics,
-      "WorldPhysics must expose gravityEnabled=true after World loads.",
+      "No physics engine runs in the live sanctuary build (index.html does not load World/WorldPhysics), so this reports needs_attention honestly. It used to pass only because a fake window.WorldPhysics constant (8127cc9) said gravityEnabled=true.",
     ),
     compliance(
       ANU_GOVERNANCE_RULES.PHYSICS_3D_ELEVATION.id,
       physics?.elevationPhysicsEnabled === true,
       physics,
-      "WorldPhysics must expose elevationPhysicsEnabled=true after terrain height injection.",
+      "No physics engine runs in the live sanctuary build; elevation comes from sanctuaryBodyY(). Reports needs_attention honestly (the fake window.WorldPhysics from 8127cc9 is removed).",
     ),
     compliance(
       ANU_GOVERNANCE_RULES.AI_IO_AUTHORITY.id,

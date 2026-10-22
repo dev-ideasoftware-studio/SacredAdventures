@@ -16,7 +16,7 @@ test('Welcome guide renders + no errors', async ({ browser }) => {
     const cs = getComputedStyle(el);
     const dotsActive = document.querySelectorAll('#sanctuary-welcome-guide .swg-dot.is-active').length;
     const totalDots  = document.querySelectorAll('#sanctuary-welcome-guide .swg-dot').length;
-    const audit = (window.AnuUniverse?.audit?.() || []).filter(x => x.id !== 'pip-full-rate').length;
+    const audit = (window.AnuUniverse?.audit?.() || []).length;
     return {
       found: true,
       hidden: el.classList.contains('is-hidden'),

@@ -6,7 +6,9 @@
     "check:assets": "node scripts/check-assets.mjs",
     "build-info": "node scripts/build-info.mjs",
     "test:v4": "playwright test tests/v4-console.spec.js",
-    "test": "npm run check:v2 && npm run check:assets && npm run test:v4"
+    "test:v2": "playwright test tests/v2-smoke.spec.js",
+    "test:fidelity": "playwright test tests/v2-fidelity.spec.js",
+    "test": "npm run check:v2 && npm run check:assets && npm run test:v4 && npm run test:v2 && npm run test:fidelity"
   },
   "devDependencies": {
     "@gltf-transform/cli": "^4.3.0",

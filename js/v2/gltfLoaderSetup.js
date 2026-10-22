@@ -46,9 +46,13 @@ export function getSharedDRACOLoader() {
 // edits. Desktop always loads the full-detail originals.
 // Two kinds of variant live here:
 //  - decimated (fewer triangles): REG, tipis, BHG, ...
-//  - texture-only (mobile Phase 2, tools/mobile/texonly-variant.mjs): Avatar-New,
-//    NPC.YB, reeds. Geometry, rig and clips are byte-identical to the original;
-//    only the embedded maps are 1024 px instead of 4096 px. On mobile the
+//  - texture-only (mobile Phase 2, tools/mobile/texonly-variant.mjs): NPC.YB,
+//    reeds. Geometry, rig and clips are byte-identical to the original;
+//    only the embedded maps are 1024 px instead of 4096 px.
+//  - Avatar-New.mobile.glb (2026-10-22, Q21 "we need memory for mobiles"):
+//    100k tris instead of 246k (tools/decision-engine/lite.mjs; 41 joints and
+//    9 clips intact, skincheck clean) + 1024 px maps. Close-up comparison:
+//    docs/mobile/img/avatar_phone_246k_vs_100k.jpg. On mobile the
 //    renderer uploads every texture at <= 256 px anyway (Orchestrator's
 //    maxTextureSize cap), so the on-screen result is the same; the variant only
 //    removes the 4096 px download + decode.
@@ -58,7 +62,7 @@ export function getSharedDRACOLoader() {
 const MOBILE_GLB_VARIANTS = new Set([
   "NPC.REG.lite.glb",              // PLN-01 → NPC.REG.lite.mobile.glb (31k tris, 256 px)
   "tipi.yellowbutterfly.lite.glb", // PLN-02 → tipi.yellowbutterfly.lite.mobile.glb (15k tris, 1024 px)
-  "Avatar-New.glb",                // mobile Phase 2 → texture-only, 1024 px maps (11.4 → 3.2 MB)
+  "Avatar-New.glb",                // phone: 100k tris + 1024 px maps (11.4 → 2.5 MB)
   "NPC.YB.glb",                    // mobile Phase 2 → texture-only, 1024 px maps (3.0 → 1.25 MB)
   "reeds.glb",                     // mobile Phase 2 → texture-only, 1024 px map (0.75 → 0.34 MB)
   "tipi.player.glb",

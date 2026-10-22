@@ -24,8 +24,8 @@
   "js/sanctuary/SanctuaryFishJumps.js",
   "js/sanctuary/SanctuaryFishing.js",
   "js/sanctuary/SanctuaryFrogs.js",
+  "js/sanctuary/SanctuaryGrass.js",
   "js/sanctuary/SanctuaryGround.js",
-  "js/sanctuary/SanctuaryHexGrid.js",
   "js/sanctuary/SanctuaryInventory.js",
   "js/sanctuary/SanctuaryJournalBridge.js",
   "js/sanctuary/SanctuaryKeyboardLook.js",
@@ -67,7 +67,6 @@
   "js/v2/anu/AnuWorldSensorium.js",
   "js/v2/anu/FrameBudget.js",
   "js/v2/anu/InteractionBus.js",
-  "js/v2/anu/PipOrthoRingDiskClip.js",
   "js/v2/anu/PipRenderStrategy.js",
   "js/v2/anu/RenderingGovernor.js",
   "js/v2/anu/SceneModelInventory.js",
@@ -91,8 +90,8 @@
    "kind": "postMessage type",
    "name": "ADD_PAGE",
    "senders": [
-    "SacredGame.Panel.html:L2367",
-    "SacredGame.Panel.html:L2414"
+    "SacredGame.Panel.html:L2412",
+    "SacredGame.Panel.html:L2459"
    ],
    "receivers": [
     "js/components/Component.NewJournal.html:L1298",
@@ -117,10 +116,10 @@
    "kind": "postMessage type",
    "name": "CANVAS_CLICK",
    "senders": [
-    "SacredGame.Panel.html:L2896"
+    "SacredGame.Panel.html:L1987"
    ],
    "receivers": [
-    "index.html:L885"
+    "index.html:L915"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -129,12 +128,12 @@
    "kind": "postMessage type",
    "name": "CLOSE_LOGBOOK",
    "senders": [
-    "SacredGame.Panel.html:L2067",
+    "SacredGame.Panel.html:L2112",
     "SacredGame.Journal.html:L376"
    ],
    "receivers": [
-    "index.html:L716",
-    "SacredGame.Panel.html:L2065",
+    "index.html:L729",
+    "SacredGame.Panel.html:L2110",
     "SacredGame.Journal.html:L455"
    ],
    "verdict": "Has receiver",
@@ -168,7 +167,7 @@
    "kind": "postMessage type",
    "name": "FIND_HER_AUTOWALK",
    "senders": [
-    "SacredGame.Panel.html:L2480"
+    "SacredGame.Panel.html:L2525"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no receiver in live code",
@@ -178,10 +177,10 @@
    "kind": "postMessage type",
    "name": "FISH_ACTION",
    "senders": [
-    "SacredGame.Panel.html:L2553"
+    "SacredGame.Panel.html:L2598"
    ],
    "receivers": [
-    "index.html:L785"
+    "index.html:L815"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -190,11 +189,11 @@
    "kind": "postMessage type",
    "name": "FORCE_OPEN_JOURNAL",
    "senders": [
-    "index.html:L689"
+    "index.html:L702"
    ],
    "receivers": [
     "SacredGame.Journal.html:L430",
-    "SacredGame.Panel.html:L2224 (relay list)"
+    "SacredGame.Panel.html:L2269 (relay list)"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -203,7 +202,7 @@
    "kind": "postMessage type",
    "name": "GATHER_ACTION",
    "senders": [
-    "SacredGame.Panel.html:L2546"
+    "SacredGame.Panel.html:L2591"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no receiver in live code",
@@ -213,7 +212,7 @@
    "kind": "postMessage type",
    "name": "GO_TO_PAGE",
    "senders": [
-    "SacredGame.Panel.html:L2340",
+    "SacredGame.Panel.html:L2385",
     "SacredGame.Journal.html:L436",
     "SacredGame.Journal.html:L469",
     "SacredGame.Journal.html:L479",
@@ -235,7 +234,7 @@
    "receivers": [
     "js/sanctuary/SanctuaryJournalBridge.js:L106",
     "js/sanctuary/SanctuaryJournalBridge.js:L109",
-    "SacredGame.Panel.html:L2104"
+    "SacredGame.Panel.html:L2149"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -259,7 +258,7 @@
    "receivers": [
     "js/sanctuary/SanctuaryJournalBridge.js:L106",
     "js/sanctuary/SanctuaryJournalBridge.js:L107",
-    "SacredGame.Panel.html:L2094"
+    "SacredGame.Panel.html:L2139"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -278,14 +277,14 @@
    "kind": "postMessage type",
    "name": "KEY_FORWARD",
    "senders": [
-    "SacredGame.Panel.html:L2024",
-    "SacredGame.Panel.html:L2731",
-    "SacredGame.Panel.html:L2740",
+    "SacredGame.Panel.html:L2069",
+    "SacredGame.Panel.html:L2776",
+    "SacredGame.Panel.html:L2785",
     "SacredGame.Journal.html:L616",
     "SacredGame.Journal.html:L620"
    ],
    "receivers": [
-    "SacredGame.Panel.html:L2459"
+    "SacredGame.Panel.html:L2504"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -330,7 +329,7 @@
    "kind": "postMessage type",
    "name": "OBSERVE_WILDLIFE_ACTION",
    "senders": [
-    "SacredGame.Panel.html:L2559"
+    "SacredGame.Panel.html:L2604"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no receiver in live code",
@@ -340,10 +339,22 @@
    "kind": "postMessage type",
    "name": "OPEN_LOGBOOK",
    "senders": [
-    "SacredGame.Panel.html:L2102"
+    "SacredGame.Panel.html:L2147"
    ],
    "receivers": [
     "SacredGame.Journal.html:L430"
+   ],
+   "verdict": "Has receiver",
+   "note": "Receiver may sit in another frame; both frames scanned"
+  },
+  {
+   "kind": "postMessage type",
+   "name": "PANEL_INPUT_READY",
+   "senders": [
+    "SacredGame.Panel.html:L1998"
+   ],
+   "receivers": [
+    "index.html:L780"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -362,10 +373,10 @@
    "kind": "postMessage type",
    "name": "QUEST_AUTOWALK",
    "senders": [
-    "SacredGame.Panel.html:L2476"
+    "SacredGame.Panel.html:L2521"
    ],
    "receivers": [
-    "SacredGame.Panel.html:L2089"
+    "SacredGame.Panel.html:L2134"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -388,7 +399,7 @@
    ],
    "receivers": [
     "SacredGame.Journal.html:L558",
-    "SacredGame.Panel.html:L2469 (relay list)"
+    "SacredGame.Panel.html:L2514 (relay list)"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -397,10 +408,10 @@
    "kind": "postMessage type",
    "name": "REQ_AUTOWALK_TO_ENTITY",
    "senders": [
-    "SacredGame.Panel.html:L2364"
+    "SacredGame.Panel.html:L2409"
    ],
    "receivers": [
-    "SacredGame.Panel.html:L2267"
+    "SacredGame.Panel.html:L2312"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -415,7 +426,7 @@
    ],
    "receivers": [
     "SacredGame.Journal.html:L550",
-    "SacredGame.Panel.html:L2469 (relay list)"
+    "SacredGame.Panel.html:L2514 (relay list)"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -443,7 +454,7 @@
    ],
    "receivers": [
     "SacredGame.Journal.html:L579",
-    "SacredGame.Panel.html:L2469 (relay list)"
+    "SacredGame.Panel.html:L2514 (relay list)"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -452,11 +463,11 @@
    "kind": "postMessage type",
    "name": "REQ_START_AUTO_WALK",
    "senders": [
-    "SacredGame.Panel.html:L2086",
-    "SacredGame.Panel.html:L2348"
+    "SacredGame.Panel.html:L2131",
+    "SacredGame.Panel.html:L2393"
    ],
    "receivers": [
-    "index.html:L901"
+    "index.html:L931"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -465,10 +476,10 @@
    "kind": "postMessage type",
    "name": "REQ_TOGGLE_JOURNAL",
    "senders": [
-    "SacredGame.Panel.html:L2571"
+    "SacredGame.Panel.html:L2616"
    ],
    "receivers": [
-    "index.html:L751"
+    "index.html:L764"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -480,8 +491,8 @@
     "js/components/Component.NewJournal.html:L650"
    ],
    "receivers": [
-    "index.html:L717",
-    "SacredGame.Panel.html:L2261",
+    "index.html:L730",
+    "SacredGame.Panel.html:L2306",
     "SacredGame.Journal.html:L424"
    ],
    "verdict": "Has receiver",
@@ -514,7 +525,7 @@
     "js/components/Component.NewJournal.html:L651"
    ],
    "receivers": [
-    "index.html:L716"
+    "index.html:L729"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -523,7 +534,7 @@
    "kind": "postMessage type",
    "name": "SEEK_ENTITY",
    "senders": [
-    "SacredGame.Panel.html:L2859"
+    "SacredGame.Panel.html:L2904"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no receiver in live code",
@@ -533,10 +544,10 @@
    "kind": "postMessage type",
    "name": "SWITCH_TAB",
    "senders": [
-    "SacredGame.Panel.html:L2339",
-    "SacredGame.Panel.html:L2356",
-    "SacredGame.Panel.html:L2377",
-    "SacredGame.Panel.html:L2426",
+    "SacredGame.Panel.html:L2384",
+    "SacredGame.Panel.html:L2401",
+    "SacredGame.Panel.html:L2422",
+    "SacredGame.Panel.html:L2471",
     "SacredGame.Journal.html:L489"
    ],
    "receivers": [
@@ -554,7 +565,7 @@
     "SacredGame.Panel.html:L1855"
    ],
    "receivers": [
-    "index.html:L882"
+    "index.html:L912"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -567,7 +578,7 @@
     "js/components/Component.NewJournal.html:L815"
    ],
    "receivers": [
-    "index.html:L876"
+    "index.html:L906"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -579,7 +590,7 @@
     "js/components/Component.LoadingModal.html:L314"
    ],
    "receivers": [
-    "index.html:L417"
+    "index.html:L423"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -588,8 +599,8 @@
    "kind": "postMessage type",
    "name": "VISIBILITY_CHANGE",
    "senders": [
-    "index.html:L690",
-    "index.html:L730",
+    "index.html:L703",
+    "index.html:L743",
     "SacredGame.Journal.html:L351",
     "SacredGame.Journal.html:L358",
     "SacredGame.Journal.html:L370"
@@ -605,11 +616,11 @@
    "kind": "postMessage type",
    "name": "VOLUME_CHANGE",
    "senders": [
-    "SacredGame.Panel.html:L2450",
-    "SacredGame.Panel.html:L2452"
+    "SacredGame.Panel.html:L2495",
+    "SacredGame.Panel.html:L2497"
    ],
    "receivers": [
-    "SacredGame.Panel.html:L2456"
+    "SacredGame.Panel.html:L2501"
    ],
    "verdict": "Has receiver",
    "note": "Receiver may sit in another frame; both frames scanned"
@@ -670,7 +681,7 @@
    "kind": "ANU bus event",
    "name": "MODULE_ACTIVATED",
    "senders": [
-    "js/v2/Orchestrator.js:L444"
+    "js/v2/Orchestrator.js:L442"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
@@ -680,7 +691,7 @@
    "kind": "ANU bus event",
    "name": "MODULE_DEACTIVATED",
    "senders": [
-    "js/v2/Orchestrator.js:L508"
+    "js/v2/Orchestrator.js:L506"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
@@ -700,7 +711,7 @@
    "kind": "ANU bus event",
    "name": "ORCHESTRATOR_BENCH_COMPLETE",
    "senders": [
-    "js/v2/Orchestrator.js:L848"
+    "js/v2/Orchestrator.js:L849"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 no code subscriber (only the DevTools AnuUniverse.interactions.subscribe API)",
@@ -800,18 +811,6 @@
   },
   {
    "kind": "Runtime service lookup",
-   "name": "PipOrthoBranchClip",
-   "senders": [
-    "js/v2/Orchestrator.js:L1619"
-   ],
-   "receivers": [
-    "js/v2/anu/PipOrthoRingDiskClip.js:L44"
-   ],
-   "verdict": "Has receiver",
-   "note": ""
-  },
-  {
-   "kind": "Runtime service lookup",
    "name": "WebFontsService",
    "senders": [
     "js/v2/OrchestratorHud.js:L95"
@@ -826,8 +825,8 @@
    "kind": "Runtime service lookup",
    "name": "WorldPhysics",
    "senders": [
-    "js/v2/WorldStructures.js:L822",
-    "js/v2/WorldStructures.js:L1281",
+    "js/v2/WorldStructures.js:L821",
+    "js/v2/WorldStructures.js:L1276",
     "js/v2/anu/AnuNatureAwareness.js:L235"
    ],
    "receivers": [],
@@ -838,7 +837,7 @@
    "kind": "Runtime service lookup",
    "name": "WorldPlayer",
    "senders": [
-    "js/v2/Orchestrator.js:L1400",
+    "js/v2/Orchestrator.js:L1399",
     "js/v2/UIModule.js:L231",
     "js/v2/UIModule.js:L248"
    ],
@@ -933,10 +932,10 @@
     "js/sanctuary/SanctuaryFish.js:L1209",
     "js/sanctuary/SanctuaryFish.js:L1258",
     "js/sanctuary/SanctuaryFish.js:L1342",
-    "js/sanctuary/SanctuaryFishing.js:L2230"
+    "js/sanctuary/SanctuaryFishing.js:L2297"
    ],
    "receivers": [
-    "js/sanctuary/SanctuaryFishing.js:L991"
+    "js/sanctuary/SanctuaryFishing.js:L1058"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -946,7 +945,7 @@
    "name": "__sanctuarySpawnBabyFish",
    "senders": [
     "js/sanctuary/SanctuaryFish.js:L604",
-    "js/sanctuary/SanctuaryFishing.js:L2439"
+    "js/sanctuary/SanctuaryFishing.js:L2506"
    ],
    "receivers": [
     "js/sanctuary/SanctuaryFish.js:L547"
@@ -958,13 +957,13 @@
    "kind": "window.* function call",
    "name": "_v4CancelClickToMove",
    "senders": [
-    "js/sanctuary/SanctuaryFishing.js:L1521",
-    "js/sanctuary/SanctuaryFishing.js:L2641",
+    "js/sanctuary/SanctuaryFishing.js:L1588",
+    "js/sanctuary/SanctuaryFishing.js:L2708",
     "js/sanctuary/SanctuaryKeyboardLook.js:L80",
     "js/sanctuary/SanctuaryKeyboardLook.js:L136",
     "js/sanctuary/SanctuaryKeyboardLook.js:L170",
-    "index.html:L828",
-    "index.html:L904"
+    "index.html:L858",
+    "index.html:L934"
    ],
    "receivers": [
     "js/sanctuary/SanctuaryClickToMove.js:L223"
@@ -976,8 +975,8 @@
    "kind": "window.* function call",
    "name": "_v4SmartWalkTo",
    "senders": [
-    "index.html:L854",
-    "index.html:L858"
+    "index.html:L884",
+    "index.html:L888"
    ],
    "receivers": [
     "js/sanctuary/SanctuaryClickToMove.js:L252"
@@ -989,10 +988,10 @@
    "kind": "window.* function call",
    "name": "_v4StartFishing",
    "senders": [
-    "index.html:L832"
+    "index.html:L862"
    ],
    "receivers": [
-    "js/sanctuary/SanctuaryFishing.js:L1272"
+    "js/sanctuary/SanctuaryFishing.js:L1339"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1002,11 +1001,11 @@
    "name": "_v4ToggleJournal",
    "senders": [
     "js/sanctuary/SanctuaryControls.js:L246",
-    "index.html:L294",
-    "index.html:L661"
+    "index.html:L300",
+    "index.html:L674"
    ],
    "receivers": [
-    "index.html:L693"
+    "index.html:L706"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1016,11 +1015,11 @@
    "name": "_v4TogglePanel",
    "senders": [
     "js/sanctuary/SanctuaryControls.js:L241",
-    "index.html:L313",
-    "index.html:L791"
+    "index.html:L319",
+    "index.html:L821"
    ],
    "receivers": [
-    "index.html:L736"
+    "index.html:L749"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -1029,7 +1028,7 @@
    "kind": "window.* function call",
    "name": "_v4TogglePip",
    "senders": [
-    "index.html:L801"
+    "index.html:L831"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 never assigned in live code",
@@ -1039,7 +1038,7 @@
    "kind": "window.* function call",
    "name": "_v4ToggleTopDown",
    "senders": [
-    "index.html:L880"
+    "index.html:L910"
    ],
    "receivers": [
     "js/sanctuary/SanctuaryControls.js:L278"
@@ -1053,7 +1052,7 @@
    "senders": [
     "js/sanctuary/SanctuaryClickToMove.js:L283",
     "js/sanctuary/SanctuaryClickToMove.js:L323",
-    "index.html:L851"
+    "index.html:L881"
    ],
    "receivers": [
     "js/sanctuary/SanctuaryClickToMove.js:L236"
@@ -1104,7 +1103,7 @@
    "kind": "window.* function call",
    "name": "sanctuaryGrant",
    "senders": [
-    "js/sanctuary/SanctuaryFishing.js:L2446"
+    "js/sanctuary/SanctuaryFishing.js:L2513"
    ],
    "receivers": [
     "js/sanctuary/SanctuaryInventory.js:L155"
@@ -1126,7 +1125,7 @@
     "js/sanctuary/SanctuaryFish.js:L1581",
     "js/sanctuary/SanctuaryFishJumps.js:L152",
     "js/sanctuary/SanctuaryFishJumps.js:L172",
-    "js/sanctuary/SanctuaryFishing.js:L2232",
+    "js/sanctuary/SanctuaryFishing.js:L2299",
     "js/sanctuary/SanctuaryFrogs.js:L886"
    ],
    "receivers": [
@@ -1165,11 +1164,11 @@
    "kind": "window.* function call",
    "name": "toggleLogbook",
    "senders": [
-    "SacredGame.Panel.html:L2085",
-    "SacredGame.Panel.html:L2191",
-    "SacredGame.Panel.html:L2475",
-    "SacredGame.Panel.html:L2479",
-    "SacredGame.Panel.html:L2537",
+    "SacredGame.Panel.html:L2130",
+    "SacredGame.Panel.html:L2236",
+    "SacredGame.Panel.html:L2520",
+    "SacredGame.Panel.html:L2524",
+    "SacredGame.Panel.html:L2582",
     "SacredGame.Journal.html:L425",
     "SacredGame.Journal.html:L432",
     "SacredGame.Journal.html:L449",
@@ -1179,7 +1178,7 @@
     "SacredGame.Journal.html:L486"
    ],
    "receivers": [
-    "SacredGame.Panel.html:L2565",
+    "SacredGame.Panel.html:L2610",
     "SacredGame.Journal.html:L339"
    ],
    "verdict": "Has receiver",
@@ -1215,7 +1214,7 @@
    "kind": "DOM id lookup",
    "name": "action-log",
    "senders": [
-    "SacredGame.Panel.html:L2796"
+    "SacredGame.Panel.html:L2841"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1796"
@@ -1227,11 +1226,11 @@
    "kind": "DOM id lookup",
    "name": "action-zone",
    "senders": [
-    "SacredGame.Panel.html:L2579",
-    "SacredGame.Panel.html:L2594",
-    "SacredGame.Panel.html:L2604",
-    "SacredGame.Panel.html:L2648",
-    "SacredGame.Panel.html:L2707"
+    "SacredGame.Panel.html:L2624",
+    "SacredGame.Panel.html:L2639",
+    "SacredGame.Panel.html:L2649",
+    "SacredGame.Panel.html:L2693",
+    "SacredGame.Panel.html:L2752"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1664"
@@ -1243,7 +1242,7 @@
    "kind": "DOM id lookup",
    "name": "adventure-row-top",
    "senders": [
-    "SacredGame.Panel.html:L2116"
+    "SacredGame.Panel.html:L2161"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1749"
@@ -1255,7 +1254,7 @@
    "kind": "DOM id lookup",
    "name": "aria-announcer",
    "senders": [
-    "SacredGame.Panel.html:L2290"
+    "SacredGame.Panel.html:L2335"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1621"
@@ -1267,7 +1266,7 @@
    "kind": "DOM id lookup",
    "name": "aria-live-narrator",
    "senders": [
-    "SacredGame.Panel.html:L2817"
+    "SacredGame.Panel.html:L2862"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1800"
@@ -1339,7 +1338,7 @@
    "kind": "DOM id lookup",
    "name": "book-wrapper",
    "senders": [
-    "SacredGame.Panel.html:L2315",
+    "SacredGame.Panel.html:L2360",
     "SacredGame.Journal.html:L274",
     "SacredGame.Journal.html:L340",
     "SacredGame.Journal.html:L382",
@@ -1365,7 +1364,7 @@
    "kind": "DOM id lookup",
    "name": "btn-items",
    "senders": [
-    "SacredGame.Panel.html:L2516"
+    "SacredGame.Panel.html:L2561"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1680"
@@ -1377,8 +1376,8 @@
    "kind": "DOM id lookup",
    "name": "btn-journal",
    "senders": [
-    "SacredGame.Panel.html:L2099",
-    "SacredGame.Panel.html:L2110"
+    "SacredGame.Panel.html:L2144",
+    "SacredGame.Panel.html:L2155"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1685"
@@ -1415,7 +1414,7 @@
    "kind": "DOM id lookup",
    "name": "card-fish-btn",
    "senders": [
-    "SacredGame.Panel.html:L2554"
+    "SacredGame.Panel.html:L2599"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1771"
@@ -1427,7 +1426,7 @@
    "kind": "DOM id lookup",
    "name": "card-gather-btn",
    "senders": [
-    "SacredGame.Panel.html:L2548"
+    "SacredGame.Panel.html:L2593"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1765"
@@ -1439,8 +1438,8 @@
    "kind": "DOM id lookup",
    "name": "card-log-btn",
    "senders": [
-    "SacredGame.Panel.html:L2098",
-    "SacredGame.Panel.html:L2109"
+    "SacredGame.Panel.html:L2143",
+    "SacredGame.Panel.html:L2154"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1783"
@@ -1452,13 +1451,13 @@
    "kind": "DOM id lookup",
    "name": "card-quest-btn",
    "senders": [
-    "SacredGame.Panel.html:L2124",
-    "SacredGame.Panel.html:L2198",
-    "SacredGame.Panel.html:L2252",
-    "SacredGame.Panel.html:L2483",
-    "SacredGame.Panel.html:L2505",
-    "SacredGame.Panel.html:L2512",
-    "SacredGame.Panel.html:L2539"
+    "SacredGame.Panel.html:L2169",
+    "SacredGame.Panel.html:L2243",
+    "SacredGame.Panel.html:L2297",
+    "SacredGame.Panel.html:L2528",
+    "SacredGame.Panel.html:L2550",
+    "SacredGame.Panel.html:L2557",
+    "SacredGame.Panel.html:L2584"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1756"
@@ -1470,8 +1469,8 @@
    "kind": "DOM id lookup",
    "name": "card-search-btn",
    "senders": [
-    "SacredGame.Panel.html:L2205",
-    "SacredGame.Panel.html:L2560"
+    "SacredGame.Panel.html:L2250",
+    "SacredGame.Panel.html:L2605"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1777"
@@ -1483,7 +1482,7 @@
    "kind": "DOM id lookup",
    "name": "center-stack",
    "senders": [
-    "SacredGame.Panel.html:L2313"
+    "SacredGame.Panel.html:L2358"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1747"
@@ -1495,7 +1494,7 @@
    "kind": "DOM id lookup",
    "name": "debug-viewport",
    "senders": [
-    "SacredGame.Panel.html:L2673"
+    "SacredGame.Panel.html:L2718"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 id not created anywhere in live code",
@@ -1505,8 +1504,8 @@
    "kind": "DOM id lookup",
    "name": "desc-quest",
    "senders": [
-    "SacredGame.Panel.html:L2484",
-    "SacredGame.Panel.html:L2506"
+    "SacredGame.Panel.html:L2529",
+    "SacredGame.Panel.html:L2551"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1761"
@@ -1531,8 +1530,8 @@
    "kind": "DOM id lookup",
    "name": "event-log",
    "senders": [
-    "SacredGame.Panel.html:L2282",
-    "SacredGame.Panel.html:L2433"
+    "SacredGame.Panel.html:L2327",
+    "SacredGame.Panel.html:L2478"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1879"
@@ -1557,8 +1556,8 @@
    "name": "guides-container",
    "senders": [
     "SacredGame.Panel.html:L1945",
-    "SacredGame.Panel.html:L2096",
-    "SacredGame.Panel.html:L2107"
+    "SacredGame.Panel.html:L2141",
+    "SacredGame.Panel.html:L2152"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1754"
@@ -1583,7 +1582,7 @@
    "kind": "DOM id lookup",
    "name": "journal-frame",
    "senders": [
-    "SacredGame.Panel.html:L1960",
+    "SacredGame.Panel.html:L2005",
     "SacredGame.Journal.html:L334"
    ],
    "receivers": [],
@@ -1594,10 +1593,10 @@
    "kind": "DOM id lookup",
    "name": "left-panel",
    "senders": [
-    "SacredGame.Panel.html:L1985",
-    "SacredGame.Panel.html:L2004",
-    "SacredGame.Panel.html:L2114",
-    "SacredGame.Panel.html:L2314"
+    "SacredGame.Panel.html:L2030",
+    "SacredGame.Panel.html:L2049",
+    "SacredGame.Panel.html:L2159",
+    "SacredGame.Panel.html:L2359"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1642"
@@ -1609,9 +1608,9 @@
    "kind": "DOM id lookup",
    "name": "llm-input",
    "senders": [
-    "SacredGame.Panel.html:L2668",
-    "SacredGame.Panel.html:L2748",
-    "SacredGame.Panel.html:L2816",
+    "SacredGame.Panel.html:L2713",
+    "SacredGame.Panel.html:L2793",
+    "SacredGame.Panel.html:L2861",
     "js/components/Component.NewJournal.html:L915"
    ],
    "receivers": [
@@ -1661,7 +1660,7 @@
    "kind": "DOM id lookup",
    "name": "logbook-container",
    "senders": [
-    "SacredGame.Panel.html:L2824"
+    "SacredGame.Panel.html:L2869"
    ],
    "receivers": [],
    "verdict": "LIMBO \u2014 id not created anywhere in live code",
@@ -1832,8 +1831,8 @@
    "kind": "DOM id lookup",
    "name": "right-panel",
    "senders": [
-    "SacredGame.Panel.html:L2115",
-    "SacredGame.Panel.html:L2608"
+    "SacredGame.Panel.html:L2160",
+    "SacredGame.Panel.html:L2653"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1663"
@@ -1924,7 +1923,7 @@
    "kind": "DOM id lookup",
    "name": "ui-layer",
    "senders": [
-    "SacredGame.Panel.html:L2677"
+    "SacredGame.Panel.html:L2722"
    ],
    "receivers": [
     "SacredGame.Panel.html:L1599"
@@ -2107,8 +2106,8 @@
     "js/sanctuary/SanctuaryToolPalette.js:L478",
     "js/v2/OrchestratorHud.js:L884",
     "js/v2/OrchestratorHud.js:L943",
-    "index.html:L437",
-    "index.html:L868"
+    "index.html:L443",
+    "index.html:L898"
    ],
    "receivers": [
     "js/v2/OrchestratorHud.js:L157",
@@ -2160,7 +2159,7 @@
    "kind": "DOM id lookup",
    "name": "v2-pip-canvas",
    "senders": [
-    "js/v2/Orchestrator.js:L1406",
+    "js/v2/Orchestrator.js:L1405",
     "js/v2/UIModule.js:L226"
    ],
    "receivers": [
@@ -2318,10 +2317,10 @@
    "kind": "DOM id lookup",
    "name": "v4-banner",
    "senders": [
-    "index.html:L766"
+    "index.html:L796"
    ],
    "receivers": [
-    "index.html:L325"
+    "index.html:L331"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2416,11 +2415,11 @@
    "kind": "DOM id lookup",
    "name": "v4-canvas",
    "senders": [
-    "index.html:L430",
-    "index.html:L891"
+    "index.html:L436",
+    "index.html:L921"
    ],
    "receivers": [
-    "index.html:L291"
+    "index.html:L297"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2482,11 +2481,11 @@
    "kind": "DOM id lookup",
    "name": "v4-fishing-pip-glass-style",
    "senders": [
-    "js/sanctuary/SanctuaryFishing.js:L1012"
+    "js/sanctuary/SanctuaryFishing.js:L1079"
    ],
    "receivers": [
-    "js/sanctuary/SanctuaryFishing.js:L1014",
-    "js/sanctuary/SanctuaryFishing.js:L1014"
+    "js/sanctuary/SanctuaryFishing.js:L1081",
+    "js/sanctuary/SanctuaryFishing.js:L1081"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2509,10 +2508,10 @@
    "kind": "DOM id lookup",
    "name": "v4-journal-frame",
    "senders": [
-    "index.html:L676"
+    "index.html:L689"
    ],
    "receivers": [
-    "index.html:L304"
+    "index.html:L310"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2522,11 +2521,11 @@
    "name": "v4-journal-overlay",
    "senders": [
     "js/sanctuary/SanctuaryKeyboardLook.js:L276",
-    "index.html:L675",
-    "index.html:L699"
+    "index.html:L688",
+    "index.html:L712"
    ],
    "receivers": [
-    "index.html:L296"
+    "index.html:L302"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2535,10 +2534,10 @@
    "kind": "DOM id lookup",
    "name": "v4-journal-overlay-close",
    "senders": [
-    "index.html:L697"
+    "index.html:L710"
    ],
    "receivers": [
-    "index.html:L299"
+    "index.html:L305"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2548,11 +2547,11 @@
    "name": "v4-loading-iframe",
    "senders": [
     "index.html:L67",
-    "index.html:L383",
-    "index.html:L410"
+    "index.html:L389",
+    "index.html:L416"
    ],
    "receivers": [
-    "index.html:L285"
+    "index.html:L291"
    ],
    "verdict": "Has receiver",
    "note": ""
@@ -2574,10 +2573,11 @@
    "kind": "DOM id lookup",
    "name": "v4-panel-frame",
    "senders": [
-    "index.html:L725"
+    "index.html:L738",
+    "index.html:L771"
    ],
    "receivers": [
-    "index.html:L320"
+    "index.html:L326"
    ],
    "verdict": "Has receiver",
    "note": ""
