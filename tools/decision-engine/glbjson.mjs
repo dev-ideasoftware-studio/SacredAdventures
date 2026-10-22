@@ -7,6 +7,9 @@ function dims(buf){ if(buf[0]===0x89) return [buf.readUInt32BE(16),buf.readUInt3
   if(buf[0]===0xff){let i=2;while(i<buf.length){const m=buf[i+1];const l=buf.readUInt16BE(i+2);if(m>=0xc0&&m<=0xc3)return[buf.readUInt16BE(i+7),buf.readUInt16BE(i+5)];i+=2+l;}}
   if(buf.slice(0,4).toString()==='RIFF'&&buf.slice(12,16).toString()==='VP8X') return [1+buf.readUIntLE(24,3),1+buf.readUIntLE(27,3)];
   return [0,0]; }
+// Usage: node glbjson.mjs <out.json> <a.glb> [b.glb ...]   — argv[2] is the OUTPUT and gets overwritten.
+// Guard (ATT, 2026-10-22): passing a .glb first once overwrote Assets/flora/reeds.glb with "{}".
+if (!process.argv[2] || !process.argv[2].endsWith('.json')) { console.error('glbjson: first argument must be the output .json path'); process.exit(2); }
 const out={};
 for (const f of process.argv.slice(3)) {
   try{ const doc=await io.read(f); const r=doc.getRoot(); let tris=0;

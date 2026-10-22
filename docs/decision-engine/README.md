@@ -36,7 +36,11 @@ Plan, attempts, findings, claims and decisions live in `tools/decision-engine/bu
 | --- | --- |
 | `extract.py` | Import graph from both entry pages; per-file status, globals, events, services, assets, per-frame hazards |
 | `limbo.py` | Matches every message, event, service, `window.*` call and DOM id to a live receiver |
-| `glbjson.mjs` | Triangles, textures and VRAM per GLB |
+| `glbjson.mjs` | Triangles, textures and VRAM per GLB (`node glbjson.mjs out.json a.glb …` — the **output comes first**; ATT-30) |
+| `scene_census.mjs` + `census_pre.mjs` + `node_stage.mjs` | Runs a sanctuary module's real `load()` in Node and counts draws, shadow draws, triangles and materials per `anuKind` (`node --import ./tools/decision-engine/census_pre.mjs tools/decision-engine/scene_census.mjs <file> <ExportName> …`) |
+| `patchcheck.mjs` | Lists `onBeforeCompile` `.replace()` targets that don't exist in r160's raw shader text (dead patches) |
+| `hotscan.py` | Per-function hazard flags (allocations, lookups, DOM writes, disposes) and which functions run every frame |
+| `proposals/` | `mergeStatic.js` (merge helper, not wired in) and its equivalence tests `test_mergeStatic.mjs`, `test_mergeOthers.mjs` — see the Coder Playbook |
 | `lite.mjs` | Decimate + downsize textures + Draco (`node lite.mjs in.glb out.glb <tris> <maxTexPx>`) |
 | `skincheck.mjs` | Joints, skin weights and animation clips survive a decimation |
 | `dump.mjs` + `raster.py` | Offline per-pixel preview of a model (no browser needed) |
