@@ -545,7 +545,7 @@ PLAN = [
      "All-external-blocked boot: zero page errors.", "Not started", "Offline: lucide@latest failure leaves panel action handlers undefined."),
     ("PLN-15", 15, "Correct README / CONTRIBUTING", "FND-19", "README.md; CONTRIBUTING.md; PROGRESS.md",
      "Docs match 10_System facts.", "Not started", ""),
-    ("PLN-31", 31, "Village builder P1-1 — hex grid + Yellow Butterfly's lodge ground", "", "new js/sanctuary/SanctuaryHex.js, SanctuaryHexOccupancy.js, SanctuaryPlacement.js (canPlace), js/sanctuary/data/mapLayouts.js; SanctuaryTipis.js (anchor lookup only)", "hexAt(hexCentre(q, r)) round-trips; tipi 1 (18, -2) lies in tile (2, 0); canPlace refuses water, tipis, the lodge disk and slopes with a picture reason; the lodge ring shows on maps 1 and 2; tipi positions unchanged", "Not started", "Spec: project doc claude/village-phases/P1_1_HEX_GRID_AND_LODGE_GROUND.md. Builds on coder pack W3-W6. Hex corner radius 6.27 m; lodge disk 8.0 m at (21.72, 0) on maps 1, 3, 4, 5 and at (-28, 0) on map 2 (roadmap #3)."),
+    ("PLN-31", 31, "Village builder P1-1 — hex grid + Yellow Butterfly's lodge ground", "", "new js/sanctuary/SanctuaryHex.js, SanctuaryHexOccupancy.js, SanctuaryVillageRules.js (canPlace), js/sanctuary/data/mapLayouts.js; SanctuaryTipis.js (anchor lookup only)", "hexAt(hexCentre(q, r)) round-trips; tipi 1 (18, -2) lies in tile (2, 0); canPlace refuses water, tipis, the lodge disk and slopes with a picture reason; the lodge ring shows on maps 1 and 2; tipi positions unchanged", "Not started", "Spec: project doc claude/village-phases/P1_1_HEX_GRID_AND_LODGE_GROUND.md. Builds on coder pack W3-W6. Hex corner radius 6.27 m; lodge disk 8.0 m at (21.72, 0) on maps 1, 3, 4, 5 and at (-28, 0) on map 2 (roadmap #3)."),
     ("PLN-32", 32, "Village builder P1-2 — building data, one registry, save v2", "", "new js/sanctuary/data/buildingTypes.js, js/sanctuary/data/strings.en.js, js/sanctuary/SanctuaryBuildings.js; SanctuaryControls.js (save/load)", "Spec tests 1-7 pass: an old save loads at tier 1, level 1; the tier-2 unlock survives taking a building down; a fake tier-3 row changes no save; level 10 reads 1.9x; 'fishery' loads as dryingRack", "Not started", "Spec: claude/village-phases/P1_2_BUILDING_DATA_AND_SAVE.md. Every map has 3 tipis (measured), not 4."),
     ("PLN-33", 33, "Village builder P1-3 — tap, tap, tick placement (fixed tray, picture reasons, undo chip, 60° turns)", "", "new js/sanctuary/SanctuaryPlaceTray.js, SanctuaryPlaceIcons.js; SanctuarySelect.js from coder pack W6 (ROT_STEP_RAD pi/3, action bar docked in the tray, 64 px buttons); SanctuaryClickToMove.js (Village View branch)", "A tipi placed with three taps and no drag on the phone profile; keyboard-only placement; 64 CSS px buttons; every refusal shows a picture; FND-49 probe still passes", "Not started", "Spec: claude/village-phases/P1_3_PLACEMENT_FLOW.md. Lands after coder pack W6, not instead of it."),
     ("PLN-34", 34, "Village builder P2-1 — Tier-1 buildings and the plan/built lifecycle (drying rack first)", "", "fishery spec F0-F6 files; new js/sanctuary/SanctuaryBuildingLifecycle.js, js/sanctuary/buildings/*.js, js/sanctuary/quests/*.js", "Each Tier-1 building can be requested, placed, built by its keeper and helpers, and reloaded mid-build on a phone; the 13th building is refused; the tier-2 unlock flag is permanent", "Not started", "Spec: claude/village-phases/P2_1_TIER1_BUILDINGS.md + claude/fishery-quest-spec.md. 'Drying rack', never 'fishery', in player text. The partner sees names, dialogue and models before they ship."),
@@ -554,6 +554,8 @@ PLAN = [
     ("PLN-37", 37, "Village builder P2-4 — food loop (play-time clock, garden, drying rack, food cache, cooking fire, wish baskets, story seasons, hearts, save v3)", "", "new js/sanctuary/SanctuaryClock.js, SanctuaryFood.js, SanctuaryGarden.js, SanctuarySmoke.js, SanctuaryJournalBook.js, js/sanctuary/data/{items,crops,recipes,seasons}.js", "A hidden tab advances nothing; the garden draws in <= 8 calls; all smoke and drying effects <= 3 calls; an empty cache still gives an evening meal; a v2 save loads; the save code round-trips", "Not started", "Spec: claude/village-phases/P2_4_FOOD_LOOP.md; research claude/village-farm-sim-research.md. Ten kind rules: nothing lost, no hunger, nobody leaves, no meter ever falls."),
     ("PLN-38", 38, "Village builder P3-1 — levels 1-10 (one more slot per level, plain beads, no timers)", "", "drawer info card; new js/sanctuary/SanctuaryBuildingProps.js; SanctuaryBuildings.update(level)", "Level 1 to 10 costs 34 wood; 12 buildings at level 10 add <= 9 draw calls; 60 fps on the phone profile", "Not started", "Spec: claude/village-phases/P3_1_LEVELS.md. Replaces the plan's Q13 default (levels L1-L3)."),
     ("PLN-39", 39, "Village builder P3-2 — Yellow Butterfly's big lodge (Tier 2)", "", "new js/sanctuary/SanctuaryLodgeCelebration.js; lodge lite GLB; SanctuaryTipis.js; SanctuaryTipiNpcs.js; ground-height hook from Phase 1 P7", "The unlock survives taking a building down; a tier-2 save loads the lodge at its centre with Yellow Butterfly seated; the celebration lasts <= 10 s and can be skipped; 60 fps after the swap", "Not started", "Spec: claude/village-phases/P3_2_YELLOW_BUTTERFLY_LODGE.md. In place, a 2x lodge would reach 3.3 m into the pond and overlap tipi 4 by 2.1 m (measured); default is tile (2, 0)'s centre with a 7.5 m platform (roadmap #3, Mark decides)."),
+    ("PLN-40", 40, "Village builder P2-5 — building models (parts library, one village atlas, plan look and 4-stage reveal; drying rack, cooking fire, food cache, garden, play area, light home tipi, lodge, villager rig, card pictures)", "", "new js/sanctuary/buildings/parts.js and js/sanctuary/buildings/*.js; Assets/village/atlas_*.png; Assets/Tipi.home/; Assets/lodge/; Assets/villager/; Assets/ui/cards/", "Each Tier-1 building <= 1,500 tris and <= 3 draw calls with 4 visible stages; the Tier-1 set <= 7,500 tris and <= 15 draw calls; home tipi <= 8,000 tris; lodge <= 40k tris and <= 3 draw calls; villager <= 2,500 tris; card pictures <= 20 KB each", "Not started", "Spec: claude/village-phases/P2_5_BUILDING_MODELS.md (items M1-M8 in 64_Next_Plan). Built in code now from shared parts (roadmap #23); artist models drop in later through data. The partner and Mark see every model before it ships."),
+    ("PLN-41", 41, "Village builder team dispatch — five AI seats: A ground & systems, B data/save/buildings, C input & UI, D villagers, R reviewer & integrator", "", "claude/village-phases/prompts/ (00_TEAM_PROTOCOL.md, 00_DISPATCH.md and 9 seat prompts); claims on tmp/handoff.md and claude/LOCKS.md", "R lands each phase in protocol §6 order; every 'Proves it' in 64_Next_Plan passes; Mark plays each phase on a phone and on desktop before the next one starts", "Not started", "Only R writes in Mark's clone (one writer at a time); the other seats deliver bundles. No agents or subagents without Mark's go-ahead. Seats and prompts: 65_Team_Seats; Mark's questions: 66_Owner_Decisions."),
 ]
 
 # ── claims vs verified ──────────────────────────────────────────────────
@@ -609,6 +611,8 @@ DECISIONS = [
     ("DEC-29", "Reserve Yellow Butterfly's lodge ground from Phase 1; the 2x lodge stands on tile (2, 0)'s centre on maps 1, 3, 4 and 5", "Measured: in place, a 2x lodge reaches 3.3 m into the pond and overlaps tipi 4 by 2.1 m; at (21.72, 0) with a 7.5 m platform it clears both by about 2.2 m. Built buildings never move (Q7), so the ground must be kept free first.", "Measured on 68dcab1: V2_HEX_CIRCUMRADIUS 6.27, platform 4.7 m, tipi GLB 5.5 x 6.4 m at 7.2 m tall. Default until Mark decides (roadmap #3).", "PLN-31, PLN-39"),
     ("DEC-30", "Cultural gates for the village builder", "A partner community reviews every name, word, picture and line; a permission ledger in data; 'drying rack', not 'fishery'; no 'Three Sisters' label or sunflowers by default; tobacco, medicines, sage, sweetgrass, cedar, songs, offerings and ceremonies never become mechanics; generosity is never scored.", "Research reports claude/village-builder-research.md §2 and claude/village-farm-sim-research.md §5 (Looking Horse Proclamation, MIAC 2024 on wild rice, Hoċokata Ṫi).", "PLN-31..39"),
     ("DEC-31", "The village-phases specs replace older village-builder defaults", "Mark's 22 Oct brief (a Tier-2 lodge; levels to 10) and the research: levels 1-10 replace the plan's L1-L3; 60° turns and a fixed tray replace 45° and floating buttons; the coder pack's §10 'later' section is superseded for Phases 2-3.", "Each spec lists what it overrides; P1-3 builds on coder pack W6 instead of redoing it.", "PLN-31..39"),
+    ("DEC-32", "The Decision Engine gold has one owner: Claude (village researcher)", "Mark, 2026-10-22: 'you control the decision-engine gold now'. The rebuild had failed since ffbd558 (KeyError 'status') and a preview build sat uncommitted over the tracked workbook.", "The owner rebuilds from a HEAD snapshot outside the repo and alone commits Decision_Engine.xlsx and data/*.json. Everyone else reserves IDs on tmp/handoff.md, commits rows only (build_engine.py, rows_*.py) through a temporary index, and builds previews outside the repo.", "PLN-41, LOG-41"),
+    ("DEC-33", "The village builder, Phases 1-3, is the next plan", "Mark, 2026-10-22: 'move the plans into the decision engine as our next plan'. The specs, the model plan and the five-seat prompt pack are written; all 25 owner questions have defaults, so building can start before he answers.", "64_Next_Plan holds 66 items in the team protocol's landing order (§6), each with its spec section, dependencies, files, proof and gate; every build prints any dependency that would land after its item.", "PLN-31..41"),
 ]
 
 # ── review playbook ──────────────────────────────────────────────────────
@@ -1112,6 +1116,33 @@ sheet("61_Decision_Log", "L6 Plan", "Why each choice was made, the evidence, and
 sheet("62_Review_Playbook", "L6 Plan", "Symptom → where to cut in → mechanical check → last result.", "A known symptom reappears.",
       "Mechanical review playbook", "Zero-trust: run the check, do not trust the last result blindly",
       ["Review ID", "Symptom", "Subsystem", "Penetration point", "Mechanical check", "Last result"], [list(p) for p in PLAYBOOK], [9, 30, 9, 40, 70, 44])
+
+# ── 64-66: the next plan (village builder Phases 1-3), its AI seats and the owner's decisions ──
+# Rows live in rows_village_next_plan.py, run in its own namespace (DEC-32: the Decision Engine owner keeps it).
+_np_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rows_village_next_plan.py")
+_np = {}
+exec(compile(open(_np_path, encoding="utf-8").read(), _np_path, "exec"), _np)
+NEXT_PLAN, NEXT_PLAN_HEAD, NP_STATUS = _np["NEXT_PLAN"], _np["NEXT_PLAN_HEAD"], _np["NP_STATUS"]
+TEAM_SEATS, TEAM_SEATS_HEAD = _np["TEAM_SEATS"], _np["TEAM_SEATS_HEAD"]
+OWNER_DECISIONS, OWNER_DECISIONS_HEAD = _np["OWNER_DECISIONS"], _np["OWNER_DECISIONS_HEAD"]
+NP_PHASE_FILL = {1: "E6F0E0", 2: "FBEFD2", 3: "E2EBF5"}
+np_ws, np_hr = sheet("64_Next_Plan", "L6 Plan", "The next plan: the village builder, Phases 1-3, item by item in landing order, with seat, spec, proof and gate.", "Picking up village-builder work; checking what lands next.",
+                     "Next plan: village builder, Phases 1-3", "Landing order from the team protocol §6. Status is a dropdown. Specs: Sacred-Ones project docs claude/village-phases/",
+                     NEXT_PLAN_HEAD, [list(r) for r in NEXT_PLAN], [13, 6, 5, 6, 40, 30, 22, 46, 50, 28, 13, 16])
+np_dv = DataValidation(type="list", formula1=NP_STATUS, allow_blank=False)
+np_ws.add_data_validation(np_dv)
+np_dv.add(f"K{np_hr + 1}:K{np_hr + len(NEXT_PLAN)}")
+for i, r in enumerate(NEXT_PLAN):
+    np_ws.cell(row=np_hr + 1 + i, column=2).fill = PatternFill("solid", fgColor=NP_PHASE_FILL[r[1]])
+_np_pos = {r[0]: r[3] for r in NEXT_PLAN}
+np_check = sorted({r[0] for r in NEXT_PLAN if [x[0] for x in NEXT_PLAN].count(r[0]) > 1})
+np_check += [f"{r[0]} lands before {d.strip()}" for r in NEXT_PLAN for d in re.split(r"[,;]\s*", r[6]) if d.strip() in _np_pos and _np_pos[d.strip()] >= r[3]]
+sheet("65_Team_Seats", "L6 Plan", "Who builds the next plan: five AI seats, their prompts, and the contracts each provides.", "Starting or briefing an AI seat.",
+      "Team seats", "Only R writes in Mark's clone; the other seats deliver bundles (claude/village-phases/prompts/00_TEAM_PROTOCOL.md)",
+      TEAM_SEATS_HEAD, [list(r) for r in TEAM_SEATS], [6, 20, 26, 50, 40, 40, 40, 50])
+sheet("66_Owner_Decisions", "L6 Plan", "Questions only Mark can answer, the default in use until he does, and what each affects.", "Before building an item a decision gates; when Mark answers.",
+      "Owner decisions", "Every row has a default so building can start; when Mark answers, set Status to 'Answered (Mark, date)' and write his answer in the default column",
+      OWNER_DECISIONS_HEAD, [list(r) for r in OWNER_DECISIONS], [9, 40, 60, 24, 22, 34])
 LOG = [
     ("LOG-01", SESSION_1, "Cloned repos; identified SacredAdventures as the game; wrote claude/game-briefing.md to the project.", "Done", ""),
     ("LOG-02", SESSION_1, "Forensic pass on ANU + render loop (Orchestrator, anu/*, AnuAdaptiveDpr, module updates).", "Done", "50_Findings"),
@@ -1149,6 +1180,7 @@ LOG = [
     ("LOG-37", SESSION_1, "Claude: Compassionate UI + trees committed (7dacf73 cedars + billboards, 55e4223 tree rungs + frame counting); claim released except the Z-1/Z-2 + POOL-01 dispatch, which comes next.", "Done", "ATT-83, ATT-84"),
     ("LOG-35", SESSION_1, 'Claude (QA): browser QA pass T1-T10 for Mark on claude/mobile-optimization (build 549006a/a7f68fd per badge (tree dirty), HEAD 2b694d7, 17:09-18:10 UTC); desktop 1280x800 + phones 390x844 / 360x740 in the Claude desktop browser pane. FND-59..FND-73 opened; screenshots in docs/qa/2026-10-22/. Live Server reloaded the page every 20-60 s and the pane was hidden for long stretches, so T8 60 s fps is incomplete.', "Done", 'ATT-70..ATT-79, FND-59..FND-73'),
     ("LOG-36", SESSION_1, "Claude (village researcher): two research reports (claude/village-builder-research.md, claude/village-farm-sim-research.md) and Phase 1-3 build specs (claude/village-phases/, 11 files; the P2-4 food loop comes from the farm-sim research); plan rows PLN-31..39, decisions DEC-26..31.", "Done (docs)", "PLN-31..39, DEC-26..31"),
+    ("LOG-41", SESSION_1, "Claude (Decision Engine owner, Mark 2026-10-22): rebuild fixed (d0a4f91: a second status pass before find_rows; KeyError 'status' since ffbd558); QA's FND-59..73, ATT-70..79 and LOG-35 committed as written (684757e); the village builder became the next plan: 64_Next_Plan (66 items), 65_Team_Seats (A, B, C, D, R), 66_Owner_Decisions (OD-01..25), PLN-40 (building models), PLN-41 (team dispatch), DEC-32 (one owner for the gold), DEC-33. The gold is rebuilt in the next commit. DEC-20/21 (controls) stay uncommitted until Mark's OK.", "Done", "PLN-31..41, DEC-32, DEC-33"),
 ]
 sheet("70_Session_Log", "L7 Session", "What was done, in order, and the next step.", "Resuming work.", "Session log", "Newest last",
       ["Log ID", "Date", "What", "State", "Pointer"], [list(l) for l in LOG], [8, 11, 90, 11, 30])
@@ -1183,6 +1215,10 @@ facts = [
     ("ANU events with a live subscriber", f'=COUNTIF(\'42_Events\'!$F$5:$F${4 + len(EVENT_ROWS)},"Live round trip")', "42_Events"),
     ("Open findings (Critical + High)", f'=COUNTIF(\'50_Findings\'!$B$5:$B${4 + len(FINDINGS)},"Critical")+COUNTIF(\'50_Findings\'!$B$5:$B${4 + len(FINDINGS)},"High")', "50_Findings"),
     ("Plan steps done (incl. code-done awaiting browser check)", f'=COUNTIF(\'60_Plan\'!$G$5:$G${4 + len(PLAN)},"Done*")&" of "&COUNTA(\'60_Plan\'!$A$5:$A${4 + len(PLAN)})', "60_Plan status"),
+    ("Next plan", "Village builder, Phases 1-3: 64_Next_Plan (PLN-31..41)", "DEC-33; claude/village-phases/00_ROADMAP.md (Sacred-Ones project docs)"),
+    ("Next plan items done", f'=COUNTIF(\'64_Next_Plan\'!$K$5:$K${4 + len(NEXT_PLAN)},"Done*")&" of "&COUNTA(\'64_Next_Plan\'!$A$5:$A${4 + len(NEXT_PLAN)})', "64_Next_Plan status"),
+    ("Owner decisions answered by Mark", f'=COUNTIF(\'66_Owner_Decisions\'!$D$5:$D${4 + len(OWNER_DECISIONS)},"Answered*")&" of "&COUNTA(\'66_Owner_Decisions\'!$A$5:$A${4 + len(OWNER_DECISIONS)})', "66_Owner_Decisions status"),
+    ("Decision Engine owner", "Claude (village researcher), Mark 2026-10-22", "DEC-32"),
     ("PiP stride baseline / max", "16 / 22", evs(("js/v2/constants.js", r"V2_PIP_RENDER_EVERY_N_FRAMES ="), ("js/v2/constants.js", r"V2_ADAPTIVE_PIP_MAX_STRIDE ="))),
     ("Target FPS constant", 65, ev("js/v2/constants.js", r"V2_TARGET_FPS =")),
     ("Main renderer DPR cap (desktop / mobile)", "1.5 / 1.0", ev(O, r"setPixelRatio\(Math\.min\(window\.devicePixelRatio, this\._isMobile")),
@@ -1206,7 +1242,8 @@ for c, h in enumerate(["Sheet", "Level", "What it holds", "Read it when", "Rows"
     cell = idx.cell(row=4, column=c, value=h); cell.font, cell.fill = H_FONT, H_FILL
 order = ["10_System", "11_Boot_Sequence", "12_Frame_Loop", "20_Subsystems", "30_Modules", "40_Connections", "41_Globals",
          "42_Events", "43_Services", "44_Limbo_Calls", "50_Findings", "51_Assets", "52_Claims_vs_Verified", "60_Plan", "61_Decision_Log",
-         "62_Review_Playbook", "63_Attempts_Ledger", "70_Session_Log", "90_Glossary"]
+         "62_Review_Playbook", "63_Attempts_Ledger", "64_Next_Plan", "65_Team_Seats", "66_Owner_Decisions",
+         "70_Session_Log", "90_Glossary"]
 meta = {s[0]: s for s in SHEETS}
 for r, name in enumerate(order, 5):
     _, level, purpose, when = meta[name]
@@ -1222,15 +1259,17 @@ base = 5 + len(order) + 1
 rules = [
     ("ID scheme", "SUB- subsystem · MOD- file · AST- asset · EDG- edge · GLB- global · EVT- event · SVC- service · LMB- limbo call · FND- finding · CLM- claim · PLN- plan · DEC- decision · RVW- review · ATT- attempt · LOG- session."),
     ("How to navigate", "Problem → 62_Review_Playbook (symptom) → 50_Findings (evidence) → 30_Modules (file + connections) → 40_Connections (blast radius) → 60_Plan."),
-    ("Update protocol", "Before a fix: check 63_Attempts_Ledger. After any code change: rerun tools/decision-engine/rebuild.sh, search for 'NOT FOUND', update 60_Plan, append to 63_Attempts_Ledger and 70_Session_Log."),
+    ("Update protocol", "Before a fix: check 63_Attempts_Ledger. After any code change: update 60_Plan or 64_Next_Plan and append to 63_Attempts_Ledger and 70_Session_Log (rows only, IDs reserved on tmp/handoff.md). The Decision Engine owner reruns tools/decision-engine/rebuild.sh from a HEAD snapshot, searches for 'NOT FOUND' and commits the workbook."),
     ("Repo rules that bind edits", "Scope lock (name files + reason before editing) · never obscure #pipCanvas / PiP without explicit approval · no destructive git."),
     ("Not measured here", "Runtime FPS, GPU timings, real draw calls: no browser ran in this environment. Those cells say 'est.' or 'not profiled'."),
+    ("Next plan", "64_Next_Plan: the village builder, Phases 1-3, in landing order (PLN-31..41). Who builds it: 65_Team_Seats. What Mark still decides: 66_Owner_Decisions. Specs: Sacred-Ones project docs claude/village-phases/."),
+    ("Decision Engine owner", "Mark, 2026-10-22: Claude (village researcher) controls the gold (Decision_Engine.xlsx and data/*.json) and is the only one who rebuilds and commits it. Others reserve IDs on tmp/handoff.md, commit rows only through a temporary index, and build previews outside the repo (DEC-32)."),
 ]
 for i, (k, v) in enumerate(rules):
     a = idx.cell(row=base + i, column=1, value=k); a.font = Font(name=FONT, bold=True, size=10)
     b = idx.cell(row=base + i, column=2, value=v); b.font, b.alignment = B_FONT, WRAP
     idx.merge_cells(start_row=base + i, start_column=2, end_row=base + i, end_column=5)
-    idx.row_dimensions[base + i].height = 30
+    idx.row_dimensions[base + i].height = max(30, 13 * (len(v) // 115 + 1))
 idx.freeze_panes = "A5"
 
 wb._sheets = [wb[n] for n in ["00_Index"] + order]
@@ -1238,3 +1277,4 @@ wb.save(OUT)
 print("saved", OUT, "modules", len(mod_rows), "edges", len(EDGE_ROWS), "globals", len(GLOB_ROWS), "events", len(EVENT_ROWS))
 notfound = [x for x in [f["evidence"] for f in FINDINGS] + [c[5] for c in CLAIMS] + [p[3] for p in PLAYBOOK] + [b[6] for b in BOOT_ROWS] + [l[3] for l in LOOP_ROWS] if "NOT FOUND" in x]
 print("NOT FOUND evidence:", notfound)
+print("Next plan problems (duplicate IDs, dependency landing after its item):", np_check)
