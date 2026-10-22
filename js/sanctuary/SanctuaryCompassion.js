@@ -45,12 +45,22 @@
  *   - Resolution comes back before content: while it is lowered, the content
  *     rungs don't step up.
  *
+ * Anu sensors (Mark: "we use ANU sensors - add some for this compassionate UI"):
+ *   AnuUniverse.compassion.snapshot() — rung, real fps (250 ms and 1 s medians),
+ *   resolution search, time spent at each rung and each resolution;
+ *   AnuUniverse.compassion.log() — every step with its reason; each step also
+ *   fires ANU_EVENTS.COMPASSION_STEP on the interaction bus. AnuUniverse.report(),
+ *   the world sensorium and the HUD trace read these.
+ *
  * Kill switch: ?compassion=0 (or window.__sanctuaryCompassionOff = true before boot).
  * Runtime:     window.__sanctuaryCompassion.state() · .log() · .setLevel(n) · .hold(bool)
+ *              (same as AnuUniverse.compassion.snapshot() · .log() · .setLevel(n) · .hold(bool))
  */
 
 import { SanctuaryPondTreesModule } from "./SanctuaryPondTrees.js";
 import { SanctuaryGrassModule } from "./SanctuaryGrass.js";
+import { dispatchInteraction } from "../v2/anu/InteractionBus.js";
+import { ANU_EVENTS } from "../v2/anu/anuEvents.js";
 
 /** Objects that are "the fish in the pond" (hidden in Village View). */
 const FISH_OBJECTS = ["sanctuary_fish_school", "sanctuary_fish_jumps", "sanctuary_fishing_spot_fish"];
@@ -123,6 +133,8 @@ export const SanctuaryCompassionModule = {
   _frames: [],          // recent frame intervals, ms (WINDOW_MS)
   _framesLong: [],      // the last second of frame intervals (resolution decisions)
   _res: null,           // severe-only resolution search state
+  _rungMs: null,        // sensor: ms spent at each rung (judged frames only)
+  _dprMs: null,         // sensor: ms spent at each pixel ratio
   _sinceStepMs: 0,
   _goodMs: 0,
   _upHoldMs: UP_HOLD_MS,
@@ -143,6 +155,8 @@ export const SanctuaryCompassionModule = {
     this._res = { severeMs: 0, steadyMs: 0, lastStepAt: -1e9, probeAt: null, probeFrom: 0, probeWaitMs: RES_PROBE_MS, floorNoted: false };
     this._medianFps = null;
     this._medianLongFps = null;
+    this._rungMs = RUNGS.map(() => 0);
+    this._dprMs = {};
     this._sinceStepMs = 0;
     this._goodMs = 0;
     this._upHoldMs = UP_HOLD_MS;
@@ -151,12 +165,16 @@ export const SanctuaryCompassionModule = {
     this._quietUntilMs = 0;
     this._held = false;
     const self = this;
-    window.__sanctuaryCompassion = {
+    const api = {
       state: () => self._state(),
+      snapshot: () => self._state(),
       log: () => self._log.slice(),
       setLevel: (n) => self._setLevel(n, "manual"),
       hold: (on) => { self._held = !!on; return self._held; },
+      rungs: RUNGS.map((r) => r.name),
     };
+    window.__sanctuaryCompassion = api;
+    try { if (window.AnuUniverse) window.AnuUniverse.compassion = Object.freeze(api); } catch (_) { /* Anu absent */ }
     console.log(
       `%c[SanctuaryCompassion] ${this._enabled ? "on" : "off (?compassion=0)"}: ladder ${RUNGS.map((r) => r.name).join(" → ")}; resolution only if severe (≤${SEVERE_FPS} fps); Village View pauses wind and hides pond fish.`,
       "color:#ce93d8;font-weight:bold;",
@@ -188,13 +206,16 @@ export const SanctuaryCompassionModule = {
     if (!(dtMs > 0) || dtMs >= IGNORE_DT_MS || (typeof document !== "undefined" && document.hidden)) return;
     this._clockMs += dtMs;
     this._sinceStepMs += dtMs;
+    this._rungMs[this._level] += dtMs;
+    const snap = this._dpr()?.snapshot() ?? null;     // one actuator read per frame
+    if (snap && snap.actualDpr != null) this._dprMs[snap.actualDpr] = (this._dprMs[snap.actualDpr] || 0) + dtMs;
     const medianFps = pushFrameMedianFps(this._frames, dtMs, WINDOW_MS);
     const medianLongFps = pushFrameMedianFps(this._framesLong, dtMs, LONG_WINDOW_MS);
     if (medianFps === null || this._held || this._clockMs < WARMUP_MS || this._clockMs < this._quietUntilMs) return;
     this._medianFps = medianFps;
     if (medianLongFps !== null) this._medianLongFps = medianLongFps;
-    const lowered = this._resolutionLowered();
-    this._tickResolution(dtMs, medianFps, medianLongFps, lowered);
+    const lowered = !!snap && snap.index > snap.capIndex;
+    if (snap) this._tickResolution(dtMs, medianFps, medianLongFps, lowered, snap);
     if (this._sinceStepMs < SETTLE_MS) return;
 
     if (medianFps < DOWN_FPS) {
@@ -226,15 +247,7 @@ export const SanctuaryCompassionModule = {
     return a && typeof a.setIndex === "function" && typeof a.snapshot === "function" ? a : null;
   },
 
-  _resolutionLowered() {
-    const s = this._dpr()?.snapshot();
-    return !!s && s.index > s.capIndex;
-  },
-
-  _tickResolution(dtMs, medianFps, medianLongFps, lowered) {
-    const A = this._dpr();
-    if (!A) return;
-    const s = A.snapshot();
+  _tickResolution(dtMs, medianFps, medianLongFps, lowered, s) {
     const r = this._res;
     if (r.probeAt !== null) {
       // A probe fails fast on the 250 ms median (guide E1.2), or on the last second at RES_PROBE_JUDGE_MS.
@@ -304,7 +317,7 @@ export const SanctuaryCompassionModule = {
     this._frames.length = 0;          // judge the new resolution on its own frames
     this._framesLong.length = 0;
     if (after.index !== before.index) {
-      this._note(`${after.index > before.index ? "▼" : "▲"} resolution ${before.actualDpr} → ${after.actualDpr} (${why})`);
+      this._note(`${after.index > before.index ? "▼" : "▲"} resolution ${before.actualDpr} → ${after.actualDpr} (${why})`, "resolution");
     }
   },
 
@@ -316,7 +329,7 @@ export const SanctuaryCompassionModule = {
     this._goodMs = 0;
     const r = RUNGS[n];
     try { SanctuaryGrassModule.setDetail?.(r.grass); } catch (_) { /* module absent */ }
-    if (n !== prev) this._note(`${n > prev ? "▼" : "▲"} rung ${n} "${r.name}" (${why})${n < prev ? "" : `; next step-up waits ${(this._upHoldMs / 1000).toFixed(0)} s`}`);
+    if (n !== prev) this._note(`${n > prev ? "▼" : "▲"} rung ${n} "${r.name}" (${why})${n < prev ? "" : `; next step-up waits ${(this._upHoldMs / 1000).toFixed(0)} s`}`, "rung");
     return n;
   },
 
@@ -341,13 +354,24 @@ export const SanctuaryCompassionModule = {
     }
     this._note(topDown
       ? `village view: wind paused, fish hidden (${hidden.length})`
-      : "chase view: wind on, fish restored");
+      : "chase view: wind on, fish restored", "view");
   },
 
-  _note(msg) {
-    this._log.push({ t: Math.round(performance.now()), msg });
+  _note(msg, kind = "note") {
+    const entry = {
+      t: Math.round(performance.now()),
+      at: Date.now(),
+      kind,
+      msg,
+      level: this._level,
+      rung: RUNGS[this._level].name,
+      dpr: this._dpr()?.snapshot()?.actualDpr ?? null,
+      fps: this._medianFps ? +this._medianFps.toFixed(1) : null,
+    };
+    this._log.push(entry);
     if (this._log.length > LOG_MAX) this._log.shift();
     console.log(`%c[SanctuaryCompassion] ${msg}`, "color:#ce93d8;");
+    try { dispatchInteraction(ANU_EVENTS.COMPASSION_STEP, entry); } catch (_) { /* bus best-effort */ }
   },
 
   _state() {
@@ -366,6 +390,9 @@ export const SanctuaryCompassionModule = {
       grassWindPaused: SanctuaryGrassModule._windPaused === true,
       grassDetail: SanctuaryGrassModule._detail ?? 2,
       fishHidden: [...this._savedVisibility.keys()],
+      steps: this._log.filter((e) => e.kind === "rung" || e.kind === "resolution").length,
+      timeAtRungS: Object.fromEntries(RUNGS.map((r, i) => [r.name, +((this._rungMs?.[i] || 0) / 1000).toFixed(1)])),
+      timeAtDprS: Object.fromEntries(Object.entries(this._dprMs || {}).map(([k, v]) => [k, +(v / 1000).toFixed(1)])),
     };
   },
 
@@ -393,5 +420,6 @@ export const SanctuaryCompassionModule = {
     this._scene = null;
     this._topDown = null;
     if (window.__sanctuaryCompassion) delete window.__sanctuaryCompassion;
+    try { if (window.AnuUniverse?.compassion) delete window.AnuUniverse.compassion; } catch (_) { /* frozen / absent */ }
   },
 };

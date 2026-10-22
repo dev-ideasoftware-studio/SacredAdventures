@@ -43,6 +43,8 @@ export const ANU_EVENTS = Object.freeze({
   GOVERNANCE_SNAPSHOT: "anu-governance-snapshot",
   /** AnuAdaptiveDpr stepped the renderer pixel ratio — detail: { dpr, reason, stepCount, t } */
   RENDERING_DPR_CHANGE: "anu-rendering-dpr-change",
+  /** SanctuaryCompassion (Compassionate UI) acted — detail: { kind: 'rung'|'resolution'|'view'|'note', msg, level, rung, dpr, fps, at } */
+  COMPASSION_STEP: "anu-compassion-step",
   /** Sanctuary mold action — detail: { tool, x, z, payload } */
   SANCTUARY_MOLD: "anu-sanctuary-mold",
   /** Sanctuary world saved / loaded — detail: { kind: 'save'|'load'|'reset', size } */

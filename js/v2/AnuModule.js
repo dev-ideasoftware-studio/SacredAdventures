@@ -251,6 +251,7 @@ function buildPublicApi(moduleRef) {
         governance: buildGovernanceSnapshot(_anuOrchestratorRef),
         fuzzyPipeline: buildFuzzyPipelineSnapshot(_anuOrchestratorRef),
         worldSensorium: buildWorldSensoriumSnapshot(_anuOrchestratorRef),
+        compassion: api.compassion?.snapshot?.() ?? null,
       };
       console.group("%c[Anu Universe] Pipeline memory", "color:#fbc02d;font-weight:bold;");
       console.log(`${ANU_EMPATHY_ENGINE_NAME} · AnuUniverse.version ${api.version}`);
@@ -269,6 +270,7 @@ function buildPublicApi(moduleRef) {
       console.log("AnuUniverse.getGovernanceSnapshot():", snapshot.governance);
       console.log("AnuUniverse.getFuzzyPipelineSnapshot():", snapshot.fuzzyPipeline);
       console.log("AnuUniverse.getWorldSensoriumSnapshot():", snapshot.worldSensorium);
+      console.log("AnuUniverse.compassion.snapshot():", snapshot.compassion);
       console.log("Run AnuUniverse.help() for the full method index.");
       console.groupEnd();
       return snapshot;
@@ -326,6 +328,13 @@ function buildPublicApi(moduleRef) {
           "clearStressHistory",
         ]),
         interactions: Object.freeze(["interactions.subscribe", "interactions.dispatch"]),
+        compassion: Object.freeze([
+          "compassion.snapshot",
+          "compassion.log",
+          "compassion.setLevel",
+          "compassion.hold",
+          "adaptiveDpr.snapshot",
+        ]),
         help: Object.freeze(["help"]),
       });
       console.group(

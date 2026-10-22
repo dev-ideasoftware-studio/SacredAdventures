@@ -11,7 +11,7 @@ import {
   V2_FRAME_MS_BUDGET,
   V2_PIP_RENDER_EVERY_N_FRAMES,
 } from "../constants.js";
-import { getFrameBudgetSnapshot } from "./FrameBudget.js";
+import { getFrameBudgetSnapshot, getRollingAvgIntervalMs } from "./FrameBudget.js";
 import { getRenderingSnapshot } from "./RenderingGovernor.js";
 import { getSceneInventorySnapshot } from "./SceneModelInventory.js";
 import { getLedgerSnapshot } from "./AnuErrorAndStressLedger.js";
@@ -108,6 +108,28 @@ export function getFuzzyPipelineSnapshot(orchestrator = null) {
       samples: budget.samples,
     },
     "Profile module update cost and render passes before adding new domains.",
+  );
+
+  // Compassionate UI sensor (2026-10-22): the real frame interval includes GPU time
+  // and vsync waits, so it sees GPU-bound drops that the CPU frame budget above can't.
+  const intervalMs = getRollingAvgIntervalMs();
+  const intervalRatio = intervalMs > 0 ? intervalMs / (1000 / 60) : 0;
+  const compassion = typeof window !== "undefined" ? window.AnuUniverse?.compassion?.snapshot?.() ?? null : null;
+  pushCandidate(
+    candidates,
+    "frame-interval",
+    "Real frame rate (CPU + GPU + vsync) against the 60 fps floor",
+    clamp01((intervalRatio - 1) / 1.2),
+    {
+      avgIntervalMs: round3(intervalMs || 0),
+      fps: intervalMs > 0 ? round3(1000 / intervalMs) : null,
+      cpuAvgMs: round3(avgMs || 0),
+      // Below the floor while the JS frame is short: the GPU (not vsync, not JS) is the limit.
+      likelyGpuBound: intervalMs > (1000 / 57) && avgMs > 0 && intervalMs > avgMs * 1.6,
+      compassionRung: compassion ? compassion.rung : null,
+      compassionDpr: compassion?.resolution ? compassion.resolution.dpr : null,
+    },
+    "The Compassionate UI (SanctuaryCompassion) answers this: it sheds grass, then distant trees, and lowers resolution only at <= 21 fps. Check AnuUniverse.compassion.snapshot() before adding render cost.",
   );
 
   pushCandidate(
@@ -209,6 +231,7 @@ export function getFuzzyPipelineSnapshot(orchestrator = null) {
       latestSceneInventoryAt: inventory?.at ?? null,
       latestStressLevel: ledger.lastStressLevel,
       recentErrorCount: recentErrors.length,
+      compassion,
     }),
   });
 }

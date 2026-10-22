@@ -1,9 +1,9 @@
 {
-  "subject": "feat(compassion): severe-only resolution search, starting high (Compassionate UI step 3a)",
-  "isoDate": "2026-10-22T17:09:23+00:00",
+  "subject": "feat(anu): Compassionate UI sensors — AnuUniverse.compassion, COMPASSION_STEP, real-fps trace (step 3b)",
+  "isoDate": "2026-10-22T17:13:01+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "a7f68fd",
+  "commit": "549006a",
   "dirty": true,
-  "generatedAt": "2026-10-22T17:09:26.951Z"
+  "generatedAt": "2026-10-22T17:13:04.251Z"
 }

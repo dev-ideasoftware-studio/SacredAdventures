@@ -145,6 +145,8 @@ export function getWorldSensoriumSnapshot(orchestrator = null) {
     simulation: buildSimulationOverview(orchestrator),
     governance,
     fuzzyPipeline,
+    // Compassionate UI (SanctuaryCompassion): what the world is shedding right now to hold 60 fps.
+    compassion: typeof window !== "undefined" ? window.AnuUniverse?.compassion?.snapshot?.() ?? null : null,
     watchProtocol: Object.freeze([
       "Every world object should carry userData.anuSimulationDomain.",
       "Every interactable object should carry userData.anuInteractable = true and userData.anuInteractionVerbs.",
@@ -152,6 +154,7 @@ export function getWorldSensoriumSnapshot(orchestrator = null) {
       "Player, fauna, and NPC IO must publish through AnuUniverse.interactions; raw inputs are capture details, not authority.",
       "Flora/fauna/NPC/building/item modules should publish lifecycle events through AnuUniverse.interactions.",
       "Before adding a new system, check this sensorium plus exportFuzzyPipelineJson() for pressure and missing tags.",
+      "Below 60 fps the Compassionate UI culls content (grass far ring, grass, then distant trees to billboards) and lowers resolution only at <= 21 fps; it never throttles. New visible systems need a rung in SanctuaryCompassion.",
     ]),
   });
 }

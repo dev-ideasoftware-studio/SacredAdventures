@@ -237,6 +237,11 @@ function _wireUniverseAccordion(hud) {
 // at 1 Hz into a 60-sample ring (60 s window). The original ring-buffer in
 // SanctuaryFpsHud was reverted in 6685fb1; this rebuilds it next to its only
 // consumer so the TRACE accordion stops showing "FPS HUD not loaded".
+// Compassionate UI (2026-10-22): `fps` is the REAL frame rate (median frame
+// interval of the last second, GPU + vsync included, from
+// AnuUniverse.compassion); `cpuFps` keeps the old JS-time-only figure. `dpr` is
+// the renderer's real pixel ratio, `rung` the culling rung, and the summary
+// lists every Compassion step (culling guide: "logs which step fired").
 
 const TRACE_RING_SIZE = 60;
 const TRACE_SAMPLE_MS = 1000;
@@ -261,10 +266,20 @@ function _sampleTraceTick() {
     }
   } catch (_) {}
   if (!haveBudget) return; // skip pre-warmup ticks so boot zeros don't pollute the ring
+  const cpuFps = fps;
+  let rung = null;
+  try {
+    const c = window.AnuUniverse?.compassion?.snapshot?.();
+    if (c) {
+      if (c.medianFps1s > 0) fps = Math.round(c.medianFps1s);
+      rung = c.level;
+    }
+  } catch (_) {}
   try {
     const adapt = window.AnuUniverse?.adaptiveDpr?.snapshot?.();
-    if (adapt && typeof adapt.currentDpr === 'number') {
-      dpr = Math.round(adapt.currentDpr * 100) / 100;
+    const real = adapt ? (typeof adapt.actualDpr === 'number' ? adapt.actualDpr : adapt.currentDpr) : null;
+    if (typeof real === 'number') {
+      dpr = Math.round(real * 100) / 100;
     }
   } catch (_) {}
   if (dpr === null && typeof window !== 'undefined') {
@@ -274,7 +289,7 @@ function _sampleTraceTick() {
     const fuzzy = window.AnuUniverse?.getFuzzyPipelineSnapshot?.();
     bottleneck = fuzzy?.primaryBottleneck?.id || 'none';
   } catch (_) {}
-  _traceRing[_traceHead] = { t: now, fps, loadPct, dpr, bottleneck };
+  _traceRing[_traceHead] = { t: now, fps, cpuFps, loadPct, dpr, rung, bottleneck };
   _traceHead = (_traceHead + 1) % TRACE_RING_SIZE;
   if (_traceHead === 0) _traceFull = true;
 }
@@ -299,13 +314,14 @@ function _buildTraceSummary(samples) {
   if (!samples.length) {
     return { durationSec: 0, sampleCount: 0,
              fps: { min: 0, avg: 0, max: 0 }, loadPct: { min: 0, max: 0 },
-             dprChanges: [], bottleneckChanges: [] };
+             dprChanges: [], bottleneckChanges: [], rungChanges: [], compassionSteps: [] };
   }
   let fpsMin = Infinity, fpsMax = 0, fpsSum = 0;
   let loadMin = Infinity, loadMax = 0;
   const dprChanges = [];
   const bottleneckChanges = [];
-  let lastDpr = null, lastBtl = null;
+  const rungChanges = [];
+  let lastDpr = null, lastBtl = null, lastRung;
   for (const s of samples) {
     if (s.fps < fpsMin) fpsMin = s.fps;
     if (s.fps > fpsMax) fpsMax = s.fps;
@@ -314,7 +330,15 @@ function _buildTraceSummary(samples) {
     if (s.loadPct > loadMax) loadMax = s.loadPct;
     if (s.dpr !== lastDpr) { dprChanges.push({ t: s.t, dpr: s.dpr }); lastDpr = s.dpr; }
     if (s.bottleneck !== lastBtl) { bottleneckChanges.push({ t: s.t, id: s.bottleneck }); lastBtl = s.bottleneck; }
+    if (s.rung !== lastRung) { rungChanges.push({ t: s.t, rung: s.rung }); lastRung = s.rung; }
   }
+  let compassionSteps = [];
+  try {
+    const log = window.AnuUniverse?.compassion?.log?.() || [];
+    compassionSteps = log
+      .filter((e) => (e.kind === 'rung' || e.kind === 'resolution') && e.at >= samples[0].t - TRACE_SAMPLE_MS)
+      .map((e) => ({ t: e.at, kind: e.kind, msg: e.msg, fps: e.fps, dpr: e.dpr }));
+  } catch (_) {}
   const durationSec = Math.round((samples[samples.length - 1].t - samples[0].t) / 1000);
   return {
     durationSec,
@@ -323,6 +347,8 @@ function _buildTraceSummary(samples) {
     loadPct: { min: loadMin === Infinity ? 0 : loadMin, max: loadMax },
     dprChanges,
     bottleneckChanges,
+    rungChanges,
+    compassionSteps,
   };
 }
 
@@ -362,12 +388,22 @@ function _drawTraceSpark(canvas, samples, summary) {
   for (let i = 0; i < n; i++) {
     const s = samples[i];
     const barH = Math.round(Math.min(H, ((s.fps || 0) / maxFps) * H));
-    const load = s.loadPct || 0;
-    ctx.fillStyle = load > 130 ? '#ef5350'
-                  : load > 100 ? '#ff7043'
-                  : load > 85  ? '#fbc02d'
-                  :              '#a5d6a7';
+    const f = s.fps || 0;   // real fps (Compassionate UI floor: 60)
+    ctx.fillStyle = f >= 59 ? '#a5d6a7'
+                  : f >= 45 ? '#fbc02d'
+                  : f >= 30 ? '#ff7043'
+                  :           '#ef5350';
     ctx.fillRect(Math.floor(i * barW), H - barH, Math.max(1, Math.ceil(barW) - 1), barH);
+  }
+
+  // Purple ticks at Compassionate UI steps (rung or resolution)
+  for (const ev of summary?.compassionSteps || []) {
+    const idx = samples.findIndex(s => s.t >= ev.t);
+    if (idx < 0) continue;
+    const x = Math.floor(idx * barW);
+    ctx.strokeStyle = 'rgba(206,147,216,0.8)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 0.5, H * 0.5); ctx.lineTo(x + 0.5, H); ctx.stroke();
   }
 
   // Cyan vertical ticks at DPR change events
@@ -410,6 +446,18 @@ function _buildTraceStatsHtml(summary, samples) {
   const dprStr = (summary.dprChanges || [])
     .map(d => `×${d.dpr}`).join(' <span style="opacity:0.4">→</span> ') || '—';
 
+  const hiUp = (v, good, warn) => {   // higher is better (fps)
+    const n = Number(v);
+    if (n >= good) return `<b style="color:#a5d6a7">${n}</b>`;
+    if (n >= warn) return `<b style="color:#fbc02d">${n}</b>`;
+    return `<b style="color:#ef5350">${n}</b>`;
+  };
+  const steps = summary.compassionSteps || [];
+  const cullStr = steps.length
+    ? steps.slice(-4).map(e => `<span style="color:#ce93d8">${e.msg.split(' (')[0]}</span>`).join(' <span style="opacity:0.4">→</span> ')
+      + (steps.length > 4 ? ` <span style="opacity:0.5">(${steps.length} steps)</span>` : '')
+    : '<span style="opacity:0.5">none (full detail)</span>';
+
   const btlStr = (summary.bottleneckChanges || [])
     .map(b => b.id === 'none' ? '<span style="opacity:0.3">·</span>'
                               : `<b style="color:#80deea">${b.id}</b>`)
@@ -421,7 +469,7 @@ function _buildTraceStatsHtml(summary, samples) {
   } else if (avgLoad !== null && avgLoad > 85) {
     diagColor = '#fbc02d'; diagIcon = '⚠'; diagMsg = `Watch — avg ${avgLoad}% budget in steady state`;
   } else if (avgLoad !== null) {
-    diagMsg = `${avgLoad}% budget · DPR stepped up to ×${(summary.dprChanges || []).at(-1)?.dpr ?? '?'}`;
+    diagMsg = `${avgLoad}% CPU budget · DPR ×${(summary.dprChanges || []).at(-1)?.dpr ?? '?'}`;
   }
 
   // pip-pass note: if pip-pass is labeled BTLNK but load is healthy, clarify
@@ -439,7 +487,10 @@ function _buildTraceStatsHtml(summary, samples) {
       <span>${summary.durationSec ?? '--'}s &nbsp;<span style="opacity:0.35">·</span>&nbsp; ${summary.sampleCount} samples</span>
 
       <span style="opacity:0.38;font-size:8px;letter-spacing:1px;">FPS</span>
-      <span>${hi(summary.fps.min,60,30)} min &nbsp;·&nbsp; ${hi(summary.fps.avg,60,30)} avg &nbsp;·&nbsp; <b>${summary.fps.max}</b> peak</span>
+      <span>${hiUp(summary.fps.min,59,45)} min &nbsp;·&nbsp; ${hiUp(summary.fps.avg,59,45)} avg &nbsp;·&nbsp; <b>${summary.fps.max}</b> peak</span>
+
+      <span style="opacity:0.38;font-size:8px;letter-spacing:1px;">CULL</span>
+      <span style="font-size:8.5px;">${cullStr}</span>
 
       <span style="opacity:0.38;font-size:8px;letter-spacing:1px;">LOAD</span>
       <span>${hi(summary.loadPct.min,85,130,'%')} → ${hi(summary.loadPct.max,85,130,'%')}</span>
