@@ -461,7 +461,7 @@ PLAN = [
     ("PLN-23", 23, "Mobile Phase 1 — one 'is mobile' source", "", "js/v2/deviceProfile.js (new); Orchestrator.js; AnuAdaptiveDpr.js; gltfLoaderSetup.js",
      "UA regex only in deviceProfile.js; Phase 0 measurements unchanged.", "Done", "4 live copies replaced; 66/66 UA equivalence; 6-profile diff identical; ?device= override. docs/mobile/PHASE1_REPORT.md"),
     ("PLN-24", 24, "Mobile Phase 2 — panel icon renderer + source images", "", "js/components/Component.ThreeIcons.js; SacredGame.Panel.html; mobile variants of NPC.YB / flora/reeds (Avatar-New = PLN-20)",
-     "Phone: no 2nd-context texture > 256 px; no 4096^2 source maps on mobile.", "Not started", "Online phone: 2nd WebGL context holds ~172 MB; 384 MB of 4096^2 source pixels. Coordinate with PLN-20 / FIX_PROMPT task 7."),
+     "Phone: no 2nd-context texture > 256 px; no 4096^2 source maps on mobile.", "Done", "Online phone: 2nd WebGL context holds ~172 MB; 384 MB of 4096^2 source pixels. Coordinate with PLN-20 / FIX_PROMPT task 7."),
     ("PLN-25", 25, "Mobile Phase 3 — fluid UI for remaining panels", "", "OrchestratorHud.js (landscape breakpoint); UIModule.js (distance pill); SacredGame.Panel.html (center-stack); hidden sheets",
      "tests/v4-mobile-layout.spec.js passes on all 6 profiles.", "Not started", ""),
     ("PLN-26", 26, "Mobile Phase 4 — minimap without readback", "FND-04", "js/v2/Orchestrator.js (_renderWithMask mobile branch)",
@@ -909,6 +909,7 @@ ATTEMPTS = [
     ("ATT-35", SESSION_1, "Coder 1", "Mobile Phase 1", "Replace 4 live UA copies with js/v2/deviceProfile.js", "Done; 66/66 equivalence; deterministic 6-profile measurements identical; override works both ways; npm test identical to base", "docs/mobile/PHASE1_REPORT.md", "No", ""),
     ("ATT-36", SESSION_1, "Coder 1", "Measurement", "Diff 'top-15 textures' across runs", "False difference: arbitrary picks at the 4 MB (1024^2) tie line", "docs/mobile/PHASE1_REPORT.md", "Yes", "Compare above-tie entries + size histogram; GPU allocation counts on phones depend on frames rendered (lazy upload)."),
     ("ATT-37", SESSION_AG, "Claude", "Governance", "Remove all Antigravity hooks (owner directive: Antigravity is no longer used after it attacked the codebase): ANTIGRAVITY_GOVERNANCE rule + its hardcoded-true check, .agents/workflows/agent_mesh_protocol.md (shared agent mailbox), test outputs written into ~/.gemini/antigravity/brain (now test-results/), BuildBadge name match", "Done; check:v2 passes; history (manifesto, tmp/ handoffs, commit log) kept as record", "AnuGovernanceRules.js, tests/v4-*.spec.js, BuildBadge.js", "No", "Do not re-add Antigravity rules, workflows or output paths."),
+    ("ATT-38", SESSION_1, "Coder 1", "Mobile Phase 2", "Texture-only phone variants (Avatar-New, NPC.YB, reeds; 4096 -> 1024, byte-identical geometry) + panel ThreeIcons texture cap 512 + mobile avatar URL", "Done: panel 2nd context 172.2 -> 4.3 MB; phone source pixels 481 -> 121 MB; phone GLB 27.1 -> 16.6 MB; desktop identical; screenshots same", "docs/mobile/PHASE2_REPORT.md", "No", "Phone GPU cap 256 makes 1024 and 4096 sources upload identically — shrink sources, never geometry, for memory without visual loss."),
 ]
 sheet("63_Attempts_Ledger", "L6 Plan", "What was tried, by whom, the result, and whether it must not be retried.", "Before trying a fix — check it has not already failed.",
       "Attempts ledger", "Shared by every agent: append a row for every attempt, success or failure",
@@ -986,6 +987,8 @@ LOG = [
     ("LOG-19", SESSION_1, "NEXT: Mobile Phase 2 (approved: may edit Component.ThreeIcons.js + SacredGame.Panel.html; Coder 1 makes the avatar mobile variant; beauty first). Then Phase 3+, then pond cards.", "Next", ""),
     ("LOG-20", SESSION_AG, "Anu falsification review (ANU_FALSIFICATION_REVIEW.md in the handoff folder): behaviour defects in DPR control, frame timing, fuzzy scores and alerts; always-true and dead checks.", "Done (review)", "ANU_FALSIFICATION_REVIEW.md"),
     ("LOG-21", SESSION_AG, "Removed every Antigravity hook from code, tests and agent workflows (ATT-37).", "Done (code)", "63_Attempts_Ledger"),
+    ("LOG-22", SESSION_1, "Coder 1: Mobile Phase 2 done (b56549a code + report).", "Done", "PLN-24; docs/mobile/PHASE2_REPORT.md"),
+    ("LOG-23", SESSION_1, "NEXT: Coder 1 starts FIX_ANTIGRAVITY_DAMAGE_PROMPT (Phase A questions to Mark, Phase B fixes) on fix/antigravity-damage.", "Next", ""),
 ]
 sheet("70_Session_Log", "L7 Session", "What was done, in order, and the next step.", "Resuming work.", "Session log", "Newest last",
       ["Log ID", "Date", "What", "State", "Pointer"], [list(l) for l in LOG], [8, 11, 90, 11, 30])

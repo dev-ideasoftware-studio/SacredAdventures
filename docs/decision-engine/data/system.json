@@ -1,5 +1,5 @@
 {
- "commit": "2fd8deb",
+ "commit": "91193ac",
  "roots": [
   "js/v2/Orchestrator.js",
   "js/v2/AnuModule.js",
@@ -286,8 +286,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-29 feat(pipeline): build-signature badge \u2014 show which AI's build is live",
-   "commit_count": 5,
+   "last_commit": "2026-10-22 chore(security): remove all Antigravity hooks (ATT-37)",
+   "commit_count": 6,
    "also_in_v2_build": false,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
@@ -4318,8 +4318,8 @@
    "assets": [],
    "services_registered": [],
    "services_used": [],
-   "last_commit": "2026-05-24 Fix compass PIP letters rightside up and register Antigravity in Anu governance",
-   "commit_count": 2,
+   "last_commit": "2026-10-22 chore(security): remove all Antigravity hooks (ATT-37)",
+   "commit_count": 3,
    "also_in_v2_build": true,
    "status": "Imported library (no module lifecycle)",
    "activation_order": null,
