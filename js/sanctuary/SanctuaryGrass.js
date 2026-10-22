@@ -782,6 +782,7 @@ export const SanctuaryGrassModule = {
   _sig: "",
   _tier: "desktop",
   _enabled: true,
+  _detail: 2,          // Compassionate UI ladder: 2 both rings, 1 near ring, 0 none
 
   async load(scene, camera, renderer, orchestrator) {
     if (this._group) return;
@@ -881,6 +882,13 @@ export const SanctuaryGrassModule = {
     return true;
   },
 
+  /** Compassionate UI ladder (SanctuaryCompassion): 2 = both rings, 1 = near ring
+   *  only (the meadow ends ~17 m out and the ground texture carries on), 0 = no grass. */
+  setDetail(level) {
+    this._detail = Math.max(0, Math.min(2, level | 0));
+    this._meshes.forEach((m, i) => { m.visible = this._detail >= 2 || (this._detail >= 1 && i === 0); });
+  },
+
   /** Village View (SanctuaryCompassion): skip wind and trample in the shader. */
   setWindPaused(paused) {
     this._windPaused = !!paused;
@@ -896,6 +904,7 @@ export const SanctuaryGrassModule = {
       cardSlots: inst,
       maxTriangles: inst * 6,
       submittedThisFrame: this._meshes.map((m) => m.geometry.instanceCount),
+      detail: this._detail,
       keepOutSignatureLength: this._sig.length,
     };
   },
@@ -907,6 +916,7 @@ export const SanctuaryGrassModule = {
       stats: () => self._stats(),
       rebake: () => self._maybeRebake(true),
       setWindPaused: (p) => self.setWindPaused(p),
+      setDetail: (n) => self.setDetail(n),
     };
   },
 
@@ -925,6 +935,7 @@ export const SanctuaryGrassModule = {
     this._mainCamera = null;
     this._frame = 0;
     this._sig = "";
+    this._detail = 2;
     if (window.__sanctuaryGrass) delete window.__sanctuaryGrass;
   },
 };
