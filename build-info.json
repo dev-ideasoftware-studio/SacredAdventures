@@ -1,9 +1,9 @@
 {
-  "subject": "feat(guide): Welcome Guide at the bottom on phones; the journal opens after it (Mark)",
-  "isoDate": "2026-10-22T21:59:56+00:00",
+  "subject": "docs(decision-engine): QA follow-ups (ATT-98, ATT-99, ATT-100, ATT-105, LOG-45) + QA screenshots",
+  "isoDate": "2026-10-22T22:00:19+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "2d37a43",
+  "commit": "56fb6a1",
   "dirty": true,
-  "generatedAt": "2026-10-22T22:00:02.107Z"
+  "generatedAt": "2026-10-22T22:00:26.017Z"
 }
