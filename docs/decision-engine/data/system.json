@@ -1,5 +1,5 @@
 {
- "commit": "3dd0fd0",
+ "commit": "58a3569",
  "roots": [
   "js/v2/Orchestrator.js",
   "js/v2/AnuModule.js",
@@ -3148,8 +3148,8 @@
    "services_used": [
     "WorldPlayer"
    ],
-   "last_commit": "2026-05-31 refactor(pip): rename 'moondial' -> 'pip-compass' (it is a compass, not a moondial)",
-   "commit_count": 33,
+   "last_commit": "2026-10-22 feat(pip): restore May-10 compass dial with centred moon-phase and compass tracks",
+   "commit_count": 34,
    "also_in_v2_build": true,
    "status": "Active",
    "activation_order": 26,

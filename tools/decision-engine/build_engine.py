@@ -427,6 +427,14 @@ FINDINGS += [
          impact="Small: one draw, 50 instances of vertex work, one allocation per frame while walking.",
          fix="Playbook C-13: mesh.count = printCount (the prompt's count clipping).", effort="S", plan="PLN-22"),
 ]
+FINDINGS += [
+    dict(id="FND-49", sev="High", sub="SUB-13", title="Clicks and keyboard focus depend on an unpinned internet copy of lucide",
+         assumed="The side panel is decoration; the game canvas gets clicks.",
+         verified="#v4-panel-frame covers the whole screen with pointer-events:auto (index.html L225-234), so every ground click lands in the panel iframe. The panel forwards it as CANVAS_CLICK and hands focus back to the game from one script block (SacredGame.Panel.html L1955-2903) whose first line is lucide.createIcons(), loaded from https://unpkg.com/lucide@latest (L10). If that download fails (offline, blocked, CDN down) the block never runs: clicks are swallowed and focus stays in the iframe, so keys stop after the first click. Proven in Node/Chromium: without lucide the click hit iframe#v4-panel-frame and moved 0 m. lucide@latest changes almost daily (1.56 to 1.61 between 2026-10-13 and 10-21); 1.61.0 still defines lucide.createIcons.",
+         evidence=evs(("SacredGame.Panel.html", r"unpkg\.com/lucide@latest"), ("SacredGame.Panel.html", r"type: 'CANVAS_CLICK'"), ("index.html", r"void clicks tunnel via CANVAS_CLICK")),
+         impact="Movement dies whenever unpkg is unreachable; the game is meant to be offline-first.",
+         fix="Load vendor/lucide/lucide.min.js (already in the repo, v1.11.0) and guard lucide.createIcons() so a missing icon library can never take the click relay down with it.", effort="S", plan="PLN-17"),
+]
 STATUS.update({"FND-21": "Fixed in code", "FND-22": "Fixed in code", "FND-31": "Fixed in code"})
 for _f in FINDINGS:
     _f["status"] = STATUS.get(_f["id"], "Open")
@@ -933,6 +941,7 @@ ATTEMPTS = [
     ("ATT-31", SESSION_1, "Claude", "Limbo tracer", "Check only senders without receivers", "Missed listeners nothing fires (brazier night lights); added DEAF check → 3 found", "limbo.py", "Yes", "Trace both directions."),
     ("ATT-32", SESSION_1, "User + Claude", "Research", "Apply the Origami 'Mobile WebGL Culling' master prompt to this repo", "Its named methods do not exist here; 4 of 9 ideas apply (FND-45..48), the rest are already true or not applicable (CLM-24..32)", "CLM-24..32", "Yes", "Check a prompt's names against the code before running its passes."),
     ("ATT-33", SESSION_1, "User + Claude", "Compass", "Restore the May-10 compass dial (moon-phase ring, thin bronze rim, glass lens, pointer) with every letter and moon centred on its own track", "Done in code: tracks no longer overlap; letters and moons measured 0 px off their midlines at 1280, 800 and phone widths and inside the real game; pill never clipped", "js/v2/UIModule.js; tests/v4-pip-align.spec.js", "No", "Geometry lives in CSS variables on #v2-panels-pip; the game sets box-sizing:border-box globally, so radii subtract the 1px wrapper border."),
+    ("ATT-34", SESSION_1, "Claude", "Movement", "Forensic: 'click-to-move and keys dead since Coder 1'", "Not reproduced. In the owner's Chrome on Coder 1's copy (claude/mobile-optimization @2fd8deb, Live Server :5505, 60 FPS): one ground click walked 5.15 m; W held 1.2 s walked 5.94 m; left arrow 0.6 s turned 1.46 rad; all 43 modules active, no input flag set. Coder 1's code diffs (welcome guide, loading modal, HUD logo, deviceProfile, mobile GLB variants) do not touch input on desktop.", "movement_probe.mjs; owner Chrome session", "No", "Ground clicks reach the game only through the panel iframe's CANVAS_CLICK relay, and focus returns only through the same script block (FND-49). Reproduce with the exact steps before changing code."),
 ]
 sheet("63_Attempts_Ledger", "L6 Plan", "What was tried, by whom, the result, and whether it must not be retried.", "Before trying a fix — check it has not already failed.",
       "Attempts ledger", "Shared by every agent: append a row for every attempt, success or failure",
@@ -1004,6 +1013,7 @@ LOG = [
     ("LOG-13", SESSION_1, "NEXT: owner decisions in C-10; Coder 1 applies C-01..C-09 one per commit; browser checks per playbook section 'How to prove each change'.", "Next", "PLN-21"),
     ("LOG-14", SESSION_1, "Checked the mobile-culling master prompt against the code: CLM-24..32, FND-45..48, PLN-22, playbook cards C-11..C-13 + C-10 #9.", "Done", "PLN-22"),
     ("LOG-15", SESSION_1, "Compass restored to the May-10 design with centred tracks (ATT-33, DEC-19). Movement bug still open: waiting for access to Coder 1's local copy.", "Done (code)", "ATT-33"),
+    ("LOG-16", SESSION_1, "Movement forensic: not reproduced in the owner's Chrome on Coder 1's copy (ATT-34); found the lucide single point of failure (FND-49). Compass patch applied to the owner's local copy (uncommitted) and verified live.", "Done", "ATT-34, FND-49"),
 ]
 sheet("70_Session_Log", "L7 Session", "What was done, in order, and the next step.", "Resuming work.", "Session log", "Newest last",
       ["Log ID", "Date", "What", "State", "Pointer"], [list(l) for l in LOG], [8, 11, 90, 11, 30])
