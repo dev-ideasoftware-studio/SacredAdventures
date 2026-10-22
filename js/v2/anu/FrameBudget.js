@@ -100,7 +100,7 @@ export function getSystemStressLevel() {
     if (!(avg > 0)) return STRESS_LEVELS.OPTIMAL; // seed frame / NaN guard
 
     // Dynamically obtain targetMs from the adaptive DPR monitor (probed screen Hz)
-    let targetMs = 1000 / 60; // 16.67ms baseline default (60 Hz target)
+    let targetMs = V2_FRAME_MS_BUDGET; // 16.67 ms: the 60 FPS target (constants.js V2_TARGET_FPS)
     if (typeof window !== "undefined" && window.AnuUniverse?.adaptiveDpr) {
       try {
         const snap = window.AnuUniverse.adaptiveDpr.snapshot();
@@ -124,13 +124,14 @@ export function getSystemStressLevel() {
     else if (avg <= criticalThreshold) cpuLevel = STRESS_LEVELS.STRESS;
 
     // CULL-02: the same thresholds applied to the real frame interval. Its reference
-    // never asks for more than 60 fps: the refresh probe times a single rAF interval at
-    // boot and can report 120 Hz on a screen that actually runs at 60 (iOS Safari caps
-    // rAF at 60 by default), which would otherwise read as permanent stress.
+    // never asks for more than the 60 fps target (V2_FRAME_MS_BUDGET): the refresh probe
+    // times a single rAF interval at boot and can report 120 Hz on a screen that actually
+    // runs at 60 (iOS Safari caps rAF at 60 by default), which would otherwise read as
+    // permanent stress.
     let gpuLevel = STRESS_LEVELS.OPTIMAL;
     const interval = getRollingAvgIntervalMs();
     if (interval > 0 && _intervals.length >= _ROLL_LEN) {
-      const refMs = Math.max(targetMs, 1000 / 60);
+      const refMs = Math.max(targetMs, V2_FRAME_MS_BUDGET);
       if (interval > refMs * 1.6) gpuLevel = STRESS_LEVELS.CRITICAL;
       else if (interval > refMs * 1.25) gpuLevel = STRESS_LEVELS.STRESS;
     }

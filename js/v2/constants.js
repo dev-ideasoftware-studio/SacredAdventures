@@ -62,10 +62,17 @@ export const V2_PIP_ORTHO_ZOOM = 0.80;
 // (its own every-2-frames gate lives in Orchestrator.js).
 export const V2_PIP_RENDER_EVERY_N_FRAMES = 16;
 
-/** Target frame rate for budgeting / UX copy (physics step is still rAF-driven). */
-export const V2_TARGET_FPS = 65;
+/**
+ * THE frame-rate target: single source of truth (owner, 2026-10-22: "remove the
+ * 120fps targets, we are at 60fps targets"). 60 FPS on every screen, 120 Hz panels
+ * included. It is a decision threshold for sensors / HUD / telemetry only: nothing
+ * caps the render loop (physics step is still rAF-driven).
+ */
+export const V2_TARGET_FPS = 60;
 
-/** Nominal ms budget at V2_TARGET_FPS — used by FrameBudget / Anu reporting. */
+/** Frame budget at V2_TARGET_FPS (1000 / 60 = 16.67 ms). Read by FrameBudget, AnuAdaptiveDpr,
+ *  AdaptiveRenderPolicy, the stress ledger, the fuzzy sensor, the HUD LOAD % and
+ *  SanctuarySceneConstructor. FrameSensor keeps its own 1000 / 60 (import-free by design). */
 export const V2_FRAME_MS_BUDGET = 1000 / V2_TARGET_FPS;
 
 /** Adaptive PiP: upper bound on “every N frames” stride under stress (≥ baseline).

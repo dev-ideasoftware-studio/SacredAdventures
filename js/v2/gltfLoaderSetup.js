@@ -2,7 +2,7 @@
  * Shared Draco decoder for GLTFLoader (Avatar + legacy ThreeIcons guide meshes).
  * Decoder WASM is loaded from the local bundled vendor copy so compressed glTF works offline.
  *
- * Phase 2 of the 120-FPS refactor (May-19 2026): use the full CPU
+ * Phase 2 of the May-19 2026 FPS refactor (then aimed at 120 FPS; the target is now 60 FPS): use the full CPU
  * for parallel Draco decoding, and preload the decoder WASM during
  * boot so the first GLB doesn't pay the wasm-fetch cost mid-load.
  */

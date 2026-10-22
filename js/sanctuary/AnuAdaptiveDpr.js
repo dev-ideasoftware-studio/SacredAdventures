@@ -22,22 +22,22 @@ import { deviceProfile } from "../v2/deviceProfile.js";
 import { dispatchInteraction } from "../v2/anu/InteractionBus.js";
 import { ANU_EVENTS } from "../v2/anu/anuEvents.js";
 import { ANU_SIMULATION_DOMAIN } from "../v2/anu/SimulationController.js";
+import { V2_TARGET_FPS, V2_FRAME_MS_BUDGET } from "../v2/constants.js";
 
 /** Discrete DPR ladder (highest → lowest). Rungs above the device cap render at the cap. */
 const DPR_LADDER = [2.0, 1.75, 1.5, 1.25, 1.0, 0.85, 0.75];
 
-/** Aspirational FPS — the spec target. Used as a *cap* on the
- *  refresh-rate-detected target so we never chase higher than the
- *  monitor can show. */
-const ASPIRATIONAL_FPS = 65;
+/** The FPS target: 60 (constants.js V2_TARGET_FPS; owner 2026-10-22: "we are at
+ *  60fps targets"). Used as a *cap* on the refresh-rate-detected target, so a
+ *  120 Hz panel is still judged against 60 FPS, never 120. */
+const TARGET_FPS = V2_TARGET_FPS;
 
-/** Target wall — set at load() time once Anu samples the monitor's
- *  actual refresh rate. Default seed assumes 60 Hz until the rAF probe
- *  finishes. **Why this matters:** on a 60 Hz display vsync makes
- *  frames < 16.67 ms impossible regardless of GPU. Targeting 120 FPS
- *  on a 60 Hz monitor means Anu sees stress on every single frame and
- *  step-downs DPR forever — chasing a wall she can't pass. */
-let TARGET_MS = 1000 / 60;
+/** Target wall: min(TARGET_FPS, probed refresh), set at load() time once the
+ *  rAF probe finishes; seeded at the 60 FPS budget (16.67 ms) until then.
+ *  **Why this matters:** on a 60 Hz display vsync makes frames < 16.67 ms
+ *  impossible regardless of GPU. A target above the refresh rate means Anu
+ *  sees stress on every single frame, chasing a wall she can't pass. */
+let TARGET_MS = V2_FRAME_MS_BUDGET;
 
 let _renderer = null;
 let _deviceDprCap = 2;
@@ -165,11 +165,12 @@ export const AnuAdaptiveDprModule = {
     _lastReason = "boot";
 
     // Probe the monitor's actual refresh rate. Target the lesser of the
-    // aspirational 120 FPS spec and the monitor's vsync wall — chasing
-    // beyond vsync wastes frame budget on impossible steps.
+    // 60 FPS target and the monitor's vsync wall — chasing beyond vsync
+    // wastes frame budget on impossible steps. (The probe snaps to 60 Hz or
+    // above, so this is 60 FPS / 16.67 ms on every screen, 120 Hz included.)
     _probeRefreshRate().then((hz) => {
       _detectedHz = hz;
-      const targetHz = Math.min(ASPIRATIONAL_FPS, hz);
+      const targetHz = Math.min(TARGET_FPS, hz);
       TARGET_MS = 1000 / targetHz;
       console.log(
         `%c[AnuAdaptiveDpr] refresh-rate probe: ${hz} Hz monitor → target ${targetHz} FPS (${TARGET_MS.toFixed(2)} ms).`,

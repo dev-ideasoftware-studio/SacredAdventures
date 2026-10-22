@@ -116,7 +116,7 @@ export class SacredOrchestrator {
       antialias: false,
       powerPreference: "high-performance",
     });
-    // Pixel ratio: previously hard-clamped at 1.0 to chase 120 FPS, but
+    // Pixel ratio: previously hard-clamped at 1.0 to chase a 120 FPS target (retired; 60 FPS now), but
     // that left Retina-class displays rendering into a ¼-area buffer →
     // the entire scene read as soft / pixelated. Cap at 2.0 instead so
     // we get native Retina sharpness when available without paying for

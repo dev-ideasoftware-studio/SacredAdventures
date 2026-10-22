@@ -1,9 +1,9 @@
 {
-  "subject": "feat(loading): TESTING row — test the device before anything loads (testing-pack T1, Mark)",
-  "isoDate": "2026-10-22T23:17:21+00:00",
+  "subject": "perf(target): 60 FPS everywhere; retire the 65 FPS targets (Mark)",
+  "isoDate": "2026-10-22T23:52:25+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "728122d",
+  "commit": "3b0184d",
   "dirty": true,
-  "generatedAt": "2026-10-22T23:17:28.310Z"
+  "generatedAt": "2026-10-22T23:52:28.557Z"
 }

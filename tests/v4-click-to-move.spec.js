@@ -8,8 +8,8 @@
  *   3. Walk speed produces measurable movement in 1.5 s at the new 5.4 m/s rate
  *   4. Zero console errors
  *
- * Note: PIP renderer is budget-gated and won't init in headless Playwright
- * (no GPU → avgMs >> 8.33ms target). PIP check is skipped here.
+ * Note: PIP check is skipped here: headless Playwright has no GPU, so frames run
+ * far over the 16.67ms (60 FPS) frame budget (avgMs >> 16.67ms).
  *
  * Note on raw canvas-click test: in headless mode the camera position/angle
  * varies so the ray→ground plane intersection may land outside the 200 m

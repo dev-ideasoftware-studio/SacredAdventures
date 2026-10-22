@@ -8,6 +8,7 @@
 import {
   V2_PIP_RENDER_EVERY_N_FRAMES,
   V2_ADAPTIVE_PIP_MAX_STRIDE,
+  V2_FRAME_MS_BUDGET,
 } from "../constants.js";
 import {
   getEffectivePipStride,
@@ -22,7 +23,7 @@ import {
 // responsive; 60 Hz panels get full headroom at their vsync ceiling.
 const STRESS_FRAMES_NEED = 40;
 const RELAX_FRAMES_NEED = 90;
-const _FALLBACK_TARGET_MS = 1000 / 60;
+const _FALLBACK_TARGET_MS = V2_FRAME_MS_BUDGET; // the 60 FPS target (constants.js)
 
 let _stressStreak = 0;
 let _relaxStreak = 0;

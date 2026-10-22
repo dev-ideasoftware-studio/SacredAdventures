@@ -113,7 +113,7 @@ export function getFuzzyPipelineSnapshot(orchestrator = null) {
   // Compassionate UI sensor (2026-10-22): the real frame interval includes GPU time
   // and vsync waits, so it sees GPU-bound drops that the CPU frame budget above can't.
   const intervalMs = getRollingAvgIntervalMs();
-  const intervalRatio = intervalMs > 0 ? intervalMs / (1000 / 60) : 0;
+  const intervalRatio = intervalMs > 0 ? intervalMs / V2_FRAME_MS_BUDGET : 0;
   const compassion = typeof window !== "undefined" ? window.AnuUniverse?.compassion?.snapshot?.() ?? null : null;
   pushCandidate(
     candidates,
