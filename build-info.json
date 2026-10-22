@@ -1,9 +1,9 @@
 {
-  "subject": "fix(input): panel input relay no longer depends on unpkg lucide (FND-49)",
-  "isoDate": "2026-10-22T16:14:42+00:00",
+  "subject": "docs(decision-engine): log the FND-49 fix (ATT-40, LOG-25)",
+  "isoDate": "2026-10-22T16:15:03+00:00",
   "branch": "claude/mobile-optimization",
   "swVersion": "?",
-  "commit": "75d4c2a",
+  "commit": "8a6009d",
   "dirty": true,
-  "generatedAt": "2026-10-22T16:14:46.173Z"
+  "generatedAt": "2026-10-22T16:15:06.680Z"
 }
