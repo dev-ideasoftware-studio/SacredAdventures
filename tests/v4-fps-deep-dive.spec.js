@@ -119,7 +119,7 @@ test('v4 sanctuary — FPS forensic deep dive', async ({ page }) => {
   });
 
   // Save the report as an artifact JSON
-  const reportPath = '/Users/Me/.gemini/antigravity/brain/407e6ee5-54c9-49b6-ab39-abd82ab17b24/forensic_fps_report.json';
+  const reportPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'forensic_fps_report.json'));
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
   console.log('\n══════════════════════════════════════════════════════');

@@ -1,9 +1,9 @@
 {
-  "subject": "docs(mobile): add the phased mobile-optimization prompt (source of Phases 0-7)",
-  "isoDate": "2026-10-22T06:59:39+00:00",
-  "branch": "claude/mobile-optimization",
+  "subject": "chore(security): remove all Antigravity hooks (ATT-37)",
+  "isoDate": "2026-10-22T07:04:38+00:00",
+  "branch": "HEAD",
   "swVersion": "?",
-  "commit": "6f9e12a",
+  "commit": "91a99e2",
   "dirty": true,
-  "generatedAt": "2026-10-22T06:59:42.476Z"
+  "generatedAt": "2026-10-22T07:04:41.447Z"
 }

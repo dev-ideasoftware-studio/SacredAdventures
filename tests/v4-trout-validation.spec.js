@@ -142,7 +142,7 @@ test('Validate Sanctuary Trout Jumps, Console Errors and Take Beautiful Screensh
   await page.waitForTimeout(425);
 
   // 8. Take a beautiful screenshot of the sanctuary pool scene
-  const screenshotPath = '/Users/Me/.gemini/antigravity/brain/c19544df-aa45-4610-8528-a657bd3ea47d/sanctuary_trout.png';
+  const screenshotPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'sanctuary_trout.png'));
   console.log(`Taking high-resolution screenshot and saving to ${screenshotPath}...`);
   await page.screenshot({ 
     path: screenshotPath,
@@ -163,7 +163,7 @@ test('Validate Sanctuary Trout Jumps, Console Errors and Take Beautiful Screensh
   expect(fishJumpsStatus.active).toBe(true);
   
   // Save results data report as JSON to the artifact folder
-  const resultsReportPath = '/Users/Me/.gemini/antigravity/brain/c19544df-aa45-4610-8528-a657bd3ea47d/validation_results.json';
+  const resultsReportPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'validation_results.json'));
   const reportData = {
     fishJumpsStatus,
     errors,

@@ -14,6 +14,6 @@ test('screenshot trees and check errors', async ({ page }) => {
   console.log("Errors:", JSON.stringify(errors, null, 2));
   
   console.log("Taking screenshot...");
-  await page.screenshot({ path: '/Users/Me/.gemini/antigravity/brain/7a17a1b8-29f9-4806-bb89-615712158a57/screenshot.png' });
+  await page.screenshot({ path: (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'screenshot.png')) });
   console.log("Screenshot saved!");
 });

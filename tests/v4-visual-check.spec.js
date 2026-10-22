@@ -43,7 +43,7 @@ test('Visual check of restored terrain and animated water ripples', async ({ pag
   // Wait a small moment for rendering to catch up to the viewport change
   await page.waitForTimeout(500);
 
-  const screenshotPath = '/Users/Me/.gemini/antigravity/brain/407e6ee5-54c9-49b6-ab39-abd82ab17b24/screenshot_v4.png';
+  const screenshotPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'screenshot_v4.png'));
   console.log(`Taking high-resolution (1920x1080) screenshot...`);
   await page.screenshot({ 
     path: screenshotPath,
@@ -52,7 +52,7 @@ test('Visual check of restored terrain and animated water ripples', async ({ pag
   console.log(`Screenshot saved to: ${screenshotPath}`);
 
   // Write logs out to a file in the brain folder
-  const reportPath = '/Users/Me/.gemini/antigravity/brain/407e6ee5-54c9-49b6-ab39-abd82ab17b24/telemetry_logs.json';
+  const reportPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'telemetry_logs.json'));
   const reportData = {
     errors,
     warnings,

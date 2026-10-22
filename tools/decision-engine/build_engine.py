@@ -25,6 +25,7 @@ FILES = {f["file"]: f for f in SYS["files"]}
 from datetime import date
 AS_OF = os.environ.get("AS_OF") or date.today().isoformat()  # build date
 SESSION_1 = "2026-10-22"  # fixed date of the first Claude session rows (history must not move)
+SESSION_AG = "2026-10-22"  # Anu falsification review + Antigravity removal session
 SCRATCH = "tools/decision-engine"
 
 # ── evidence locator ─────────────────────────────────────────────────────
@@ -907,6 +908,7 @@ ATTEMPTS = [
     ("ATT-34", SESSION_1, "Coder 1", "Mobile Phase 0", "Measure 6 profiles + online simulation (CDN → vendor, lucide stub)", "Done; findings in PHASE0_BASELINE.md", "docs/mobile/PHASE0_BASELINE.md", "No", "Sandbox (offline) runs hide the panel's 2nd WebGL context — always add the online simulation."),
     ("ATT-35", SESSION_1, "Coder 1", "Mobile Phase 1", "Replace 4 live UA copies with js/v2/deviceProfile.js", "Done; 66/66 equivalence; deterministic 6-profile measurements identical; override works both ways; npm test identical to base", "docs/mobile/PHASE1_REPORT.md", "No", ""),
     ("ATT-36", SESSION_1, "Coder 1", "Measurement", "Diff 'top-15 textures' across runs", "False difference: arbitrary picks at the 4 MB (1024^2) tie line", "docs/mobile/PHASE1_REPORT.md", "Yes", "Compare above-tie entries + size histogram; GPU allocation counts on phones depend on frames rendered (lazy upload)."),
+    ("ATT-37", SESSION_AG, "Claude", "Governance", "Remove all Antigravity hooks (owner directive: Antigravity is no longer used after it attacked the codebase): ANTIGRAVITY_GOVERNANCE rule + its hardcoded-true check, .agents/workflows/agent_mesh_protocol.md (shared agent mailbox), test outputs written into ~/.gemini/antigravity/brain (now test-results/), BuildBadge name match", "Done; check:v2 passes; history (manifesto, tmp/ handoffs, commit log) kept as record", "AnuGovernanceRules.js, tests/v4-*.spec.js, BuildBadge.js", "No", "Do not re-add Antigravity rules, workflows or output paths."),
 ]
 sheet("63_Attempts_Ledger", "L6 Plan", "What was tried, by whom, the result, and whether it must not be retried.", "Before trying a fix — check it has not already failed.",
       "Attempts ledger", "Shared by every agent: append a row for every attempt, success or failure",
@@ -982,6 +984,8 @@ LOG = [
     ("LOG-17", SESSION_1, "NEXT: Mark's go-ahead for mobile Phase 1; decide whether Phase 2 may touch js/components/Component.ThreeIcons.js + SacredGame.Panel.html; coordinate Avatar mobile variant with PLN-20.", "Next", ""),
     ("LOG-18", SESSION_1, "Coder 1: Mobile Phase 1 done — js/v2/deviceProfile.js is the single 'is mobile' source.", "Done", "PLN-23; docs/mobile/PHASE1_REPORT.md"),
     ("LOG-19", SESSION_1, "NEXT: Mobile Phase 2 (approved: may edit Component.ThreeIcons.js + SacredGame.Panel.html; Coder 1 makes the avatar mobile variant; beauty first). Then Phase 3+, then pond cards.", "Next", ""),
+    ("LOG-20", SESSION_AG, "Anu falsification review (ANU_FALSIFICATION_REVIEW.md in the handoff folder): behaviour defects in DPR control, frame timing, fuzzy scores and alerts; always-true and dead checks.", "Done (review)", "ANU_FALSIFICATION_REVIEW.md"),
+    ("LOG-21", SESSION_AG, "Removed every Antigravity hook from code, tests and agent workflows (ATT-37).", "Done (code)", "63_Attempts_Ledger"),
 ]
 sheet("70_Session_Log", "L7 Session", "What was done, in order, and the next step.", "Resuming work.", "Session log", "Newest last",
       ["Log ID", "Date", "What", "State", "Pointer"], [list(l) for l in LOG], [8, 11, 90, 11, 30])

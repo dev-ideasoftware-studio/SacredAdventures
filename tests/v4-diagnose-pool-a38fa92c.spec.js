@@ -52,7 +52,7 @@ test('diagnostic audit for v4 pool', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.waitForTimeout(500);
 
-  const screenshotPath = '/Users/Me/.gemini/antigravity/brain/a38fa92c-a9c8-4756-8f87-37cad531f0b2/screenshot.png';
+  const screenshotPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'screenshot.png'));
   console.log(`Taking screenshot...`);
   await page.screenshot({ path: screenshotPath });
   console.log(`Screenshot saved to: ${screenshotPath}`);
@@ -65,7 +65,7 @@ test('diagnostic audit for v4 pool', async ({ page }) => {
     screenshotPath
   };
 
-  const reportPath = '/Users/Me/.gemini/antigravity/brain/a38fa92c-a9c8-4756-8f87-37cad531f0b2/diagnostic_report.json';
+  const reportPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'diagnostic_report.json'));
   fs.writeFileSync(reportPath, JSON.stringify(results, null, 2));
   console.log("Diagnostic report written successfully.");
 });

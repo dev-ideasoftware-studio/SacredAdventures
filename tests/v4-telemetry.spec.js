@@ -37,7 +37,7 @@ test('sanctuary pool telemetry and screenshot check', async ({ page }) => {
   await page.waitForTimeout(8000);
 
   // Take high-res screenshot
-  const screenshotPath = '/Users/Me/.gemini/antigravity/brain/051b5dff-4c1c-4164-9eea-cd9c8563a6ba/sanctuary_pool_highres.png';
+  const screenshotPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'sanctuary_pool_highres.png'));
   console.log(`Taking high-res screenshot...`);
   
   // Set larger viewport just in case and take screenshot
@@ -49,7 +49,7 @@ test('sanctuary pool telemetry and screenshot check', async ({ page }) => {
   console.log(`Screenshot saved to: ${screenshotPath}`);
 
   // Write logs out to a file so the node runner can capture it
-  const reportPath = '/Users/Me/.gemini/antigravity/scratch/telemetry-results.json';
+  const reportPath = (require('fs').mkdirSync('test-results', { recursive: true }), require('path').join('test-results', 'telemetry-results.json'));
   const reportData = {
     errors,
     warnings,

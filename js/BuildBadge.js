@@ -49,7 +49,7 @@ async function fetchSignature() {
 // Per-agent accent colour for the signature chip.
 function agentColor(name) {
   const n = (name || "").toLowerCase();
-  if (n.includes("gemini") || n.includes("antigravity")) return "#7cc7ff"; // design = blue
+  if (n.includes("gemini")) return "#7cc7ff"; // design = blue
   if (n.includes("4.6") || n.includes("builder")) return "#c79bff";        // builder = violet
   if (n.includes("orchestrator") || n.includes("opus")) return "#7ee0a3";  // orchestrator = green
   return "#f5d77a"; // default gold
