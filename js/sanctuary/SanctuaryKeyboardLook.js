@@ -6,16 +6,15 @@
  * + arrow-key look-around so the player can do what they want every
  * frame instead of one click at a time.
  *
- * Binding (kid-friendly, no caps required, no modifiers):
+ * Binding (Mark, 2026-10-22; Decision Engine DEC-20):
  *
- *   W / ↑    move forward      (toward where the camera is looking, on the XZ plane)
- *   S / ↓    move backward
- *   A        strafe left
- *   D        strafe right
- *   Q        turn yaw left      (also rebinds to bumper-thumb friendly)
- *   E        turn yaw right
- *   ←  →     turn yaw left / right (arrow alternative)
- *   space    jump (tiny vertical hop, kept low so terrain follows clean)
+ *   W / ↑          walk forward (toward where the camera looks); after 2 s it becomes a run
+ *   S / ↓          walk backward
+ *   A / D, ← / →   turn left / right       (Q / E turn too)
+ *   Shift + A / D  strafe left / right     (Shift + ← / → as well)
+ *   space          jump (a small hop; the height is kept here and added after the avatar's
+ *                  own ground snap, so it really leaves the ground)
+ *   PageUp / PageDown / Home  look up / down / level (drag-look)
  *
  * What we drive:
  *   • If `window.__sanctuaryAvatar` exists, we move the AVATAR root.
@@ -41,6 +40,9 @@ const STRAFE_SPEED_MPS = 4.0;
 const TURN_RATE_RAD_PER_S = 2.4;
 const JUMP_VEL_MPS = 4.5;
 const GRAVITY_MPS2 = 14;
+const RUN_AFTER_S = 2.0;      // walking forward this long starts a run (Mark, 2026-10-22)
+const RUN_RAMP_S = 0.5;       // walk → run speed-up time, so it never jerks
+const RUN_SPEED_MULT = 1.6;   // run = 8 m/s from the 5 m/s walk
 const CAMERA_BACK = 5.0;
 const CAMERA_UP = 2.6;
 const CAMERA_LOOK_FWD = 4.0;
@@ -71,6 +73,8 @@ export const SanctuaryKeyboardLookModule = {
   _yaw: Math.PI,         // facing -Z by default; player looks INTO the pool
   _pitch: 0,             // look tilt, + = up; clamped to [PITCH_MIN_RAD, PITCH_MAX_RAD]
   _bodyVy: 0,
+  _jumpY: 0,             // height above the ground during a jump
+  _walkFwdTime: 0,       // seconds of continuous forward walking (for the run)
   _grounded: true,
   _keys: {},
   _onKeyDown: null,
@@ -139,7 +143,7 @@ export const SanctuaryKeyboardLookModule = {
     }
 
     console.log(
-      "%c[Sanctuary] ⌨  Keyboard look online — WASD + arrows. Q/E or arrows turn. Space jumps.",
+      "%c[Sanctuary] ⌨  Keyboard online — W/S walk (run after 2 s), A/D or arrows turn, Shift+A/D strafe, Space jumps.",
       "color:#a5d6a7;font-weight:bold;",
     );
   },
@@ -159,9 +163,13 @@ export const SanctuaryKeyboardLookModule = {
     }
     const k = this._keys;
 
-    // Turn (yaw)
-    if (k["q"] || k["arrowleft"])  this._yaw += TURN_RATE_RAD_PER_S * delta;
-    if (k["e"] || k["arrowright"]) this._yaw -= TURN_RATE_RAD_PER_S * delta;
+    // Turn and strafe (Mark, 2026-10-22): A / D, ← / → and Q / E turn. Hold Shift and
+    // A / D (or ← / →) to strafe instead; Q / E always turn.
+    const strafing = !!k["shift"];
+    const leftKey = !!(k["a"] || k["arrowleft"]);
+    const rightKey = !!(k["d"] || k["arrowright"]);
+    if (k["q"] || (leftKey && !strafing))  this._yaw += TURN_RATE_RAD_PER_S * delta;
+    if (k["e"] || (rightKey && !strafing)) this._yaw -= TURN_RATE_RAD_PER_S * delta;
 
     // Mobile Virtual Joystick Yaw Deflection (turn left/right)
     if (typeof window !== "undefined" && window.__sanctuaryJoystickInput) {
@@ -209,9 +217,9 @@ export const SanctuaryKeyboardLookModule = {
     let mvX = 0, mvZ = 0;
     if (k["w"] || k["arrowup"])   { mvX += fwdX; mvZ += fwdZ; }
     if (k["s"] || k["arrowdown"]) { mvX -= fwdX; mvZ -= fwdZ; }
-    if (k["a"])                   { mvX -= rightX * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS);
+    if (strafing && leftKey)      { mvX -= rightX * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS);
                                     mvZ -= rightZ * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS); }
-    if (k["d"])                   { mvX += rightX * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS);
+    if (strafing && rightKey)     { mvX += rightX * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS);
                                     mvZ += rightZ * (STRAFE_SPEED_MPS / MOVE_SPEED_MPS); }
 
     // Mobile Virtual Joystick Vertical Deflection (walk forward/backward)
@@ -224,12 +232,21 @@ export const SanctuaryKeyboardLookModule = {
       }
     }
 
+    // Walking forward (keys or joystick) for RUN_AFTER_S starts a run; stopping resets it.
+    const joy = (typeof window !== "undefined") ? window.__sanctuaryJoystickInput : null;
+    const forwardHeld = !!(k["w"] || k["arrowup"]) || !!(joy && joy.y < -0.05);
+    const backHeld = !!(k["s"] || k["arrowdown"]);
+    if (forwardHeld && !backHeld) this._walkFwdTime += delta;
+    else this._walkFwdTime = 0;
+    const runK = Math.max(0, Math.min(1, (this._walkFwdTime - RUN_AFTER_S) / RUN_RAMP_S));
+    const speed = MOVE_SPEED_MPS * (1 + (RUN_SPEED_MULT - 1) * runK);
+
     const mvLen = Math.hypot(mvX, mvZ);
     if (mvLen > 0) {
       const nx = mvX / mvLen;
       const nz = mvZ / mvLen;
-      body.position.x += nx * MOVE_SPEED_MPS * delta;
-      body.position.z += nz * MOVE_SPEED_MPS * delta;
+      body.position.x += nx * speed * delta;
+      body.position.z += nz * speed * delta;
     }
 
     // Vertical — jump + gravity on the avatar; camera fall-through gets
@@ -248,15 +265,17 @@ export const SanctuaryKeyboardLookModule = {
     }
     if (!this._grounded) {
       this._bodyVy -= GRAVITY_MPS2 * delta;
-      body.position.y += this._bodyVy * delta;
-      if (body.position.y <= groundY) {
-        body.position.y = groundY;
+      this._jumpY += this._bodyVy * delta;
+      if (this._jumpY <= 0) {
+        this._jumpY = 0;
         this._bodyVy = 0;
         this._grounded = true;
       }
-    } else {
-      body.position.y = groundY;
     }
+    // Absolute, not relative: SanctuaryAvatar re-snaps the body to the ground earlier in every
+    // frame (its update(), `cur.y = sanctuaryBodyY(...)`), so the jump height is kept here and
+    // added last. Before 2026-10-22 the jump restarted from the ground each frame (a ~7 cm twitch).
+    body.position.y = groundY + this._jumpY;
 
     // Publish yaw so SanctuaryAvatar's update() (which reads
     // `window.__sanctuaryPlayerYaw`) keeps the rig facing the right way.

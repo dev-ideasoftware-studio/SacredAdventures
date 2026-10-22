@@ -48,6 +48,9 @@ const GROUND_LIFT_M = 0.08;
 const TRAIL_LEAD_M = 1.2;
 const WALK_SPEED_MPS = 5.4; // +20% vs original 4.5 m/s
 const ARRIVE_TOLERANCE_M = 0.45;
+const RUN_AFTER_S = 2.0;      // a click-walk this long becomes a run (Mark, 2026-10-22)
+const RUN_RAMP_S = 0.5;
+const RUN_SPEED_MULT = 1.6;
 
 const GOLD = 0xfbc02d;
 
@@ -431,6 +434,7 @@ export const SanctuaryClickToMoveModule = {
     // Step the body along the path.
     const body = this._body;
     if (!body?.position || !this._goal) {
+      this._walkTime = 0;
       this._clearAllPrints();
       return;
     }
@@ -453,7 +457,10 @@ export const SanctuaryClickToMoveModule = {
     const dirZ = dz / dist;
 
     // Step the body by WALK_SPEED_MPS * delta toward the goal.
-    const stepDist = Math.min(WALK_SPEED_MPS * delta, dist - ARRIVE_TOLERANCE_M * 0.5);
+    this._walkTime = (this._walkTime || 0) + delta;
+    const runK = Math.max(0, Math.min(1, (this._walkTime - RUN_AFTER_S) / RUN_RAMP_S));
+    const speed = WALK_SPEED_MPS * (1 + (RUN_SPEED_MULT - 1) * runK);
+    const stepDist = Math.min(speed * delta, dist - ARRIVE_TOLERANCE_M * 0.5);
     body.position.x += dirX * stepDist;
     body.position.z += dirZ * stepDist;
     // Sample terrain so the body / camera tracks the ground rather than

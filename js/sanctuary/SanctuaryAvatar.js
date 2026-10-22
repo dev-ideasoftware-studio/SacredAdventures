@@ -664,7 +664,10 @@ export const SanctuaryAvatarModule = {
       if (this._walkAction) {
         if (walkW > 0.005) {
           _activate(this._walkAction, walkW);
-          this._walkAction.setEffectiveTimeScale(0.85 + Math.min(1.6, this._smoothSpeed / 1.0));
+          // Running (walking > 2 s speeds up to ~8 m/s, Mark 2026-10-22) lifts the cap so the legs
+          // keep up instead of sliding. There's no run clip; walk speeds (5–5.4 m/s) are unchanged.
+          const legCap = 1.6 + Math.max(0, Math.min(1.2, (this._smoothSpeed - 5.6) * 0.5));
+          this._walkAction.setEffectiveTimeScale(0.85 + Math.min(legCap, this._smoothSpeed / 1.0));
         } else {
           _deactivate(this._walkAction);
         }
