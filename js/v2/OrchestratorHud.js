@@ -31,7 +31,10 @@ import { getRuntimeService } from "./RuntimeServices.js";
 
 /** HUD HTML — kept as a constant so a future reskin doesn't have to rebuild the function. */
 export const ORCHESTRATOR_HUD_HTML = `
-      <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:6px;">-- FPS</div>
+      <div id="v2-fps-row" style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <img id="v2-hud-logo" src="./Assets/SacredOnes.Logo.160.png" width="160" height="160" alt="" aria-hidden="true" decoding="async" style="flex:0 0 auto;width:37px;height:37px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+        <div id="v2-fps" style="font-size:30px;font-weight:700;color:#a5d6a7;line-height:1;margin-bottom:0;">-- FPS</div>
+      </div>
       <div id="v2-frame-graph-wrap" style="position:relative;width:204px;height:46px;margin-bottom:8px;border-radius:9px;padding:3px;box-sizing:border-box;background:linear-gradient(160deg, #0a0603 0%, #1a0f06 50%, #060300 100%);box-shadow:inset 2px 2px 5px rgba(0,0,0,0.95), inset -1px -1px 2px rgba(251,192,45,0.10), 0 1px 0 rgba(255,220,100,0.06), 0 -1px 0 rgba(0,0,0,0.6);">
         <canvas id="v2-frame-graph" width="198" height="40" style="display:block;width:198px;height:40px;border-radius:6px;background:transparent;"></canvas>
         <div id="v2-load" style="position:absolute;left:8px;top:5px;font-size:9px;letter-spacing:1.4px;color:rgba(255,248,220,0.92);font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7);pointer-events:none;">LOAD --%</div>
@@ -121,7 +124,9 @@ export function buildOrchestratorHud() {
           max-height: min(380px, calc(100vh - 24px)) !important;
         }
         #v2-orchestrator-hud #v2-hud-title { font-size: 6.5px !important; letter-spacing: 1.4px !important; margin-bottom: 7px !important; }
-        #v2-orchestrator-hud #v2-fps { font-size: 21px !important; margin-bottom: 4px !important; }
+        #v2-orchestrator-hud #v2-fps { font-size: 21px !important; margin-bottom: 0 !important; }
+        #v2-orchestrator-hud #v2-fps-row { gap: 7px !important; margin-bottom: 4px !important; }
+        #v2-orchestrator-hud #v2-hud-logo { width: 26px !important; height: 26px !important; }
         #v2-orchestrator-hud #v2-frame-graph-wrap {
           width: 142px !important; height: 32px !important;
           padding: 2px !important; margin-bottom: 6px !important;

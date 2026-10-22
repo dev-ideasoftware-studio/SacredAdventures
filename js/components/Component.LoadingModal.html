@@ -55,10 +55,14 @@
             position: fixed;
             left: 50%;
             transform: translateX(-50%);
-            bottom: 50px;
-            width: 400px;
-            min-height: 280px;
-            padding: 25px;
+            /* Fluid: never wider than the screen minus a 16 px gutter each side,
+               never taller than the screen; desktop keeps 400 px / 280 px. */
+            bottom: clamp(16px, 6vh, 50px);
+            width: min(400px, calc(100vw - 32px));
+            min-height: min(280px, calc(100vh - 32px));
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+            padding: clamp(16px, 5vw, 25px);
             background: linear-gradient(180deg, rgba(40, 26, 20, 0.95), rgba(15, 10, 8, 0.98));
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
@@ -92,6 +96,30 @@
             margin: 0 0 5px 0;
             text-align: center;
         }
+        /* Brand row: small Sacred Ones logo on the left of the title block. */
+        .loading-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .loading-logo {
+            flex: 0 0 auto;
+            width: 66px;
+            height: 66px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.55));
+        }
+        .loading-brand-text {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .loading-brand .loading-title,
+        .loading-brand .loading-subline {
+            text-align: left;
+        }
+        .loading-brand .loading-subline {
+            margin-bottom: 0;
+        }
+
         .loading-subline {
             font-family: 'Outfit', sans-serif;
             font-size: 0.68rem;
@@ -208,6 +236,13 @@
             animation: slotScroll 30s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;
         }
 
+        /* Small phones: smaller logo + title so the brand row keeps room. */
+        @media (max-width: 480px) {
+            .loading-logo { width: 54px; height: 54px; }
+            .loading-brand { gap: 10px; }
+            .loading-title { font-size: 1.15rem; letter-spacing: 1.5px; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             #loading, #loading-video, .loading-bar {
                 transition: none;
@@ -226,9 +261,13 @@
 
         <div class="loading-modal" role="status" aria-live="polite" aria-label="Game loading progress">
             <div class="loading-content-box">
-                <div>
+                <div class="loading-brand">
+                    <img class="loading-logo" src="../../Assets/SacredOnes.Logo.160.png"
+                         width="160" height="160" alt="Sacred Ones logo" decoding="async">
+                    <div class="loading-brand-text">
                     <h1 class="loading-title">Sacred Adventures</h1>
                     <p class="loading-subline">v2 engine · Simulation Universe</p>
+                    </div>
                 </div>
 
                 <div class="diag-row">

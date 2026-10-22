@@ -71,11 +71,14 @@ function _injectStylesOnce() {
       top: 50%;                                 /* perfect vertical center */
       left: 50%;                                /* perfect horizontal center */
       transform: translate(-50%, -50%);
-      width: min(560px, calc(100vw - 60px));
+      /* Fluid: border-box so padding + border count inside the width (it used to
+       * overflow narrow phones by 2 px). 626 px = the old 560 content + padding. */
+      box-sizing: border-box;
+      width: min(626px, calc(100vw - 32px));
       max-height: 90vh;                         /* protect small viewports */
       overflow-y: auto;                         /* scroll when content overflows */
       z-index: 2147483600;                      /* near MAX_INT32 */
-      padding: 28px 32px 24px;
+      padding: clamp(20px, 4vw, 28px) clamp(16px, 5vw, 32px) clamp(16px, 3.5vw, 24px);
       border-radius: 22px;
       pointer-events: auto;
       user-select: none;
@@ -140,11 +143,36 @@ function _injectStylesOnce() {
       letter-spacing: 0.5px;
     }
 
+    /* Logo row: Sacred Ones logo on the left of the step title + body. Its size is
+     * set per step by _fitLogo() to match the height of the title + body text;
+     * 92 px is only the fallback before the first measurement. */
+    #sanctuary-welcome-guide .swg-main {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      text-align: left;
+    }
+    #sanctuary-welcome-guide .swg-logo {
+      flex: 0 0 auto;
+      width: 92px;
+      height: 92px;
+      margin-top: 4px;                          /* same as .swg-title's top margin */
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
+    }
+    #sanctuary-welcome-guide .swg-text {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    #sanctuary-welcome-guide .swg-main .swg-body {
+      margin-left: 0;
+    }
+
     /* Footer row: dots · skip · next */
     #sanctuary-welcome-guide .swg-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;                          /* very narrow phones: wrap, never clip */
       gap: 12px;
       margin-top: 8px;
     }
@@ -293,10 +321,10 @@ function _injectStylesOnce() {
         bottom: auto;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: calc(100vw - 40px);
+        width: min(626px, calc(100vw - 24px));  /* tablets: no wider than desktop */
         max-height: 90vh;
         overflow-y: auto;
-        padding: 22px 20px 18px;
+        padding: 22px 16px 16px;
         border-radius: 18px;
       }
       #sanctuary-welcome-guide.is-hidden {
@@ -315,6 +343,15 @@ function _injectStylesOnce() {
       #sanctuary-welcome-guide .swg-skip  { padding: 7px 16px; font-size: 12px; }
       #sanctuary-welcome-guide .swg-next  { padding: 8px 18px; font-size: 13px; }
       #sanctuary-welcome-guide .swg-dot   { width: 6px; height: 6px; }
+      #sanctuary-welcome-guide .swg-main  { gap: 12px; }
+      #sanctuary-welcome-guide .swg-footer { gap: 8px; }
+      #sanctuary-welcome-guide .swg-prev  { padding: 7px 12px; font-size: 12px; }
+    }
+    @media (max-width: 360px) {
+      #sanctuary-welcome-guide .swg-dots  { width: 100%; justify-content: center; }
+      #sanctuary-welcome-guide .swg-prev,
+      #sanctuary-welcome-guide .swg-skip,
+      #sanctuary-welcome-guide .swg-next  { flex: 1 1 0; padding-left: 8px; padding-right: 8px; }
     }
   `;
   document.head.appendChild(st);
@@ -339,8 +376,14 @@ export const SanctuaryWelcomeGuideModule = {
     root.setAttribute("aria-label", "Welcome Guide");
     root.innerHTML = `
       <div class="swg-pill">WELCOME GUIDE</div>
-      <div class="swg-title"   data-swg-title>—</div>
-      <div class="swg-body"    data-swg-body>—</div>
+      <div class="swg-main">
+        <img class="swg-logo" src="./Assets/SacredOnes.Logo.160.png" width="160" height="160"
+             alt="" aria-hidden="true" decoding="async">
+        <div class="swg-text">
+          <div class="swg-title"   data-swg-title>—</div>
+          <div class="swg-body"    data-swg-body>—</div>
+        </div>
+      </div>
       <div class="swg-footer">
         <div class="swg-dots" data-swg-dots></div>
         <button type="button" class="swg-prev" data-swg-prev aria-label="Previous step"><span style="margin-right:4px">←</span> Prev</button>
@@ -382,6 +425,10 @@ export const SanctuaryWelcomeGuideModule = {
     });
 
     // Keyboard
+    // Re-fit the logo once web fonts land (Fredoka changes line breaks) and on resize.
+    try { document.fonts?.ready?.then(() => this._fitLogo()); } catch (_e) {}
+    window.addEventListener("resize", () => this._fitLogo());
+
     window.addEventListener("keydown", (e) => {
       if (this._root?.classList.contains("is-hidden")) return;
       if (e.key === "Escape") { e.preventDefault(); this._close(); }
@@ -431,6 +478,33 @@ export const SanctuaryWelcomeGuideModule = {
     // Prev disabled on step 0 (hidden via [data-swg-disabled="1"] CSS).
     const prevBtn = this._root.querySelector("[data-swg-prev]");
     if (prevBtn) prevBtn.setAttribute("data-swg-disabled", this._step === 0 ? "1" : "0");
+
+    this._fitLogo();
+  },
+
+  /**
+   * Size the logo to the visual height of the tip: from the top of the title to
+   * the bottom of the last body line. The logo's width narrows the text column,
+   * which can add a line, so re-measure until it settles (2–3 passes). Capped at
+   * 30 % of the row width so the text keeps room on narrow phones.
+   */
+  _fitLogo() {
+    const root = this._root;
+    if (!root) return;
+    const main = root.querySelector(".swg-main");
+    const logo = root.querySelector(".swg-logo");
+    const title = root.querySelector("[data-swg-title]");
+    const body = root.querySelector("[data-swg-body]");
+    if (!main || !logo || !title || !body) return;
+    let size = 0;
+    for (let i = 0; i < 4; i++) {
+      const textH = Math.round(body.getBoundingClientRect().bottom - title.getBoundingClientRect().top);
+      const cap = Math.round(main.clientWidth * 0.3);
+      const next = Math.max(56, Math.min(textH, cap));
+      if (!(next > 0) || next === size) break;
+      size = next;
+      logo.style.width = logo.style.height = size + "px";
+    }
   },
 
   _next() {
